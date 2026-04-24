@@ -1,7 +1,19 @@
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Tea Master HUB",
+  description: "Система обучения сотрудников",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="ru">
-      <body style={{ margin: 0, backgroundColor: '#f5f5f5', fontFamily: 'sans-serif' }}>
+      <body>
         {children}
       </body>
     </html>
