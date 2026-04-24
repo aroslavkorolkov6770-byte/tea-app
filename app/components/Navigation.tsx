@@ -24,26 +24,24 @@ export default function Navigation() {
       setShowLoginModal(false);
       router.push('/tasks');
     } else {
-      alert("Неверные данные");
+      alert("Вход: 1 и 1");
     }
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem('isLoggedIn');
-    router.push('/');
   };
 
   return (
     <>
-      <header style={headerStyle}>
-        <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={burgerButtonStyle}>{isMenuOpen ? '✕' : '☰'}</button>
+      {/* КНОПКА ВХОДА ЦЕНТРИРОВАННАЯ СВЕРХУ */}
+      <header style={headerCenterStyle}>
+        <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={bigBurgerStyle}>
+          {isMenuOpen ? '✕' : '☰ ВХОД'}
+        </button>
+        
         {isMenuOpen && (
-          <div style={menuDropdownStyle}>
+          <div style={menuDropdownCenterStyle}>
             {!isLoggedIn ? (
-              <button onClick={() => {setShowLoginModal(true); setIsMenuOpen(false)}} style={menuItemStyle}>🔑 Войти</button>
+              <button onClick={() => {setShowLoginModal(true); setIsMenuOpen(false)}} style={menuItemStyle}>🔑 Авторизация</button>
             ) : (
-              <button onClick={() => {handleLogout(); setIsMenuOpen(false)}} style={{...menuItemStyle, color: '#ff7675'}}>Выйти</button>
+              <button onClick={() => {setIsLoggedIn(false); localStorage.removeItem('isLoggedIn'); router.push('/'); setIsMenuOpen(false)}} style={{...menuItemStyle, color: '#ff7675'}}>Выйти</button>
             )}
             <Link href="/admin" onClick={() => setIsMenuOpen(false)} style={menuItemStyle}>⚙️ Настройки</Link>
           </div>
@@ -53,11 +51,11 @@ export default function Navigation() {
       {showLoginModal && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
-            <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Авторизация</h2>
-            <input type="text" placeholder="Логин (1)" value={login} onChange={(e) => setLogin(e.target.value)} style={inputStyle} />
-            <input type="password" placeholder="Пароль (1)" value={pass} onChange={(e) => setPass(e.target.value)} style={inputStyle} />
+            <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#fff' }}>Доступ сотрудника</h2>
+            <input type="text" placeholder="Логин" value={login} onChange={(e) => setLogin(e.target.value)} style={inputStyle} />
+            <input type="password" placeholder="Пароль" value={pass} onChange={(e) => setPass(e.target.value)} style={inputStyle} />
             <button onClick={handleLogin} style={loginButtonStyle}>Войти</button>
-            <button onClick={() => setShowLoginModal(false)} style={{ background: 'none', border: 'none', color: '#444', width: '100%', marginTop: '15px' }}>Закрыть</button>
+            <button onClick={() => setShowLoginModal(false)} style={{ background: 'none', border: 'none', color: '#666', width: '100%', marginTop: '15px' }}>Закрыть</button>
           </div>
         </div>
       )}
@@ -80,14 +78,47 @@ export default function Navigation() {
   );
 }
 
-// ИСПРАВЛЕННЫЕ СТИЛИ (добавлено "as const")
-const headerStyle = { position: 'fixed' as const, top: 0, width: '100%', height: '70px', display: 'flex', justifyContent: 'flex-end' as const, alignItems: 'center', padding: '0 60px', zIndex: 1000 };
-const burgerButtonStyle = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', width: '45px', height: '45px', borderRadius: '12px', cursor: 'pointer', color: '#fff', fontSize: '20px' };
-const menuDropdownStyle = { position: 'absolute' as const, top: '80px', right: '60px', backgroundColor: '#161816', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', width: '200px', overflow: 'hidden', border: '1px solid #222' };
-const menuItemStyle = { padding: '16px', border: 'none', background: 'none', width: '100%', textAlign: 'left' as const, color: '#fff', fontSize: '14px', borderBottom: '1px solid #222', display: 'block', textDecoration: 'none' };
-const navBarStyle = { position: 'fixed' as const, bottom: '25px', left: '20px', right: '20px', height: '75px', backgroundColor: 'rgba(22, 24, 22, 0.95)', backdropFilter: 'blur(15px)', borderRadius: '25px', display: 'flex', border: '1px solid #222', zIndex: 999 };
+// НОВЫЕ ЦЕНТРИРОВАННЫЕ СТИЛИ
+const headerCenterStyle = { 
+  position: 'fixed' as const, 
+  top: '30px', 
+  left: 0, 
+  width: '100%', 
+  display: 'flex', 
+  justifyContent: 'center', 
+  zIndex: 10000 
+};
+
+const bigBurgerStyle = { 
+  background: '#4CAF50', 
+  color: 'white', 
+  border: '4px solid white', 
+  padding: '10px 25px', 
+  borderRadius: '50px', 
+  fontSize: '18px', 
+  fontWeight: 'bold' as const, 
+  cursor: 'pointer',
+  boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px'
+};
+
+const menuDropdownCenterStyle = { 
+  position: 'absolute' as const, 
+  top: '70px', 
+  backgroundColor: '#161816', 
+  borderRadius: '20px', 
+  boxShadow: '0 10px 40px rgba(0,0,0,0.8)', 
+  width: '220px', 
+  overflow: 'hidden', 
+  border: '1px solid #333' 
+};
+
+const menuItemStyle = { padding: '18px', border: 'none', background: 'none', width: '100%', textAlign: 'left' as const, color: '#fff', fontSize: '15px', borderBottom: '1px solid #222', display: 'block', textDecoration: 'none' };
+const navBarStyle = { position: 'fixed' as const, bottom: '25px', left: '20px', right: '20px', height: '75px', backgroundColor: 'rgba(22, 24, 22, 0.95)', backdropFilter: 'blur(15px)', borderRadius: '25px', display: 'flex', border: '1px solid #222', zIndex: 9998 };
 const navItemStyle = { flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: '5px', fontSize: '10px', fontWeight: 'bold', textDecoration: 'none' };
-const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 };
-const modalContentStyle = { background: '#161816', padding: '35px', borderRadius: '30px', width: '300px', border: '1px solid #333' };
-const inputStyle = { width: '100%', padding: '15px', marginBottom: '12px', borderRadius: '12px', background: '#222', border: '1px solid #333', color: '#fff', boxSizing: 'border-box' as const };
-const loginButtonStyle = { width: '100%', padding: '16px', borderRadius: '15px', background: '#4CAF50', border: 'none', color: '#fff', fontWeight: 'bold', cursor: 'pointer' };
+const modalOverlayStyle = { position: 'fixed' as const, top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001 };
+const modalContentStyle = { background: '#161816', padding: '35px', borderRadius: '35px', width: '300px', border: '1px solid #333' };
+const inputStyle = { width: '100%', padding: '15px', marginBottom: '12px', borderRadius: '15px', background: '#222', border: '1px solid #333', color: '#fff', boxSizing: 'border-box' as const };
+const loginButtonStyle = { width: '100%', padding: '18px', borderRadius: '18px', background: '#4CAF50', border: 'none', color: '#fff', fontWeight: 'bold' as const, cursor: 'pointer' };
