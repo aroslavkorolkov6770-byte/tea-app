@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  devIndicators: {
-    appIsrStatus: false, // Это убирает тот самый кружок с буквой N
-  },
+  /* здесь могут быть другие настройки, если они есть */
 };
 
 export default nextConfig;
