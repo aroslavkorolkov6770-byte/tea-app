@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import Navigation from '@/app/components/Navigation';
-// Универсальный путь к базе (папка lib в корне)
-import { supabase } from '@/lib/supabaseClient';
+import Navigation from '../components/Navigation';
+// ИСПОЛЬЗУЕМ ОТНОСИТЕЛЬНЫЙ ПУТЬ ДЛЯ СТАБИЛЬНОСТИ НА VPS
+import { supabase } from '../../lib/supabaseClient';
 
 interface Tea {
   id: number;

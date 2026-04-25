@@ -1,8 +1,9 @@
 "use client";
-// Исправлено: объединены импорты в одну строку
 import React, { useState, useEffect } from 'react';
-import Navigation from '@/app/components/Navigation';
-import { supabase } from '@/lib/supabaseClient';
+// ИСПРАВЛЕНО: Правильный путь из подпапки search в папку app/components
+import Navigation from '../components/Navigation';
+// ИСПРАВЛЕНО: Правильный путь из подпапки search в корневую папку lib
+import { supabase } from '../../lib/supabaseClient';
 
 interface Tea {
   id: number;
@@ -17,6 +18,7 @@ interface Tea {
   isDayTea?: boolean;
 }
 
+// ПОЛНАЯ БАЗА (15 СОРТОВ) ДЛЯ РЕЗЕРВА
 const INITIAL_TEA_DATABASE: Tea[] = [
   { id: 1, name: "Лунцзин", type: "Зеленый", category: "Зеленый чай", strength: "Мягкий", info: "75°C", summary: "Ореховый профиль, семечки.", desc: "Классика из Ханчжоу. Нежный весенний вкус.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800" },
   { id: 2, name: "Би Ло Чунь", type: "Зеленый", category: "Зеленый чай", strength: "Средний", info: "80°C", summary: "Цветочный аромат.", desc: "Скрученные спиралью почки с нежным ворсом.", img: "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=800" },
@@ -153,7 +155,7 @@ export default function SearchPage() {
 
             <div style={{ display: 'grid', gap: '15px' } as any}>
               {loading ? (
-                <p style={{ textAlign: 'center', color: '#444' }}>Загрузка базы из облака...</p>
+                <p style={{ textAlign: 'center', color: '#444' }}>Загрузка базы...</p>
               ) : (
                 filteredTeas.map(tea => (
                   <div 
