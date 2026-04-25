@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation';
-// ПУТЬ: Одна пара точек, чтобы выйти из app в корень к lib
-import { supabase } from '../lib/supabaseClient';
+// ПУТЬ ИСПРАВЛЕН: lib находится внутри папки app
+import { supabase } from './lib/supabaseClient';
 
 interface Tea {
   id: number;
@@ -45,15 +45,19 @@ export default function Home() {
         <section style={{ height: '90vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '40px' } as any}>
           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundImage: 'url("https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=1200")', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3)' } as any} />
           <div style={{ position: 'relative', textAlign: 'center', zIndex: 10 }}>
-            <h1 style={{ fontSize: '48px', fontWeight: '900', color: '#fff', margin: 0, letterSpacing: '-2px', textTransform: 'uppercase' } as any}>
-              Tea Master <span style={{ color: '#4CAF50' }}>Store</span>
-            </h1>
-            <p style={{ color: '#aaa', letterSpacing: '4px', fontSize: '12px', marginTop: '15px' }}>Искусство в каждой капле</p>
+            <h1 style={{ fontSize: '48px', fontWeight: '900', color: '#fff', margin: 0, letterSpacing: '-2px', textTransform: 'uppercase' } as any}>Tea Master <span style={{ color: '#4CAF50' }}>Store</span></h1>
+            <p style={{ color: '#aaa', letterSpacing: '4px', fontSize: '12px', marginTop: '15px', fontWeight: '300' }}>Искусство в каждой капле</p>
           </div>
         </section>
+
+        <section style={{ padding: '0 25px 60px 25px' } as any}>
+          <h2 style={{ fontSize: '14px', color: '#4CAF50', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '20px' }}>Наша философия</h2>
+          <p style={{ fontSize: '22px', lineHeight: '1.6', fontWeight: '500', color: '#fff', marginBottom: '30px' }}>«Мы создаем пространство, где время замирает. Каждая чашка — это не просто напиток, а ритуал, соединяющий древние традиции с ритмом большого города.»</p>
+        </section>
+
         {dayTea && (
           <section style={{ padding: '0 25px', marginBottom: '60px' } as any}>
-             <div style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '40px', borderRadius: '40px', border: '1px solid #4CAF50' } as any}>
+             <div style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '40px', borderRadius: '40px', border: '1px solid #4CAF50', boxShadow: '0 20px 40px rgba(0,0,0,0.4)' } as any}>
                 <span style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '14px' }}>⭐ РЕКОМЕНДАЦИЯ ДНЯ</span>
                 <h3 style={{ fontSize: '36px', color: '#fff', margin: '15px 0' }}>{dayTea.name}</h3>
                 <p style={{ color: '#aaa', fontSize: '18px', lineHeight: '1.6' }}>{dayTea.summary}</p>
@@ -61,6 +65,7 @@ export default function Home() {
           </section>
         )}
       </main>
+      <style jsx global>{` body { margin: 0; padding: 0; background-color: #0d0f0d; } `}</style>
     </div>
   );
 }
