@@ -15,7 +15,7 @@ export default function Navigation() {
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
 
-  // Проверка авторизации при загрузке
+  // Проверка авторизации при загрузке страницы
   useEffect(() => {
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
@@ -26,7 +26,7 @@ export default function Navigation() {
   }, []);
 
   const handleLogin = () => {
-    // ЛОГИКА АДМИНА
+    // 1. ВХОД ДЛЯ АДМИНА
     if (login === "11" && pass === "11") {
       setIsLoggedIn(true);
       setUserRole('admin');
@@ -34,9 +34,9 @@ export default function Navigation() {
       localStorage.setItem('userRole', 'admin');
       setShowLoginModal(false);
       setLogin(""); setPass("");
-      router.push('/admin'); // Перенаправляем в админку
+      router.push('/admin');
     } 
-    // ЛОГИКА СОТРУДНИКА
+    // 2. ВХОД ДЛЯ СОТРУДНИКА
     else if (login === "1" && pass === "1") {
       setIsLoggedIn(true);
       setUserRole('staff');
@@ -44,10 +44,10 @@ export default function Navigation() {
       localStorage.setItem('userRole', 'staff');
       setShowLoginModal(false);
       setLogin(""); setPass("");
-      router.push('/tasks'); // Перенаправляем в задачи
+      router.push('/tasks');
     } 
     else {
-      alert("Неверный логин или пароль");
+      alert("Неверный логин или пароль! (Админ: 11/11, Сотрудник: 1/1)");
     }
   };
 
@@ -62,7 +62,7 @@ export default function Navigation() {
 
   return (
     <>
-      {/* ВЕРХНЯЯ ШАПКА С КНОПКОЙ ВХОДА */}
+      {/* ШАПКА САЙТА */}
       <header style={headerCenterStyle as any}>
         <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={bigBurgerStyle as any}>
           {isMenuOpen ? '✕' : '☰ МЕНЮ'}
@@ -76,11 +76,11 @@ export default function Navigation() {
               </div>
             ) : (
               <>
-                <div style={{...menuItemStyle, color: '#4CAF50', fontSize: '12px'} as any}>
+                <div style={{...menuItemStyle, color: '#4CAF50', fontSize: '12px', cursor: 'default'} as any}>
                   Статус: {userRole === 'admin' ? 'Администратор' : 'Сотрудник'}
                 </div>
                 
-                {/* ПАНЕЛЬ УПРАВЛЕНИЯ ТОЛЬКО ДЛЯ АДМИНА */}
+                {/* ПАНЕЛЬ УПРАВЛЕНИЯ — ВИДНА ТОЛЬКО АДМИНУ */}
                 {userRole === 'admin' && (
                   <Link href="/admin" onClick={() => setIsMenuOpen(false)} style={menuItemStyle as any}>
                     ⚙️ Панель управления
@@ -88,7 +88,7 @@ export default function Navigation() {
                 )}
 
                 <div onClick={handleLogout} style={{...menuItemStyle, color: '#ff7675'} as any}>
-                  Выйти
+                  Выйти из системы
                 </div>
               </>
             )}
@@ -96,11 +96,11 @@ export default function Navigation() {
         )}
       </header>
 
-      {/* МОДАЛЬНОЕ ОКНО ВХОДА */}
+      {/* МОДАЛКА ЛОГИНА */}
       {showLoginModal && (
         <div style={modalOverlayStyle as any}>
           <div style={modalContentStyle as any}>
-            <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#fff' }}>Доступ к системе</h2>
+            <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff' }}>Вход в HUB</h2>
             <input 
               type="text" 
               placeholder="Логин" 
@@ -116,18 +116,18 @@ export default function Navigation() {
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
               style={inputStyle as any} 
             />
-            <div onClick={handleLogin} style={loginButtonStyle as any}>Войти</div>
+            <div onClick={handleLogin} style={loginButtonStyle as any}>ВОЙТИ</div>
             <div 
               onClick={() => setShowLoginModal(false)} 
-              style={{ textAlign: 'center', color: '#666', marginTop: '15px', cursor: 'pointer', fontSize: '14px' }}
+              style={{ textAlign: 'center', color: '#666', marginTop: '20px', cursor: 'pointer', fontSize: '14px' }}
             >
-              Закрыть
+              Отмена
             </div>
           </div>
         </div>
       )}
 
-      {/* НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (КАПСУЛА) */}
+      {/* НИЖНЯЯ НАВИГАЦИЯ (КАПСУЛА) */}
       {isLoggedIn && (
         <nav style={navBarStyle as any}>
           {[
@@ -146,7 +146,7 @@ export default function Navigation() {
   );
 }
 
-// --- СТИЛИ (С ТИПИЗАЦИЕЙ ANY ДЛЯ СТАБИЛЬНОСТИ) ---
+// --- СТИЛИ КОМПОНЕНТА ---
 
 const headerCenterStyle = { 
   position: 'fixed', top: '30px', left: 0, width: '100%', 
@@ -157,13 +157,13 @@ const bigBurgerStyle = {
   background: '#4CAF50', color: 'white', border: '4px solid white', 
   padding: '10px 25px', borderRadius: '50px', fontSize: '16px', 
   fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', 
-  display: 'flex', alignItems: 'center', gap: '10px', transition: '0.3s' 
+  display: 'flex', alignItems: 'center', gap: '10px' 
 };
 
 const menuDropdownCenterStyle = { 
   position: 'absolute', top: '70px', backgroundColor: '#161816', 
   borderRadius: '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.8)', 
-  width: '220px', overflow: 'hidden', border: '1px solid #333' 
+  width: '240px', overflow: 'hidden', border: '1px solid #333' 
 };
 
 const menuItemStyle = { 
@@ -179,24 +179,25 @@ const modalOverlayStyle = {
 };
 
 const modalContentStyle = { 
-  background: '#161816', padding: '35px', borderRadius: '35px', 
-  width: '300px', border: '1px solid #333' 
+  background: '#161816', padding: '40px', borderRadius: '35px', 
+  width: '320px', border: '1px solid #333' 
 };
 
 const inputStyle = { 
   width: '100%', padding: '15px', marginBottom: '12px', borderRadius: '15px', 
-  background: '#222', border: '1px solid #333', color: '#fff', boxSizing: 'border-box' 
+  background: '#222', border: '1px solid #333', color: '#fff', boxSizing: 'border-box',
+  outline: 'none'
 };
 
 const loginButtonStyle = { 
   width: '100%', padding: '18px', borderRadius: '18px', background: '#4CAF50', 
-  border: 'none', color: '#000', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center' 
+  color: '#000', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center' 
 };
 
 const navBarStyle = { 
   position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)', 
   width: '90%', maxWidth: '380px', height: '75px', 
-  backgroundColor: 'rgba(22, 24, 22, 0.85)', backdropFilter: 'blur(15px)', 
+  backgroundColor: 'rgba(22, 24, 22, 0.9)', backdropFilter: 'blur(15px)', 
   borderRadius: '40px', display: 'flex', justifyContent: 'space-around', 
   alignItems: 'center', padding: '0 15px', border: '1px solid rgba(255, 255, 255, 0.1)', 
   boxShadow: '0 20px 40px rgba(0,0,0,0.6)', zIndex: 9998 

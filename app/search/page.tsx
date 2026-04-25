@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
+// Подключаем мост к базе данных
+import { supabase } from '@/lib/supabaseClient';
 
 interface Tea {
   id: number;
@@ -15,7 +17,6 @@ interface Tea {
   isDayTea?: boolean;
 }
 
-// ПОЛНАЯ БАЗА (15 СОРТОВ) ДЛЯ ВСЕХ КАТЕГОРИЙ
 const INITIAL_TEA_DATABASE: Tea[] = [
   // ЗЕЛЕНЫЙ
   { id: 1, name: "Лунцзин", type: "Зеленый", category: "Зеленый чай", strength: "Мягкий", info: "75°C", summary: "Ореховый профиль, семечки.", desc: "Классика из Ханчжоу. Нежный весенний вкус.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800" },
@@ -44,19 +45,31 @@ const STRENGTHS = ["Все", "Мягкий", "Средний", "Крепкий"]
 
 export default function SearchPage() {
   const [teas, setTeas] = useState<Tea[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
   const [activeCategory, setActiveCategory] = useState("Все");
   const [activeStrength, setActiveStrength] = useState("Все");
 
+  // Загрузка данных из Supabase
   useEffect(() => {
-    const savedTeas = localStorage.getItem('tea_list');
-    if (savedTeas) {
-      setTeas(JSON.parse(savedTeas));
-    } else {
-      setTeas(INITIAL_TEA_DATABASE);
-      localStorage.setItem('tea_list', JSON.stringify(INITIAL_TEA_DATABASE));
-    }
+    const loadTeas = async () => {
+      try {
+        const { data, error } = await supabase.from('teas').select('*');
+        if (data && data.length > 0) {
+          setTeas(data);
+        } else {
+          // Если в облаке еще нет данных, используем начальную базу
+          setTeas(INITIAL_TEA_DATABASE);
+        }
+      } catch (err) {
+        console.error("Ошибка подключения к Supabase:", err);
+        setTeas(INITIAL_TEA_DATABASE);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTeas();
   }, []);
 
   const dayTea = teas.find(t => t.isDayTea);
@@ -98,7 +111,7 @@ export default function SearchPage() {
               placeholder="Поиск сорта..." 
               value={search} 
               onChange={(e) => setSearch(e.target.value)} 
-              style={{ width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' } as any} 
+              style={{ width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none', boxSizing: 'border-box' } as any} 
             />
 
             {/* ВЕРХНИЕ КАТЕГОРИИ */}
@@ -121,7 +134,7 @@ export default function SearchPage() {
             {/* ХАРАКТЕР (ПОДФИЛЬТР) */}
             {activeCategory !== "Все" && (
               <div 
-                key={`strength-box-${activeStrength}-${activeCategory}`} 
+                key={`strength-box-${activeCategory}`} 
                 style={{ background: '#121412', padding: '20px', borderRadius: '18px', border: '1px solid #222', marginBottom: '25px' } as any}
               >
                 <div style={{ color: '#444', fontSize: '10px', fontWeight: 'bold', marginBottom: '15px', letterSpacing: '1px' }}>ВЫБЕРИТЕ ХАРАКТЕР:</div>
@@ -136,7 +149,8 @@ export default function SearchPage() {
                           padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px',
                           backgroundColor: isActive ? '#4CAF50' : '#1a1a1a',
                           color: isActive ? '#000' : '#666',
-                          border: '1px solid', borderColor: isActive ? '#4CAF50' : '#333', fontWeight: isActive ? 'bold' : 'normal'
+                          border: '1px solid', borderColor: isActive ? '#4CAF50' : '#333', fontWeight: isActive ? 'bold' : 'normal',
+                          transition: '0.1s'
                         } as any}
                       >
                         {str}
@@ -149,24 +163,31 @@ export default function SearchPage() {
 
             {/* РЕЗУЛЬТАТЫ */}
             <div style={{ display: 'grid', gap: '15px' } as any}>
-              {filteredTeas.map(tea => (
-                <div 
-                  key={`tea-list-item-${tea.id}`} 
-                  onClick={() => setSelectedTea(tea)} 
-                  style={{ 
-                    background: '#161816', padding: '22px', borderRadius: '25px', border: '1px solid #222', 
-                    cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                  } as any}
-                >
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: '0 0 5px 0', fontSize: '20px' } as any}>{tea.name}</h3>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#666' } as any}>{tea.summary}</p>
+              {loading ? (
+                <p style={{ textAlign: 'center', color: '#444' }}>Загрузка базы из облака...</p>
+              ) : (
+                filteredTeas.map(tea => (
+                  <div 
+                    key={`tea-list-item-${tea.id}`} 
+                    onClick={() => setSelectedTea(tea)} 
+                    style={{ 
+                      background: '#161816', padding: '22px', borderRadius: '25px', border: '1px solid #222', 
+                      cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '0.2s'
+                    } as any}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ margin: '0 0 5px 0', fontSize: '20px' } as any}>{tea.name}</h3>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#666' } as any}>{tea.summary}</p>
+                    </div>
+                    <div style={{ color: '#4CAF50', fontSize: '11px', fontWeight: 'bold', background: 'rgba(76, 175, 80, 0.1)', padding: '5px 10px', borderRadius: '8px' }}>
+                      {tea.strength}
+                    </div>
                   </div>
-                  <div style={{ color: '#4CAF50', fontSize: '11px', fontWeight: 'bold', background: 'rgba(76, 175, 80, 0.1)', padding: '5px 10px', borderRadius: '8px' }}>
-                    {tea.strength}
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
+              {!loading && filteredTeas.length === 0 && (
+                <p style={{ textAlign: 'center', color: '#444', marginTop: '20px' }}>Такого чая пока нет в базе...</p>
+              )}
             </div>
           </>
         ) : (

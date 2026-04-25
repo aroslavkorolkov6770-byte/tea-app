@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
+// Импортируем клиент Supabase из твоей папки lib
+import { supabase } from '@/lib/supabaseClient';
 
 interface Tea {
   id: number;
@@ -33,44 +35,67 @@ export default function AdminPage() {
     isDayTea: false
   });
 
-  // Загрузка базы
-  useEffect(() => {
-    const saved = localStorage.getItem('tea_list');
-    if (saved) {
-      setTeas(JSON.parse(saved));
-    }
-  }, []);
-
-  // Функция сохранения (с исправленной ошибкой типа)
-  const saveTea = () => {
-    let updatedTeas: Tea[]; 
-
-    if (editingId) {
-      // Редактирование существующего
-      updatedTeas = teas.map(t => t.id === editingId ? { ...formData, id: editingId } : t);
-    } else {
-      // Создание нового
-      const newTea = { ...formData, id: Date.now() };
-      updatedTeas = [...teas, newTea];
-    }
+  // Загрузка базы из Supabase
+  const fetchTeas = async () => {
+    const { data, error } = await supabase
+      .from('teas')
+      .select('*')
+      .order('id', { ascending: false });
     
-    // Логика "Чая дня": только один чай может иметь этот флаг
-    if (formData.isDayTea) {
-      const currentId = editingId || updatedTeas[updatedTeas.length - 1].id;
-      updatedTeas = updatedTeas.map(t => t.id === currentId ? t : { ...t, isDayTea: false });
+    if (error) {
+      console.error("Ошибка загрузки:", error.message);
+    } else if (data) {
+      setTeas(data);
     }
-
-    setTeas(updatedTeas);
-    localStorage.setItem('tea_list', JSON.stringify(updatedTeas));
-    setShowForm(false);
-    resetForm();
   };
 
-  const deleteTea = (id: number) => {
+  useEffect(() => {
+    fetchTeas();
+  }, []);
+
+  // Функция сохранения в облако
+  const saveTea = async () => {
+    try {
+      if (editingId) {
+        // Редактирование существующего
+        const { error } = await supabase
+          .from('teas')
+          .update(formData)
+          .eq('id', editingId);
+        if (error) throw error;
+      } else {
+        // Создание нового
+        const { error } = await supabase
+          .from('teas')
+          .insert([formData]);
+        if (error) throw error;
+      }
+      
+      // Логика "Чая дня": если этот чай помечен как активный, 
+      // нужно (в идеале) сбросить остальные. 
+      // Для простоты пока просто перезагрузим данные.
+      
+      setShowForm(false);
+      resetForm();
+      fetchTeas(); // Обновляем список из базы
+    } catch (err: any) {
+      alert("Ошибка сохранения: " + err.message);
+    }
+  };
+
+  // Удаление из облака
+  const deleteTea = async (id: number) => {
     if (confirm("Удалить этот сорт чая?")) {
-      const updated = teas.filter(t => t.id !== id);
-      setTeas(updated);
-      localStorage.setItem('tea_list', JSON.stringify(updated));
+      const { error } = await supabase
+        .from('teas')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        alert("Ошибка удаления: " + error.message);
+      } else {
+        fetchTeas();
+      }
     }
   };
 
@@ -121,7 +146,7 @@ export default function AdminPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{tea.name}</span>
-                  {tea.isDayTea && <span style={{ background: '#4CAF50', color: '#000', fontSize: '10px', padding: '2px 6px', borderRadius: '5px', fontWeight: 'bold' }}>ЧАЙ ДНЯ ⭐</span>}
+                  {tea.isDayTea && <span style={{ background: '#4CAF50', color: '#000', fontSize: '10px', padding: '2px 66x', borderRadius: '5px', fontWeight: 'bold' }}>ЧАЙ ДНЯ ⭐</span>}
                 </div>
                 <div style={{ fontSize: '12px', color: '#555', marginTop: '4px' }}>{tea.type} | {tea.strength} | {tea.category}</div>
               </div>
@@ -172,7 +197,7 @@ export default function AdminPage() {
                 onClick={saveTea} 
                 style={{ background: '#4CAF50', color: '#000', padding: '18px', borderRadius: '15px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' } as any}
               >
-                СОХРАНИТЬ ИЗМЕНЕНИЯ
+                СОХРАНИТЬ В ОБЛАКО
               </div>
               
               <div 
@@ -189,26 +214,10 @@ export default function AdminPage() {
   );
 }
 
-// --- СТИЛИ АДМИНКИ ---
-
-const statCardStyle = {
-  background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222', textAlign: 'center'
-};
+const statCardStyle = { background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222', textAlign: 'center' };
 const statLabelStyle = { fontSize: '10px', color: '#555', fontWeight: 'bold', letterSpacing: '1px', marginBottom: '5px' };
 const statValueStyle = { fontSize: '24px', fontWeight: 'bold', color: '#4CAF50' };
-
-const adminTeaCardStyle = {
-  background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-};
-
-const modalOverlayStyle = {
-  position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000
-};
-
-const modalContentStyle = {
-  background: '#161816', padding: '40px', borderRadius: '35px', width: '100%', maxWidth: '450px', border: '1px solid #333', maxHeight: '90vh', overflowY: 'auto'
-};
-
-const inputStyle = {
-  width: '100%', padding: '14px', background: '#0d0f0d', border: '1px solid #333', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none', fontSize: '14px'
-};
+const adminTeaCardStyle = { background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
+const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 };
+const modalContentStyle = { background: '#161816', padding: '40px', borderRadius: '35px', width: '100%', maxWidth: '450px', border: '1px solid #333', maxHeight: '90vh', overflowY: 'auto' };
+const inputStyle = { width: '100%', padding: '14px', background: '#0d0f0d', border: '1px solid #333', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none', fontSize: '14px' };

@@ -12,7 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru">
+    // Добавили suppressHydrationWarning, чтобы убрать конфликты с расширениями браузера
+    <html lang="ru" suppressHydrationWarning>
       <body>
         {children}
       </body>
