@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
-// Путь ../../lib/ верный для структуры tea/app/admin/page.tsx
 import { supabase } from '../supabaseClient';
 
 export default function AdminPage() {
@@ -13,56 +12,30 @@ export default function AdminPage() {
     const { data } = await supabase.from('teas').select('*').order('id', { ascending: false });
     if (data) setTeas(data);
   };
-
   useEffect(() => { fetchTeas(); }, []);
 
   const saveTea = async () => {
-    try {
-      if (formData.name) {
-        await supabase.from('teas').insert([formData]);
-        setShowForm(false);
-        fetchTeas();
-      }
-    } catch (err: any) { alert(err.message); }
-  };
-
-  const deleteTea = async (id: number) => {
-    if (confirm("Удалить этот чай?")) {
-      await supabase.from('teas').delete().eq('id', id);
-      fetchTeas();
-    }
+    await supabase.from('teas').insert([formData]);
+    setShowForm(false); fetchTeas();
   };
 
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0' } as any}>
       <Navigation />
       <main style={{ maxWidth: '800px', margin: '0 auto', padding: '120px 25px' } as any}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' } as any}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px' } as any}>
           <h1>Админ-панель ⚙️</h1>
-          <div onClick={() => setShowForm(true)} style={{ background: '#4CAF50', color: '#000', padding: '12px 25px', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer' } as any}>+ Добавить чай</div>
+          <div onClick={() => setShowForm(true)} style={{ background: '#4CAF50', color: '#000', padding: '12px 25px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' } as any}>+ Добавить</div>
         </div>
-        
-        <div style={{ display: 'grid', gap: '12px', marginTop: '30px' }}>
-          {teas.map(tea => (
-            <div key={tea.id} style={{ background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' } as any}>
-              <strong>{tea.name}</strong>
-              <div onClick={() => deleteTea(tea.id)} style={{ color: '#ff5252', cursor: 'pointer', padding: '0 10px' }}>✕</div>
+        <div style={{ display: 'grid', gap: '12px' }}>
+          {teas.map(t => (
+            <div key={t.id} style={{ background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' } as any}>
+              <strong>{t.name}</strong>
+              <div onClick={async () => { await supabase.from('teas').delete().eq('id', t.id); fetchTeas(); }} style={{ color: '#ff5252', cursor: 'pointer' }}>✕</div>
             </div>
           ))}
         </div>
-
-        {showForm && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 } as any}>
-            <div style={{ background: '#161816', padding: '40px', borderRadius: '30px', width: '100%', maxWidth: '400px' } as any}>
-              <h2 style={{marginBottom: '20px'}}>Новый сорт</h2>
-              <input style={inStyle} placeholder="Название" onChange={e => setFormData({...formData, name: e.target.value})} />
-              <div onClick={saveTea} style={{ background: '#4CAF50', color: '#000', padding: '15px', borderRadius: '15px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' } as any}>СОХРАНИТЬ В ОБЛАКО</div>
-              <div onClick={() => setShowForm(false)} style={{ textAlign: 'center', marginTop: '15px', cursor: 'pointer', color: '#555' }}>Отмена</div>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
 }
-const inStyle = { width: '100%', padding: '14px', background: '#0d0f0d', border: '1px solid #333', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none' } as any;
