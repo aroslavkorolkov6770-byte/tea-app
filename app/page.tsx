@@ -3,36 +3,15 @@ import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation';
 import { supabase } from '../lib/supabaseClient';
 
-interface Tea {
-  id: number;
-  name: string;
-  type: string;
-  category: string;
-  strength: string;
-  info: string;
-  summary: string;
-  desc: string;
-  img: string;
-  isDayTea?: boolean;
-}
-
-const INITIAL_TEA_DATABASE: Tea[] = [
-  { id: 1, name: "Лунцзин", type: "Зеленый", category: "Зеленый чай", strength: "Мягкий", info: "75°C", summary: "Ореховый профиль, семечки.", desc: "Классика из Ханчжоу. Нежный весенний вкус.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800" },
-  { id: 15, name: "Шу Пуэр", type: "Пуэр", category: "Шу Пуэр", strength: "Крепкий", info: "100°C", summary: "Землистый, кофейный.", desc: "Сильная ферментация. Мощная бодрость.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800" }
-];
-
 export default function Home() {
-  const [dayTea, setDayTea] = useState<Tea | null>(null);
+  const [dayTea, setDayTea] = useState<any>(null);
 
   useEffect(() => {
     const fetchDayTea = async () => {
       try {
-        const { data, error } = await supabase.from('teas').select('*').eq('isDayTea', true).maybeSingle();
+        const { data } = await supabase.from('teas').select('*').eq('isDayTea', true).maybeSingle();
         if (data) setDayTea(data);
-        else setDayTea(INITIAL_TEA_DATABASE[0]);
-      } catch (err) {
-        setDayTea(INITIAL_TEA_DATABASE[0]);
-      }
+      } catch (err) { console.log(err); }
     };
     fetchDayTea();
   }, []);
@@ -48,16 +27,12 @@ export default function Home() {
             <p style={{ color: '#aaa', letterSpacing: '4px', fontSize: '12px', marginTop: '15px' }}>Искусство в каждой капле</p>
           </div>
         </section>
-        <section style={{ padding: '0 25px 60px 25px' } as any}>
-          <h2 style={{ fontSize: '14px', color: '#4CAF50', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '20px' }}>Наша философия</h2>
-          <p style={{ fontSize: '22px', lineHeight: '1.6', color: '#fff', marginBottom: '30px' }}>«Мы создаем пространство, где время замирает. Каждая чашка — это ритуал.»</p>
-        </section>
         {dayTea && (
           <section style={{ padding: '0 25px', marginBottom: '60px' } as any}>
              <div style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '40px', borderRadius: '40px', border: '1px solid #4CAF50' } as any}>
-                <span style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '14px' }}>⭐ РЕКОМЕНДАЦИЯ ДНЯ</span>
+                <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>⭐ РЕКОМЕНДАЦИЯ ДНЯ</span>
                 <h3 style={{ fontSize: '36px', color: '#fff', margin: '15px 0' }}>{dayTea.name}</h3>
-                <p style={{ color: '#aaa', fontSize: '18px', lineHeight: '1.6' }}>{dayTea.summary}</p>
+                <p style={{ color: '#aaa' }}>{dayTea.summary}</p>
              </div>
           </section>
         )}
