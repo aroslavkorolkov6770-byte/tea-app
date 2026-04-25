@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 
-// --- БАЗА ЗНАНИЙ ---
 const LESSONS_DATABASE = [
   {
     id: "lesson_1",
@@ -45,24 +44,17 @@ export default function ShiftPage() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
-  // --- ЛОГИКА СОХРАНЕНИЯ ПРОГРЕССА (LOCAL STORAGE) ---
-  
-  // 1. Загрузка при старте
   useEffect(() => {
     const savedProgress = localStorage.getItem('tea_progress');
-    if (savedProgress) {
-      setCompletedLessons(JSON.parse(savedProgress));
-    }
+    if (savedProgress) setCompletedLessons(JSON.parse(savedProgress));
   }, []);
 
-  // 2. Сохранение при изменениях
   useEffect(() => {
     if (completedLessons.length > 0 || localStorage.getItem('tea_progress')) {
       localStorage.setItem('tea_progress', JSON.stringify(completedLessons));
     }
   }, [completedLessons]);
 
-  // Функция сброса
   const resetProgress = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm("Сбросить весь прогресс обучения?")) {
@@ -75,118 +67,119 @@ export default function ShiftPage() {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
   };
 
-  const handleTabChange = (tab: 'checklist' | 'edu') => {
-    setActiveTab(tab);
-    setSelectedLessonId(null);
-    setActiveAnswer(null);
-  };
-
   const progressPercent = Math.round((completedLessons.length / LESSONS_DATABASE.length) * 100);
   const currentLesson = LESSONS_DATABASE.find(l => l.id === selectedLessonId);
 
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', userSelect: 'none' } as any}>
+    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', userSelect: 'none', transition: '0.3s' } as any}>
       <Navigation />
       
-      <main style={{ maxWidth: '600px', margin: '0 auto', padding: '100px 25px' } as any}>
+      {/* Увеличенный maxWidth до 800px для десктопного вида */}
+      <main style={{ maxWidth: '800px', margin: '0 auto', padding: '120px 25px' } as any}>
         
-        {/* ПЕРЕКЛЮЧАТЕЛЬ ТАБОВ */}
-        <div style={{ display: 'flex', gap: '8px', background: '#161816', padding: '6px', borderRadius: '14px', marginBottom: '30px' } as any}>
+        {/* ВЫБОР РАЗДЕЛА */}
+        <div style={{ display: 'flex', gap: '12px', background: '#161816', padding: '8px', borderRadius: '18px', marginBottom: '40px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' } as any}>
           {['checklist', 'edu'].map((tab) => (
             <div 
-              key={`tab-key-${tab}-${activeTab === tab}`}
-              onClick={() => handleTabChange(tab as any)}
+              key={`tab-${tab}-${activeTab === tab}`}
+              onClick={() => { setActiveTab(tab as any); setSelectedLessonId(null); setActiveAnswer(null); }}
               style={{
-                flex: 1, padding: '12px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold',
+                flex: 1, padding: '15px', borderRadius: '14px', textAlign: 'center', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold',
                 backgroundColor: activeTab === tab ? '#4CAF50' : 'transparent',
-                color: activeTab === tab ? '#000' : '#555', transition: '0.2s'
+                color: activeTab === tab ? '#000' : '#555', transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)'
               } as any}
             >
-              {tab === 'checklist' ? 'Чек-лист' : 'Обучение'}
+              {tab === 'checklist' ? '📋 Чек-лист' : '🎓 Обучение'}
             </div>
           ))}
         </div>
 
-        {/* --- КОНТЕНТ: ЧЕК-ЛИСТ --- */}
+        {/* --- ЧЕК-ЛИСТ --- */}
         {activeTab === 'checklist' && (
-          <div key="checklist-section">
-            <h2 style={{ marginBottom: '20px', fontSize: '24px' }}>Список задач 📋</h2>
-            {tasks.map(t => (
-              <div 
-                key={`task-${t.id}-${t.done}`}
-                onClick={() => toggleTask(t.id)}
-                style={{ 
-                  background: '#161816', padding: '20px', borderRadius: '18px', display: 'flex', gap: '15px', 
-                  marginBottom: '12px', cursor: 'pointer', border: '1px solid',
-                  borderColor: t.done ? '#2e7d32' : '#222', opacity: t.done ? 0.5 : 1, transition: '0.2s'
-                } as any}
-              >
-                <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: '2px solid #4CAF50', backgroundColor: t.done ? '#4CAF50' : 'transparent', textAlign: 'center', color: '#000', fontWeight: 'bold' } as any}>
-                  {t.done && '✓'}
+          <div style={{ animation: 'fadeIn 0.5s ease' }}>
+            <h2 style={{ marginBottom: '25px', fontSize: '28px', letterSpacing: '-0.5px' }}>Рабочая смена</h2>
+            <div style={{ display: 'grid', gap: '15px' }}>
+              {tasks.map(t => (
+                <div 
+                  key={`t-${t.id}-${t.done}`}
+                  onClick={() => toggleTask(t.id)}
+                  style={{ 
+                    background: '#161816', padding: '24px', borderRadius: '20px', display: 'flex', gap: '20px', 
+                    cursor: 'pointer', border: '1px solid', borderColor: t.done ? '#2e7d32' : '#222',
+                    opacity: t.done ? 0.4 : 1, transition: '0.2s', transform: t.done ? 'scale(0.98)' : 'scale(1)'
+                  } as any}
+                >
+                  <div style={{ width: '24px', height: '24px', borderRadius: '7px', border: '2px solid #4CAF50', backgroundColor: t.done ? '#4CAF50' : 'transparent', color: '#000', textAlign: 'center', lineHeight: '20px', fontWeight: 'bold' } as any}>
+                    {t.done && '✓'}
+                  </div>
+                  <span style={{ fontSize: '16px', textDecoration: t.done ? 'line-through' : 'none' }}>{t.text}</span>
                 </div>
-                <span style={{ textDecoration: t.done ? 'line-through' : 'none' }}>{t.text}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
-        {/* --- КОНТЕНТ: ОБУЧЕНИЕ --- */}
+        {/* --- ОБУЧЕНИЕ --- */}
         {activeTab === 'edu' && (
-          <div key="education-section">
+          <div style={{ animation: 'fadeIn 0.5s ease' }}>
             {!selectedLessonId ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' } as any}>
-                    <h2 style={{ fontSize: '24px', margin: 0 }}>Обучение 📚</h2>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' } as any}>
-                        <span style={{ fontSize: '14px', color: '#4CAF50', fontWeight: 'bold' }}>{progressPercent}%</span>
-                        <div onClick={resetProgress} style={{ fontSize: '10px', color: '#444', textDecoration: 'underline', cursor: 'pointer' } as any}>сброс</div>
-                    </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' } as any}>
+                    <h2 style={{ fontSize: '28px', margin: 0 }}>База знаний</h2>
+                    <span style={{ fontSize: '16px', color: '#4CAF50', fontWeight: 'bold', background: 'rgba(76, 175, 80, 0.1)', padding: '4px 12px', borderRadius: '10px' }}>{progressPercent}%</span>
                 </div>
                 
-                <div style={{ width: '100%', height: '8px', background: '#161816', borderRadius: '10px', marginBottom: '25px', overflow: 'hidden', border: '1px solid #222' } as any}>
-                    <div style={{ width: `${progressPercent}%`, height: '100%', background: '#4CAF50', transition: 'width 0.5s ease-in-out' } as any} />
+                {/* PROGRESS BAR + RESET BUTTON */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '40px' } as any}>
+                    <div style={{ flex: 1, height: '12px', background: '#161816', borderRadius: '20px', overflow: 'hidden', border: '1px solid #222' } as any}>
+                        <div style={{ width: `${progressPercent}%`, height: '100%', background: '#4CAF50', boxShadow: '0 0 15px rgba(76, 175, 80, 0.4)', transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)' } as any} />
+                    </div>
+                    <div 
+                      onClick={resetProgress} 
+                      style={{ padding: '8px 15px', background: '#1a1a1a', borderRadius: '10px', fontSize: '12px', color: '#cc4444', cursor: 'pointer', border: '1px solid #331111', fontWeight: 'bold', whiteSpace: 'nowrap' } as any}
+                    >
+                      СБРОСИТЬ
+                    </div>
                 </div>
 
-                <div style={{ display: 'grid', gap: '15px' } as any}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' } as any}>
                   {LESSONS_DATABASE.map(lesson => {
                     const isDone = completedLessons.includes(lesson.id);
                     return (
                       <div 
-                        key={`lesson-card-${lesson.id}-${isDone}`} 
+                        key={`l-card-${lesson.id}-${isDone}`} 
                         onClick={() => setSelectedLessonId(lesson.id)}
                         style={{ 
-                          background: '#161816', padding: '25px', borderRadius: '20px', border: '1px solid', 
-                          borderColor: isDone ? '#2e7d32' : '#222', cursor: 'pointer'
+                          background: '#161816', padding: '30px', borderRadius: '24px', border: '1px solid', 
+                          borderColor: isDone ? '#2e7d32' : '#222', cursor: 'pointer', transition: '0.3s'
                         } as any}
+                        onMouseEnter={(e: any) => e.currentTarget.style.borderColor = '#4CAF50'}
+                        onMouseLeave={(e: any) => e.currentTarget.style.borderColor = isDone ? '#2e7d32' : '#222'}
                       >
-                        <h3 style={{ margin: 0, color: isDone ? '#4CAF50' : '#fff' }}>{lesson.title}</h3>
-                        <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#666' }}>
-                            {isDone ? 'Изучено ✓' : 'Нажми, чтобы начать изучение'}
-                        </p>
+                        <h3 style={{ margin: '0 0 10px 0', color: isDone ? '#4CAF50' : '#fff', fontSize: '18px' }}>{lesson.title}</h3>
+                        <div style={{ fontSize: '13px', color: isDone ? '#2e7d32' : '#555', fontWeight: 'bold' }}>
+                            {isDone ? 'Пройдено ✓' : 'Начать изучение →'}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               </>
             ) : (
-              <div key={`view-${selectedLessonId}`} style={{ background: '#161816', padding: '30px', borderRadius: '25px', border: '1px solid #222' } as any}>
-                <div 
-                  onClick={() => {setSelectedLessonId(null); setActiveAnswer(null);}} 
-                  style={{ color: '#4CAF50', cursor: 'pointer', marginBottom: '20px', display: 'inline-block', fontWeight: 'bold' } as any}
-                >
-                  ← Назад к темам
+              <div key={`view-${selectedLessonId}`} style={{ background: '#161816', padding: '40px', borderRadius: '30px', border: '1px solid #222', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' } as any}>
+                <div onClick={() => {setSelectedLessonId(null); setActiveAnswer(null);}} style={{ color: '#4CAF50', cursor: 'pointer', marginBottom: '30px', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '14px' } as any}>
+                  <span>←</span> Назад к списку тем
                 </div>
                 
-                <h2 style={{ marginBottom: '15px' }}>{currentLesson?.title}</h2>
-                <p style={{ lineHeight: '1.7', color: '#bbb', marginBottom: '30px' }}>{currentLesson?.content}</p>
+                <h2 style={{ marginBottom: '20px', fontSize: '26px' }}>{currentLesson?.title}</h2>
+                <p style={{ lineHeight: '1.8', color: '#ccc', marginBottom: '40px', fontSize: '16px' }}>{currentLesson?.content}</p>
                 
-                <div style={{ borderTop: '1px solid #222', paddingTop: '25px' } as any}>
-                  <h4 style={{ marginBottom: '20px', color: '#4CAF50' }}>📝 ТЕСТ: {currentLesson?.question}</h4>
-                  <div style={{ display: 'grid', gap: '12px' } as any}>
+                <div style={{ borderTop: '1px solid #222', paddingTop: '35px' } as any}>
+                  <h4 style={{ marginBottom: '25px', color: '#4CAF50', fontSize: '18px' }}>📝 Проверка знаний: {currentLesson?.question}</h4>
+                  <div style={{ display: 'grid', gap: '15px' } as any}>
                     {currentLesson?.options.map((opt, idx) => {
                       const isCorrect = idx === currentLesson.correct;
                       const isSelected = activeAnswer === idx;
-                      
                       return (
                         <div 
                           key={`ans-${selectedLessonId}-${idx}-${isSelected}`}
@@ -198,10 +191,10 @@ export default function ShiftPage() {
                              }
                           }}
                           style={{ 
-                            padding: '15px', borderRadius: '12px', cursor: 'pointer', fontSize: '14px', border: '1px solid',
+                            padding: '18px 25px', borderRadius: '16px', cursor: 'pointer', fontSize: '15px', border: '1px solid',
                             backgroundColor: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#0d0f0d',
                             borderColor: isSelected ? (isCorrect ? '#4CAF50' : '#ff5252') : '#333',
-                            color: isSelected ? '#fff' : '#888', transition: '0.1s'
+                            color: isSelected ? '#fff' : '#888', transition: '0.2s'
                           } as any}
                         >
                           {opt}
