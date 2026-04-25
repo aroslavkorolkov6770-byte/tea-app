@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 
 // --- БАЗА ЗНАНИЙ ---
@@ -43,9 +43,33 @@ export default function ShiftPage() {
   const [tasks, setTasks] = useState(INITIAL_TASKS);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
-  
-  // --- НОВОЕ: Прогресс обучения ---
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
+
+  // --- ЛОГИКА СОХРАНЕНИЯ ПРОГРЕССА (LOCAL STORAGE) ---
+  
+  // 1. Загрузка при старте
+  useEffect(() => {
+    const savedProgress = localStorage.getItem('tea_progress');
+    if (savedProgress) {
+      setCompletedLessons(JSON.parse(savedProgress));
+    }
+  }, []);
+
+  // 2. Сохранение при изменениях
+  useEffect(() => {
+    if (completedLessons.length > 0 || localStorage.getItem('tea_progress')) {
+      localStorage.setItem('tea_progress', JSON.stringify(completedLessons));
+    }
+  }, [completedLessons]);
+
+  // Функция сброса
+  const resetProgress = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Сбросить весь прогресс обучения?")) {
+      setCompletedLessons([]);
+      localStorage.removeItem('tea_progress');
+    }
+  };
 
   const toggleTask = (id: string) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
@@ -57,9 +81,7 @@ export default function ShiftPage() {
     setActiveAnswer(null);
   };
 
-  // Расчет прогресса
   const progressPercent = Math.round((completedLessons.length / LESSONS_DATABASE.length) * 100);
-
   const currentLesson = LESSONS_DATABASE.find(l => l.id === selectedLessonId);
 
   return (
@@ -113,12 +135,14 @@ export default function ShiftPage() {
           <div key="education-section">
             {!selectedLessonId ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '10px' } as any}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' } as any}>
                     <h2 style={{ fontSize: '24px', margin: 0 }}>Обучение 📚</h2>
-                    <span style={{ fontSize: '14px', color: '#4CAF50', fontWeight: 'bold' }}>{progressPercent}%</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' } as any}>
+                        <span style={{ fontSize: '14px', color: '#4CAF50', fontWeight: 'bold' }}>{progressPercent}%</span>
+                        <div onClick={resetProgress} style={{ fontSize: '10px', color: '#444', textDecoration: 'underline', cursor: 'pointer' } as any}>сброс</div>
+                    </div>
                 </div>
                 
-                {/* PROGRESS BAR */}
                 <div style={{ width: '100%', height: '8px', background: '#161816', borderRadius: '10px', marginBottom: '25px', overflow: 'hidden', border: '1px solid #222' } as any}>
                     <div style={{ width: `${progressPercent}%`, height: '100%', background: '#4CAF50', transition: 'width 0.5s ease-in-out' } as any} />
                 </div>
@@ -132,7 +156,7 @@ export default function ShiftPage() {
                         onClick={() => setSelectedLessonId(lesson.id)}
                         style={{ 
                           background: '#161816', padding: '25px', borderRadius: '20px', border: '1px solid', 
-                          borderColor: isDone ? '#2e7d32' : '#222', cursor: 'pointer', position: 'relative' 
+                          borderColor: isDone ? '#2e7d32' : '#222', cursor: 'pointer'
                         } as any}
                       >
                         <h3 style={{ margin: 0, color: isDone ? '#4CAF50' : '#fff' }}>{lesson.title}</h3>
@@ -169,9 +193,8 @@ export default function ShiftPage() {
                           onClick={(e) => { 
                              e.stopPropagation(); 
                              setActiveAnswer(idx);
-                             // Если ответ верный — добавляем в список пройденных
                              if (idx === currentLesson.correct && !completedLessons.includes(currentLesson.id)) {
-                                setCompletedLessons([...completedLessons, currentLesson.id]);
+                                setCompletedLessons(prev => [...prev, currentLesson.id]);
                              }
                           }}
                           style={{ 
