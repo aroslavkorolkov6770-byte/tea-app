@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 // Путь ../../lib/ верный для структуры tea/app/admin/page.tsx
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../supabaseClient';
 
 export default function AdminPage() {
   const [teas, setTeas] = useState<any[]>([]);

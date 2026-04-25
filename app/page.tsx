@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from './supabaseClient';
 
 interface Tea { id: number; name: string; type: string; category: string; strength: string; info: string; summary: string; desc: string; img: string; isDayTea?: boolean; }
 

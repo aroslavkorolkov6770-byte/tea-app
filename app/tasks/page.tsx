@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../supabaseClient';
 
 export default function ShiftPage() {
   const [tasks, setTasks] = useState<any[]>([]);
