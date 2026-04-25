@@ -2,137 +2,173 @@
 import React, { useState } from 'react';
 import Navigation from '../components/Navigation';
 
-// --- ДАННЫЕ ДЛЯ ОБУЧЕНИЯ ---
-const LESSONS = [
+// --- БАЗА ЗНАНИЙ (ЭТАПЫ А и В) ---
+const LESSONS_DATABASE = [
   {
-    id: 1,
-    title: "🍃 Основы: 6 видов чая",
-    content: "Весь чай происходит от одного растения — Camellia Sinensis. Разница только в степени ферментации (окисления). Зеленый чай — почти не окислен, Красный — окислен полностью, Улуны — где-то посередине.",
-    question: "Из какого растения делают настоящий чай?",
-    options: ["Чайная Роза", "Camellia Sinensis", "Иван-чай"],
-    correct: 1
+    id: "lesson_1",
+    title: "🍃 Основы: Ферментация",
+    content: "Ферментация — это процесс окисления чайного листа. Чем выше уровень ферментации, тем темнее чай. Зеленый чай почти не окислен, поэтому он сохраняет свежесть и цвет травы. Шу Пуэр же проходит процесс ускоренной ферментации в кучах.",
+    question: "Какой чай проходит процесс окисления почти на 100%?",
+    options: ["Зеленый чай", "Красный чай", "Белый чай"],
+    correct: 1 // Красный чай
   },
   {
-    id: 2,
-    title: "🍵 Температуры",
-    content: "Светлые чаи (зеленый, белый) не любят кипяток. Их заваривают при 75-80°C. Темные (Шу Пуэр, Красный чай) требуют горячую воду — 95-100°C.",
-    question: "Какой водой заварим Шу Пуэр?",
-    options: ["Еле теплой", "80°C", "95-100°C"],
+    id: "lesson_2",
+    title: "🍵 Температурные режимы",
+    content: "Для каждого вида чая нужен свой подход. Нежные почки белого чая сгорают в кипятке (нужно 70-75°C). Улуны любят 85-90°C, а вот старые пуэры и черные чаи раскрываются только при температуре 95-100°C.",
+    question: "Какая температура идеальна для белого чая?",
+    options: ["100°C", "85°C", "70-75°C"],
     correct: 2
   }
 ];
 
-const CHECKLIST_DATA = [
-  { id: 1, text: "Проверить фильтры и набрать воду", done: false },
-  { id: 2, text: "Протереть витрины и полки", done: false },
-  { id: 3, text: "Включить и откалибровать весы", done: false },
-  { id: 4, text: "Подготовить чай дня", done: false },
-  { id: 5, text: "Актуализировать ценники", done: false },
+const INITIAL_TASKS = [
+  { id: "task_1", text: "Проверить фильтры и набрать воду", done: false },
+  { id: "task_2", text: "Протереть витрины и полки", done: false },
+  { id: "task_3", text: "Включить и откалибровать весы", done: false },
+  { id: "task_4", text: "Подготовить чай дня", done: false },
+  { id: "task_5", text: "Актуализировать ценники", done: false },
 ];
 
-export default function TasksPage() {
-  const [activeTab, setActiveTab] = useState<'tasks' | 'edu'>('tasks');
-  const [tasks, setTasks] = useState(CHECKLIST_DATA);
-  
-  // Состояния для обучения
-  const [selectedLesson, setSelectedLesson] = useState<any>(null);
-  const [quizResult, setQuizResult] = useState<string | null>(null);
+export default function ShiftPage() {
+  // --- STATE ---
+  const [activeTab, setActiveTab] = useState<'checklist' | 'edu'>('checklist');
+  const [tasks, setTasks] = useState(INITIAL_TASKS);
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
+
+  // --- HANDLERS ---
+  const toggleTask = (id: string) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  };
+
+  const handleTabChange = (tab: 'checklist' | 'edu') => {
+    setActiveTab(tab);
+    setSelectedLessonId(null); // Сброс при переключении
+    setActiveAnswer(null);
+  };
+
+  const currentLesson = LESSONS_DATABASE.find(l => l.id === selectedLessonId);
 
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0' }}>
+    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', userSelect: 'none' } as any}>
       <Navigation />
       
-      <main style={{ maxWidth: '600px', margin: '0 auto', padding: '100px 25px' }}>
+      <main style={{ maxWidth: '600px', margin: '0 auto', padding: '100px 25px' } as any}>
         
-        {/* ПЕРЕКЛЮЧАТЕЛЬ ТАБОВ */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', background: '#161816', padding: '5px', borderRadius: '12px' }}>
-          <button 
-            onClick={() => setActiveTab('tasks')}
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: activeTab === 'tasks' ? '#4CAF50' : 'transparent', color: activeTab === 'tasks' ? '#000' : '#777', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            Чек-лист
-          </button>
-          <button 
-            onClick={() => setActiveTab('edu')}
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: activeTab === 'edu' ? '#4CAF50' : 'transparent', color: activeTab === 'edu' ? '#000' : '#777', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            Обучение
-          </button>
+        {/* 1. ПЕРЕКЛЮЧАТЕЛЬ ТАБОВ (ИЗОЛИРОВАННЫЙ) */}
+        <div style={{ display: 'flex', gap: '8px', background: '#161816', padding: '6px', borderRadius: '14px', marginBottom: '30px' } as any}>
+          {['checklist', 'edu'].map((tab) => (
+            <div 
+              key={`tab-key-${tab}-${activeTab === tab}`}
+              onClick={() => handleTabChange(tab as any)}
+              style={{
+                flex: 1, padding: '12px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold',
+                backgroundColor: activeTab === tab ? '#4CAF50' : 'transparent',
+                color: activeTab === tab ? '#000' : '#555',
+                transition: '0.2s'
+              } as any}
+            >
+              {tab === 'checklist' ? 'Чек-лист' : 'Обучение'}
+            </div>
+          ))}
         </div>
 
         {/* --- КОНТЕНТ: ЧЕК-ЛИСТ --- */}
-        {activeTab === 'tasks' && (
-          <>
-            <h2 style={{ marginBottom: '20px' }}>Чек-лист 📋</h2>
+        {activeTab === 'checklist' && (
+          <div key="checklist-section">
+            <h2 style={{ marginBottom: '20px', fontSize: '24px' }}>Список задач 📋</h2>
             {tasks.map(t => (
               <div 
-                key={t.id} 
-                onClick={() => setTasks(tasks.map(i => i.id === t.id ? {...i, done: !i.done} : i))} 
+                key={`task-${t.id}-${t.done}`}
+                onClick={() => toggleTask(t.id)}
                 style={{ 
-                  background: '#161816', padding: '18px', borderRadius: '15px', display: 'flex', gap: '15px', 
-                  marginBottom: '10px', cursor: 'pointer', border: t.done ? '1px solid #2e7d32' : '1px solid #222', 
-                  opacity: t.done ? 0.6 : 1 
-                }}
+                  background: '#161816', padding: '20px', borderRadius: '18px', display: 'flex', gap: '15px', 
+                  marginBottom: '12px', cursor: 'pointer', border: '1px solid',
+                  borderColor: t.done ? '#2e7d32' : '#222', 
+                  opacity: t.done ? 0.5 : 1, transition: '0.2s'
+                } as any}
               >
-                <div style={{ width: '20px', height: '20px', borderRadius: '5px', border: '2px solid #4CAF50', backgroundColor: t.done ? '#4CAF50' : 'transparent', textAlign: 'center', lineHeight: '18px', fontSize: '14px' }}>
+                <div style={{ 
+                  width: '22px', height: '22px', borderRadius: '6px', border: '2px solid #4CAF50', 
+                  backgroundColor: t.done ? '#4CAF50' : 'transparent', textAlign: 'center', color: '#000', fontWeight: 'bold'
+                } as any}>
                   {t.done && '✓'}
                 </div>
                 <span style={{ textDecoration: t.done ? 'line-through' : 'none' }}>{t.text}</span>
               </div>
             ))}
-          </>
+          </div>
         )}
 
         {/* --- КОНТЕНТ: ОБУЧЕНИЕ --- */}
         {activeTab === 'edu' && (
-          <>
-            {!selectedLesson ? (
+          <div key="education-section">
+            {!selectedLessonId ? (
               <>
-                <h2 style={{ marginBottom: '20px' }}>База знаний 📚</h2>
-                <div style={{ display: 'grid', gap: '15px' }}>
-                  {LESSONS.map(lesson => (
+                <h2 style={{ marginBottom: '20px', fontSize: '24px' }}>Обучение 📚</h2>
+                <div style={{ display: 'grid', gap: '15px' } as any}>
+                  {LESSONS_DATABASE.map(lesson => (
                     <div 
-                      key={lesson.id} 
-                      onClick={() => { setSelectedLesson(lesson); setQuizResult(null); }}
-                      style={{ background: '#161816', padding: '20px', borderRadius: '15px', border: '1px solid #222', cursor: 'pointer' }}
+                      key={`lesson-card-${lesson.id}`} 
+                      onClick={() => setSelectedLessonId(lesson.id)}
+                      style={{ background: '#161816', padding: '25px', borderRadius: '20px', border: '1px solid #222', cursor: 'pointer', transition: '0.2s' } as any}
                     >
-                      <h3 style={{ margin: 0 }}>{lesson.title}</h3>
-                      <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>Нажми, чтобы изучить</p>
+                      <h3 style={{ margin: 0, color: '#4CAF50' }}>{lesson.title}</h3>
+                      <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#666' }}>Нажми, чтобы начать изучение</p>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <div style={{ background: '#161816', padding: '25px', borderRadius: '20px', border: '1px solid #222' }}>
-                <button onClick={() => setSelectedLesson(null)} style={{ background: 'none', border: 'none', color: '#4CAF50', cursor: 'pointer', padding: 0, marginBottom: '15px' }}>← Назад к темам</button>
-                <h2 style={{ marginBottom: '15px' }}>{selectedLesson.title}</h2>
-                <p style={{ lineHeight: '1.6', color: '#bbb', marginBottom: '25px' }}>{selectedLesson.content}</p>
+              <div key={`view-${selectedLessonId}`} style={{ background: '#161816', padding: '30px', borderRadius: '25px', border: '1px solid #222' } as any}>
+                <div 
+                  onClick={() => {setSelectedLessonId(null); setActiveAnswer(null);}} 
+                  style={{ color: '#4CAF50', cursor: 'pointer', marginBottom: '20px', display: 'inline-block', fontWeight: 'bold' } as any}
+                >
+                  ← Назад к темам
+                </div>
                 
-                <div style={{ borderTop: '1px solid #222', paddingTop: '20px' }}>
-                  <h4 style={{ marginBottom: '15px', color: '#4CAF50' }}>Тест: {selectedLesson.question}</h4>
-                  <div style={{ display: 'grid', gap: '10px' }}>
-                    {selectedLesson.options.map((opt: string, index: number) => (
-                      <button 
-                        key={index} 
-                        onClick={() => setQuizResult(index === selectedLesson.correct ? 'correct' : 'wrong')}
-                        style={{ 
-                          padding: '12px', borderRadius: '10px', border: '1px solid #333', textAlign: 'left',
-                          background: quizResult === null ? '#0d0f0d' : (index === selectedLesson.correct ? '#2e7d32' : '#161816'),
-                          color: '#fff', cursor: 'pointer'
-                        }}
-                      >
-                        {opt}
-                      </button>
-                    ))}
+                <h2 style={{ marginBottom: '15px', color: '#fff' }}>{currentLesson?.title}</h2>
+                <p style={{ lineHeight: '1.7', color: '#bbb', marginBottom: '30px', fontSize: '15px' }}>{currentLesson?.content}</p>
+                
+                {/* БЛОК ТЕСТА */}
+                <div style={{ borderTop: '1px solid #222', paddingTop: '25px' } as any}>
+                  <h4 style={{ marginBottom: '20px', color: '#4CAF50', fontSize: '16px' }}>📝 ТЕСТ: {currentLesson?.question}</h4>
+                  <div style={{ display: 'grid', gap: '12px' } as any}>
+                    {currentLesson?.options.map((opt, idx) => {
+                      const isCorrect = idx === currentLesson.correct;
+                      const isSelected = activeAnswer === idx;
+                      
+                      return (
+                        <div 
+                          key={`ans-${selectedLessonId}-${idx}-${isSelected}`}
+                          onClick={(e) => { e.stopPropagation(); setActiveAnswer(idx); }}
+                          style={{ 
+                            padding: '15px', borderRadius: '12px', cursor: 'pointer', fontSize: '14px', border: '1px solid',
+                            // ЖЕСТКАЯ ЛОГИКА ЦВЕТА
+                            backgroundColor: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#0d0f0d',
+                            borderColor: isSelected ? (isCorrect ? '#4CAF50' : '#ff5252') : '#333',
+                            color: isSelected ? '#fff' : '#888',
+                            transition: '0.1s'
+                          } as any}
+                        >
+                          {opt}
+                        </div>
+                      );
+                    })}
                   </div>
-                  {quizResult === 'correct' && <p style={{ color: '#4CAF50', marginTop: '15px', fontWeight: 'bold' }}>Правильно! Ты молодец. 🎉</p>}
-                  {quizResult === 'wrong' && <p style={{ color: '#ff5252', marginTop: '15px' }}>Не совсем так. Попробуй еще раз!</p>}
+                  
+                  {activeAnswer !== null && (
+                    <div style={{ marginTop: '20px', textAlign: 'center', fontWeight: 'bold', color: activeAnswer === currentLesson?.correct ? '#4CAF50' : '#ff5252' } as any}>
+                      {activeAnswer === currentLesson?.correct ? '🎉 Верно! Ты усвоил материал.' : '❌ Ошибка. Перечитай текст выше.'}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
-
       </main>
     </div>
   );
