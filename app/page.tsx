@@ -1,36 +1,25 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation';
-import { supabase } from './supabaseClient';
+import { supabase } from './supabaseClient'; // ПУТЬ: в этой же папке
 
 export default function Home() {
   const [dayTea, setDayTea] = useState<any>(null);
   useEffect(() => {
     const fetchDayTea = async () => {
-      try {
-        const { data } = await supabase.from('teas').select('*').eq('isDayTea', true).maybeSingle();
-        if (data) setDayTea(data);
-      } catch (err) { console.log(err); }
+      const { data } = await supabase.from('teas').select('*').eq('isDayTea', true).maybeSingle();
+      if (data) setDayTea(data);
     };
     fetchDayTea();
   }, []);
-
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', position: 'relative', overflowX: 'hidden' } as any}>
+    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0' } as any}>
       <Navigation />
-      <main style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '150px' } as any}>
-        <section style={{ height: '90vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' } as any}>
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundImage: 'url("https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=1200")', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3)' } as any} />
-          <h1 style={{ position: 'relative', fontSize: '48px', fontWeight: '900', color: '#fff', textTransform: 'uppercase' } as any}>Tea Master <span style={{ color: '#4CAF50' }}>Store</span></h1>
-        </section>
-        {dayTea && (
-          <section style={{ padding: '0 25px' } as any}>
-             <div style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '40px', borderRadius: '40px', border: '1px solid #4CAF50' } as any}>
-                <h3 style={{ fontSize: '36px', color: '#fff' }}>{dayTea.name}</h3>
-                <p style={{ color: '#aaa' }}>{dayTea.summary}</p>
-             </div>
-          </section>
-        )}
+      <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '150px 20px' } as any}>
+        <h1 style={{textAlign: 'center', fontSize: '48px'}}>Tea Master Store</h1>
+        {dayTea && <div style={{background: '#161816', padding: '40px', borderRadius: '30px', border: '1px solid #4CAF50', marginTop: '40px'} as any}>
+          <h2>{dayTea.name}</h2><p>{dayTea.summary}</p>
+        </div>}
       </main>
     </div>
   );
