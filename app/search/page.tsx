@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 
 interface Tea {
@@ -42,7 +42,7 @@ export default function SearchPage() {
   });
 
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0' } as any}>
+    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', fontFamily: 'sans-serif' } as any}>
       <Navigation />
       <main style={{ maxWidth: '600px', margin: '0 auto', padding: '100px 25px' } as any}>
         {!selectedTea ? (
@@ -55,11 +55,11 @@ export default function SearchPage() {
               style={{ width: '100%', padding: '16px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '20px', outline: 'none' } as any} 
             />
 
-            {/* ГЛАВНЫЕ КАТЕГОРИИ */}
+            {/* ВЕРХНИЕ КАТЕГОРИИ */}
             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '20px' } as any}>
               {CATEGORIES.map(cat => (
-                <button 
-                  key={`cat-${cat}`}
+                <div 
+                  key={`top-cat-${cat}`}
                   onClick={() => {
                     setActiveCategory(cat);
                     setActiveStrength("Все");
@@ -67,47 +67,45 @@ export default function SearchPage() {
                   style={{
                     padding: '10px 20px',
                     borderRadius: '25px',
-                    border: 'none',
                     cursor: 'pointer',
+                    fontSize: '14px',
                     backgroundColor: activeCategory === cat ? '#4CAF50' : '#1a1c1a',
                     color: activeCategory === cat ? '#000' : '#fff',
+                    transition: '0.2s'
                   } as any}
                 >
                   {cat}
-                </button>
+                </div>
               ))}
             </div>
 
-            {/* ПОДФИЛЬТРЫ (ХАРАКТЕР) */}
+            {/* ПОДФИЛЬТРЫ (ХАРАКТЕР) — ИСПОЛЬЗУЕМ DIV ВМЕСТО BUTTON */}
             {activeCategory !== "Все" && (
               <div style={{ background: '#161816', padding: '15px', borderRadius: '15px', marginBottom: '20px', border: '1px solid #222' } as any}>
-                <p style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#444' } as any}>ХАРАКТЕР ЧАЯ:</p>
-                <div style={{ display: 'flex', gap: '8px' } as any}>
+                <p style={{ margin: '0 0 12px 0', fontSize: '11px', color: '#555', letterSpacing: '1px' } as any}>ХАРАКТЕР ЧАЯ:</p>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' } as any}>
                   {STRENGTHS.map(str => {
-                    // Проверка активности вынесена в переменную для надежности
-                    const isNowActive = activeStrength === str;
-                    
+                    const isSelected = activeStrength === str;
                     return (
-                      <button 
-                        key={`str-${str}`}
-                        onClick={() => {
-                          console.log("Выбран характер:", str);
-                          setActiveStrength(str);
-                        }}
+                      <div 
+                        key={`str-key-${str}`}
+                        onClick={() => setActiveStrength(str)}
                         style={{
-                          padding: '8px 15px',
+                          padding: '8px 16px',
                           borderRadius: '8px',
-                          border: '1px solid #333',
                           cursor: 'pointer',
-                          fontSize: '12px',
-                          // Жесткая проверка стейта для цвета
-                          backgroundColor: isNowActive ? '#4CAF50' : 'transparent',
-                          color: isNowActive ? '#000' : '#666',
-                          transition: 'background 0.2s ease'
+                          fontSize: '13px',
+                          border: '1px solid',
+                          // Жесткие цвета без прозрачности
+                          borderColor: isSelected ? '#4CAF50' : '#333',
+                          backgroundColor: isSelected ? '#4CAF50' : '#111',
+                          color: isSelected ? '#000' : '#888',
+                          fontWeight: isSelected ? 'bold' : 'normal',
+                          transition: 'all 0.1s ease-in-out'
                         } as any}
                       >
                         {str}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -118,7 +116,7 @@ export default function SearchPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' } as any}>
               {filteredTeas.map(tea => (
                 <div 
-                  key={tea.id} 
+                  key={`tea-item-${tea.id}`} 
                   onClick={() => setSelectedTea(tea)} 
                   style={{ background: '#161816', padding: '20px', borderRadius: '20px', display: 'flex', justifyContent: 'space-between', border: '1px solid #222', cursor: 'pointer' } as any}
                 >
@@ -126,19 +124,25 @@ export default function SearchPage() {
                     <h3 style={{ margin: '0 0 5px 0' } as any}>{tea.name}</h3>
                     <p style={{ margin: 0, fontSize: '13px', color: '#666' } as any}>{tea.summary}</p>
                   </div>
-                  <span style={{ color: '#4CAF50', fontSize: '12px' } as any}>{tea.strength}</span>
+                  <span style={{ color: '#4CAF50', fontSize: '12px', fontWeight: 'bold' } as any}>{tea.strength}</span>
                 </div>
               ))}
             </div>
           </>
         ) : (
+          /* КАРТОЧКА ОТКРЫТОГО ЧАЯ */
           <div>
-            <button onClick={() => setSelectedTea(null)} style={{ background: '#222', border: 'none', color: '#fff', padding: '10px 15px', borderRadius: '10px', marginBottom: '15px' } as any}>← Назад</button>
+            <div 
+              onClick={() => setSelectedTea(null)} 
+              style={{ background: '#222', color: '#fff', padding: '10px 15px', borderRadius: '10px', marginBottom: '15px', cursor: 'pointer', display: 'inline-block' } as any}
+            >
+              ← Назад
+            </div>
             <div style={{ background: '#161816', borderRadius: '25px', overflow: 'hidden', display: 'flex', border: '1px solid #222' } as any}>
                 <img src={selectedTea.img} style={{ width: '35%', objectFit: 'cover' } as any} />
                 <div style={{ padding: '20px' } as any}>
-                    <h2 style={{ color: '#4CAF50' } as any}>{selectedTea.name}</h2>
-                    <p>{selectedTea.desc}</p>
+                    <h2 style={{ color: '#4CAF50', margin: '0 0 10px 0' } as any}>{selectedTea.name}</h2>
+                    <p style={{ color: '#999', fontSize: '14px', lineHeight: '1.5' } as any}>{selectedTea.desc}</p>
                 </div>
             </div>
           </div>
