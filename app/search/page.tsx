@@ -1,8 +1,7 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Navigation from '../components/Navigation';
 
-// 1. Интерфейс данных
 interface Tea {
   id: number;
   name: string;
@@ -15,29 +14,19 @@ interface Tea {
   img: string;
 }
 
-// 2. Расширенная база данных (минимум по 3 чая на каждый тип)
 const TEA_DATABASE: Tea[] = [
-  // --- ЗЕЛЕНЫЙ ---
   { id: 1, name: "Лунцзин", type: "Зеленый", category: "Зеленый чай", strength: "Мягкий", info: "75°C", summary: "Ореховый профиль, семечки.", desc: "Классика из Ханчжоу. Нежный весенний вкус.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800" },
   { id: 2, name: "Би Ло Чунь", type: "Зеленый", category: "Зеленый чай", strength: "Средний", info: "80°C", summary: "Цветочный аромат.", desc: "Скрученные спиралью почки с нежным ворсом.", img: "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=800" },
   { id: 3, name: "Тайпин Хоукуй", type: "Зеленый", category: "Зеленый чай", strength: "Крепкий", info: "85°C", summary: "Плотный, травянистый.", desc: "Огромные плоские листья с мощным ароматом орхидеи.", img: "https://images.unsplash.com/photo-1563911302283-d2bc129e7570?q=80&w=800" },
-
-  // --- БЕЛЫЙ ---
   { id: 4, name: "Бай Хао Инь Чжэнь", type: "Белый", category: "Белый чай", strength: "Мягкий", info: "70°C", summary: "Медовые ноты, хвоя.", desc: "Только серебристые почки. Самый деликатный чай.", img: "https://images.unsplash.com/photo-1576092762791-dd9e2220abd1?q=80&w=800" },
   { id: 5, name: "Бай Му Дань", type: "Белый", category: "Белый чай", strength: "Средний", info: "75°C", summary: "Полевые цветы, курага.", desc: "Белый пион. Гармония почки и двух верхних листьев.", img: "https://images.unsplash.com/photo-1544787210-2213d2427517?q=80&w=800" },
   { id: 6, name: "Лао Шоу Мэй", type: "Белый", category: "Белый чай", strength: "Крепкий", info: "90°C", summary: "Сухофрукты, древесный.", desc: "Выдержанный белый чай. Плотный и согревающий.", img: "https://images.unsplash.com/photo-1594631252845-29fc4586d517?q=80&w=800" },
-
-  // --- УЛУН ---
   { id: 7, name: "Те Гуань Инь", type: "Улун", category: "Светлый Улун", strength: "Мягкий", info: "85°C", summary: "Сирень и свежесть.", desc: "Легендарный светлый улун из уезда Аньси.", img: "https://images.unsplash.com/photo-1594631252845-29fc4586d517?q=80&w=800" },
   { id: 8, name: "Габа Алишань", type: "Улун", category: "Тайвань", strength: "Средний", info: "90°C", summary: "Ягодная кислинка.", desc: "Чай с особым способом ферментации для снятия стресса.", img: "https://images.unsplash.com/photo-1544787210-2213d2427517?q=80&w=800" },
   { id: 9, name: "Да Хун Пао", type: "Улун", category: "Темный Улун", strength: "Крепкий", info: "95°C", summary: "Дым, хлебная корка.", desc: "Утесный улун сильной прожарки из гор Уи.", img: "https://images.unsplash.com/photo-1563911302283-d2bc129e7570?q=80&w=800" },
-
-  // --- КРАСНЫЙ ---
   { id: 10, name: "Цзинь Цзюнь Мэй", type: "Красный", category: "Красный чай", strength: "Мягкий", info: "90°C", summary: "Сладкий, цветочный.", desc: "Золотые брови. Элитный сорт из крошечных почек.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800" },
   { id: 11, name: "Дянь Хун", type: "Красный", category: "Красный чай", strength: "Средний", info: "95°C", summary: "Сухофрукты и солод.", desc: "Классический юньнаньский чай с золотистыми почками.", img: "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=800" },
   { id: 12, name: "Лапсанг Сушонг", type: "Красный", category: "Красный чай", strength: "Крепкий", info: "95°C", summary: "Дым сосновых дров.", desc: "Тот самый «копченый» чай с ароматом костра.", img: "https://images.unsplash.com/photo-1563911302283-d2bc129e7570?q=80&w=800" },
-
-  // --- ПУЭР ---
   { id: 13, name: "Шен Пуэр (Молодой)", type: "Пуэр", category: "Шен Пуэр", strength: "Мягкий", info: "85°C", summary: "Трава и курага.", desc: "Свежий шен. Дает легкую бодрость и очищение.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800" },
   { id: 14, name: "Шен Пуэр (Лао)", type: "Пуэр", category: "Шен Пуэр", strength: "Средний", info: "95°C", summary: "Камфора, старое дерево.", desc: "Шен пуэр с выдержкой более 10 лет.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800" },
   { id: 15, name: "Шу Пуэр", type: "Пуэр", category: "Шу Пуэр", strength: "Крепкий", info: "100°C", summary: "Землистый, кофейный.", desc: "Сильная ферментация. Мощная бодрость.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800" }
@@ -52,36 +41,6 @@ export default function SearchPage() {
   const [activeCategory, setActiveCategory] = useState("Все");
   const [activeStrength, setActiveStrength] = useState("Все");
 
-  const selectCategory = (name: string) => {
-    setActiveCategory(name);
-    setActiveStrength("Все"); 
-  };
-
-  const selectStrength = (name: string) => {
-    setActiveStrength(name);
-  };
-
-  const getStrengthButtonStyle = (itemLabel: string) => {
-    const isMatched = activeStrength === itemLabel;
-    const baseStyle: any = {
-      padding: '10px 18px',
-      borderRadius: '10px',
-      cursor: 'pointer',
-      fontSize: '13px',
-      transition: 'all 0.2s ease',
-      border: '1px solid #333',
-      display: 'inline-block',
-      textAlign: 'center',
-      userSelect: 'none'
-    };
-
-    if (isMatched) {
-      return { ...baseStyle, backgroundColor: '#4CAF50', color: '#000', borderColor: '#4CAF50', fontWeight: 'bold' };
-    } else {
-      return { ...baseStyle, backgroundColor: '#1a1a1a', color: '#666', borderColor: '#333', fontWeight: 'normal' };
-    }
-  };
-
   const filteredTeas = TEA_DATABASE.filter(tea => {
     const matchesSearch = tea.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = activeCategory === "Все" || tea.type === activeCategory;
@@ -90,7 +49,7 @@ export default function SearchPage() {
   });
 
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0' } as any}>
+    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', userSelect: 'none' } as any}>
       <Navigation />
       <main style={{ maxWidth: '600px', margin: '0 auto', padding: '100px 25px' } as any}>
         {!selectedTea ? (
@@ -103,19 +62,16 @@ export default function SearchPage() {
               style={{ width: '100%', padding: '16px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' } as any} 
             />
 
+            {/* ВЕРХНИЕ КАТЕГОРИИ */}
             <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '20px' } as any}>
               {CATEGORIES.map((cat) => (
                 <div 
-                  key={`main-cat-${cat}`}
-                  onClick={() => selectCategory(cat)}
+                  key={`cat-${cat}-${activeCategory === cat}`}
+                  onClick={() => { setActiveCategory(cat); setActiveStrength("Все"); }}
                   style={{
-                    padding: '10px 20px',
-                    borderRadius: '25px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    whiteSpace: 'nowrap',
+                    padding: '10px 20px', borderRadius: '25px', cursor: 'pointer', fontSize: '14px', whiteSpace: 'nowrap',
                     backgroundColor: activeCategory === cat ? '#4CAF50' : '#1a1c1a',
-                    color: activeCategory === cat ? '#000' : '#fff'
+                    color: activeCategory === cat ? '#000' : '#fff', transition: '0.2s'
                   } as any}
                 >
                   {cat}
@@ -123,29 +79,42 @@ export default function SearchPage() {
               ))}
             </div>
 
+            {/* ХАРАКТЕР - С ПРИНУДИТЕЛЬНЫМ ОБНОВЛЕНИЕМ КОНТЕЙНЕРА */}
             {activeCategory !== "Все" && (
-              <div style={{ background: '#121412', padding: '20px', borderRadius: '18px', border: '1px solid #222', marginBottom: '25px' } as any}>
-                <div style={{ color: '#444', fontSize: '10px', fontWeight: 'bold', marginBottom: '15px', letterSpacing: '1px' }}>
-                  ВЫБЕРИТЕ ХАРАКТЕР:
-                </div>
+              <div 
+                key={`strength-container-${activeStrength}`} // КЛЮЧЕВОЙ МОМЕНТ: перерисовка всего блока
+                style={{ background: '#121412', padding: '20px', borderRadius: '18px', border: '1px solid #222', marginBottom: '25px' } as any}
+              >
+                <div style={{ color: '#444', fontSize: '10px', fontWeight: 'bold', marginBottom: '15px', letterSpacing: '1px' }}>ВЫБЕРИТЕ ХАРАКТЕР:</div>
                 <div style={{ display: 'flex', gap: '10px' } as any}>
-                  {STRENGTHS.map((str) => (
-                    <div 
-                      key={`strength-control-${str}`}
-                      onClick={() => selectStrength(str)}
-                      style={getStrengthButtonStyle(str)}
-                    >
-                      {str}
-                    </div>
-                  ))}
+                  {STRENGTHS.map((str) => {
+                    const isActive = activeStrength === str;
+                    return (
+                      <div 
+                        key={`str-btn-${str}-${isActive}`} // Уникальный ключ для каждой кнопки
+                        onClick={(e) => { e.stopPropagation(); setActiveStrength(str); }}
+                        style={{
+                          padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px',
+                          backgroundColor: isActive ? '#4CAF50' : '#1a1a1a',
+                          color: isActive ? '#000' : '#666',
+                          border: '1px solid',
+                          borderColor: isActive ? '#4CAF50' : '#333',
+                          fontWeight: isActive ? 'bold' : 'normal'
+                        } as any}
+                      >
+                        {str}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
+            {/* РЕЗУЛЬТАТЫ */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' } as any}>
               {filteredTeas.map(tea => (
                 <div 
-                  key={`tea-card-${tea.id}`} 
+                  key={`tea-item-${tea.id}`} 
                   onClick={() => setSelectedTea(tea)} 
                   style={{ background: '#161816', padding: '20px', borderRadius: '22px', border: '1px solid #222', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } as any}
                 >
@@ -153,19 +122,19 @@ export default function SearchPage() {
                     <h3 style={{ margin: '0 0 5px 0', fontSize: '18px' } as any}>{tea.name}</h3>
                     <p style={{ margin: 0, fontSize: '12px', color: '#666' } as any}>{tea.summary}</p>
                   </div>
-                  <div style={{ color: '#4CAF50', fontSize: '11px', fontWeight: 'bold', minWidth: '70px', textAlign: 'right' }}>{tea.strength}</div>
+                  <div style={{ color: '#4CAF50', fontSize: '11px', fontWeight: 'bold' }}>{tea.strength}</div>
                 </div>
               ))}
             </div>
           </>
         ) : (
+          /* ДЕТАЛЬНАЯ КАРТОЧКА */
           <div>
             <div onClick={() => setSelectedTea(null)} style={{ color: '#fff', cursor: 'pointer', marginBottom: '20px', display: 'inline-block', padding: '10px 15px', background: '#222', borderRadius: '10px' }}>← Назад</div>
             <div style={{ background: '#161816', borderRadius: '25px', overflow: 'hidden', border: '1px solid #222', display: 'flex' } as any}>
               <img src={selectedTea.img} style={{ width: '40%', objectFit: 'cover' } as any} />
               <div style={{ padding: '25px', flex: 1 }}>
                 <h2 style={{ color: '#4CAF50', margin: '0 0 10px 0' }}>{selectedTea.name}</h2>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>Температура: {selectedTea.info}</div>
                 <p style={{ fontSize: '14px', color: '#bbb', lineHeight: '1.6' }}>{selectedTea.desc}</p>
               </div>
             </div>
