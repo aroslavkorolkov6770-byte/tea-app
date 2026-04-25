@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation';
 // Подключаем облако (путь под твою структуру)
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function Home() {
   const [dayTea, setDayTea] = useState<any>(null);
