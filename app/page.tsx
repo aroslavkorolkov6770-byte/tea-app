@@ -9,7 +9,7 @@ export default function Home() {
       <Navigation />
 
       {/* ГЛАВНЫЙ КОНТЕНТ */}
-      <main style={{ maxWidth: '600px', margin: '0 auto', paddingBottom: '150px' }}>
+      <main style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '150px' }}>
         
         {/* 1. ЭКРАН ПРИВЕТСТВИЯ (HERO) */}
         <section style={{ height: '90vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '40px' }}>
