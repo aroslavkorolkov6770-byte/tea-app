@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import Navigation from '../components/Navigation';
+import Navigation from '@/app/components/Navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 const LESSONS_DATABASE = [
@@ -40,25 +40,26 @@ export default function ShiftPage() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
-  // --- ЗАГРУЗКА ДАННЫХ ИЗ ОБЛАКА ---
+  // Загрузка данных
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
     setLoading(true);
-    // 1. Грузим задачи
-    const { data: tasksData } = await supabase.from('tasks').select('*').order('id', { ascending: true });
-    if (tasksData) setTasks(tasksData);
+    try {
+      const { data: tasksData } = await supabase.from('tasks').select('*').order('id', { ascending: true });
+      if (tasksData) setTasks(tasksData);
 
-    // 2. Грузим прогресс обучения
-    const { data: progressData } = await supabase.from('lesson_progress').select('lesson_id');
-    if (progressData) setCompletedLessons(progressData.map(p => p.lesson_id));
-    
-    setLoading(false);
+      const { data: progressData } = await supabase.from('lesson_progress').select('lesson_id');
+      if (progressData) setCompletedLessons(progressData.map(p => p.lesson_id));
+    } catch (err) {
+      console.error("Ошибка загрузки данных:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // --- УПРАВЛЕНИЕ ЗАДАЧАМИ (SUPABASE) ---
   const addTask = async () => {
     if (!newTaskText.trim()) return;
     const { error } = await supabase.from('tasks').insert([{ text: newTaskText, done: false }]);
@@ -128,7 +129,7 @@ export default function ShiftPage() {
             <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' } as any}>
                 <input 
                     type="text" 
-                    placeholder="Добавить задачу в облако..." 
+                    placeholder="Добавить задачу..." 
                     value={newTaskText}
                     onChange={(e) => setNewTaskText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addTask()}
@@ -140,7 +141,7 @@ export default function ShiftPage() {
             <div style={{ display: 'grid', gap: '12px' }}>
               {tasks.map(t => (
                 <div 
-                  key={`task-item-${t.id}-${t.done}`}
+                  key={`task-row-${t.id}-${t.done}`}
                   onClick={() => toggleTask(t.id, t.done)}
                   style={{ 
                     background: '#161816', padding: '20px', borderRadius: '18px', display: 'flex', gap: '20px', 
@@ -148,7 +149,7 @@ export default function ShiftPage() {
                     opacity: t.done ? 0.4 : 1, transition: '0.2s'
                   } as any}
                 >
-                  <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: '2px solid #4CAF50', backgroundColor: t.done ? '#4CAF50' : 'transparent', color: '#000', textAlign: 'center', fontWeight: 'bold' } as any}>
+                  <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: '2px solid #4CAF50', backgroundColor: t.done ? '#4CAF50' : 'transparent', textAlign: 'center', color: '#000', fontWeight: 'bold' } as any}>
                     {t.done && '✓'}
                   </div>
                   <span style={{ flex: 1, fontSize: '16px', textDecoration: t.done ? 'line-through' : 'none' }}>{t.text}</span>
@@ -168,7 +169,7 @@ export default function ShiftPage() {
                     <h2 style={{ fontSize: '28px', margin: 0 }}>База знаний</h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' } as any}>
                         <span style={{ fontSize: '16px', color: '#4CAF50', fontWeight: 'bold' }}>{progressPercent}%</span>
-                        <div onClick={resetProgress} style={{ padding: '8px 15px', background: '#1a1a1a', borderRadius: '10px', fontSize: '12px', color: '#cc4444', cursor: 'pointer', border: '1px solid #331111' } as any}>СБРОС</div>
+                        <div onClick={resetProgress} style={{ fontSize: '12px', color: '#cc4444', cursor: 'pointer', textDecoration: 'underline' } as any}>СБРОС</div>
                     </div>
                 </div>
                 
@@ -205,7 +206,7 @@ export default function ShiftPage() {
                       const isSelected = activeAnswer === idx;
                       return (
                         <div 
-                          key={`ans-${selectedLessonId}-${idx}-${isSelected}`}
+                          key={`ans-choice-${selectedLessonId}-${idx}-${isSelected}`}
                           onClick={(e) => { 
                              e.stopPropagation(); 
                              setActiveAnswer(idx);
@@ -215,7 +216,7 @@ export default function ShiftPage() {
                             padding: '18px 25px', borderRadius: '16px', cursor: 'pointer', border: '1px solid',
                             backgroundColor: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#0d0f0d',
                             borderColor: isSelected ? (isCorrect ? '#4CAF50' : '#ff5252') : '#333',
-                            color: isSelected ? '#fff' : '#888'
+                            color: isSelected ? '#fff' : '#888', transition: '0.1s'
                           } as any}
                         >
                           {opt}

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import Navigation from '../components/Navigation';
-// Импортируем клиент Supabase из твоей папки lib
+import Navigation from '@/app/components/Navigation';
+// Универсальный путь к базе (папка lib в корне)
 import { supabase } from '@/lib/supabaseClient';
 
 interface Tea {
@@ -37,15 +37,19 @@ export default function AdminPage() {
 
   // Загрузка базы из Supabase
   const fetchTeas = async () => {
-    const { data, error } = await supabase
-      .from('teas')
-      .select('*')
-      .order('id', { ascending: false });
-    
-    if (error) {
-      console.error("Ошибка загрузки:", error.message);
-    } else if (data) {
-      setTeas(data);
+    try {
+      const { data, error } = await supabase
+        .from('teas')
+        .select('*')
+        .order('id', { ascending: false });
+      
+      if (error) {
+        console.error("Ошибка загрузки:", error.message);
+      } else if (data) {
+        setTeas(data);
+      }
+    } catch (err) {
+      console.error("Системная ошибка:", err);
     }
   };
 
@@ -71,10 +75,6 @@ export default function AdminPage() {
         if (error) throw error;
       }
       
-      // Логика "Чая дня": если этот чай помечен как активный, 
-      // нужно (в идеале) сбросить остальные. 
-      // Для простоты пока просто перезагрузим данные.
-      
       setShowForm(false);
       resetForm();
       fetchTeas(); // Обновляем список из базы
@@ -86,15 +86,16 @@ export default function AdminPage() {
   // Удаление из облака
   const deleteTea = async (id: number) => {
     if (confirm("Удалить этот сорт чая?")) {
-      const { error } = await supabase
-        .from('teas')
-        .delete()
-        .eq('id', id);
-      
-      if (error) {
-        alert("Ошибка удаления: " + error.message);
-      } else {
+      try {
+        const { error } = await supabase
+          .from('teas')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
         fetchTeas();
+      } catch (err: any) {
+        alert("Ошибка удаления: " + err.message);
       }
     }
   };
@@ -146,7 +147,7 @@ export default function AdminPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{tea.name}</span>
-                  {tea.isDayTea && <span style={{ background: '#4CAF50', color: '#000', fontSize: '10px', padding: '2px 66x', borderRadius: '5px', fontWeight: 'bold' }}>ЧАЙ ДНЯ ⭐</span>}
+                  {tea.isDayTea && <span style={{ background: '#4CAF50', color: '#000', fontSize: '10px', padding: '2px 6px', borderRadius: '5px', fontWeight: 'bold' }}>ЧАЙ ДНЯ ⭐</span>}
                 </div>
                 <div style={{ fontSize: '12px', color: '#555', marginTop: '4px' }}>{tea.type} | {tea.strength} | {tea.category}</div>
               </div>
