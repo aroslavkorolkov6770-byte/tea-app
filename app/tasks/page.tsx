@@ -121,27 +121,33 @@ export default function ShiftPage() {
           ))}
         </div>
 
-        {/* --- ЧЕК-ЛИСТ --- */}
+         {/* --- ЧЕК-ЛИСТ (ДИНАМИЧЕСКИЙ) --- */}
         {activeTab === 'checklist' && (
           <div style={{ animation: 'fadeIn 0.5s ease' }}>
             <h2 style={{ marginBottom: '25px', fontSize: '28px' }}>Рабочая смена</h2>
             
+            {/* ДОБАВЛЕНИЕ НОВОЙ ЗАДАЧИ */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' } as any}>
                 <input 
                     type="text" 
-                    placeholder="Добавить задачу..." 
+                    placeholder="Добавить новую задачу..." 
                     value={newTaskText}
                     onChange={(e) => setNewTaskText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addTask()}
                     style={{ flex: 1, padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #333', color: '#fff', outline: 'none' } as any}
                 />
-                <div onClick={addTask} style={{ padding: '18px 25px', background: '#4CAF50', color: '#000', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer' } as any}>+</div>
+                <div 
+                    onClick={addTask}
+                    style={{ padding: '18px 25px', background: '#4CAF50', color: '#000', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer' } as any}
+                >
+                    +
+                </div>
             </div>
 
             <div style={{ display: 'grid', gap: '12px' }}>
               {tasks.map(t => (
                 <div 
-                  key={`task-row-${t.id}-${t.done}`}
+                  key={`task-${t.id}-${t.done}`}
                   onClick={() => toggleTask(t.id, t.done)}
                   style={{ 
                     background: '#161816', padding: '20px', borderRadius: '18px', display: 'flex', gap: '20px', 
@@ -149,16 +155,26 @@ export default function ShiftPage() {
                     opacity: t.done ? 0.4 : 1, transition: '0.2s'
                   } as any}
                 >
-                  <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: '2px solid #4CAF50', backgroundColor: t.done ? '#4CAF50' : 'transparent', textAlign: 'center', color: '#000', fontWeight: 'bold' } as any}>
+                  <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: '2px solid #4CAF50', backgroundColor: t.done ? '#4CAF50' : 'transparent', color: '#000', textAlign: 'center', fontWeight: 'bold' } as any}>
                     {t.done && '✓'}
                   </div>
                   <span style={{ flex: 1, fontSize: '16px', textDecoration: t.done ? 'line-through' : 'none' }}>{t.text}</span>
-                  <div onClick={(e) => deleteTask(t.id, e)} style={{ color: '#444', fontSize: '18px', cursor: 'pointer', padding: '5px' } as any}>✕</div>
+                  
+                  {/* Кнопка удаления */}
+                  <div 
+                    onClick={(e) => deleteTask(t.id, e)} 
+                    style={{ color: '#444', fontSize: '18px', cursor: 'pointer', padding: '5px' } as any}
+                    onMouseEnter={(e: any) => e.target.style.color = '#ff5252'}
+                    onMouseLeave={(e: any) => e.target.style.color = '#444'}
+                  >
+                    ✕
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
+
 
         {/* --- ОБУЧЕНИЕ --- */}
         {activeTab === 'edu' && (
