@@ -89,14 +89,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 2. СЕКЦИЯ: ФИЛОСОФИЯ */}
-        <section style={{ padding: '0 25px 60px 25px' } as any}>
-          <h2 style={{ fontSize: '14px', color: '#4CAF50', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '20px' } as any}>Наша философия</h2>
-          <p style={{ fontSize: '22px', lineHeight: '1.6', fontWeight: '500', color: '#fff', marginBottom: '30px' } as any}>
-            «Мы создаем пространство, где время замирает. Каждая чашка — это не просто напиток, а ритуал, соединяющий древние традиции с ритмом большого города.»
-          </p>
-          <div style={{ height: '1px', width: '60px', backgroundColor: '#4CAF50' } as any}></div>
-        </section>
+
 
         {/* 3. ГАЛЕРЕЯ (BENTO GRID) */}
         <section style={{ padding: '0 20px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '60px' } as any}>
@@ -105,27 +98,6 @@ export default function Home() {
           <div style={{ ...galleryItem, height: '180px', backgroundImage: 'url("https://images.unsplash.com/photo-1571934811356-5cc561b6821f?q=80&w=600")' } as any}></div>
           <div style={{ ...galleryItem, gridColumn: 'span 2', height: '220px', backgroundImage: 'url("https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=1000")' } as any}></div>
         </section>
-
-        {/* 4. ЧАЙ ДНЯ ИЗ ОБЛАКА */}
-        {dayTea && (
-          <section style={{ padding: '0 25px', marginBottom: '60px' } as any}>
-             <div style={{ 
-               background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', 
-               padding: '40px', borderRadius: '40px', border: '1px solid #4CAF50',
-               boxShadow: '0 20px 40px rgba(0,0,0,0.4)', animation: 'fadeInUp 1s ease'
-             } as any}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' } as any}>
-                    <span style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '14px', letterSpacing: '2px' } as any}>⭐ РЕКОМЕНДАЦИЯ ДНЯ</span>
-                    <span style={{ color: '#666', fontSize: '12px' } as any}>{dayTea.type}</span>
-                </div>
-                <h3 style={{ fontSize: '36px', color: '#fff', margin: '0 0 15px 0' } as any}>{dayTea.name}</h3>
-                <p style={{ color: '#aaa', fontSize: '18px', lineHeight: '1.6', marginBottom: '25px' } as any}>{dayTea.summary}</p>
-                <div style={{ display: 'inline-block', padding: '10px 20px', background: '#4CAF50', color: '#000', borderRadius: '12px', fontWeight: 'bold', fontSize: '14px' } as any}>
-                    Заваривать при {dayTea.info}
-                </div>
-             </div>
-          </section>
-        )}
 
         {/* 5. СЕКЦИЯ: ТЕКСТ О МАСТЕРСТВЕ */}
         <section style={{ padding: '0 25px', marginBottom: '80px' } as any}>
