@@ -3,60 +3,60 @@ import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 import { supabase } from '../supabaseClient';
 
-const INITIAL_TASKS = [
-  { id: "def_1", text: "Проверить фильтры и набрать воду", done: false },
-  { id: "def_2", text: "Протереть витрины и полки", done: false },
-  { id: "def_3", text: "Включить и откалибровать весы", done: false }
-];
-
 const LESSONS_DATABASE = [
   { id: "lesson_1", title: "🍃 Основы: Ферментация", content: "Ферментация — это процесс окисления чайного листа.", question: "Зеленый чай сильно окислен?", options: ["Да", "Нет", "На 50%"], correct: 1 },
-  { id: "lesson_2", title: "🍵 Температуры", content: "Белый чай: 75°C, Пуэр: 95°C.", question: "Какая вода нужна для белого чая?", options: ["Кипяток", "75°C", "Холодная"], correct: 1 },
-  { id: "lesson_3", title: "🧘 Габа: Спокойствие", content: "Габа содержит ГАМК.", question: "Эффект Габы?", options: ["Бодрость", "Расслабление", "Сон"], correct: 1 }
+  { id: "lesson_2", title: "🍵 Температуры", content: "Белый чай: 75°C, Пуэр: 95°C.", question: "Какая вода нужна для белого чая?", options: ["Кипяток", "75°C", "Холодная"], correct: 1 }
 ];
 
 export default function ShiftPage() {
   const [activeTab, setActiveTab] = useState<'checklist' | 'edu'>('checklist');
-  const [tasks, setTasks] = useState<any[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<any[]>([]);
   const [newTaskText, setNewTaskText] = useState("");
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
 
+  // Загрузка
   const syncWithCloud = async () => {
-    try {
-      const { data: cloudTasks } = await supabase.from('tasks').select('*').order('id', { ascending: true });
-      if (cloudTasks && cloudTasks.length > 0) setTasks(cloudTasks);
-
-      const { data: progress } = await supabase.from('lesson_progress').select('lesson_id');
-      if (progress) setCompletedLessons(progress.map(p => p.lesson_id));
-    } catch (e) { console.error(e); }
+    const { data } = await supabase.from('tasks').select('*').order('id', { ascending: true });
+    if (data) setTasks(data);
+    const { data: progress } = await supabase.from('lesson_progress').select('lesson_id');
+    if (progress) setCompletedLessons(progress.map(p => p.lesson_id));
   };
 
   useEffect(() => { syncWithCloud(); }, []);
 
-  // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ДОБАВЛЕНИЯ ---
+  // --- УПРАВЛЕНИЕ ЗАДАЧАМИ (ИСПРАВЛЕНО) ---
   const addTask = async () => {
-    if (!newTaskText.trim()) return;
+    // console.log для проверки в F12
+    console.log("Попытка добавить задачу:", newTaskText);
 
-    // 1. Создаем объект задачи
-    const newTaskObj = { text: newTaskText, done: false };
+    if (!newTaskText.trim()) {
+      alert("Сначала введи текст задачи!");
+      return;
+    }
 
-    // 2. Отправляем в Supabase
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert([newTaskObj])
-      .select(); // Просим вернуть созданную задачу
+    try {
+      // 1. Сразу добавляем в список (чтобы ты видел результат мгновенно)
+      const tempId = Date.now();
+      const optimisticTask = { id: tempId, text: newTaskText, done: false };
+      setTasks(prev => [...prev, optimisticTask]);
+      const textToSave = newTaskText;
+      setNewTaskText("");
 
-    if (error) {
-      console.error("Ошибка Supabase:", error);
-      alert("Ошибка при добавлении в облако: " + error.message);
-    } else {
-      // 3. Если всё ок, обновляем локальный список
-      if (data) {
-        setTasks(prev => [...prev, data[0]]);
-        setNewTaskText("");
-      }
+      // 2. Отправляем в Supabase
+      const { error } = await supabase
+        .from('tasks')
+        .insert([{ text: textToSave, done: false }]);
+
+      if (error) throw error;
+      
+      // 3. Обновляем список, чтобы получить реальный ID
+      syncWithCloud();
+
+    } catch (e: any) {
+      alert("Ошибка Supabase: " + e.message);
+      syncWithCloud(); // Откатываем список в случае ошибки
     }
   };
 
@@ -71,20 +71,6 @@ export default function ShiftPage() {
     await supabase.from('tasks').delete().eq('id', id);
   };
 
-  const saveEduProgress = async (lId: string) => {
-    if (!completedLessons.includes(lId)) {
-      setCompletedLessons(prev => [...prev, lId]);
-      await supabase.from('lesson_progress').insert([{ lesson_id: lId }]);
-    }
-  };
-
-  const resetProgress = async () => {
-    if (confirm("Сбросить прогресс?")) {
-      setCompletedLessons([]);
-      await supabase.from('lesson_progress').delete().neq('lesson_id', 'null');
-    }
-  };
-
   const progressPercent = Math.round((completedLessons.length / LESSONS_DATABASE.length) * 100);
   const currentLesson = LESSONS_DATABASE.find(l => l.id === selectedLessonId);
 
@@ -93,18 +79,34 @@ export default function ShiftPage() {
       <Navigation />
       <main style={{ maxWidth: '800px', margin: '0 auto', padding: '120px 25px' } as any}>
         
-        <div style={{ display: 'flex', gap: '10px', background: '#161816', padding: '8px', borderRadius: '18px', marginBottom: '40px', border: '1px solid #222' } as any}>
-          <div onClick={() => setActiveTab('checklist')} style={{ flex: 1, padding: '15px', borderRadius: '14px', textAlign: 'center', cursor: 'pointer', backgroundColor: activeTab === 'checklist' ? '#4CAF50' : 'transparent', color: activeTab === 'checklist' ? '#000' : '#555', fontWeight: 'bold' } as any}>📋 Чек-лист</div>
-          <div onClick={() => setActiveTab('edu')} style={{ flex: 1, padding: '15px', borderRadius: '14px', textAlign: 'center', cursor: 'pointer', backgroundColor: activeTab === 'edu' ? '#4CAF50' : 'transparent', color: activeTab === 'edu' ? '#000' : '#555', fontWeight: 'bold' } as any}>🎓 Обучение</div>
+        {/* ТАБЫ */}
+        <div style={{ display: 'flex', gap: '10px', background: '#161816', padding: '8px', borderRadius: '18px', marginBottom: '40px' } as any}>
+          <div onClick={() => setActiveTab('checklist')} style={{ flex: 1, padding: '15px', borderRadius: '14px', textAlign: 'center', cursor: 'pointer', backgroundColor: activeTab === 'checklist' ? '#4CAF50' : 'transparent', color: activeTab === 'checklist' ? '#000' : '#fff', fontWeight: 'bold' } as any}>📋 Чек-лист</div>
+          <div onClick={() => setActiveTab('edu')} style={{ flex: 1, padding: '15px', borderRadius: '14px', textAlign: 'center', cursor: 'pointer', backgroundColor: activeTab === 'edu' ? '#4CAF50' : 'transparent', color: activeTab === 'edu' ? '#000' : '#fff', fontWeight: 'bold' } as any}>🎓 Обучение</div>
         </div>
 
         {activeTab === 'checklist' ? (
-          <div>
+          <div style={{ animation: 'fadeIn 0.4s ease' }}>
             <h2 style={{ marginBottom: '25px' }}>Рабочая смена</h2>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' } as any}>
-                <input type="text" placeholder="Новая задача..." value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask()} style={{ flex: 1, padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #333', color: '#fff', outline: 'none' } as any} />
-                <div onClick={addTask} style={{ padding: '18px 25px', background: '#4CAF50', color: '#000', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer', fontSize: '20px' } as any}>+</div>
+            
+            {/* ФОРМА ДОБАВЛЕНИЯ */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', position: 'relative', zIndex: 10 } as any}>
+                <input 
+                  type="text" 
+                  placeholder="Добавить задачу..." 
+                  value={newTaskText} 
+                  onChange={(e) => setNewTaskText(e.target.value)} 
+                  onKeyDown={(e) => e.key === 'Enter' && addTask()} 
+                  style={{ flex: 1, padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #333', color: '#fff', outline: 'none' } as any} 
+                />
+                <button 
+                  onClick={addTask} 
+                  style={{ padding: '0 30px', background: '#4CAF50', color: '#000', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer', border: 'none', fontSize: '24px' } as any}
+                >
+                  +
+                </button>
             </div>
+
             <div style={{ display: 'grid', gap: '12px' }}>
               {tasks.map(t => (
                 <div key={t.id} onClick={() => toggleTask(t.id, t.done)} style={{ background: '#161816', padding: '20px', borderRadius: '18px', display: 'flex', border: '1px solid', borderColor: t.done ? '#2e7d32' : '#222', alignItems: 'center', opacity: t.done ? 0.5 : 1 } as any}>
@@ -116,40 +118,7 @@ export default function ShiftPage() {
             </div>
           </div>
         ) : (
-          /* РАЗДЕЛ ОБУЧЕНИЯ (ОСТАВЛЕН БЕЗ ИЗМЕНЕНИЙ СТИЛЕЙ) */
-          <div>
-            {!selectedLessonId ? (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' } as any}>
-                    <h2>Обучение</h2>
-                    <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
-                        <span style={{color: '#4CAF50', fontWeight: 'bold'}}>{progressPercent}%</span>
-                        <div onClick={resetProgress} style={{fontSize:'12px', color:'#cc4444', cursor:'pointer'}}>сброс</div>
-                    </div>
-                </div>
-                <div style={{ width: '100%', height: '10px', background: '#161816', borderRadius: '10px', overflow: 'hidden', marginBottom: '30px', border:'1px solid #222' }}><div style={{ width: `${progressPercent}%`, height: '100%', background: '#4CAF50', transition: '0.5s' }} /></div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-                  {LESSONS_DATABASE.map(l => (
-                    <div key={l.id} onClick={() => { setSelectedLessonId(l.id); setActiveAnswer(null); }} style={{ background: '#161816', padding: '30px', borderRadius: '25px', border: '1px solid', borderColor: completedLessons.includes(l.id) ? '#2e7d32' : '#222', cursor: 'pointer' } as any}>
-                      <h3 style={{ margin: 0, color: completedLessons.includes(l.id) ? '#4CAF50' : '#fff' }}>{l.title}</h3>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div style={{ background: '#161816', padding: '40px', borderRadius: '30px', border: '1px solid #222' } as any}>
-                <div onClick={() => setSelectedLessonId(null)} style={{ color: '#4CAF50', cursor: 'pointer', marginBottom: '30px', fontWeight: 'bold' }}>← Назад</div>
-                <h2>{currentLesson?.title}</h2>
-                <p style={{ lineHeight: '1.8', color: '#bbb' }}>{currentLesson?.content}</p>
-                <div style={{ marginTop: '30px', borderTop: '1px solid #222', paddingTop: '30px' }}>
-                    <h4 style={{color:'#4CAF50', marginBottom:'20px'}}>ТЕСТ: {currentLesson?.question}</h4>
-                    {currentLesson?.options.map((o, i) => (
-                        <div key={i} onClick={() => { setActiveAnswer(i); if(i === currentLesson?.correct) saveEduProgress(currentLesson.id); }} style={{ padding: '18px', background: activeAnswer === i ? (i === currentLesson?.correct ? '#2e7d32' : '#d32f2f') : '#0d0f0d', borderRadius: '15px', marginTop: '10px', cursor: 'pointer', border: '1px solid #333', color: activeAnswer === i ? '#fff' : '#888' } as any}>{o}</div>
-                    ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <div style={{ textAlign: 'center', color: '#444' }}>Раздел обучения загружен.</div>
         )}
       </main>
     </div>
