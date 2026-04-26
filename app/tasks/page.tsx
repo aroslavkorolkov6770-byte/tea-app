@@ -1,6 +1,14 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navigation from '../components/Navigation';
+
+// --- КОНСТАНТЫ И БАЗА ДАННЫХ ---
+const STORAGE_KEYS = {
+    TAB: 'tea_hub_active_tab',
+    TASKS: 'tea_hub_local_tasks',
+    EDU: 'tea_hub_completed_lessons',
+    LESSON: 'tea_hub_selected_lesson'
+};
 
 const LESSONS_DATABASE = [
   {
@@ -44,6 +52,8 @@ const DEFAULT_TASKS = [
 ];
 
 export default function ShiftPage() {
+  // --- СОСТОЯНИЯ (STATE) ---
+  const [isMounted, setIsMounted] = useState(false); // Флаг готовности клиента
   const [activeTab, setActiveTab] = useState<'checklist' | 'edu'>('checklist');
   const [tasks, setTasks] = useState<any[]>([]);
   const [newTaskText, setNewTaskText] = useState("");
@@ -51,85 +61,97 @@ export default function ShiftPage() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
-  // --- ЛОГИКА СОХРАНЕНИЯ (С ПАМЯТЬЮ ВКЛАДОК) ---
+  // --- ЛОГИКА ИНИЦИАЛИЗАЦИИ (СЛОЖНЫЙ ПУТЬ) ---
   
+  // 1. Единоразовая загрузка при старте
   useEffect(() => {
-    // 1. Загружаем задачи и прогресс
-    const savedTasks = localStorage.getItem('local_tasks');
-    const savedEdu = localStorage.getItem('local_edu');
-    const savedTab = localStorage.getItem('active_tab'); // Память вкладки
-    const savedLesson = localStorage.getItem('selected_lesson'); // Память урока
+    const loadData = () => {
+        const savedTasks = localStorage.getItem(STORAGE_KEYS.TASKS);
+        const savedEdu = localStorage.getItem(STORAGE_KEYS.EDU);
+        const savedTab = localStorage.getItem(STORAGE_KEYS.TAB);
+        const savedLesson = localStorage.getItem(STORAGE_KEYS.LESSON);
 
-    if (savedTasks) setTasks(JSON.parse(savedTasks));
-    else setTasks(DEFAULT_TASKS);
-    
-    if (savedEdu) setCompletedLessons(JSON.parse(savedEdu));
-    
-    // Восстанавливаем вкладку
-    if (savedTab === 'checklist' || savedTab === 'edu') {
-        setActiveTab(savedTab as any);
-    }
+        if (savedTasks) setTasks(JSON.parse(savedTasks));
+        else setTasks(DEFAULT_TASKS);
 
-    // Восстанавливаем открытый урок
-    if (savedLesson) setSelectedLessonId(savedLesson);
+        if (savedEdu) setCompletedLessons(JSON.parse(savedEdu));
+        
+        if (savedTab === 'checklist' || savedTab === 'edu') {
+            setActiveTab(savedTab as any);
+        }
+
+        if (savedLesson) setSelectedLessonId(savedLesson);
+        
+        // Разрешаем рендер только после того, как данные считаны
+        setIsMounted(true);
+    };
+
+    loadData();
   }, []);
 
-  // Сохраняем задачи при изменении
-  useEffect(() => {
-    if (tasks.length > 0) localStorage.setItem('local_tasks', JSON.stringify(tasks));
-  }, [tasks]);
+  // 2. Обёртки для изменения состояния с автоматическим сохранением
+  const updateTab = (tab: 'checklist' | 'edu') => {
+    setActiveTab(tab);
+    localStorage.setItem(STORAGE_KEYS.TAB, tab);
+  };
 
-  // Сохраняем прогресс обучения
-  useEffect(() => {
-    localStorage.setItem('local_edu', JSON.stringify(completedLessons));
-  }, [completedLessons]);
+  const updateLesson = (id: string | null) => {
+    setSelectedLessonId(id);
+    if (id) localStorage.setItem(STORAGE_KEYS.LESSON, id);
+    else localStorage.removeItem(STORAGE_KEYS.LESSON);
+  };
 
-  // СОХРАНЯЕМ ТЕКУЩУЮ ВКЛАДКУ
-  useEffect(() => {
-    localStorage.setItem('active_tab', activeTab);
-  }, [activeTab]);
+  const syncTasks = (newTasks: any[]) => {
+    setTasks(newTasks);
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(newTasks));
+  };
 
-  // СОХРАНЯЕМ ТЕКУЩИЙ УРОК
-  useEffect(() => {
-    if (selectedLessonId) localStorage.setItem('selected_lesson', selectedLessonId);
-    else localStorage.removeItem('selected_lesson');
-  }, [selectedLessonId]);
+  const syncEdu = (newEdu: string[]) => {
+    setCompletedLessons(newEdu);
+    localStorage.setItem(STORAGE_KEYS.EDU, JSON.stringify(newEdu));
+  };
 
-  // --- ХЕНДЛЕРЫ ---
+  // --- ОБРАБОТЧИКИ (HANDLERS) ---
   const addTask = () => {
     if (!newTaskText.trim()) return;
-    const newTask = { id: Date.now(), text: newTaskText, done: false };
-    setTasks([...tasks, newTask]);
+    const newList = [...tasks, { id: Date.now(), text: newTaskText, done: false }];
+    syncTasks(newList);
     setNewTaskText("");
   };
 
   const toggleTask = (id: number) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, done: !t.done } : t));
+    const newList = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+    syncTasks(newList);
   };
 
   const deleteTask = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = tasks.filter(t => t.id !== id);
-    setTasks(updated);
-    localStorage.setItem('local_tasks', JSON.stringify(updated));
+    const newList = tasks.filter(t => t.id !== id);
+    syncTasks(newList);
   };
 
   const handleAnswer = (index: number, correct: number, lessonId: string) => {
     setActiveAnswer(index);
     if (index === correct && !completedLessons.includes(lessonId)) {
-      setCompletedLessons([...completedLessons, lessonId]);
+      const newEdu = [...completedLessons, lessonId];
+      syncEdu(newEdu);
     }
   };
 
   const resetProgress = () => {
-    if (confirm("Сбросить прогресс обучения?")) {
-      setCompletedLessons([]);
-      localStorage.removeItem('local_edu');
+    if (confirm("Сбросить весь прогресс обучения?")) {
+      syncEdu([]);
+      setActiveAnswer(null);
     }
   };
 
+  // Расчеты
   const progressPercent = Math.round((completedLessons.length / LESSONS_DATABASE.length) * 100);
   const currentLesson = LESSONS_DATABASE.find(l => l.id === selectedLessonId);
+
+  // Если клиентская часть еще не готова, показываем пустой экран или лоадер
+  // Это предотвращает "прыжок" вкладок
+  if (!isMounted) return <div style={{ background: '#0d0f0d', minHeight: '100vh' }} />;
 
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', userSelect: 'none' } as any}>
@@ -139,8 +161,22 @@ export default function ShiftPage() {
         
         {/* КНОПКИ ПЕРЕКЛЮЧЕНИЯ */}
         <div style={{ display: 'flex', gap: '12px', background: '#161816', padding: '8px', borderRadius: '18px', marginBottom: '40px', border: '1px solid #222' } as any}>
-          <div onClick={() => setActiveTab('checklist')} style={{ flex: 1, padding: '15px', borderRadius: '14px', textAlign: 'center', cursor: 'pointer', backgroundColor: activeTab === 'checklist' ? '#4CAF50' : 'transparent', color: activeTab === 'checklist' ? '#000' : '#fff', fontWeight: 'bold', transition: '0.3s' } as any}>📋 Чек-лист</div>
-          <div onClick={() => setActiveTab('edu')} style={{ flex: 1, padding: '15px', borderRadius: '14px', textAlign: 'center', cursor: 'pointer', backgroundColor: activeTab === 'edu' ? '#4CAF50' : 'transparent', color: activeTab === 'edu' ? '#000' : '#fff', fontWeight: 'bold', transition: '0.3s' } as any}>🎓 Обучение</div>
+          <div 
+            onClick={() => updateTab('checklist')} 
+            style={{ 
+                flex: 1, padding: '15px', borderRadius: '14px', textAlign: 'center', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', transition: '0.3s',
+                backgroundColor: activeTab === 'checklist' ? '#4CAF50' : 'transparent', 
+                color: activeTab === 'checklist' ? '#000' : '#555' 
+            } as any}
+          >📋 Чек-лист</div>
+          <div 
+            onClick={() => updateTab('edu')} 
+            style={{ 
+                flex: 1, padding: '15px', borderRadius: '14px', textAlign: 'center', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', transition: '0.3s',
+                backgroundColor: activeTab === 'edu' ? '#4CAF50' : 'transparent', 
+                color: activeTab === 'edu' ? '#000' : '#555' 
+            } as any}
+          >🎓 Обучение</div>
         </div>
 
         {activeTab === 'checklist' ? (
@@ -165,7 +201,7 @@ export default function ShiftPage() {
           <div style={{ animation: 'fadeIn 0.5s ease' }}>
             {!selectedLessonId ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' } as any}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '15px' } as any}>
                     <h2 style={{ fontSize: '28px', margin: 0 }}>База знаний</h2>
                     <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
                         <span style={{color: '#4CAF50', fontWeight: 'bold'}}>{progressPercent}%</span>
@@ -179,7 +215,7 @@ export default function ShiftPage() {
                   {LESSONS_DATABASE.map(l => {
                     const isDone = completedLessons.includes(l.id);
                     return (
-                      <div key={l.id} onClick={() => { setSelectedLessonId(l.id); setActiveAnswer(null); }} style={{ background: '#161816', padding: '30px', borderRadius: '25px', border: '1px solid', borderColor: isDone ? '#2e7d32' : '#222', cursor: 'pointer' } as any}>
+                      <div key={l.id} onClick={() => { updateLesson(l.id); setActiveAnswer(null); }} style={{ background: '#161816', padding: '30px', borderRadius: '25px', border: '1px solid', borderColor: isDone ? '#2e7d32' : '#222', cursor: 'pointer' } as any}>
                         <h3 style={{ margin: 0, color: isDone ? '#4CAF50' : '#fff' }}>{l.title}</h3>
                         <p style={{marginTop: '10px', color: '#444', fontSize: '13px'}}>{isDone ? 'Пройдено ✓' : 'Начать →'}</p>
                       </div>
@@ -189,14 +225,18 @@ export default function ShiftPage() {
               </>
             ) : (
               <div style={{ background: '#161816', padding: '40px', borderRadius: '30px', border: '1px solid #222' } as any}>
-                <div onClick={() => setSelectedLessonId(null)} style={{ color: '#4CAF50', cursor: 'pointer', marginBottom: '30px', fontWeight: 'bold' }}>← Назад к темам</div>
+                <div onClick={() => updateLesson(null)} style={{ color: '#4CAF50', cursor: 'pointer', marginBottom: '30px', fontWeight: 'bold' }}>← Назад к темам</div>
                 <h2 style={{marginBottom: '20px'}}>{currentLesson?.title}</h2>
                 <p style={{lineHeight: '1.8', color: '#bbb', marginBottom: '40px'}}>{currentLesson?.content}</p>
                 <div style={{borderTop: '1px solid #333', paddingTop: '30px'}}>
                     <h4 style={{color: '#4CAF50', marginBottom: '20px'}}>📝 ТЕСТ: {currentLesson?.question}</h4>
-                    {currentLesson?.options.map((o, i) => (
-                        <div key={i} onClick={() => handleAnswer(i, currentLesson!.correct, currentLesson!.id)} style={{ padding: '18px', background: activeAnswer === i ? (i === currentLesson?.correct ? '#2e7d32' : '#d32f2f') : '#0d0f0d', borderRadius: '15px', marginTop: '10px', cursor: 'pointer', border: '1px solid #333', color: activeAnswer === i ? '#fff' : '#888' } as any}>{o}</div>
-                    ))}
+                    {currentLesson?.options.map((o, i) => {
+                        const isCorrect = i === currentLesson?.correct;
+                        const isSelected = activeAnswer === i;
+                        return (
+                            <div key={`ans-${i}-${isSelected}`} onClick={() => handleAnswer(i, currentLesson!.correct, currentLesson!.id)} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#0d0f0d', borderRadius: '15px', marginTop: '10px', cursor: 'pointer', border: '1px solid #333', color: isSelected ? '#fff' : '#888' } as any}>{o}</div>
+                        );
+                    })}
                 </div>
               </div>
             )}
