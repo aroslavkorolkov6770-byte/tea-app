@@ -11,7 +11,7 @@ interface Tea {
 const STRENGTHS = ["Все", "Мягкий", "Средний", "Крепкий"];
 
 // --- ПОЛНАЯ РЕЗЕРВНАЯ БАЗА (15 СОРТОВ) ---
-const INITIAL_TEA_DATABASE: Tea[] = [
+const INITIAL_DATABASE: Tea[] = [
   { id: 1, name: "Лунцзин", type: "Зеленый", category: "Зеленый чай", strength: "Мягкий", info: "75°C", summary: "Ореховый профиль, семечки.", desc: "Классика из Ханчжоу. Нежный весенний вкус.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800", isDayTea: false },
   { id: 2, name: "Би Ло Чунь", type: "Зеленый", category: "Зеленый чай", strength: "Средний", info: "80°C", summary: "Цветочный аромат.", desc: "Скрученные спиралью почки с нежным ворсом.", img: "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=800", isDayTea: false },
   { id: 3, name: "Тайпин Хоукуй", type: "Зеленый", category: "Зеленый чай", strength: "Крепкий", info: "85°C", summary: "Травянистый, мощный.", desc: "Огромные плоские листья.", img: "https://images.unsplash.com/photo-1563911302283-d2bc129e7570?q=80&w=800", isDayTea: false },
@@ -31,12 +31,12 @@ const INITIAL_TEA_DATABASE: Tea[] = [
 
 export default function SearchPage() {
   const [isMounted, setIsMounted] = useState(false);
-  const [teas, setTeas] = useState<Tea[]>(INITIAL_TEA_DATABASE);
+  const [teas, setTeas] = useState<Tea[]>(INITIAL_DATABASE);
+  const [teaTypes, setTeaTypes] = useState<string[]>(["Зеленый", "Белый", "Улун", "Красный", "Пуэр"]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   
-  const [teaTypes, setTeaTypes] = useState<string[]>(["Зеленый", "Белый", "Улун", "Красный", "Пуэр"]);
+  const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Все");
   const [activeStrength, setActiveStrength] = useState("Все");
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
@@ -57,16 +57,15 @@ export default function SearchPage() {
     try {
       const { data } = await supabase.from('teas').select('*').order('id', { ascending: false });
       if (data && data.length > 0) setTeas(data);
-      else setTeas(INITIAL_TEA_DATABASE);
-    } catch (err) { setTeas(INITIAL_TEA_DATABASE); }
+    } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
   useEffect(() => {
     fetchData();
-    const savedTypes = localStorage.getItem('tea_types');
+    const savedTypes = localStorage.getItem('local_tea_types');
     if (savedTypes) setTeaTypes(JSON.parse(savedTypes));
-    setIsAdmin(localStorage.getItem('userRole') === 'admin');
+    setIsAdmin(localStorage.getItem('isLoggedIn') === 'true' && localStorage.getItem('userRole') === 'admin');
     setIsMounted(true);
   }, []);
 
@@ -97,15 +96,16 @@ export default function SearchPage() {
     if (newTypeName && !teaTypes.includes(newTypeName)) {
       const updated = [...teaTypes, newTypeName];
       setTeaTypes(updated);
-      localStorage.setItem('tea_types', JSON.stringify(updated));
+      localStorage.setItem('local_tea_types', JSON.stringify(updated));
       setNewTypeName(""); setShowTypeForm(false);
     }
   };
 
-  const deleteCategory = () => {
+  const handleDeleteType = () => {
     const updated = teaTypes.filter(t => t !== typeToDelete);
     setTeaTypes(updated);
-    localStorage.setItem('tea_types', JSON.stringify(updated));
+    localStorage.setItem('local_tea_types', JSON.stringify(updated));
+    if (activeCategory === typeToDelete) setActiveCategory("Все");
     setShowDeleteModal(false);
   };
 
@@ -122,20 +122,20 @@ export default function SearchPage() {
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', userSelect: 'none' } as any}>
       <Navigation />
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '120px 20px', display: 'grid', gridTemplateColumns: isAdmin ? '1fr 300px' : '1fr', gap: '40px', alignItems: 'start' } as any}>
-        
+      <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '120px 20px', display: 'grid', gridTemplateColumns: isAdmin ? '1fr 320px' : '1fr', gap: '40px', alignItems: 'start' } as any}>
         <section>
-          {/* ЧАЙ ДНЯ ⭐ */}
+          {/* ЧАЙ ДНЯ */}
           {teas.find(t => t.isDayTea) && activeCategory === "Все" && !search && (
-            <div onClick={() => setSelectedTea(teas.find(t => t.isDayTea)!)} style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '35px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px' } as any}>
+            <div onClick={() => setSelectedTea(teas.find(t => t.isDayTea)!)} style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '35px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' } as any}>
               <span style={{ color: '#4CAF50', fontSize: '12px', fontWeight: 'bold' }}>⭐ РЕКОМЕНДАЦИЯ ДНЯ</span>
               <h2 style={{ fontSize: '32px', margin: '10px 0' }}>{teas.find(t => t.isDayTea)?.name}</h2>
-              <p style={{ color: '#aaa' }}>{teas.find(t => t.isDayTea)?.summary}</p>
+              <p style={{ color: '#aaa', fontSize: '14px' }}>{teas.find(t => t.isDayTea)?.summary}</p>
             </div>
           )}
 
-          <input type="text" placeholder="Поиск сорта..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle} />
+          <input type="text" placeholder="Поиск сорта..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle as any} />
           
+          {/* КАТЕГОРИИ */}
           <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px', alignItems: 'center' } as any}>
             <div onClick={() => {setActiveCategory("Все"); setActiveStrength("Все");}} style={{ ...typeBadge, backgroundColor: activeCategory === "Все" ? '#4CAF50' : '#161816', color: activeCategory === "Все" ? '#000' : '#fff' } as any}>Все</div>
             {teaTypes.map(type => (
@@ -147,6 +147,7 @@ export default function SearchPage() {
             {isAdmin && <div onClick={() => setShowTypeForm(true)} style={{ ...typeBadge, border: '1px dashed #4CAF50', color: '#4CAF50' } as any}>+</div>}
           </div>
 
+          {/* ХАРАКТЕР */}
           {activeCategory !== "Все" && (
             <div style={{ background: '#121412', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px' } as any}>
                 {STRENGTHS.map(str => (
@@ -155,6 +156,7 @@ export default function SearchPage() {
             </div>
           )}
 
+          {/* СПИСОК */}
           <div style={{ display: 'grid', gap: '15px' }}>
             {filteredTeas.map(tea => (
               <div key={tea.id} style={{ background: '#161816', padding: '22px', borderRadius: '25px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } as any}>
@@ -166,67 +168,71 @@ export default function SearchPage() {
                   {isAdmin && (
                     <>
                       <span onClick={(e) => toggleDayTea(e, tea)} style={{ cursor: 'pointer', fontSize: '22px', color: tea.isDayTea ? '#4CAF50' : '#333' }}>⭐</span>
-                      <span onClick={() => { setEditingId(tea.id); setFormData(tea); setShowTeaForm(true); }} style={{ cursor: 'pointer', color: '#4CAF50' }}>✎</span>
-                      <span onClick={async () => { if(confirm("Удалить?")) { await supabase.from('teas').delete().eq('id', tea.id); fetchData(); } }} style={{ cursor: 'pointer', color: '#ff5252' }}>✕</span>
+                      <span onClick={() => { setEditingId(tea.id); setFormData(tea); setShowTeaForm(true); }} style={{ cursor: 'pointer', color: '#4CAF50', fontSize: '20px' }}>✎</span>
+                      <span onClick={async () => { if(confirm("Удалить?")) { await supabase.from('teas').delete().eq('id', tea.id); fetchData(); } }} style={{ cursor: 'pointer', color: '#ff5252', fontSize: '20px' }}>✕</span>
                     </>
                   )}
-                  {!isAdmin && <div style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '12px' }}>{tea.strength}</div>}
+                  {!isAdmin && <div style={{ color: '#4CAF50', fontWeight: 'bold' }}>{tea.strength}</div>}
                 </div>
               </div>
             ))}
           </div>
         </section>
 
+        {/* ПРАВАЯ ЧАСТЬ (АДМИН) */}
         {isAdmin && (
           <aside style={{ position: 'sticky', top: '120px' } as any}>
             <div style={{ background: '#161816', padding: '25px', borderRadius: '25px', border: '1px solid #222' } as any}>
               <h3 style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#4CAF50', letterSpacing: '1px' }}>МАСТЕР-ПАНЕЛЬ</h3>
-              <button onClick={() => { resetTeaForm(); setShowTeaForm(true); }} style={btnMain}>+ ДОБАВИТЬ ЧАЙ</button>
+              <button onClick={() => { resetTeaForm(); setShowTeaForm(true); }} style={btnMain as any}>+ ДОБАВИТЬ ЧАЙ</button>
             </div>
           </aside>
         )}
 
-        {/* --- МОДАЛКИ (БЕЗ ИЗМЕНЕНИЙ ЛОГИКИ) --- */}
+        {/* МОДАЛКА: НОВЫЙ ТИП */}
         {showTypeForm && (
           <div style={modalOverlay as any}>
             <div style={modalContent as any}>
               <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Новый тип чая</h2>
-              <input style={inS} value={newTypeName} onChange={e => setNewTypeName(e.target.value)} placeholder="Название..." />
-              <button onClick={handleAddType} style={btnMain}>СОХРАНИТЬ</button>
-              <button onClick={() => setShowTypeForm(false)} style={btnCancel}>Отмена</button>
+              <input style={inS as any} value={newTypeName} onChange={e => setNewTypeName(e.target.value)} placeholder="Название..." />
+              <button onClick={handleAddType} style={btnMain as any}>СОХРАНИТЬ</button>
+              <button onClick={() => setShowTypeForm(false)} style={btnCancel as any}>Отмена</button>
             </div>
           </div>
         )}
 
+        {/* МОДАЛКА: УДАЛЕНИЕ */}
         {showDeleteModal && (
           <div style={modalOverlay as any}>
             <div style={modalContent as any}>
               <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>Удалить категорию?</h2>
               <p style={{ textAlign: 'center', color: '#666', marginBottom: '30px' }}>Удаление "{typeToDelete}" необратимо.</p>
-              <button onClick={deleteCategory} style={{...btnMain, background: '#ff7675'}}>УДАЛИТЬ</button>
-              <button onClick={() => setShowDeleteModal(false)} style={btnCancel}>Отмена</button>
+              <button onClick={handleDeleteType} style={{...btnMain, background: '#ff7675'} as any}>УДАЛИТЬ</button>
+              <button onClick={() => setShowDeleteModal(false)} style={btnCancel as any}>Отмена</button>
             </div>
           </div>
         )}
 
+        {/* МОДАЛКА: ЧАЙ */}
         {showTeaForm && (
           <div style={modalOverlay as any}>
             <div style={modalContent as any}>
               <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>{editingId ? 'Редактировать' : 'Новый чай'}</h2>
-              <input style={inS} placeholder="Название" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <input style={inS as any} placeholder="Название" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               <div style={{display:'flex', gap:'10px'}}>
-                <select style={inS} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>{teaTypes.map(t => <option key={t} value={t}>{t}</option>)}</select>
-                <select style={inS} value={formData.strength} onChange={e => setFormData({...formData, strength: e.target.value})}>{["Мягкий", "Средний", "Крепкий"].map(s => <option key={s} value={s}>{s}</option>)}</select>
+                <select style={inS as any} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>{teaTypes.map(t => <option key={t} value={t}>{t}</option>)}</select>
+                <select style={inS as any} value={formData.strength} onChange={e => setFormData({...formData, strength: e.target.value})}>{["Мягкий", "Средний", "Крепкий"].map(s => <option key={s} value={s}>{s}</option>)}</select>
               </div>
-              <input style={inS} placeholder="Категория" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} />
-              <textarea style={{...inS, height: '100px'}} placeholder="Описание" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
+              <input style={inS as any} placeholder="Категория" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} />
+              <textarea style={{...inS, height: '100px'} as any} placeholder="Описание" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
               <label style={{display:'flex', gap:'10px', marginBottom:'20px', cursor:'pointer'}}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> Чай дня ⭐</label>
-              <button onClick={handleSaveTea} style={btnMain}>СОХРАНИТЬ</button>
-              <button onClick={() => setShowTeaForm(false)} style={btnCancel}>Отмена</button>
+              <button onClick={handleSaveTea} style={btnMain as any}>СОХРАНИТЬ</button>
+              <button onClick={() => setShowTeaForm(false)} style={btnCancel as any}>Отмена</button>
             </div>
           </div>
         )}
 
+        {/* ДЕТАЛИ */}
         {selectedTea && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#0d0f0d', zIndex: 12000, padding: '40px 20px', overflowY: 'auto' } as any}>
             <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -241,12 +247,12 @@ export default function SearchPage() {
   );
 }
 
-// СТИЛИ (БЕЗ ИЗМЕНЕНИЙ)
+// СТИЛИ
 const typeBadge: React.CSSProperties = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap', transition: '0.2s' };
 const deleteTypeBtn: React.CSSProperties = { position: 'absolute', top: '-5px', right: '-5px', background: '#ff7675', color: '#fff', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #0d0f0d' };
-const inS = { width: '100%', padding: '14px', background: '#0d0f0d', border: '1px solid #333', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none' } as any;
+const inS = { width: '100%', padding: '14px', background: '#0d0f0d', border: '1px solid #333', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none' };
 const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 };
 const modalContent = { background: '#161816', padding: '40px', borderRadius: '35px', width: '90%', maxWidth: '450px', border: '1px solid #333' };
 const btnMain = { width: '100%', padding: '15px', background: '#4CAF50', color: '#000', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '10px' };
 const btnCancel = { width: '100%', background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontWeight: 'bold' };
-const inputStyle = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' } as any;
+const inputStyle = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' };
