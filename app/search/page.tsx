@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+// ВЕРНУЛИ ИМПОРТ НАВИГАЦИИ
+import Navigation from '../components/Navigation';
 import { supabase } from '../supabaseClient';
 
 interface Tea {
@@ -9,6 +11,7 @@ interface Tea {
 
 const STRENGTHS = ["Все", "Мягкий", "Средний", "Крепкий"];
 
+// --- ПОЛНАЯ РЕЗЕРВНАЯ БАЗА (15 СОРТОВ) ---
 const INITIAL_DATABASE: Tea[] = [
   { id: 1, name: "Лунцзин", type: "Зеленый", category: "Зеленый чай", strength: "Мягкий", info: "75°C", summary: "Ореховый профиль, семечки.", desc: "Классика из Ханчжоу. Нежный весенний вкус.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800", isDayTea: false },
   { id: 2, name: "Би Ло Чунь", type: "Зеленый", category: "Зеленый чай", strength: "Средний", info: "80°C", summary: "Цветочный аромат.", desc: "Скрученные спиралью почки с нежным ворсом.", img: "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=800", isDayTea: false },
@@ -53,15 +56,12 @@ export default function SearchPage() {
     name: '', type: 'Зеленый', category: '', strength: 'Мягкий', info: '90°C', summary: '', desc: '', img: '', isDayTea: false
   });
 
-  // --- ЛОГИКА ЗАГРУЗКИ ---
   const syncData = async () => {
-    // 1. Читаем из кэша
     const cachedTeas = localStorage.getItem('tea_master_local_v1');
     const cachedTypes = localStorage.getItem('tea_types_local_v1');
     if (cachedTeas) setTeas(JSON.parse(cachedTeas)); else setTeas(INITIAL_DATABASE);
     if (cachedTypes) setTeaTypes(JSON.parse(cachedTypes));
 
-    // 2. В фоне тянем из облака
     try {
       const { data } = await supabase.from('teas').select('*').order('id', { ascending: false });
       if (data && data.length > 0) {
@@ -83,28 +83,24 @@ export default function SearchPage() {
     setEditingId(null);
   };
 
-  // --- ФУНКЦИЯ СОХРАНЕНИЯ (ЛОКАЛКА + ОБЛАКО) ---
   const handleSaveTea = async () => {
     let newList = [...teas];
     const newId = editingId || Date.now();
     const newTeaData = { ...formData, id: newId };
 
-    // 1. Обновляем локально (Мгновенно)
     if (formData.isDayTea) newList = newList.map(t => ({ ...t, isDayTea: false }));
     if (editingId) newList = newList.map(t => t.id === editingId ? newTeaData : t);
-    else newList.push(newTeaData);
+    else newList.push(newTeaData as Tea);
 
     setTeas(newList);
     localStorage.setItem('tea_master_local_v1', JSON.stringify(newList));
     setShowTeaForm(false);
     
-    // 2. Пытаемся отправить в облако в фоне
     try {
       if (formData.isDayTea) await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
       if (editingId) await supabase.from('teas').update(formData).eq('id', editingId);
       else await supabase.from('teas').insert([formData]);
-    } catch (e) { console.error("Sync failed, saved only locally"); }
-    
+    } catch (e) {}
     resetTeaForm();
   };
 
@@ -113,7 +109,6 @@ export default function SearchPage() {
     const newList = teas.map(t => ({ ...t, isDayTea: t.id === tea.id ? !t.isDayTea : false }));
     setTeas(newList);
     localStorage.setItem('tea_master_local_v1', JSON.stringify(newList));
-    
     try {
       await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
       await supabase.from('teas').update({ isDayTea: !tea.isDayTea }).eq('id', tea.id);
@@ -157,11 +152,14 @@ export default function SearchPage() {
 
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', userSelect: 'none' } as any}>
+      {/* ВЕРНУЛИ КОМПОНЕНТ НАВИГАЦИИ */}
+      <Navigation />
+
       <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '120px 20px', display: 'grid', gridTemplateColumns: isAdmin ? '1fr 320px' : '1fr', gap: '40px', alignItems: 'start' } as any}>
         <section>
           {/* ЧАЙ ДНЯ ⭐ */}
           {teas.find(t => t.isDayTea) && activeCategory === "Все" && !search && (
-            <div onClick={() => setSelectedTea(teas.find(t => t.isDayTea)!)} style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '35px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' } as any}>
+            <div onClick={() => setSelectedTea(teas.find(t => t.isDayTea)!)} style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '35px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 30px rgba(0,0,0,0.6)' } as any}>
               <span style={{ color: '#4CAF50', fontSize: '12px', fontWeight: 'bold' }}>⭐ РЕКОМЕНДАЦИЯ ДНЯ</span>
               <h2 style={{ fontSize: '32px', margin: '10px 0' }}>{teas.find(t => t.isDayTea)?.name}</h2>
               <p style={{ color: '#aaa' }}>{teas.find(t => t.isDayTea)?.summary}</p>
@@ -196,18 +194,22 @@ export default function SearchPage() {
                   <h3 style={{ margin: 0 }}>{tea.name}</h3>
                   <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '13px' }}>{tea.summary}</p>
                 </div>
-                {isAdmin && (
-                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <div onClick={(e) => toggleDayTea(e, tea)} style={{ cursor: 'pointer', fontSize: '22px', color: tea.isDayTea ? '#4CAF50' : '#333' }}>⭐</div>
-                    <div onClick={() => { setEditingId(tea.id); setFormData(tea); setShowTeaForm(true); }} style={{ cursor: 'pointer', color: '#4CAF50', fontSize: '20px' }}>✎</div>
-                    <div onClick={() => { setTeaIdToDelete(tea.id); setShowTeaDeleteModal(true); }} style={{ cursor: 'pointer', color: '#ff5252', fontSize: '20px' }}>✕</div>
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                  {isAdmin && (
+                    <>
+                      <div onClick={(e) => toggleDayTea(e, tea)} style={{ cursor: 'pointer', fontSize: '22px', color: tea.isDayTea ? '#4CAF50' : '#333' }}>⭐</div>
+                      <div onClick={(e:any) => {e.stopPropagation(); setEditingId(tea.id); setFormData(tea); setShowTeaForm(true);}} style={{ cursor: 'pointer', color: '#4CAF50', fontSize: '20px' }}>✎</div>
+                      <div onClick={(e:any) => {e.stopPropagation(); setTeaIdToDelete(tea.id); setShowTeaDeleteModal(true);}} style={{ cursor: 'pointer', color: '#ff5252', fontSize: '20px' }}>✕</div>
+                    </>
+                  )}
+                  {!isAdmin && <div style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '12px' }}>{tea.strength}</div>}
+                </div>
               </div>
             ))}
           </div>
         </section>
 
+        {/* ПРАВАЯ ПАНЕЛЬ (МАСТЕР) */}
         {isAdmin && (
           <aside style={{ position: 'sticky', top: '120px' } as any}>
             <div style={{ background: '#161816', padding: '25px', borderRadius: '25px', border: '1px solid #222' } as any}>
@@ -217,7 +219,7 @@ export default function SearchPage() {
           </aside>
         )}
 
-        {/* МОДАЛКИ */}
+        {/* МОДАЛКИ (ТИП / УДАЛЕНИЕ / ЧАЙ) */}
         {showTypeForm && (
           <div style={modalOverlay as any}>
             <div style={modalContent as any}>
@@ -280,7 +282,7 @@ export default function SearchPage() {
   );
 }
 
-// СТИЛИ (БЕЗ ИЗМЕНЕНИЙ)
+// СТИЛИ
 const typeBadge: React.CSSProperties = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap', transition: '0.2s' };
 const deleteTypeBtn: React.CSSProperties = { position: 'absolute', top: '-5px', right: '-5px', background: '#ff7675', color: '#fff', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #0d0f0d' };
 const inS = { width: '100%', padding: '14px', background: '#0d0f0d', border: '1px solid #333', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none' };
