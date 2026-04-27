@@ -10,7 +10,7 @@ interface Tea {
 
 const STRENGTHS = ["Все", "Мягкий", "Средний", "Крепкий"];
 
-// --- ПОЛНАЯ БАЗА (15 СОРТОВ) ДЛЯ ПЕРВОГО ЗАПУСКА ---
+// --- ПОЛНАЯ РЕЗЕРВНАЯ БАЗА (15 СОРТОВ) ---
 const INITIAL_DATABASE: Tea[] = [
   { id: 1, name: "Лунцзин", type: "Зеленый", category: "Зеленый чай", strength: "Мягкий", info: "75°C", summary: "Ореховый профиль, семечки.", desc: "Классика из Ханчжоу. Нежный весенний вкус.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800", isDayTea: false },
   { id: 2, name: "Би Ло Чунь", type: "Зеленый", category: "Зеленый чай", strength: "Средний", info: "80°C", summary: "Цветочный аромат.", desc: "Скрученные спиралью почки с нежным ворсом.", img: "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=800", isDayTea: false },
@@ -55,31 +55,31 @@ export default function SearchPage() {
     name: '', type: 'Зеленый', category: '', strength: 'Мягкий', info: '90°C', summary: '', desc: '', img: '', isDayTea: false
   });
 
-  // --- ГИБРИДНАЯ ЗАГРУЗКА (КЭШ + ОБЛАКО) ---
+  // --- СИНХРОНИЗАЦИЯ (ОБЛАКО + КЭШ) ---
   const syncData = async () => {
-    // 1. Сначала читаем из кэша (Мгновенно)
-    const cachedTeas = localStorage.getItem('tea_cache_v5');
-    const cachedTypes = localStorage.getItem('tea_types_cache_v5');
+    // 1. Сначала из памяти
+    const cachedTeas = localStorage.getItem('local_tea_db_final');
+    const cachedTypes = localStorage.getItem('local_tea_types_final');
     
     if (cachedTeas) setTeas(JSON.parse(cachedTeas));
     else setTeas(INITIAL_DATABASE);
     
     if (cachedTypes) setTeaTypes(JSON.parse(cachedTypes));
 
-    // 2. Затем идем в облако (В фоне)
+    // 2. В фоне из облака
     try {
       const { data, error } = await supabase.from('teas').select('*').order('id', { ascending: false });
       if (data && data.length > 0) {
         setTeas(data);
-        localStorage.setItem('tea_cache_v5', JSON.stringify(data)); // Обновляем кэш
+        localStorage.setItem('local_tea_db_final', JSON.stringify(data));
       }
-    } catch (err) { console.log("Работаем в оффлайн режиме"); }
+    } catch (err) { console.log("Работаем на кэше"); }
     finally { setLoading(false); }
   };
 
   useEffect(() => {
     syncData();
-    setIsAdmin(localStorage.getItem('userRole') === 'admin');
+    setIsAdmin(localStorage.getItem('isLoggedIn') === 'true' && localStorage.getItem('userRole') === 'admin');
     setIsMounted(true);
   }, []);
 
@@ -88,23 +88,40 @@ export default function SearchPage() {
     setEditingId(null);
   };
 
-  // --- ФУНКЦИИ УПРАВЛЕНИЯ (ОБЛАКО + КЭШ) ---
+  // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ ---
   const handleSaveTea = async () => {
-    if (formData.isDayTea) await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
-    
-    if (editingId) {
-      await supabase.from('teas').update(formData).eq('id', editingId);
-    } else {
-      await supabase.from('teas').insert([formData]);
+    try {
+      // Если ставим Чай дня, сбрасываем у остальных в облаке
+      if (formData.isDayTea) {
+        await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
+      }
+
+      if (editingId) {
+        // ОБНОВЛЕНИЕ
+        const { error } = await supabase.from('teas').update(formData).eq('id', editingId);
+        if (error) throw error;
+      } else {
+        // СОЗДАНИЕ
+        const { error } = await supabase.from('teas').insert([formData]);
+        if (error) throw error;
+      }
+
+      // После успешного сохранения в облаке
+      setShowTeaForm(false);
+      resetTeaForm();
+      syncData(); // Обновляем всё на экране
+    } catch (err: any) {
+      alert("Ошибка при сохранении в облако: " + err.message);
     }
-    setShowTeaForm(false); resetTeaForm(); syncData();
   };
 
   const toggleDayTea = async (e: React.MouseEvent, tea: Tea) => {
     e.stopPropagation();
-    await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
-    await supabase.from('teas').update({ isDayTea: !tea.isDayTea }).eq('id', tea.id);
-    syncData();
+    try {
+      await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
+      await supabase.from('teas').update({ isDayTea: !tea.isDayTea }).eq('id', tea.id);
+      syncData();
+    } catch (err: any) { alert(err.message); }
   };
 
   const confirmDeleteTea = async () => {
@@ -118,7 +135,7 @@ export default function SearchPage() {
     if (newTypeName && !teaTypes.includes(newTypeName)) {
       const updated = [...teaTypes, newTypeName];
       setTeaTypes(updated);
-      localStorage.setItem('tea_types_cache_v5', JSON.stringify(updated));
+      localStorage.setItem('local_tea_types_final', JSON.stringify(updated));
       setNewTypeName(""); setShowTypeForm(false);
     }
   };
@@ -126,7 +143,7 @@ export default function SearchPage() {
   const deleteCategory = () => {
     const updated = teaTypes.filter(t => t !== typeToDelete);
     setTeaTypes(updated);
-    localStorage.setItem('tea_types_cache_v5', JSON.stringify(updated));
+    localStorage.setItem('local_tea_types_final', JSON.stringify(updated));
     setShowDeleteModal(false);
   };
 
@@ -147,7 +164,7 @@ export default function SearchPage() {
         <section>
           {/* ЧАЙ ДНЯ ⭐ */}
           {teas.find(t => t.isDayTea) && activeCategory === "Все" && !search && (
-            <div onClick={() => setSelectedTea(teas.find(t => t.isDayTea)!)} style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '35px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px' } as any}>
+            <div onClick={() => setSelectedTea(teas.find(t => t.isDayTea)!)} style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '35px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' } as any}>
               <span style={{ color: '#4CAF50', fontSize: '12px', fontWeight: 'bold' }}>⭐ РЕКОМЕНДАЦИЯ ДНЯ</span>
               <h2 style={{ fontSize: '32px', margin: '10px 0' }}>{teas.find(t => t.isDayTea)?.name}</h2>
               <p style={{ color: '#aaa' }}>{teas.find(t => t.isDayTea)?.summary}</p>
@@ -168,7 +185,7 @@ export default function SearchPage() {
             {isAdmin && <div onClick={() => setShowTypeForm(true)} style={{ ...typeBadge, border: '1px dashed #4CAF50', color: '#4CAF50' } as any}>+</div>}
           </div>
 
-          {/* ПОДФИЛЬТР ХАРАКТЕР */}
+          {/* ПОДФИЛЬТР ХАРАКТЕРА */}
           {activeCategory !== "Все" && (
             <div style={{ background: '#121412', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px' } as any}>
                 {STRENGTHS.map(str => (
@@ -185,19 +202,22 @@ export default function SearchPage() {
                   <h3 style={{ margin: 0 }}>{tea.name}</h3>
                   <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '13px' }}>{tea.summary}</p>
                 </div>
-                {isAdmin && (
-                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <div onClick={(e) => toggleDayTea(e, tea)} style={{ cursor: 'pointer', fontSize: '22px', color: tea.isDayTea ? '#4CAF50' : '#333' }}>⭐</div>
-                    <div onClick={() => { setEditingId(tea.id); setFormData(tea); setShowTeaForm(true); }} style={{ cursor: 'pointer', color: '#4CAF50', fontSize: '20px' }}>✎</div>
-                    <div onClick={() => { setTeaIdToDelete(tea.id); setShowTeaDeleteModal(true); }} style={{ cursor: 'pointer', color: '#ff5252', fontSize: '20px' }}>✕</div>
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                  {isAdmin && (
+                    <>
+                      <div onClick={(e) => toggleDayTea(e, tea)} style={{ cursor: 'pointer', fontSize: '22px', color: tea.isDayTea ? '#4CAF50' : '#333' }}>⭐</div>
+                      <div onClick={() => { setEditingId(tea.id); setFormData(tea); setShowTeaForm(true); }} style={{ cursor: 'pointer', color: '#4CAF50', fontSize: '20px' }}>✎</div>
+                      <div onClick={() => { setTeaIdToDelete(tea.id); setShowTeaDeleteModal(true); }} style={{ cursor: 'pointer', color: '#ff5252', fontSize: '20px' }}>✕</div>
+                    </>
+                  )}
+                  {!isAdmin && <div style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '12px' }}>{tea.strength}</div>}
+                </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ПРАВАЯ ПАНЕЛЬ */}
+        {/* ПРАВАЯ ЧАСТЬ (АДМИН) */}
         {isAdmin && (
           <aside style={{ position: 'sticky', top: '120px' } as any}>
             <div style={{ background: '#161816', padding: '25px', borderRadius: '25px', border: '1px solid #222' } as any}>
@@ -207,7 +227,7 @@ export default function SearchPage() {
           </aside>
         )}
 
-        {/* ВСЕ МОДАЛКИ (ТИП / УДАЛЕНИЕ КАТЕГОРИИ / УДАЛЕНИЕ ЧАЯ / ЧАЙ) */}
+        {/* МОДАЛКА ТИПА */}
         {showTypeForm && (
           <div style={modalOverlay as any}>
             <div style={modalContent as any}>
@@ -219,16 +239,19 @@ export default function SearchPage() {
           </div>
         )}
 
+        {/* МОДАЛКА УДАЛЕНИЯ КАТЕГОРИИ */}
         {showDeleteModal && (
           <div style={modalOverlay as any}>
             <div style={modalContent as any}>
               <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>Удалить категорию?</h2>
+              <p style={{ textAlign: 'center', color: '#666', marginBottom: '30px' }}>Это действие нельзя отменить.</p>
               <button onClick={deleteCategory} style={{...btnMain, background: '#ff7675'} as any}>УДАЛИТЬ</button>
               <button onClick={() => setShowDeleteModal(false)} style={btnCancel as any}>Отмена</button>
             </div>
           </div>
         )}
 
+        {/* МОДАЛКА УДАЛЕНИЯ ЧАЯ */}
         {showTeaDeleteModal && (
           <div style={modalOverlay as any}>
             <div style={modalContent as any}>
@@ -239,6 +262,7 @@ export default function SearchPage() {
           </div>
         )}
 
+        {/* ФОРМА ЧАЯ (ГЛАВНАЯ) */}
         {showTeaForm && (
           <div style={modalOverlay as any}>
             <div style={modalContent as any}>
@@ -248,9 +272,12 @@ export default function SearchPage() {
                 <select style={inS as any} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>{teaTypes.map(t => <option key={t} value={t}>{t}</option>)}</select>
                 <select style={inS as any} value={formData.strength} onChange={e => setFormData({...formData, strength: e.target.value})}>{["Мягкий", "Средний", "Крепкий"].map(s => <option key={s} value={s}>{s}</option>)}</select>
               </div>
-              <textarea style={{...inS, height: '100px'} as any} placeholder="Описание" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
-              <label style={{display:'flex', gap:'10px', marginBottom:'20px'}}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> Чай дня ⭐</label>
+              <textarea style={{...inS, height: '100px'} as any} placeholder="История и вкус" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
+              <label style={{display:'flex', gap:'10px', marginBottom:'20px', cursor:'pointer'}}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> Чай дня ⭐</label>
+              
+              {/* РАБОЧАЯ КНОПКА СОХРАНИТЬ */}
               <button onClick={handleSaveTea} style={btnMain as any}>СОХРАНИТЬ</button>
+              
               <button onClick={() => { setShowTeaForm(false); resetTeaForm(); }} style={btnCancel as any}>Отмена</button>
             </div>
           </div>
