@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import Navigation from '../components/Navigation';
+import Navigation from '@/app/components/Navigation';
 import { supabase } from '../supabaseClient';
 
 interface Tea {
@@ -13,18 +13,8 @@ const STRENGTHS = ["Все", "Мягкий", "Средний", "Крепкий"]
 const INITIAL_DATABASE: Tea[] = [
   { id: 1, name: "Лунцзин", type: "Зеленый", category: "Зеленый чай", strength: "Мягкий", info: "75°C", summary: "Ореховый профиль, семечки.", desc: "Классика из Ханчжоу. Нежный весенний вкус.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800", isDayTea: false },
   { id: 2, name: "Би Ло Чунь", type: "Зеленый", category: "Зеленый чай", strength: "Средний", info: "80°C", summary: "Цветочный аромат.", desc: "Скрученные спиралью почки с нежным ворсом.", img: "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=800", isDayTea: false },
-  { id: 3, name: "Тайпин Хоукуй", type: "Зеленый", category: "Зеленый чай", strength: "Крепкий", info: "85°C", summary: "Травянистый, мощный.", desc: "Огромные плоские листья.", img: "https://images.unsplash.com/photo-1563911302283-d2bc129e7570?q=80&w=800", isDayTea: false },
-  { id: 4, name: "Бай Хао Инь Чжэнь", type: "Белый", category: "Белый чай", strength: "Мягкий", info: "70°C", summary: "Медовые ноты, хвоя.", desc: "Только серебристые почки.", img: "https://images.unsplash.com/photo-1576092762791-dd9e2220abd1?q=80&w=800", isDayTea: false },
-  { id: 5, name: "Бай Му Дань", type: "Белый", category: "Белый чай", strength: "Средний", info: "75°C", summary: "Полевые цветы.", desc: "Белый пион.", img: "https://images.unsplash.com/photo-1544787210-2213d2427517?q=80&w=800", isDayTea: false },
-  { id: 6, name: "Лао Шоу Мэй", type: "Белый", category: "Белый чай", strength: "Крепкий", info: "90°C", summary: "Сухофрукты, древесный.", desc: "Выдержанный белый чай.", img: "https://images.unsplash.com/photo-1594631252845-29fc4586d517?q=80&w=800", isDayTea: false },
   { id: 7, name: "Те Гуань Инь", type: "Улун", category: "Светлый Улун", strength: "Мягкий", info: "85°C", summary: "Сирень и свежесть.", desc: "Легендарный светлый улун из уезда Аньси.", img: "https://images.unsplash.com/photo-1594631252845-29fc4586d517?q=80&w=800", isDayTea: true },
-  { id: 8, name: "Габа Алишань", type: "Улун", category: "Тайвань", strength: "Средний", info: "90°C", summary: "Ягодная кислинка.", desc: "Чай для снятия стресса.", img: "https://images.unsplash.com/photo-1544787210-2213d2427517?q=80&w=800", isDayTea: false },
   { id: 9, name: "Да Хун Пао", type: "Улун", category: "Темный Улун", strength: "Крепкий", info: "95°C", summary: "Дым, хлебная корка.", desc: "Утесный улун сильной прожарки из гор Уи.", img: "https://images.unsplash.com/photo-1563911302283-d2bc129e7570?q=80&w=800", isDayTea: false },
-  { id: 10, name: "Цзинь Цзюнь Мэй", type: "Красный", category: "Красный чай", strength: "Мягкий", info: "90°C", summary: "Сладкий, цветочный.", desc: "Элитный сорт из почек.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800", isDayTea: false },
-  { id: 11, name: "Дянь Хун", type: "Красный", category: "Красный чай", strength: "Средний", info: "95°C", summary: "Сухофрукты и солод.", desc: "Классический юньнаньский чай.", img: "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=800", isDayTea: false },
-  { id: 12, name: "Лапсанг Сушонг", type: "Красный", category: "Красный чай", strength: "Крепкий", info: "95°C", summary: "Дым сосновых дров.", desc: "Тот самый «копченый» чай.", img: "https://images.unsplash.com/photo-1563911302283-d2bc129e7570?q=80&w=800", isDayTea: false },
-  { id: 13, name: "Шен Пуэр (Молодой)", type: "Пуэр", category: "Шен Пуэр", strength: "Мягкий", info: "85°C", summary: "Трава и курага.", desc: "Свежий шен.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800", isDayTea: false },
-  { id: 14, name: "Шен Пуэр (Лао)", type: "Пуэр", category: "Шен Пуэр", strength: "Средний", info: "95°C", summary: "Камфора, дерево.", desc: "Шен пуэр с выдержкой более 10 лет.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800", isDayTea: false },
   { id: 15, name: "Шу Пуэр", type: "Пуэр", category: "Шу Пуэр", strength: "Крепкий", info: "100°C", summary: "Землистый, кофейный.", desc: "Сильная ферментация. Мощная бодрость.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800", isDayTea: false }
 ];
 
@@ -54,22 +44,19 @@ export default function SearchPage() {
     name: '', type: 'Зеленый', category: '', strength: 'Мягкий', info: '90°C', summary: '', desc: '', img: '', isDayTea: false
   });
 
-  // --- ЛОГИКА ЗАГРУЗКИ ---
   const syncData = async () => {
-    // 1. Читаем из кэша
-    const cachedTeas = localStorage.getItem('tea_master_local_v1');
-    const cachedTypes = localStorage.getItem('tea_types_local_v1');
+    const cachedTeas = localStorage.getItem('local_tea_db_final');
+    const cachedTypes = localStorage.getItem('local_tea_types_final');
     if (cachedTeas) setTeas(JSON.parse(cachedTeas)); else setTeas(INITIAL_DATABASE);
     if (cachedTypes) setTeaTypes(JSON.parse(cachedTypes));
 
-    // 2. В фоне тянем из облака
     try {
       const { data } = await supabase.from('teas').select('*').order('id', { ascending: false });
       if (data && data.length > 0) {
         setTeas(data);
-        localStorage.setItem('tea_master_local_v1', JSON.stringify(data));
+        localStorage.setItem('local_tea_db_final', JSON.stringify(data));
       }
-    } catch (e) { console.log("Cloud offline"); }
+    } catch (err) { console.log("Cloud offline"); }
     finally { setLoading(false); }
   };
 
@@ -84,66 +71,40 @@ export default function SearchPage() {
     setEditingId(null);
   };
 
-  // --- ФУНКЦИЯ СОХРАНЕНИЯ (ЛОКАЛКА + ОБЛАКО) ---
   const handleSaveTea = async () => {
-    let newList = [...teas];
-    const newId = editingId || Date.now();
-    const newTeaData = { ...formData, id: newId };
-
-    // 1. Обновляем локально (Мгновенно)
-    if (formData.isDayTea) newList = newList.map(t => ({ ...t, isDayTea: false }));
-    if (editingId) newList = newList.map(t => t.id === editingId ? newTeaData : t);
-    else newList.push(newTeaData);
-
-    setTeas(newList);
-    localStorage.setItem('tea_master_local_v1', JSON.stringify(newList));
-    setShowTeaForm(false);
-    
-    // 2. Пытаемся отправить в облако в фоне
-    try {
-      if (formData.isDayTea) await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
-      if (editingId) await supabase.from('teas').update(formData).eq('id', editingId);
-      else await supabase.from('teas').insert([formData]);
-    } catch (e) { console.error("Sync failed, saved only locally"); }
-    
-    resetTeaForm();
+    if (formData.isDayTea) await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
+    if (editingId) await supabase.from('teas').update(formData).eq('id', editingId);
+    else await supabase.from('teas').insert([formData]);
+    setShowTeaForm(false); resetTeaForm(); syncData();
   };
 
   const toggleDayTea = async (e: React.MouseEvent, tea: Tea) => {
     e.stopPropagation();
-    const newList = teas.map(t => ({ ...t, isDayTea: t.id === tea.id ? !t.isDayTea : false }));
-    setTeas(newList);
-    localStorage.setItem('tea_master_local_v1', JSON.stringify(newList));
-    
-    try {
-      await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
-      await supabase.from('teas').update({ isDayTea: !tea.isDayTea }).eq('id', tea.id);
-    } catch (e) {}
+    await supabase.from('teas').update({ isDayTea: false }).neq('id', 0);
+    await supabase.from('teas').update({ isDayTea: !tea.isDayTea }).eq('id', tea.id);
+    syncData();
   };
 
   const confirmDeleteTea = async () => {
     if (teaIdToDelete) {
-      const newList = teas.filter(t => t.id !== teaIdToDelete);
-      setTeas(newList);
-      localStorage.setItem('tea_master_local_v1', JSON.stringify(newList));
-      setShowTeaDeleteModal(false);
-      try { await supabase.from('teas').delete().eq('id', teaIdToDelete); } catch(e){}
+      await supabase.from('teas').delete().eq('id', teaIdToDelete);
+      setShowTeaDeleteModal(false); setTeaIdToDelete(null); syncData();
     }
   };
 
   const handleAddType = () => {
     if (newTypeName && !teaTypes.includes(newTypeName)) {
-      const up = [...teaTypes, newTypeName];
-      setTeaTypes(up);
-      localStorage.setItem('tea_types_local_v1', JSON.stringify(up));
+      const updated = [...teaTypes, newTypeName];
+      setTeaTypes(updated);
+      localStorage.setItem('local_tea_types_final', JSON.stringify(updated));
       setNewTypeName(""); setShowTypeForm(false);
     }
   };
 
   const deleteCategory = () => {
-    const up = teaTypes.filter(t => t !== typeToDelete);
-    setTeaTypes(up);
-    localStorage.setItem('tea_types_local_v1', JSON.stringify(up));
+    const updated = teaTypes.filter(t => t !== typeToDelete);
+    setTeaTypes(updated);
+    localStorage.setItem('local_tea_types_final', JSON.stringify(updated));
     setShowDeleteModal(false);
   };
 
@@ -154,25 +115,48 @@ export default function SearchPage() {
     return mSearch && mCat && mStr;
   });
 
+  const dayTea = teas.find(t => t.isDayTea);
+
   if (!isMounted) return null;
 
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', userSelect: 'none' } as any}>
+    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', userSelect: 'none', fontFamily: 'Inter, sans-serif' } as any}>
       <Navigation />
-      <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '120px 20px', display: 'grid', gridTemplateColumns: isAdmin ? '1fr 320px' : '1fr', gap: '40px', alignItems: 'start' } as any}>
-        <section>
-          {/* ЧАЙ ДНЯ ⭐ */}
-          {teas.find(t => t.isDayTea) && activeCategory === "Все" && !search && (
-            <div onClick={() => setSelectedTea(teas.find(t => t.isDayTea)!)} style={{ background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '35px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' } as any}>
-              <span style={{ color: '#4CAF50', fontSize: '12px', fontWeight: 'bold' }}>⭐ РЕКОМЕНДАЦИЯ ДНЯ</span>
-              <h2 style={{ fontSize: '32px', margin: '10px 0' }}>{teas.find(t => t.isDayTea)?.name}</h2>
-              <p style={{ color: '#aaa' }}>{teas.find(t => t.isDayTea)?.summary}</p>
-            </div>
-          )}
 
-          <input type="text" placeholder="Поиск сорта..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle as any} />
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '140px 20px 100px 20px' } as any}>
+        
+        {/* 1. ПРЕМИАЛЬНЫЙ БЛОК ЧАЯ ДНЯ */}
+        {dayTea && activeCategory === "Все" && !search && (
+          <section style={{ marginBottom: '80px', animation: 'fadeInUp 0.8s ease' }}>
+            <div onClick={() => setSelectedTea(dayTea)} style={{ 
+              background: 'linear-gradient(135deg, #1b3d1d 0%, #0d0f0d 100%)', 
+              padding: '60px', borderRadius: '40px', border: '1px solid #4CAF50',
+              boxShadow: '0 30px 60px rgba(0,0,0,0.6)', cursor: 'pointer', position: 'relative', overflow: 'hidden'
+            } as any}>
+                <div style={{ position: 'absolute', top: '40px', right: '40px', fontSize: '80px', opacity: 0.05, fontWeight: '900' }}>RECOMMENDED</div>
+                <span style={{ color: '#4CAF50', fontSize: '14px', fontWeight: '900', letterSpacing: '3px', textTransform: 'uppercase' }}>⭐ РЕКОМЕНДАЦИЯ ДНЯ</span>
+                <h2 style={{ fontSize: 'calc(32px + 2vw)', margin: '20px 0', fontWeight: '900', lineHeight: '1' }}>{dayTea.name}</h2>
+                <p style={{ color: '#aaa', fontSize: '20px', maxWidth: '600px', lineHeight: '1.6' }}>{dayTea.summary}</p>
+                <div style={{ marginTop: '40px', display: 'inline-flex', alignItems: 'center', gap: '20px', padding: '15px 30px', background: 'rgba(76, 175, 80, 0.1)', borderRadius: '15px', border: '1px solid #4CAF50', color: '#4CAF50', fontWeight: 'bold' }}>
+                    ПОДРОБНЕЕ О СОРТЕ <span>→</span>
+                </div>
+            </div>
+          </section>
+        )}
+
+        {/* 2. АДМИН-ПАНЕЛЬ (ШИРОКАЯ) */}
+        {isAdmin && (
+          <div style={{ background: 'rgba(76, 175, 80, 0.05)', padding: '30px', borderRadius: '30px', marginBottom: '60px', border: '1px dashed #4CAF50', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } as any}>
+             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '900' }}>УПРАВЛЕНИЕ АССОРТИМЕНТОМ</h3>
+             <div onClick={() => { resetTeaForm(); setShowTeaForm(true); }} style={{ padding: '15px 40px', background: '#4CAF50', color: '#000', borderRadius: '50px', fontWeight: '900', cursor: 'pointer', fontSize: '14px' } as any}>+ ДОБАВИТЬ НОВЫЙ ЧАЙ</div>
+          </div>
+        )}
+
+        {/* 3. ПОИСК И ФИЛЬТРЫ (ЦЕНТРИРОВАНО) */}
+        <section style={{ marginBottom: '60px' }}>
+          <input type="text" placeholder="Поиск по коллекции..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%', padding: '25px', borderRadius: '25px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '40px', outline: 'none', fontSize: '18px' } as any} />
           
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px', alignItems: 'center' } as any}>
+          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '20px', alignItems: 'center' } as any}>
             <div onClick={() => {setActiveCategory("Все"); setActiveStrength("Все");}} style={{ ...typeBadge, backgroundColor: activeCategory === "Все" ? '#4CAF50' : '#161816', color: activeCategory === "Все" ? '#000' : '#fff' } as any}>Все</div>
             {teaTypes.map(type => (
               <div key={type} style={{ position: 'relative' }}>
@@ -180,114 +164,119 @@ export default function SearchPage() {
                 {isAdmin && <span onClick={(e) => { e.stopPropagation(); setTypeToDelete(type); setShowDeleteModal(true); }} style={deleteTypeBtn as any}>✕</span>}
               </div>
             ))}
-            {isAdmin && <div onClick={() => setShowTypeForm(true)} style={{ ...typeBadge, border: '1px dashed #4CAF50', color: '#4CAF50' } as any}>+</div>}
+            {isAdmin && <div onClick={() => setShowTypeForm(true)} style={{ ...typeBadge, border: '1px dashed #4CAF50', color: '#4CAF50', background: 'none' } as any}>+</div>}
           </div>
 
           {activeCategory !== "Все" && (
-            <div style={{ background: '#121412', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px' } as any}>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginTop: '10px', display: 'flex', gap: '10px', animation: 'fadeIn 0.4s ease' } as any}>
                 {STRENGTHS.map(str => (
-                  <div key={str} onClick={() => setActiveStrength(str)} style={{ padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', backgroundColor: activeStrength === str ? '#4CAF50' : '#1a1a1a', color: activeStrength === str ? '#000' : '#666' } as any}>{str}</div>
+                  <div key={str} onClick={() => setActiveStrength(str)} style={{ padding: '12px 25px', borderRadius: '15px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', backgroundColor: activeStrength === str ? '#4CAF50' : '#1a1a1a', color: activeStrength === str ? '#000' : '#666', transition: '0.3s' } as any}>{str}</div>
                 ))}
             </div>
           )}
-
-          <div style={{ display: 'grid', gap: '15px' }}>
-            {filteredTeas.map(tea => (
-              <div key={tea.id} style={{ background: '#161816', padding: '22px', borderRadius: '25px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } as any}>
-                <div onClick={() => setSelectedTea(tea)} style={{ flex: 1, cursor: 'pointer' }}>
-                  <h3 style={{ margin: 0 }}>{tea.name}</h3>
-                  <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '13px' }}>{tea.summary}</p>
-                </div>
-                {isAdmin && (
-                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <div onClick={(e) => toggleDayTea(e, tea)} style={{ cursor: 'pointer', fontSize: '22px', color: tea.isDayTea ? '#4CAF50' : '#333' }}>⭐</div>
-                    <div onClick={() => { setEditingId(tea.id); setFormData(tea); setShowTeaForm(true); }} style={{ cursor: 'pointer', color: '#4CAF50', fontSize: '20px' }}>✎</div>
-                    <div onClick={() => { setTeaIdToDelete(tea.id); setShowTeaDeleteModal(true); }} style={{ cursor: 'pointer', color: '#ff5252', fontSize: '20px' }}>✕</div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
         </section>
 
-        {isAdmin && (
-          <aside style={{ position: 'sticky', top: '120px' } as any}>
-            <div style={{ background: '#161816', padding: '25px', borderRadius: '25px', border: '1px solid #222' } as any}>
-              <h3 style={{ color: '#4CAF50', fontSize: '14px', marginBottom: '20px' }}>МАСТЕР-ПАНЕЛЬ</h3>
-              <button onClick={() => { resetTeaForm(); setShowTeaForm(true); }} style={btnMain as any}>+ ДОБАВИТЬ ЧАЙ</button>
-            </div>
-          </aside>
-        )}
-
-        {/* МОДАЛКИ */}
-        {showTypeForm && (
-          <div style={modalOverlay as any}>
-            <div style={modalContent as any}>
-              <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Новый тип чая</h2>
-              <input style={inS as any} value={newTypeName} onChange={e => setNewTypeName(e.target.value)} placeholder="Название..." />
-              <button onClick={handleAddType} style={btnMain as any}>СОХРАНИТЬ</button>
-              <button onClick={() => setShowTypeForm(false)} style={btnCancel as any}>Отмена</button>
-            </div>
-          </div>
-        )}
-
-        {showDeleteModal && (
-          <div style={modalOverlay as any}>
-            <div style={modalContent as any}>
-              <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>Удалить категорию?</h2>
-              <button onClick={deleteCategory} style={{...btnMain, background: '#ff7675'} as any}>УДАЛИТЬ</button>
-              <button onClick={() => setShowDeleteModal(false)} style={btnCancel as any}>Отмена</button>
-            </div>
-          </div>
-        )}
-
-        {showTeaDeleteModal && (
-          <div style={modalOverlay as any}>
-            <div style={modalContent as any}>
-              <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>Удалить этот сорт?</h2>
-              <button onClick={confirmDeleteTea} style={{...btnMain, background: '#ff7675'} as any}>ДА, УДАЛИТЬ</button>
-              <button onClick={() => {setShowTeaDeleteModal(false); setTeaIdToDelete(null);}} style={btnCancel as any}>ОТМЕНА</button>
-            </div>
-          </div>
-        )}
-
-        {showTeaForm && (
-          <div style={modalOverlay as any}>
-            <div style={modalContent as any}>
-              <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>{editingId ? 'Редактировать' : 'Новый чай'}</h2>
-              <input style={inS as any} placeholder="Название" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              <div style={{display:'flex', gap:'10px'}}>
-                <select style={inS as any} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>{teaTypes.map(t => <option key={t} value={t}>{t}</option>)}</select>
-                <select style={inS as any} value={formData.strength} onChange={e => setFormData({...formData, strength: e.target.value})}>{["Мягкий", "Средний", "Крепкий"].map(s => <option key={s} value={s}>{s}</option>)}</select>
+        {/* 4. СЕТКА ЧАЕВ (GRID 2-3 КОЛОНКИ) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '25px' } as any}>
+          {filteredTeas.map(tea => (
+            <div 
+                key={tea.id} 
+                onClick={() => setSelectedTea(tea)}
+                style={{ 
+                    background: '#161816', padding: '40px', borderRadius: '35px', border: '1px solid #222', 
+                    cursor: 'pointer', transition: '0.4s cubic-bezier(0.4, 0, 0.2, 1)', position: 'relative', overflow: 'hidden' 
+                } as any}
+                onMouseEnter={(e:any) => {e.currentTarget.style.transform = 'translateY(-10px)'; e.currentTarget.style.borderColor = '#4CAF50';}}
+                onMouseLeave={(e:any) => {e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#222';}}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '900', color: '#4CAF50', letterSpacing: '2px' }}>{tea.type.toUpperCase()}</span>
+                {!isAdmin && <div style={{ fontSize: '10px', color: '#4CAF50', border: '1px solid #4CAF50', padding: '4px 8px', borderRadius: '6px' }}>{tea.strength}</div>}
               </div>
-              <textarea style={{...inS, height: '100px'} as any} placeholder="Описание" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
-              <label style={{display:'flex', gap:'10px', marginBottom:'20px', cursor:'pointer'}}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> Чай дня ⭐</label>
-              <button onClick={handleSaveTea} style={btnMain as any}>СОХРАНИТЬ</button>
-              <button onClick={() => { setShowTeaForm(false); resetTeaForm(); }} style={btnCancel as any}>Отмена</button>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '24px', fontWeight: '900' }}>{tea.name}</h3>
+              <p style={{ margin: 0, color: '#666', fontSize: '14px', lineHeight: '1.5' }}>{tea.summary}</p>
+              
+              {isAdmin && (
+                <div style={{ display: 'flex', gap: '15px', marginTop: '30px', borderTop: '1px solid #222', paddingTop: '20px' }}>
+                  <div onClick={(e) => toggleDayTea(e, tea)} style={{ fontSize: '22px', color: tea.isDayTea ? '#4CAF50' : '#222' }}>⭐</div>
+                  <div onClick={(e:any) => {e.stopPropagation(); setEditingId(tea.id); setFormData(tea); setShowTeaForm(true);}} style={{ color: '#4CAF50' }}>✎</div>
+                  <div onClick={(e:any) => {e.stopPropagation(); setTeaIdToDelete(tea.id); setShowTeaDeleteModal(true);}} style={{ color: '#ff7675' }}>✕</div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {selectedTea && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#0d0f0d', zIndex: 12000, padding: '40px 20px', overflowY: 'auto' } as any}>
-            <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-              <div onClick={() => setSelectedTea(null)} style={{ color: '#4CAF50', marginBottom: '20px', cursor: 'pointer', fontWeight: 'bold' }}>← Назад</div>
-              <h2 style={{ fontSize: '32px', color: '#4CAF50' }}>{selectedTea.name}</h2>
-              <p style={{ lineHeight: '1.6', color: '#bbb' }}>{selectedTea.desc}</p>
-            </div>
-          </div>
-        )}
+          ))}
+        </div>
       </main>
+
+      {/* МОДАЛКИ (СОХРАНЕНА ВСЯ ЛОГИКА) */}
+      {showTypeForm && (
+        <div style={modalOverlay as any}>
+          <div style={modalContent as any}>
+            <h2 style={{ textAlign: 'center', marginBottom: '25px', fontWeight: '900' }}>НОВЫЙ ТИП</h2>
+            <input style={inS as any} value={newTypeName} onChange={e => setNewTypeName(e.target.value)} placeholder="Название..." />
+            <button onClick={handleAddType} style={btnMain as any}>ДОБАВИТЬ КАТЕГОРИЮ</button>
+            <button onClick={() => setShowTypeForm(false)} style={btnCancel as any}>ОТМЕНА</button>
+          </div>
+        </div>
+      )}
+
+      {showTeaForm && (
+        <div style={modalOverlay as any}>
+          <div style={modalContent as any}>
+            <h2 style={{ textAlign: 'center', marginBottom: '30px', fontWeight: '900' }}>{editingId ? 'РЕДАКТИРОВАНИЕ' : 'НОВЫЙ ЧАЙ'}</h2>
+            <input style={inS as any} placeholder="Название сорта" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            <div style={{display:'flex', gap:'10px'}}>
+              <select style={inS as any} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>{teaTypes.map(t => <option key={t} value={t}>{t}</option>)}</select>
+              <select style={inS as any} value={formData.strength} onChange={e => setFormData({...formData, strength: e.target.value})}>{["Мягкий", "Средний", "Крепкий"].map(s => <option key={s} value={s}>{s}</option>)}</select>
+            </div>
+            <textarea style={{...inS, height: '120px'} as any} placeholder="Описание вкуса и история" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
+            <label style={{display:'flex', gap:'15px', marginBottom:'30px', cursor:'pointer', alignItems:'center'}}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> <span style={{fontSize:'14px', fontWeight:'bold'}}>УСТАНОВИТЬ КАК ЧАЙ ДНЯ ⭐</span></label>
+            <button onClick={handleSaveTea} style={btnMain as any}>СОХРАНИТЬ В ОБЛАКО</button>
+            <button onClick={() => setShowTeaForm(false)} style={btnCancel as any}>ОТМЕНА</button>
+          </div>
+        </div>
+      )}
+
+      {/* МОДАЛКИ УДАЛЕНИЯ (КАК ТЫ ПРОСИЛ) */}
+      {(showDeleteModal || showTeaDeleteModal) && (
+        <div style={modalOverlay as any}>
+          <div style={modalContent as any}>
+            <h2 style={{ textAlign: 'center', marginBottom: '15px', fontWeight: '900' }}>ПОДТВЕРЖДЕНИЕ</h2>
+            <p style={{ textAlign: 'center', color: '#666', marginBottom: '40px', lineHeight: '1.6' }}>Это действие необратимо. <br/> Вы уверены, что хотите удалить этот элемент?</p>
+            <button onClick={showDeleteModal ? deleteCategory : confirmDeleteTea} style={{...btnMain, background: '#ff7675'} as any}>ДА, УДАЛИТЬ</button>
+            <button onClick={() => {setShowDeleteModal(false); setShowTeaDeleteModal(false);}} style={btnCancel as any}>ОТМЕНА</button>
+          </div>
+        </div>
+      )}
+
+      {/* ДЕТАЛИ (ШИРОКИЙ ВИД) */}
+      {selectedTea && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#0d0f0d', zIndex: 12000, padding: '60px 20px', overflowY: 'auto' } as any}>
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div onClick={() => setSelectedTea(null)} style={{ color: '#4CAF50', marginBottom: '40px', cursor: 'pointer', fontWeight: '900', letterSpacing: '2px' }}>← НАЗАД К КОЛЛЕКЦИИ</div>
+            <div style={{ background: '#161816', borderRadius: '40px', padding: '60px', border: '1px solid #222', boxShadow: '0 50px 100px rgba(0,0,0,0.8)' } as any}>
+              <span style={{ color: '#4CAF50', fontWeight: '900', letterSpacing: '2px' }}>{selectedTea.category.toUpperCase()}</span>
+              <h2 style={{ fontSize: '48px', color: '#fff', margin: '20px 0', fontWeight: '900' }}>{selectedTea.name}</h2>
+              <div style={{ display: 'inline-flex', gap: '15px', padding: '10px 20px', background: '#0d0f0d', borderRadius: '10px', marginBottom: '40px', border: '1px solid #222' }}>
+                  <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{selectedTea.info}</span>
+                  <span style={{ color: '#333' }}>|</span>
+                  <span style={{ color: '#888' }}>{selectedTea.strength}</span>
+              </div>
+              <p style={{ lineHeight: '2', color: '#bbb', fontSize: '18px' }}>{selectedTea.desc}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// СТИЛИ (БЕЗ ИЗМЕНЕНИЙ)
-const typeBadge: React.CSSProperties = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap', transition: '0.2s' };
-const deleteTypeBtn: React.CSSProperties = { position: 'absolute', top: '-5px', right: '-5px', background: '#ff7675', color: '#fff', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #0d0f0d' };
-const inS = { width: '100%', padding: '14px', background: '#0d0f0d', border: '1px solid #333', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none' };
-const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 };
-const modalContent = { background: '#161816', padding: '40px', borderRadius: '35px', width: '90%', maxWidth: '450px', border: '1px solid #333' };
-const btnMain = { width: '100%', padding: '15px', background: '#4CAF50', color: '#000', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center' };
-const btnCancel = { width: '100%', background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontWeight: 'bold', textAlign: 'center', marginTop: '15px' };
-const inputStyle = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' };
+// СТИЛИ (ОБНОВЛЕНЫ ДЛЯ ДЕСКТОПА)
+const typeBadge = { padding: '12px 30px', borderRadius: '50px', cursor: 'pointer', fontSize: '14px', fontWeight: '800', whiteSpace: 'nowrap', transition: '0.4s', border: '1px solid transparent' };
+const deleteTypeBtn = { position: 'absolute', top: '-5px', right: '-5px', background: '#ff7675', color: '#fff', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #0d0f0d' };
+const inS = { width: '100%', padding: '20px', background: '#000', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '15px', outline: 'none', fontSize: '16px' };
+const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.98)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 13000 };
+const modalContent = { background: '#111', padding: '50px', borderRadius: '40px', width: '100%', maxWidth: '500px', border: '1px solid #222' };
+const btnMain = { width: '100%', padding: '20px', background: '#4CAF50', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', letterSpacing: '1px' };
+const btnCancel = { width: '100%', background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontWeight: 'bold', marginTop: '20px', fontSize: '12px' };
+const inputStyle = { width: '100%', padding: '25px', borderRadius: '25px', background: '#161816', border: '1px solid #222', color: '#fff', outline: 'none', fontSize: '18px', transition: '0.3s' };
