@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '../supabaseClient';
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -12,7 +11,7 @@ export default function Navigation() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showIntroModal, setShowIntroModal] = useState(false); // Модалка для новичка
+  const [showIntroModal, setShowIntroModal] = useState(false); // Новая модалка
   
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
@@ -33,6 +32,7 @@ export default function Navigation() {
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('userRole', 'admin');
       setShowLoginModal(false);
+      setLogin(""); setPass("");
       router.push('/search');
     } 
     else if (login === "1" && pass === "1") {
@@ -41,7 +41,8 @@ export default function Navigation() {
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('userRole', 'staff');
       setShowLoginModal(false);
-      setShowIntroModal(true); // ПОКАЗЫВАЕМ МОДАЛКУ ПРИВЕТСТВИЯ
+      setShowIntroModal(true); // ПОКАЗЫВАЕМ ОКНО ОБУЧЕНИЯ
+      setLogin(""); setPass("");
     } 
     else {
       alert("Неверный логин или пароль!");
@@ -57,17 +58,24 @@ export default function Navigation() {
     router.push('/');
   };
 
-  const startTraining = () => {
+  // Функция для перехода к основам
+  const goToWelcome = () => {
     setShowIntroModal(false);
-    router.push('/tasks?tab=welcome'); // Переходим в приветствие через URL
+    router.push('/tasks?tab=welcome');
   };
+
+  const navItems = [
+    {id: '/tasks?tab=welcome', label: 'ОСНОВЫ', icon: '👋'},
+    {id: '/tasks?tab=checklist', label: 'СМЕНА', icon: '📋'},
+    {id: '/search', label: 'БАЗА', icon: '🍃'},
+  ];
 
   return (
     <>
       <header style={headerCenterStyle as any}>
         <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={bigBurgerStyle as any}>
-          <span>{isMenuOpen ? '✕' : '☰'}</span>
-          <span>{isMenuOpen ? 'ЗАКРЫТЬ' : 'ВХОД'}</span>
+          <span style={{ fontSize: '18px' }}>{isMenuOpen ? '✕' : '☰'}</span>
+          <span style={{ letterSpacing: '2px' }}>{isMenuOpen ? 'ЗАКРЫТЬ' : 'ВХОД'}</span>
         </div>
         
         {isMenuOpen && (
@@ -77,7 +85,7 @@ export default function Navigation() {
             ) : (
               <>
                 <div style={{...menuItemStyle, color: '#4CAF50', fontSize: '11px', cursor: 'default', opacity: 0.7} as any}>
-                  USER: {userRole?.toUpperCase()}
+                  STATUS: {userRole?.toUpperCase()}
                 </div>
                 <div onClick={handleLogout} style={{...menuItemStyle, color: '#ff7675', borderBottom: 'none'} as any}>ВЫЙТИ</div>
               </>
@@ -90,11 +98,11 @@ export default function Navigation() {
       {showLoginModal && (
         <div style={modalOverlayStyle as any}>
           <div style={modalContentStyle as any}>
-            <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontWeight: '800' }}>IDENTIFICATION</h2>
+            <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontSize: '20px', fontWeight: '800' }}>IDENTIFICATION</h2>
             <input type="text" placeholder="Логин" value={login} onChange={(e) => setLogin(e.target.value)} style={inputStyle as any} />
             <input type="password" placeholder="Пароль" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} style={inputStyle as any} />
-            <div onClick={handleLogin} style={loginButtonStyle as any}>ВОЙТИ</div>
-            <div onClick={() => setShowLoginModal(false)} style={{ textAlign: 'center', color: '#444', marginTop: '20px', cursor: 'pointer', fontSize: '12px' }}>ОТМЕНА</div>
+            <div onClick={handleLogin} style={loginButtonStyle as any}>ПОДТВЕРДИТЬ</div>
+            <div onClick={() => setShowLoginModal(false)} style={{ textAlign: 'center', color: '#444', marginTop: '20px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>ОТМЕНА</div>
           </div>
         </div>
       )}
@@ -103,28 +111,24 @@ export default function Navigation() {
       {showIntroModal && (
         <div style={modalOverlayStyle as any}>
           <div style={{...modalContentStyle, textAlign: 'center'} as any}>
-            <div style={{fontSize: '40px', marginBottom: '20px'}}>🌱</div>
-            <h2 style={{ color: '#fff', marginBottom: '15px', fontWeight: '900' }}>ДОБРО ПОЖАЛОВАТЬ</h2>
+            <div style={{fontSize: '40px', marginBottom: '20px'}}>📖</div>
+            <h2 style={{ color: '#fff', marginBottom: '15px', fontWeight: '900' }}>ОБРАТИТЕ ВНИМАНИЕ</h2>
             <p style={{ color: '#aaa', fontSize: '14px', lineHeight: '1.6', marginBottom: '30px' }}>
-                Для начала работы необходимо изучить <br/> 
-                <span style={{color: '#4CAF50', fontWeight: 'bold'}}>Основы (Приветствие)</span>
+                Для начала работы необходимо <br/> изучить раздел 
+                <span style={{color: '#4CAF50', fontWeight: 'bold'}}> Приветствие (Основы)</span>
             </p>
-            <div onClick={startTraining} style={loginButtonStyle as any}>ХОРОШО</div>
+            <div onClick={goToWelcome} style={loginButtonStyle as any}>ХОРОШО</div>
           </div>
         </div>
       )}
 
-      {/* НИЖНЯЯ НАВИГАЦИЯ (ОБНОВЛЕНА) */}
+      {/* НИЖНЯЯ НАВИГАЦИЯ С "ОСНОВАМИ" */}
       {isLoggedIn && (
         <nav style={navBarStyle as any}>
-          {[
-            {id: '/tasks?tab=welcome', label: 'ОСНОВЫ', icon: '👋'},
-            {id: '/tasks?tab=checklist', label: 'СМЕНА', icon: '📋'},
-            {id: '/search', label: 'БАЗА', icon: '🍃'},
-          ].map(t => (
-            <Link key={t.id} href={t.id} style={{ ...navItemStyle, color: (pathname === '/tasks' || pathname === '/search') && pathname + (window.location.search) === t.id ? '#4CAF50' : '#888' } as any}>
-              <span style={{ fontSize: '20px' }}>{t.icon}</span>
-              <span style={{ fontSize: '9px', fontWeight: '900' }}>{t.label}</span>
+          {navItems.map(t => (
+            <Link key={t.id} href={t.id} style={{ ...navItemStyle, color: (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === t.id ? '#4CAF50' : '#888' } as any}>
+              <span style={{ fontSize: '22px' }}>{t.icon}</span>
+              <span style={{ fontSize: '9px', fontWeight: '900', letterSpacing: '1px' }}>{t.label}</span>
             </Link>
           ))}
         </nav>
@@ -133,14 +137,13 @@ export default function Navigation() {
   );
 }
 
-// Стили Navigation (без изменений)
-const bigBurgerStyle = { background: 'rgba(0, 0, 0, 0.6)', color: '#fff', border: '1px solid rgba(76, 175, 80, 0.5)', padding: '12px 30px', borderRadius: '15px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', backdropFilter: 'blur(10px)', zIndex: 10002 };
+const bigBurgerStyle = { background: 'rgba(0, 0, 0, 0.6)', color: '#fff', border: '1px solid rgba(76, 175, 80, 0.5)', padding: '12px 30px', borderRadius: '15px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: '12px', backdropFilter: 'blur(10px)', transition: 'all 0.4s', zIndex: 10002 };
 const headerCenterStyle = { position: 'fixed', top: '40px', left: 0, width: '100%', display: 'flex', justifyContent: 'center', zIndex: 10000 };
-const menuDropdownCenterStyle = { position: 'absolute', top: '80px', backgroundColor: '#111', borderRadius: '20px', width: '220px', overflow: 'hidden', border: '1px solid #222' };
+const menuDropdownCenterStyle = { position: 'absolute', top: '80px', backgroundColor: '#111', borderRadius: '20px', boxShadow: '0 20px 50px rgba(0,0,0,0.9)', width: '220px', overflow: 'hidden', border: '1px solid #222' };
 const menuItemStyle = { padding: '20px', borderBottom: '1px solid #1a1a1a', color: '#fff', fontSize: '13px', fontWeight: 'bold', display: 'block', textDecoration: 'none', cursor: 'pointer', textAlign: 'center' };
 const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.98)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 };
 const modalContentStyle = { background: '#111', padding: '50px 40px', borderRadius: '40px', width: '340px', border: '1px solid #222' };
-const inputStyle = { width: '100%', padding: '18px', marginBottom: '15px', borderRadius: '15px', background: '#000', border: '1px solid #222', color: '#fff', boxSizing: 'border-box', outline: 'none' };
-const loginButtonStyle = { width: '100%', padding: '20px', borderRadius: '15px', background: '#4CAF50', color: '#000', fontWeight: '900', cursor: 'pointer', textAlign: 'center' };
-const navBarStyle = { position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', width: '320px', height: '80px', backgroundColor: 'rgba(17, 17, 17, 0.8)', backdropFilter: 'blur(20px)', borderRadius: '25px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid rgba(255, 255, 255, 0.05)', zIndex: 9998 };
-const navItemStyle = { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', textDecoration: 'none' };
+const inputStyle = { width: '100%', padding: '18px', marginBottom: '15px', borderRadius: '15px', background: '#000', border: '1px solid #222', color: '#fff', boxSizing: 'border-box', outline: 'none', fontSize: '14px' };
+const loginButtonStyle = { width: '100%', padding: '20px', borderRadius: '15px', background: '#4CAF50', color: '#000', fontWeight: '900', cursor: 'pointer', textAlign: 'center', letterSpacing: '1px' };
+const navBarStyle = { position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', width: '320px', height: '80px', backgroundColor: 'rgba(17, 17, 17, 0.8)', backdropFilter: 'blur(20px)', borderRadius: '25px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: '0 30px 60px rgba(0,0,0,0.8)', zIndex: 9998 };
+const navItemStyle = { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', textDecoration: 'none', transition: '0.3s ease' };
