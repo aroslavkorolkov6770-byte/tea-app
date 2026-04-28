@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '@/app/supabaseClient';
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -13,12 +12,9 @@ export default function Navigation() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   
-  // Поля формы
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
 
-  // Проверка авторизации при загрузке (Cache-first)
   useEffect(() => {
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
@@ -28,73 +24,35 @@ export default function Navigation() {
     }
   }, []);
 
-  // --- ЛОГИКА РЕГИСТРАЦИИ ---
-  const handleRegister = async () => {
-    if (!login || !pass) return alert("Заполните все поля");
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert([{ login, password: pass, role: 'staff', status: 'pending' }]);
-
-    if (error) {
-      if (error.code === '23505') alert("Этот логин уже занят");
-      else alert("Ошибка регистрации: " + error.message);
-    } else {
-      alert("Заявка отправлена! Дождитесь подтверждения администратором.");
-      setIsRegisterMode(false);
-      setLogin(""); setPass("");
-    }
-  };
-
-  // --- ЛОГИКА ВХОДА ---
-  const handleLogin = async () => {
-    // 1. Приоритетный вход админа
+  const handleLogin = () => {
     if (login === "11" && pass === "11") {
-      saveAuth('admin', 'system_admin', 'admin');
+      setIsLoggedIn(true);
+      setUserRole('admin');
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userRole', 'admin');
+      setShowLoginModal(false);
+      setLogin(""); setPass("");
       router.push('/search');
-      return;
+    } 
+    else if (login === "1" && pass === "1") {
+      setIsLoggedIn(true);
+      setUserRole('staff');
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userRole', 'staff');
+      setShowLoginModal(false);
+      setLogin(""); setPass("");
+      router.push('/tasks');
+    } 
+    else {
+      alert("Неверный логин или пароль!");
     }
-
-    // 2. Проверка в базе данных Supabase
-    const { data: user, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('login', login)
-      .eq('password', pass)
-      .maybeSingle();
-
-    if (error) return alert("Ошибка сети");
-    
-    if (!user) {
-      alert("Неверный логин или пароль");
-    } else {
-      if (user.status === 'pending') {
-        alert("Ваш аккаунт еще на проверке у администратора");
-      } else if (user.status === 'rejected') {
-        alert("В доступе отказано");
-      } else {
-        // Аккаунт одобрен (approved)
-        saveAuth(user.role, user.id, user.login);
-        router.push(user.role === 'admin' ? '/search' : '/tasks');
-      }
-    }
-  };
-
-  const saveAuth = (role: string, id: string, loginName: string) => {
-    setIsLoggedIn(true);
-    setUserRole(role);
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('userRole', role);
-    localStorage.setItem('userId', id);
-    localStorage.setItem('userLogin', loginName);
-    setShowLoginModal(false);
-    setLogin(""); setPass("");
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserRole(null);
-    localStorage.clear(); // Полная очистка при выходе
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userRole');
     setIsMenuOpen(false);
     router.push('/');
   };
@@ -107,10 +65,19 @@ export default function Navigation() {
 
   return (
     <>
+      {/* ШАПКА САЙТА */}
       <header style={headerCenterStyle as any}>
         <div 
           onClick={() => setIsMenuOpen(!isMenuOpen)} 
           style={bigBurgerStyle as any}
+          onMouseEnter={(e: any) => {
+            e.currentTarget.style.background = 'rgba(76, 175, 80, 0.2)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e: any) => {
+            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
         >
           <span style={{ fontSize: '18px' }}>{isMenuOpen ? '✕' : '☰'}</span>
           <span style={{ letterSpacing: '2px' }}>{isMenuOpen ? 'ЗАКРЫТЬ' : 'ВХОД'}</span>
@@ -125,7 +92,7 @@ export default function Navigation() {
             ) : (
               <>
                 <div style={{...menuItemStyle, color: '#4CAF50', fontSize: '11px', cursor: 'default', opacity: 0.7} as any}>
-                  USER: {localStorage.getItem('userLogin')?.toUpperCase()}
+                  STATUS: {userRole?.toUpperCase()}
                 </div>
                 <div onClick={handleLogout} style={{...menuItemStyle, color: '#ff7675', borderBottom: 'none'} as any}>
                   ВЫЙТИ
@@ -136,31 +103,20 @@ export default function Navigation() {
         )}
       </header>
 
+      {/* МОДАЛКА ЛОГИНА */}
       {showLoginModal && (
         <div style={modalOverlayStyle as any}>
           <div style={modalContentStyle as any}>
-            <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontSize: '20px', fontWeight: '800' }}>
-              {isRegisterMode ? 'REGISTRATION' : 'IDENTIFICATION'}
-            </h2>
-            <input type="text" placeholder="Придумайте логин" value={login} onChange={(e) => setLogin(e.target.value)} style={inputStyle as any} />
-            <input type="password" placeholder="Придумайте пароль" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (isRegisterMode ? handleRegister() : handleLogin())} style={inputStyle as any} />
-            
-            <div onClick={isRegisterMode ? handleRegister : handleLogin} style={loginButtonStyle as any}>
-                {isRegisterMode ? 'ОТПРАВИТЬ ЗАЯВКУ' : 'ВОЙТИ'}
-            </div>
-
-            <div 
-              onClick={() => setIsRegisterMode(!isRegisterMode)} 
-              style={{ textAlign: 'center', color: '#4CAF50', marginTop: '20px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
-            >
-              {isRegisterMode ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Регистрация'}
-            </div>
-
-            <div onClick={() => setShowLoginModal(false)} style={{ textAlign: 'center', color: '#444', marginTop: '15px', cursor: 'pointer', fontSize: '12px' }}>ОТМЕНА</div>
+            <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontSize: '20px', fontWeight: '800' }}>IDENTIFICATION</h2>
+            <input type="text" placeholder="Логин" value={login} onChange={(e) => setLogin(e.target.value)} style={inputStyle as any} />
+            <input type="password" placeholder="Пароль" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} style={inputStyle as any} />
+            <div onClick={handleLogin} style={loginButtonStyle as any}>ПОДТВЕРДИТЬ</div>
+            <div onClick={() => setShowLoginModal(false)} style={{ textAlign: 'center', color: '#444', marginTop: '20px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>ОТМЕНА</div>
           </div>
         </div>
       )}
 
+      {/* НИЖНЯЯ НАВИГАЦИЯ */}
       {isLoggedIn && (
         <nav style={navBarStyle as any}>
           {navItems
@@ -177,8 +133,26 @@ export default function Navigation() {
   );
 }
 
-// Стили оставлены без изменений, как в твоем исходнике
-const bigBurgerStyle = { background: 'rgba(0, 0, 0, 0.6)', color: '#fff', border: '1px solid rgba(76, 175, 80, 0.5)', padding: '12px 30px', borderRadius: '15px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: '12px', backdropFilter: 'blur(10px)', transition: 'all 0.4s', zIndex: 10002 };
+// --- НОВЫЙ ДИЗАЙН КНОПКИ (BIG BURGER) ---
+const bigBurgerStyle = { 
+  background: 'rgba(0, 0, 0, 0.6)', 
+  color: '#fff', 
+  border: '1px solid rgba(76, 175, 80, 0.5)', 
+  padding: '12px 30px', 
+  borderRadius: '15px', 
+  fontSize: '13px', 
+  fontWeight: '800', 
+  cursor: 'pointer', 
+  boxShadow: '0 10px 30px rgba(0,0,0,0.5)', 
+  display: 'flex', 
+  alignItems: 'center', 
+  gap: '12px',
+  backdropFilter: 'blur(10px)',
+  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+  zIndex: 10002
+};
+
+// --- ОСТАЛЬНЫЕ СТИЛИ ---
 const headerCenterStyle = { position: 'fixed', top: '40px', left: 0, width: '100%', display: 'flex', justifyContent: 'center', zIndex: 10000 };
 const menuDropdownCenterStyle = { position: 'absolute', top: '80px', backgroundColor: '#111', borderRadius: '20px', boxShadow: '0 20px 50px rgba(0,0,0,0.9)', width: '220px', overflow: 'hidden', border: '1px solid #222' };
 const menuItemStyle = { padding: '20px', borderBottom: '1px solid #1a1a1a', color: '#fff', fontSize: '13px', fontWeight: 'bold', letterSpacing: '1px', display: 'block', textDecoration: 'none', cursor: 'pointer', textAlign: 'center' };
