@@ -8,8 +8,8 @@ import { supabase } from '../supabaseClient';
 const STORAGE_KEYS = {
     TAB: 'tea_hub_active_tab',
     TASKS: 'tea_hub_local_tasks',
-    ONBOARD_ROUTE: 'tea_hub_onboard_route_v1', 
-    BASICS_PROGRESS: 'tea_hub_basics_progress_v1' 
+    ONBOARD_ROUTE: 'tea_hub_onboard_route_v1',
+    BASICS_PROGRESS: 'tea_hub_basics_progress_v1'
 };
 
 // --- 1. МАРШРУТ НОВИЧКА (ВЕРХНИЙ БЛОК) ---
@@ -49,30 +49,23 @@ function ShiftContent() {
   const searchParams = useSearchParams();
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'welcome' | 'checklist' | 'edu'>('welcome');
-  
   const [completedRoute, setCompletedRoute] = useState<string[]>([]);
   const [completedBasics, setCompletedBasics] = useState<string[]>([]);
-  
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
   const [selectedSection, setSelectedSection] = useState<any>(null);
   const [selectedModule, setSelectedModule] = useState<any>(null);
-  
   const [currentQuizStep, setCurrentQuizStep] = useState(0);
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
-  
-  // НОВОЕ СОСТОЯНИЕ ДЛЯ МОДАЛКИ ОШИБКИ
   const [showErrorModal, setShowErrorModal] = useState(false);
 
   useEffect(() => {
     const load = () => {
         const urlTab = searchParams.get('tab');
         if (urlTab) setActiveTab(urlTab as any);
-        
         const sRoute = localStorage.getItem(STORAGE_KEYS.ONBOARD_ROUTE);
         const sBasics = localStorage.getItem(STORAGE_KEYS.BASICS_PROGRESS);
         if (sRoute) setCompletedRoute(JSON.parse(sRoute));
         if (sBasics) setCompletedBasics(JSON.parse(sBasics));
-        
         setIsMounted(true);
     };
     load();
@@ -108,7 +101,6 @@ function ShiftContent() {
             setTimeout(() => { setSelectedModule(null); setCurrentQuizStep(0); setActiveAnswer(null); }, 600);
         }
     } else {
-        // ЗАМЕНЕНО: ВМЕСТО ALERT ТЕПЕРЬ МОДАЛКА ОШИБКИ
         setShowErrorModal(true);
         setActiveAnswer(null);
     }
@@ -161,13 +153,36 @@ function ShiftContent() {
                         <div onClick={resetBasicsProgress} style={{ fontSize: '12px', color: '#cc4444', cursor: 'pointer', textDecoration: 'underline', fontWeight: 'bold' }}>сброс</div>
                     </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' } as any}>
-                  {BASICS_DATA.map((sec) => (
-                    <div key={sec.id} onClick={() => setSelectedSection(sec)} style={{ background: '#161816', padding: '25px 40px', borderRadius: '20px', border: '1px solid #222', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } as any}>
-                      <span style={{ fontSize: '18px', fontWeight: '800' }}>{sec.title}</span>
-                      <span style={{ color: '#4CAF50' }}>→</span>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' } as any}>
+                  {/* --- ИСПРАВЛЕННЫЙ БЛОК РЕНДЕРА РАЗДЕЛОВ --- */}
+                  {BASICS_DATA.map((sec) => {
+                    const isSectionDone = sec.modules.every(m => completedBasics.includes(m.id));
+                    return (
+                      <div 
+                        key={sec.id} 
+                        onClick={() => setSelectedSection(sec)} 
+                        style={{ 
+                          background: '#161816', 
+                          padding: '25px 40px', 
+                          borderRadius: '20px', 
+                          border: '1px solid',
+                          borderColor: isSectionDone ? '#2e7d32' : '#222', 
+                          cursor: 'pointer', 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          transition: '0.3s'
+                        } as any}
+                      >
+                        <span style={{ fontSize: '18px', fontWeight: '800', color: isSectionDone ? '#4CAF50' : '#fff' }}>{sec.title}</span>
+                        {isSectionDone ? (
+                          <span style={{ color: '#4CAF50', fontWeight: '900', fontSize: '20px' }}>✓</span>
+                        ) : (
+                          <span style={{ color: '#4CAF50' }}>→</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             ) : selectedRouteStep ? (
@@ -212,22 +227,13 @@ function ShiftContent() {
           </div>
         )}
 
-        {/* МОДАЛКА ОШИБКИ ТЕСТА */}
         {showErrorModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', zIndex: 30000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' } as any}>
             <div style={{ background: '#111', padding: '50px 40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #ff7675', textAlign: 'center' } as any}>
               <div style={{fontSize: '40px', marginBottom: '20px'}}>❌</div>
               <h2 style={{ color: '#fff', marginBottom: '15px', fontWeight: '900' }}>НЕВЕРНО</h2>
-              <p style={{ color: '#aaa', fontSize: '16px', lineHeight: '1.6', marginBottom: '30px' }}>
-                  Похоже, это неправильный ответ. <br/> 
-                  <span style={{color: '#ff7675'}}>Попробуй прочитать текст еще раз!</span>
-              </p>
-              <div 
-                onClick={() => setShowErrorModal(false)} 
-                style={{ padding: '20px', background: '#ff7675', color: '#fff', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', textAlign: 'center', letterSpacing: '1px' } as any}
-              >
-                ПОПРОБОВАТЬ СНОВА
-              </div>
+              <p style={{ color: '#aaa', fontSize: '16px', lineHeight: '1.6', marginBottom: '30px' }}>Похоже, это неправильный ответ. <br/> <span style={{color: '#ff7675'}}>Попробуй прочитать текст еще раз!</span></p>
+              <div onClick={() => setShowErrorModal(false)} style={{ padding: '20px', background: '#ff7675', color: '#fff', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', textAlign: 'center', letterSpacing: '1px' } as any}>ПОПРОБОВАТЬ СНОВА</div>
             </div>
           </div>
         )}
