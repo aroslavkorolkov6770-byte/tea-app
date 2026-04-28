@@ -2,30 +2,26 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import { useSearchParams } from 'next/navigation';
+import { supabase } from '../supabaseClient';
 
 // --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
     TAB: 'tea_hub_active_tab',
     TASKS: 'tea_hub_local_tasks',
-    ONBOARD_ROUTE: 'tea_hub_onboard_route_v1', // Прогресс маршрута (5 шагов)
-    BASICS_PROGRESS: 'tea_hub_basics_progress_v1' // Прогресс 10 разделов
+    ONBOARD_ROUTE: 'tea_hub_onboard_route_v1', 
+    BASICS_PROGRESS: 'tea_hub_basics_progress_v1' 
 };
 
 // --- 1. МАРШРУТ НОВИЧКА (ВЕРХНИЙ БЛОК) ---
 const WELCOME_ROUTE = [
-   { id: "sec_2", title: "🌱 02. Ботаника чая", desc: "Растение, терруар и сбор листа.", content: "Весь чай делается из Camellia Sinensis. Вкус зависит от почвы, климата и мастерства технолога.", quiz: [{q: "Как зовут растение?", o: ["Роза", "Камелия", "Мята"], c: 1}, {q: "Зависит ли вкус от почвы?", o: ["Да", "Нет", "Только от погоды"], c: 0}, {q: "Сколько видов растений для чая?", o: ["Много", "Одно", "Десять"], c: 1}] },
-  { id: "sec_3", title: "🧬 03. Ферментация", desc: "Как лист превращается в разные виды.", content: "Ферментация — это окисление сока в листе. Зеленый почти не окислен, Красный — почти на 100%.", quiz: [{q: "Что такое ферментация?", o: ["Сушка", "Окисление", "Заварка"], c: 1}, {q: "Какой чай не окислен?", o: ["Черный", "Зеленый", "Пуэр"], c: 1}, {q: "Сильнее всего окислен?", o: ["Белый", "Красный", "Улун"], c: 1}] },
-  { id: "sec_4", title: "🍵 04. Зеленый чай", desc: "Сорта, заваривание и польза.", content: "Зеленый чай ценится за свежесть. Лунцзин — эталон. Заваривать водой 75-80°C. Кипяток даст горечь.", quiz: [{q: "Температура для зеленого?", o: ["100°C", "75-80°C", "50°C"], c: 1}, {q: "Что такое Лунцзин?", o: ["Гора", "Колодец Дракона", "Озеро"], c: 1}, {q: "Кипяток дает?", o: ["Сладость", "Горечь", "Аромат"], c: 1}] },
-  { id: "sec_5", title: "🌑 05. Пуэры", desc: "Отличия Шу от Шена.", content: "Шен зреет годами (кислинка/фрукты). Шу проходит Во Дуй (земля/орехи).", quiz: [{q: "Землистый вкус у?", o: ["Шен", "Шу", "Белый"], c: 1}, {q: "Процесс для Шу?", o: ["Шай Цин", "Во Дуй", "Хун Пэй"], c: 1}, {q: "Вкус Шена?", o: ["Сливки", "Сухофрукты", "Шоколад"], c: 1}] },
-  { id: "sec_6", title: "🌀 06. Улуны", desc: "Светлые и темные бирюзовые чаи.", content: "Светлые (Те Гуань Инь) — цветы. Темные (Да Хун Пао) — пряность.", quiz: [{q: "Те Гуань Инь это?", o: ["Темный", "Светлый", "Красный"], c: 1}, {q: "Темные улуны пахнут?", o: ["Травой", "Огнем", "Лимоном"], c: 1}, {q: "В Габе много?", o: ["Сахара", "ГАМК", "Кофеина"], c: 1}] },
-  { id: "sec_7", title: "🍂 07. Красный чай", desc: "Уют, согрев и энергия.", content: "То, что в Европе зовут 'черным'. Юньнань (Дянь Хун) — лидер. Мед, хлеб, курага.", quiz: [{q: "В Европе это чай?", o: ["Темный", "Черный", "Золотой"], c: 1}, {q: "Ноты красного чая?", o: ["Трава", "Мед и хлеб", "Рыба"], c: 1}, {q: "Родина Дянь Хуна?", o: ["Пекин", "Юньнань", "Тайвань"], c: 1}] },
-  { id: "sec_8", title: "🏺 08. Посуда", desc: "Инструменты мастера.", content: "Гайвань — для пролива. Исин — глина. Чахай — для ровного настоя.", quiz: [{q: "Зачем Чахай?", o: ["Хранение", "Слив настоя", "Красота"], c: 1}, {q: "Материал Исина?", o: ["Стекло", "Глина", "Сталь"], c: 1}, {q: "Гайвань это?", o: ["Чайник", "Чашка с крышкой", "Термос"], c: 1}] },
-  { id: "sec_9", title: "👐 09. Сервис", desc: "Стандарты работы.", content: "Подаем двумя руками. Рабочее место (чабань) всегда сухое и чистое. Улыбка и тишина.", quiz: [{q: "Сколько рук?", o: ["Одна", "Две", "Три"], c: 1}, {q: "Чабань должна быть?", o: ["Мокрой", "Чистой и сухой", "В крошках"], c: 1}, {q: "Главное в мастере?", o: ["Голос", "Внимание к деталям", "Вес"], c: 1}] },
-  { id: "sec_10", title: "🎓 10. Аттестация", desc: "Финал обучения.", content: "Слепая дегустация. Нужно определить вид чая и рассказать историю. Удачи!", quiz: [{q: "Что в финале?", o: ["Уборка", "Слепая дегустация", "Сон"], c: 1}, {q: "Нужно знать?", o: ["Цены", "Историю чая", "Улицы"], c: 1}, {q: "После сдачи ты?", o: ["Уволен", "Мастер школы", "Стажер"], c: 1}] }
+  { id: "route_1", title: "🏮 О компании и бренде", time: "3 мин", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной. Мы ценим честность, тишину и качество листа." },
+  { id: "route_2", title: "💳 Работа с кассой", time: "5 мин", content: "Открытие смены в 09:50. Проверка остатков. Работа в системе учета. Закрытие смены и Z-отчет." },
+  { id: "route_3", title: "🍃 Как рассказывать о чае", time: "7 мин", content: "Не грузи гостя терминами. Спрашивай: 'Что вы хотите почувствовать?'. Описывай вкус через ассоциации: мед, семечки, лес." },
+  { id: "route_4", title: "🤝 Стандарты сервиса", time: "4 мин", content: "Подача пиалы двумя руками. Мастер всегда следит за уровнем воды в чайнике гостя. Улыбка — это база." },
+  { id: "route_5", title: "🧹 Чистота и посуда", time: "5 мин", content: "Исинские чайники моем ТОЛЬКО водой. Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
-  
 
-// --- 2. БАЗА ЗНАНИЙ (10 РАЗДЕЛОВ НИЖЕ) ---
+// --- 2. БАЗА ЗНАНИЙ (10 РАЗДЕЛОВ) ---
 const BASICS_DATA = [
   {
     id: "sec_1", title: "🏮 01. История и Бренд",
@@ -54,16 +50,13 @@ function ShiftContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'welcome' | 'checklist' | 'edu'>('welcome');
   
-  // Данные прогресса
   const [completedRoute, setCompletedRoute] = useState<string[]>([]);
   const [completedBasics, setCompletedBasics] = useState<string[]>([]);
   
-  // Состояния выбора
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
   const [selectedSection, setSelectedSection] = useState<any>(null);
   const [selectedModule, setSelectedModule] = useState<any>(null);
   
-  // Тест
   const [currentQuizStep, setCurrentQuizStep] = useState(0);
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
 
@@ -82,17 +75,23 @@ function ShiftContent() {
     load();
   }, [searchParams]);
 
-  // Расчеты
   const routePercent = Math.round((completedRoute.length / WELCOME_ROUTE.length) * 100);
   const basicsTotalModules = BASICS_DATA.reduce((acc, s) => acc + s.modules.length, 0);
   const basicsPercent = Math.round((completedBasics.length / basicsTotalModules) * 100);
 
-  // --- ОБРАБОТЧИКИ ---
   const handleRouteComplete = (id: string) => {
     const newProg = completedRoute.includes(id) ? completedRoute.filter(i => i !== id) : [...completedRoute, id];
     setCompletedRoute(newProg);
     localStorage.setItem(STORAGE_KEYS.ONBOARD_ROUTE, JSON.stringify(newProg));
     setSelectedRouteStep(null);
+  };
+
+  // --- НОВАЯ ФУНКЦИЯ: СБРОС ПРОГРЕССА ОСНОВ ---
+  const resetBasicsProgress = () => {
+    if (confirm("Сбросить прогресс обучения по основам?")) {
+        setCompletedBasics([]);
+        localStorage.removeItem(STORAGE_KEYS.BASICS_PROGRESS);
+    }
   };
 
   const handleQuizAnswer = (idx: number) => {
@@ -120,7 +119,6 @@ function ShiftContent() {
       
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '140px 20px 100px 20px' } as any}>
         
-        {/* ВЕРХНИЕ ТАБЫ */}
         {activeTab !== 'welcome' && (
           <div style={{ display: 'flex', gap: '15px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '25px', marginBottom: '60px', border: '1px solid #222' } as any}>
             <div onClick={() => setActiveTab('checklist')} style={{ flex: 1, padding: '20px', borderRadius: '18px', textAlign: 'center', cursor: 'pointer', fontSize: '15px', fontWeight: '900', backgroundColor: activeTab === 'checklist' ? '#4CAF50' : 'transparent', color: activeTab === 'checklist' ? '#000' : '#555' } as any}>📋 СМЕНА</div>
@@ -131,7 +129,6 @@ function ShiftContent() {
         {activeTab === 'welcome' && (
           <div style={{ animation: 'fadeInUp 0.6s ease' }}>
             
-            {/* --- БЛОК 1: ОНБОРДИНГ (НОВОЕ) --- */}
             {!selectedSection && !selectedRouteStep && (
               <section style={{ marginBottom: '80px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' } as any}>
@@ -152,12 +149,15 @@ function ShiftContent() {
               </section>
             )}
 
-            {/* --- БЛОК 2: ОСНОВЫ (БАЗА ЗНАНИЙ) --- */}
             {!selectedSection && !selectedRouteStep ? (
               <section>
+                {/* --- КНОПКА СБРОСА ДОБАВЛЕНА СПРАВА --- */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' } as any}>
                     <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>ОСНОВЫ</h2>
-                    <span style={{ fontSize: '18px', fontWeight: '900', color: '#4CAF50' }}>{basicsPercent}%</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <span style={{ fontSize: '18px', fontWeight: '900', color: '#4CAF50' }}>{basicsPercent}%</span>
+                        <div onClick={resetBasicsProgress} style={{ fontSize: '12px', color: '#cc4444', cursor: 'pointer', textDecoration: 'underline', fontWeight: 'bold' }}>сброс</div>
+                    </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' } as any}>
                   {BASICS_DATA.map((sec) => (
@@ -169,7 +169,6 @@ function ShiftContent() {
                 </div>
               </section>
             ) : selectedRouteStep ? (
-              /* КАРТОЧКА ШАГА ОНБОРДИНГА */
               <div style={{ background: '#161816', padding: '60px', borderRadius: '40px', border: '1px solid #222' } as any}>
                 <div onClick={() => setSelectedRouteStep(null)} style={{ color: '#4CAF50', cursor: 'pointer', marginBottom: '30px', fontWeight: 'bold' }}>← НАЗАД</div>
                 <h2 style={{ fontSize: '36px', fontWeight: '900' }}>{selectedRouteStep.title}</h2>
@@ -179,7 +178,6 @@ function ShiftContent() {
                 </button>
               </div>
             ) : !selectedModule ? (
-              /* СПИСОК ТЕМ В ОСНОВАХ */
               <>
                 <div onClick={() => setSelectedSection(null)} style={{ color: '#4CAF50', cursor: 'pointer', marginBottom: '30px', fontWeight: 'bold' }}>← К ГЛАВНОМУ ПЛАНУ</div>
                 <h2 style={{ fontSize: '36px', marginBottom: '40px' }}>{selectedSection.title}</h2>
@@ -193,11 +191,10 @@ function ShiftContent() {
                 </div>
               </>
             ) : (
-              /* КАРТОЧКА МОДУЛЯ + ТЕСТ */
               <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' } as any}>
                 <div style={{ background: '#111', padding: '50px', borderRadius: '40px', width: '100%', maxWidth: '650px', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' } as any}>
                     <div onClick={() => {setSelectedModule(null); setCurrentQuizStep(0);}} style={{ color: '#4CAF50', cursor: 'pointer', marginBottom: '20px', fontWeight: 'bold' }}>← ВЕРНУТЬСЯ</div>
-                    <h2 style={{ fontSize: '32px', fontWeight: '900' }}>{selectedModule.title}</h2>
+                    <h2 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '20px' }}>{selectedModule.title}</h2>
                     <p style={{ lineHeight: '1.8', color: '#bbb', margin: '30px 0' }}>{selectedModule.text}</p>
                     <div style={{ borderTop: '1px solid #222', paddingTop: '30px' }}>
                         <h4 style={{ color: '#4CAF50', marginBottom: '20px' }}>ВОПРОС {currentQuizStep + 1} / 3: <span style={{color:'#fff'}}>{selectedModule.quiz[currentQuizStep].q}</span></h4>
@@ -213,6 +210,7 @@ function ShiftContent() {
           </div>
         )}
       </main>
+      <style jsx global>{` @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } `}</style>
     </div>
   );
 }
