@@ -125,19 +125,19 @@ function ShiftContent() {
           <div style={{ animation: 'fadeInUp 0.6s ease' }}>
             
             {!selectedSection && !selectedRouteStep && (
-              <section style={{ marginBottom: '100px' }}> {/* Увеличен отступ снизу */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' } as any}>
-                    <h2 style={{ fontSize: '42px', fontWeight: '900', margin: 0 }}>ПЛАН НА НЕДЕЛЮ</h2> {/* Увеличен заголовок */}
-                    <span style={{ fontSize: '24px', fontWeight: '900', color: '#4CAF50' }}>{routePercent}%</span> {/* Увеличен процент */}
+              <section style={{ marginBottom: '70px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px' } as any}>
+                    <h2 style={{ fontSize: '36px', fontWeight: '900', margin: 0 }}>ПЛАН НА НЕДЕЛЮ</h2>
+                    <span style={{ fontSize: '20px', fontWeight: '900', color: '#4CAF50' }}>{routePercent}%</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px' } as any}> {/* Увеличена ширина карточек и зазор */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px' } as any}>
                   {WELCOME_ROUTE.map((step, idx) => {
                     const isDone = completedRoute.includes(step.id);
                     return (
                       <div key={step.id} onClick={() => setSelectedRouteStep(step)} style={{ 
                         background: isDone ? 'rgba(76, 175, 80, 0.1)' : '#161816', 
-                        padding: '40px 30px',  /* Увеличены внутренние отступы */
-                        borderRadius: '30px',  /* Увеличены скругления */
+                        padding: '30px 25px', 
+                        borderRadius: '24px', 
                         border: '1px solid', 
                         borderColor: isDone ? '#4CAF50' : '#222', 
                         cursor: 'pointer',
@@ -145,10 +145,10 @@ function ShiftContent() {
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'center',
-                        minHeight: '180px' /* Минимальная высота для солидности */
+                        minHeight: '140px'
                       } as any}>
-                        <div style={{ fontSize: '14px', color: '#4CAF50', fontWeight: '900', marginBottom: '12px', letterSpacing: '1px' }}>ШАГ 0{idx+1}</div> {/* Увеличен шрифт шага */}
-                        <h4 style={{ margin: '0', fontSize: '22px', fontWeight: '800', lineHeight: '1.3' }}>{step.title}</h4> {/* Увеличен шрифт названия */}
+                        <div style={{ fontSize: '12px', color: '#4CAF50', fontWeight: '900', marginBottom: '8px' }}>ШАГ 0{idx+1}</div>
+                        <h4 style={{ margin: '0', fontSize: '18px', fontWeight: '800', lineHeight: '1.3' }}>{step.title}</h4>
                       </div>
                     );
                   })}
@@ -158,14 +158,14 @@ function ShiftContent() {
 
             {!selectedSection && !selectedRouteStep ? (
               <section>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' } as any}>
-                    <h2 style={{ fontSize: '42px', fontWeight: '900', margin: 0 }}>ОСНОВЫ</h2> {/* Увеличен заголовок */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                        <span style={{ fontSize: '24px', fontWeight: '900', color: '#4CAF50' }}>{basicsPercent}%</span>
-                        <div onClick={resetBasicsProgress} style={{ fontSize: '14px', color: '#cc4444', cursor: 'pointer', textDecoration: 'underline', fontWeight: 'bold' }}>сброс</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px' } as any}>
+                    <h2 style={{ fontSize: '36px', fontWeight: '900', margin: 0 }}>ОСНОВЫ</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+                        <span style={{ fontSize: '20px', fontWeight: '900', color: '#4CAF50' }}>{basicsPercent}%</span>
+                        <div onClick={resetBasicsProgress} style={{ fontSize: '13px', color: '#cc4444', cursor: 'pointer', textDecoration: 'underline', fontWeight: 'bold' }}>сброс</div>
                     </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' } as any}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' } as any}>
                   {/* --- ИСПРАВЛЕННЫЙ БЛОК РЕНДЕРА РАЗДЕЛОВ --- */}
                   {BASICS_DATA.map((sec) => {
                     const isSectionDone = sec.modules.every(m => completedBasics.includes(m.id));
@@ -175,8 +175,8 @@ function ShiftContent() {
                         onClick={() => setSelectedSection(sec)} 
                         style={{ 
                           background: '#161816', 
-                          padding: '35px 50px',  /* Увеличены отступы разделов */
-                          borderRadius: '25px', 
+                          padding: '28px 45px', 
+                          borderRadius: '22px', 
                           border: '1px solid',
                           borderColor: isSectionDone ? '#2e7d32' : '#222', 
                           cursor: 'pointer', 
@@ -186,11 +186,11 @@ function ShiftContent() {
                           transition: '0.3s'
                         } as any}
                       >
-                        <span style={{ fontSize: '22px', fontWeight: '800', color: isSectionDone ? '#4CAF50' : '#fff' }}>{sec.title}</span> {/* Увеличен текст */}
+                        <span style={{ fontSize: '20px', fontWeight: '800', color: isSectionDone ? '#4CAF50' : '#fff' }}>{sec.title}</span>
                         {isSectionDone ? (
-                          <span style={{ color: '#4CAF50', fontWeight: '900', fontSize: '28px' }}>✓</span>
+                          <span style={{ color: '#4CAF50', fontWeight: '900', fontSize: '24px' }}>✓</span>
                         ) : (
-                          <span style={{ color: '#4CAF50', fontSize: '24px' }}>→</span>
+                          <span style={{ color: '#4CAF50', fontSize: '20px' }}>→</span>
                         )}
                       </div>
                     );
