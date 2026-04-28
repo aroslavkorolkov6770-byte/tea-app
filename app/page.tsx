@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
-import { supabase } from './supabaseClient'; 
+import { supabase } from '@/app/supabaseClient'; 
 
 interface Tea {
   id: number; name: string; type: string; category: string; strength: string;
