@@ -57,6 +57,7 @@ function ShiftContent() {
   const [currentQuizStep, setCurrentQuizStep] = useState(0);
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   useEffect(() => {
     const load = () => {
@@ -83,10 +84,13 @@ function ShiftContent() {
   };
 
   const resetBasicsProgress = () => {
-    if (confirm("Сбросить прогресс обучения по основам?")) {
-        setCompletedBasics([]);
-        localStorage.removeItem(STORAGE_KEYS.BASICS_PROGRESS);
-    }
+    setShowResetModal(true);
+  };
+
+  const confirmReset = () => {
+    setCompletedBasics([]);
+    localStorage.removeItem(STORAGE_KEYS.BASICS_PROGRESS);
+    setShowResetModal(false);
   };
 
   const handleQuizAnswer = (idx: number) => {
@@ -125,19 +129,19 @@ function ShiftContent() {
           <div style={{ animation: 'fadeInUp 0.6s ease' }}>
             
             {!selectedSection && !selectedRouteStep && (
-              <section style={{ marginBottom: '70px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px' } as any}>
-                    <h2 style={{ fontSize: '36px', fontWeight: '900', margin: 0 }}>ПЛАН НА НЕДЕЛЮ</h2>
-                    <span style={{ fontSize: '20px', fontWeight: '900', color: '#4CAF50' }}>{routePercent}%</span>
+              <section style={{ marginBottom: '60px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' } as any}>
+                    <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>ПЛАН НА НЕДЕЛЮ</h2>
+                    <span style={{ fontSize: '18px', fontWeight: '900', color: '#4CAF50' }}>{routePercent}%</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '20px' } as any}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '15px' } as any}>
                   {WELCOME_ROUTE.map((step, idx) => {
                     const isDone = completedRoute.includes(step.id);
                     return (
                       <div key={step.id} onClick={() => setSelectedRouteStep(step)} style={{ 
                         background: isDone ? 'rgba(76, 175, 80, 0.1)' : '#161816', 
-                        padding: '30px 25px', 
-                        borderRadius: '24px', 
+                        padding: '24px 20px', 
+                        borderRadius: '20px', 
                         border: '1px solid', 
                         borderColor: isDone ? '#4CAF50' : '#222', 
                         cursor: 'pointer',
@@ -145,10 +149,10 @@ function ShiftContent() {
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'center',
-                        minHeight: '140px'
+                        minHeight: '110px'
                       } as any}>
-                        <div style={{ fontSize: '12px', color: '#4CAF50', fontWeight: '900', marginBottom: '8px' }}>ШАГ 0{idx+1}</div>
-                        <h4 style={{ margin: '0', fontSize: '18px', fontWeight: '800', lineHeight: '1.3' }}>{step.title}</h4>
+                        <div style={{ fontSize: '11px', color: '#4CAF50', fontWeight: '900', marginBottom: '6px' }}>ШАГ 0{idx+1}</div>
+                        <h4 style={{ margin: '0', fontSize: '16px', fontWeight: '800', lineHeight: '1.3' }}>{step.title}</h4>
                       </div>
                     );
                   })}
@@ -158,14 +162,14 @@ function ShiftContent() {
 
             {!selectedSection && !selectedRouteStep ? (
               <section>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px' } as any}>
-                    <h2 style={{ fontSize: '36px', fontWeight: '900', margin: 0 }}>ОСНОВЫ</h2>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-                        <span style={{ fontSize: '20px', fontWeight: '900', color: '#4CAF50' }}>{basicsPercent}%</span>
-                        <div onClick={resetBasicsProgress} style={{ fontSize: '13px', color: '#cc4444', cursor: 'pointer', textDecoration: 'underline', fontWeight: 'bold' }}>сброс</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' } as any}>
+                    <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>ОСНОВЫ</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <span style={{ fontSize: '18px', fontWeight: '900', color: '#4CAF50' }}>{basicsPercent}%</span>
+                        <div onClick={resetBasicsProgress} style={{ fontSize: '12px', color: '#cc4444', cursor: 'pointer', textDecoration: 'underline', fontWeight: 'bold' }}>сброс</div>
                     </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' } as any}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' } as any}>
                   {/* --- ИСПРАВЛЕННЫЙ БЛОК РЕНДЕРА РАЗДЕЛОВ --- */}
                   {BASICS_DATA.map((sec) => {
                     const isSectionDone = sec.modules.every(m => completedBasics.includes(m.id));
@@ -175,8 +179,8 @@ function ShiftContent() {
                         onClick={() => setSelectedSection(sec)} 
                         style={{ 
                           background: '#161816', 
-                          padding: '28px 45px', 
-                          borderRadius: '22px', 
+                          padding: '22px 35px', 
+                          borderRadius: '18px', 
                           border: '1px solid',
                           borderColor: isSectionDone ? '#2e7d32' : '#222', 
                           cursor: 'pointer', 
@@ -186,11 +190,11 @@ function ShiftContent() {
                           transition: '0.3s'
                         } as any}
                       >
-                        <span style={{ fontSize: '20px', fontWeight: '800', color: isSectionDone ? '#4CAF50' : '#fff' }}>{sec.title}</span>
+                        <span style={{ fontSize: '18px', fontWeight: '800', color: isSectionDone ? '#4CAF50' : '#fff' }}>{sec.title}</span>
                         {isSectionDone ? (
-                          <span style={{ color: '#4CAF50', fontWeight: '900', fontSize: '24px' }}>✓</span>
+                          <span style={{ color: '#4CAF50', fontWeight: '900', fontSize: '22px' }}>✓</span>
                         ) : (
-                          <span style={{ color: '#4CAF50', fontSize: '20px' }}>→</span>
+                          <span style={{ color: '#4CAF50', fontSize: '18px' }}>→</span>
                         )}
                       </div>
                     );
@@ -246,6 +250,19 @@ function ShiftContent() {
               <h2 style={{ color: '#fff', marginBottom: '15px', fontWeight: '900' }}>НЕВЕРНО</h2>
               <p style={{ color: '#aaa', fontSize: '16px', lineHeight: '1.6', marginBottom: '30px' }}>Похоже, это неправильный ответ. <br/> <span style={{color: '#ff7675'}}>Попробуй прочитать текст еще раз!</span></p>
               <div onClick={() => setShowErrorModal(false)} style={{ padding: '20px', background: '#ff7675', color: '#fff', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', textAlign: 'center', letterSpacing: '1px' } as any}>ПОПРОБОВАТЬ СНОВА</div>
+            </div>
+          </div>
+        )}
+
+        {showResetModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', zIndex: 40000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' } as any}>
+            <div style={{ background: '#161816', padding: '40px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', textAlign: 'center' } as any}>
+              <h2 style={{ fontSize: '24px', fontWeight: '900', marginBottom: '15px' }}>СБРОСИТЬ ПРОГРЕСС?</h2>
+              <p style={{ color: '#888', marginBottom: '30px', lineHeight: '1.5', fontSize: '15px' }}>Вы уверены, что хотите обнулить обучение по основам? <br/> Это действие нельзя отменить.</p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={() => setShowResetModal(false)} style={{ flex: 1, padding: '15px', background: '#222', color: '#fff', borderRadius: '12px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>ОТМЕНА</button>
+                <button onClick={confirmReset} style={{ flex: 1, padding: '15px', background: '#cc4444', color: '#fff', borderRadius: '12px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>СБРОСИТЬ</button>
+              </div>
             </div>
           </div>
         )}
