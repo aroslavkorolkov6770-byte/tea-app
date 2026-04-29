@@ -21,6 +21,49 @@ const WELCOME_ROUTE = [
   { id: "route_5", title: "🧹 Чистота и посуда", time: "5 мин", content: "Исинские чайники моем ТОЛЬКО водой. Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
+// --- НОВЫЙ РАЗДЕЛ: СТАНДАРТЫ РАБОТЫ ---
+const STANDARDS_DATA = [
+  {
+    title: "👋 ПРИВЕТСТВИЕ И СКРИПТ",
+    color: "#00d2ff",
+    items: [
+      "Улыбка и зрительный контакт — в первые 3 секунды.",
+      "Фраза: 'Добрый день! Подберем чай под ваше состояние или что-то конкретное?'",
+      "Если гость молчит: дайте 30 секунд осмотреться, затем предложите вдохнуть аромат 'чая дня'."
+    ]
+  },
+  {
+    title: "💰 ВОЗРАЖЕНИЕ «ДОРОГО»",
+    color: "#00d2ff",
+    items: [
+      "Не спорьте. Согласитесь: 'Да, цена выше средней, потому что это фермерский сбор'.",
+      "Аргумент 1: Этот чай выдерживает до 10 проливов (1 литр напитка).",
+      "Аргумент 2: Это ручной сбор, почки собираются только 2 дня в году.",
+      "Предложите альтернативу: 'У нас есть отличный базовый Лунцзин, он чуть доступнее'."
+    ]
+  },
+  {
+    title: "🖼️ ВИТРИНА И ВЫКЛАДКА",
+    color: "#00d2ff",
+    items: [
+      "Баночки стоят этикеткой строго на покупателя.",
+      "Стекло витрины — без единого отпечатка пальца.",
+      "Ценники актуальны и стоят справа от банки.",
+      "Пустых мест быть не должно: раздвиньте соседние товары."
+    ]
+  },
+  {
+    title: "🍵 ПРАВИЛА ДЕГУСТАЦИЙ",
+    color: "#00d2ff",
+    items: [
+      "Температура воды должна быть идеальной для сорта.",
+      "Используйте только чистые дегустационные чашки.",
+      "Рассказывайте историю чая, пока гость пьет.",
+      "Держите чабань в чистоте: никаких луж и крошек листа."
+    ]
+  }
+];
+
 // --- 15 БАЗОВЫХ ЗАДАЧ ---
 const INITIAL_TASKS = [
   { id: 1, text: "🏮 Проверить чистоту чабани", completed: false },
@@ -67,7 +110,7 @@ const BASICS_DATA = [
 function ShiftContent() {
   const searchParams = useSearchParams();
   const [isMounted, setIsMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'welcome' | 'checklist' | 'edu'>('welcome');
+  const [activeTab, setActiveTab] = useState<'welcome' | 'checklist' | 'standards' | 'edu'>('welcome');
   const [completedRoute, setCompletedRoute] = useState<string[]>([]);
   const [completedBasics, setCompletedBasics] = useState<string[]>([]);
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
@@ -177,8 +220,30 @@ function ShiftContent() {
         
         {activeTab !== 'welcome' && (
           <div style={{ display: 'flex', gap: '15px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '25px', marginBottom: '60px', border: '1px solid #222' } as any}>
-            <div onClick={() => setActiveTab('checklist')} style={{ flex: 1, padding: '20px', borderRadius: '18px', textAlign: 'center', cursor: 'pointer', fontSize: '15px', fontWeight: '900', backgroundColor: activeTab === 'checklist' ? '#4CAF50' : 'transparent', color: activeTab === 'checklist' ? '#000' : '#555' } as any}>📋 СМЕНА</div>
-            <div onClick={() => setActiveTab('edu')} style={{ flex: 1, padding: '20px', borderRadius: '18px', textAlign: 'center', cursor: 'pointer', fontSize: '15px', fontWeight: '900', backgroundColor: activeTab === 'edu' ? '#4CAF50' : 'transparent', color: activeTab === 'edu' ? '#000' : '#555', display: 'none' } as any}>🎓 ОБУЧЕНИЕ</div>
+            <div onClick={() => setActiveTab('checklist')} style={{ flex: 1, padding: '15px', borderRadius: '15px', textAlign: 'center', cursor: 'pointer', fontSize: '14px', fontWeight: '900', backgroundColor: activeTab === 'checklist' ? '#4CAF50' : 'transparent', color: activeTab === 'checklist' ? '#000' : '#555' } as any}>📋 СМЕНА</div>
+            <div onClick={() => setActiveTab('standards')} style={{ flex: 1, padding: '15px', borderRadius: '15px', textAlign: 'center', cursor: 'pointer', fontSize: '14px', fontWeight: '900', backgroundColor: activeTab === 'standards' ? '#00d2ff' : 'transparent', color: activeTab === 'standards' ? '#000' : '#555' } as any}>💡 СТАНДАРТЫ</div>
+            <div onClick={() => setActiveTab('edu')} style={{ flex: 1, padding: '15px', borderRadius: '15px', textAlign: 'center', cursor: 'pointer', fontSize: '14px', fontWeight: '900', backgroundColor: activeTab === 'edu' ? '#4CAF50' : 'transparent', color: activeTab === 'edu' ? '#000' : '#555', display: 'none' } as any}>🎓 ОБУЧЕНИЕ</div>
+          </div>
+        )}
+
+        {activeTab === 'standards' && (
+          <div style={{ animation: 'fadeInUp 0.6s ease' }}>
+            <h2 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '30px', color: '#00d2ff' }}>💡 КАК МЫ РАБОТАЕМ</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' } as any}>
+              {STANDARDS_DATA.map((std, i) => (
+                <div key={i} style={{ background: 'linear-gradient(145deg, #161816, #0d0f0d)', padding: '30px', borderRadius: '25px', border: `1px solid ${std.color}44`, boxShadow: `0 10px 30px ${std.color}11` } as any}>
+                  <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: std.color, fontWeight: '900', letterSpacing: '1px' }}>{std.title}</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {std.items.map((item, j) => (
+                      <div key={j} style={{ display: 'flex', gap: '10px', fontSize: '15px', color: '#bbb', lineHeight: '1.4' }}>
+                        <span style={{ color: std.color }}>•</span>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
