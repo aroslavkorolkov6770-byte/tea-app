@@ -25,7 +25,7 @@ const WELCOME_ROUTE = [
 const STANDARDS_DATA = [
   {
     title: "👋 ПРИВЕТСТВИЕ И СКРИПТ",
-    color: "#00d2ff",
+    color: "#4CAF50",
     items: [
       "Улыбка и зрительный контакт — в первые 3 секунды.",
       "Фраза: 'Добрый день! Подберем чай под ваше состояние или что-то конкретное?'",
@@ -34,7 +34,7 @@ const STANDARDS_DATA = [
   },
   {
     title: "💰 ВОЗРАЖЕНИЕ «ДОРОГО»",
-    color: "#00d2ff",
+    color: "#4CAF50",
     items: [
       "Не спорьте. Согласитесь: 'Да, цена выше средней, потому что это фермерский сбор'.",
       "Аргумент 1: Этот чай выдерживает до 10 проливов (1 литр напитка).",
@@ -44,7 +44,7 @@ const STANDARDS_DATA = [
   },
   {
     title: "🖼️ ВИТРИНА И ВЫКЛАДКА",
-    color: "#00d2ff",
+    color: "#4CAF50",
     items: [
       "Баночки стоят этикеткой строго на покупателя.",
       "Стекло витрины — без единого отпечатка пальца.",
@@ -54,7 +54,7 @@ const STANDARDS_DATA = [
   },
   {
     title: "🍵 ПРАВИЛА ДЕГУСТАЦИЙ",
-    color: "#00d2ff",
+    color: "#4CAF50",
     items: [
       "Температура воды должна быть идеальной для сорта.",
       "Используйте только чистые дегустационные чашки.",
@@ -219,7 +219,7 @@ function ShiftContent() {
         {/* РАЗДЕЛ СТАНДАРТОВ (РАБОТА) */}
         {activeTab === 'standards' && (
           <div style={{ animation: 'fadeInUp 0.6s ease' }}>
-            <h2 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '30px', color: '#00d2ff' }}>💡 КАК МЫ РАБОТАЕМ</h2>
+            <h2 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '30px', color: '#4CAF50' }}>💡 КАК МЫ РАБОТАЕМ</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' } as any}>
               {STANDARDS_DATA.map((std, i) => (
                 <div key={i} style={{ background: 'linear-gradient(145deg, #161816, #0d0f0d)', padding: '30px', borderRadius: '25px', border: `1px solid ${std.color}44`, boxShadow: `0 10px 30px ${std.color}11` } as any}>
