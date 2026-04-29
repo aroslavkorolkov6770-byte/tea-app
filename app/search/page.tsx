@@ -32,7 +32,7 @@ const INITIAL_DATABASE: Tea[] = [
   { id: 8, name: "Габа Алишань", type: "Улун", category: "Улун", strength: "Средний", info: "90°C", summary: "Печеные яблоки, кислинка.", desc: "Чай, прошедший ферментацию без доступа кислорода.", img: "https://images.unsplash.com/photo-1544787210-2213d2427517?q=80&w=800", isDayTea: false, region: "Тайвань", brewGuide: "90°C", advice: "Для концентрации внимания.", analogsDiff: "Содержит ГАМК.", quiz: [{q: "Главная особенность?", o: ["Цвет", "ГАМК (GABA)"], c: 1}] },
   { id: 9, name: "Дянь Хун", type: "Красный", category: "Красный", strength: "Средний", info: "95°C", summary: "Мед и сухофрукты.", desc: "Юньнаньский красный чай с обилием золотистых почек.", img: "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?q=80&w=800", isDayTea: false, region: "Юньнань", brewGuide: "95°C", advice: "Классический согревающий чай.", analogsDiff: "Более сладкий, чем Сяо Чжун.", quiz: [{q: "Цвет почек?", o: ["Черные", "Золотистые"], c: 1}] },
   { id: 10, name: "Лапсанг Сушонг", type: "Красный", category: "Красный", strength: "Крепкий", info: "95°C", summary: "Дым, чернослив, костер.", desc: "Копченый на сосновых дровах красный чай.", img: "https://images.unsplash.com/photo-1563911302283-d2bc129e7570?q=80&w=800", isDayTea: false, region: "Фуцзянь", brewGuide: "95°C", advice: "Для любителей необычных вкусов.", analogsDiff: "Характерный дегтярный аромат.", quiz: [{q: "Чем пахнет?", o: ["Цветами", "Дымом/Костром"], c: 1}] },
-  { id: 11, name: "Шу Пуэр", type: "Пуэр", category: "Пуэр", strength: "Крепкий", info: "100°C", summary: "Земля, орехи, кора.", desc: "Чай ускоренной ферментации. Плотный, темный настой.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800", isDayTea: false, region: "Юньнань", brewGuide: "100°C", advice: "Для бодрости.", analogsDiff: "Не дает горечи при перестое.", quiz: [{q: "Цвет настоя?", o: ["Прозрачный", "Черный/Нефтяной"], c: 1}] },
+  { id: 11, name: "Шу Пуэр", type: "Пуэр", category: "Пуэр", strength: "Крепкий", info: "100°C", summary: "Землистый, орехи, кора.", desc: "Чай ускоренной ферментации. Плотный, темный настой.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800", isDayTea: false, region: "Юньнань", brewGuide: "100°C", advice: "Для бодрости.", analogsDiff: "Не дает горечи при перестое.", quiz: [{q: "Цвет настоя?", o: ["Прозрачный", "Черный/Нефтяной"], c: 1}] },
   { id: 12, name: "Шен Пуэр", type: "Пуэр", category: "Пуэр", strength: "Средний", info: "90°C", summary: "Курага, дымок, свежесть.", desc: "Естественно состаренный пуэр. Профиль меняется со временем.", img: "https://images.unsplash.com/photo-1627435601361-ec25f5b1d0e5?q=80&w=800", isDayTea: false, region: "Мэнхай", brewGuide: "90°C", advice: "Ценителям сложных переходов.", analogsDiff: "Фруктовая кислинка.", quiz: [{q: "Вкус со временем?", o: ["Портится", "Становится глубже"], c: 1}] },
   { id: 13, name: "Сяо Чжун", type: "Красный", category: "Красный", strength: "Средний", info: "95°C", summary: "Хлеб, ржаная корочка.", desc: "Красный чай без копчения. Глубокий хлебный вкус.", img: "https://images.unsplash.com/photo-1582793988951-9aed5509eb97?q=80&w=800", isDayTea: false, region: "Уишань", brewGuide: "95°C", advice: "Уютный вечерний чай.", analogsDiff: "Мягче Лапсанга.", quiz: [{q: "Нота?", o: ["Хлебная", "Морская"], c: 0}] },
   { id: 14, name: "Най Сян Улун", type: "Улун", category: "Улун", strength: "Мягкий", info: "85°C", summary: "Сливки, карамель.", desc: "Молочный улун. Ароматизированный сорт.", img: "https://images.unsplash.com/photo-1594631252845-29fc4586d517?q=80&w=800", isDayTea: false, region: "Фуцзянь", brewGuide: "85°C", advice: "Для начинающих путь в чай.", analogsDiff: "Яркий молочный аромат.", quiz: [{q: "Аромат?", o: ["Древесный", "Молочно-сливочный"], c: 1}] },
@@ -236,13 +236,27 @@ export default function SearchPage() {
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#0d0f0d', zIndex: 15000, padding: '40px 20px', overflowY: 'auto' } as any}>
             <div style={{ maxWidth: '700px', margin: '0 auto' }}>
               <div onClick={() => setSelectedTea(null)} style={{ color: '#4CAF50', marginBottom: '30px', cursor: 'pointer', fontWeight: 'bold' }}>← Закрыть</div>
-              <h2 style={{ fontSize: '42px', color: '#4CAF50' }}>{selectedTea.name}</h2>
+              
+              {/* ЗАГОЛОВОК И ФОТО ТОВАРА */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '30px' }}>
+                  <h2 style={{ fontSize: '42px', color: '#4CAF50', margin: 0 }}>{selectedTea.name}</h2>
+                  <div style={{ width: '100%', height: '350px', borderRadius: '30px', overflow: 'hidden', border: '1px solid #333' }}>
+                      <img 
+                        src={selectedTea.img} 
+                        alt={selectedTea.name} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                  </div>
+                  <p style={{ fontSize: '18px', color: '#ccc', lineHeight: '1.6' }}>{selectedTea.desc}</p>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', margin: '40px 0' } as any}>
                 <div style={infoBlock}><div style={infoLabel}>🌍 РЕГИОН</div>{selectedTea.region || 'Китай'}</div>
                 <div style={infoBlock}><div style={infoLabel}>🌡️ ЗАВАРИВАНИЕ</div>{selectedTea.brewGuide || selectedTea.info}</div>
                 <div style={infoBlock}><div style={infoLabel}>💡 СОВЕТ</div>{selectedTea.advice}</div>
                 <div style={infoBlock}><div style={infoLabel}>🔄 ОТЛИЧИЕ</div>{selectedTea.analogsDiff}</div>
               </div>
+              
               <div style={{ background: '#161816', padding: '30px', borderRadius: '25px', border: '1px solid #222' } as any}>
                 <button onClick={() => { setQuizResults({}); setShowQuiz(true); }} style={{...btnMain, fontSize:'18px'} as any}>🧠 ПРОВЕРИТЬ СЕБЯ</button>
               </div>
@@ -281,7 +295,7 @@ export default function SearchPage() {
 
 const typeBadge: React.CSSProperties = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' };
 const inputStyle = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' };
-const infoBlock = { background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222' };
+const infoBlock = { background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222', color: '#fff' };
 const infoLabel = { color: '#4CAF50', fontSize: '11px', fontWeight: 'bold', marginBottom: '8px' };
 const btnMain = { width: '100%', padding: '15px', background: '#4CAF50', color: '#000', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' };
 const btnCancel = { width: '100%', background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontWeight: 'bold', marginTop: '15px' };
