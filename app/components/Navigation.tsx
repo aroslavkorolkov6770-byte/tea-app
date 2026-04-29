@@ -16,14 +16,22 @@ export default function Navigation() {
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
 
+  // ИСПРАВЛЕНИЕ: Добавили pathname в зависимости и проверку intro_seen здесь
   useEffect(() => {
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
+    const introSeen = localStorage.getItem('intro_seen');
+
     if (auth === 'true') {
       setIsLoggedIn(true);
       setUserRole(role);
+
+      // Если это сотрудник и он еще не видел (не закрыл) интро — показываем
+      if (role === 'staff' && !introSeen) {
+        setShowIntroModal(true);
+      }
     }
-  }, []);
+  }, [pathname]); // Эффект срабатывает при загрузке и переходах
 
   const handleLogin = () => {
     if (login === "11" && pass === "11") {
@@ -84,7 +92,6 @@ export default function Navigation() {
           <span style={{ letterSpacing: '2px' }}>{isMenuOpen ? 'ЗАКРЫТЬ' : 'ВХОД'}</span>
         </div>
         
-        {/* НОВАЯ КНОПКА ПРОФИЛЯ В ПРАВОМ ВЕРХНЕМ УГЛУ */}
         {isLoggedIn && (
           <Link href="/profile" style={profileIconStyle as any}>
              👤
