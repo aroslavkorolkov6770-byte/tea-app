@@ -104,7 +104,6 @@ export default function Navigation() {
               <>
                 <div style={{...menuItemStyle, color: '#4CAF50', fontSize: '11px', cursor: 'default', opacity: 0.7} as any}>STATUS: {userRole?.toUpperCase()}</div>
                 
-                {/* ССЫЛКА НА АДМИН-ПАНЕЛЬ (ТОЛЬКО ДЛЯ АДМИНА) */}
                 {userRole === 'admin' && (
                     <Link href="/admin" onClick={() => setIsMenuOpen(false)} style={{...menuItemStyle, color: '#4CAF50'} as any}>⚙️ Админ-панель</Link>
                 )}
@@ -142,7 +141,10 @@ export default function Navigation() {
 
       {isLoggedIn && (
         <nav style={navBarStyle as any}>
-          {navItems.map(t => (
+          {/* ФИЛЬТРАЦИЯ: Если админ - убираем вкладку СМЕНА */}
+          {navItems
+            .filter(t => !(userRole === 'admin' && t.label === 'СМЕНА'))
+            .map(t => (
             <Link key={t.id} href={t.id} style={{ ...navItemStyle, color: (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === t.id ? '#4CAF50' : '#888' } as any}>
               <span style={{ fontSize: '22px' }}>{t.icon}</span>
               <span style={{ fontSize: '9px', fontWeight: '900', letterSpacing: '1px' }}>{t.label}</span>

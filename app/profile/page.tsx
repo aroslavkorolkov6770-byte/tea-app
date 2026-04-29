@@ -136,7 +136,7 @@ function ProfileContent() {
                         <h3 style={sectionTitle}>ИНСТРУМЕНТЫ МАСТЕРА</h3>
                         <div style={adminPanelStyle}>
                             <Link href="/admin" style={adminLinkStyle}>📊 Таблица мониторинга персонала</Link>
-                            <Link href="/tasks?tab=welcome" style={adminLinkStyle}>✍️ Конструктор обучения (LMS)</Link>
+                            {/* Кнопка Конструктор обучения LMS удалена согласно ТЗ */}
                             <Link href="/search" style={adminLinkStyle}>🍃 Редактор базы продуктов</Link>
                         </div>
                     </div>
@@ -200,7 +200,7 @@ function ProfileContent() {
     );
 }
 
-// --- СТИЛИ (СЛОЖНЫЙ ПУТЬ) ---
+// --- СТИЛИ ---
 const sectionTitle: any = { fontSize: '12px', fontWeight: '900', color: '#444', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center', textTransform: 'uppercase' };
 const statCardStyle: any = { background: '#161816', padding: '25px 10px', borderRadius: '25px', border: '1px solid #222', display: 'flex', flexDirection: 'column', alignItems: 'center' };
 const statNum: any = { fontSize: '28px', fontWeight: '900', color: '#4CAF50' };
