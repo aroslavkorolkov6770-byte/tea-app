@@ -21,6 +21,25 @@ const WELCOME_ROUTE = [
   { id: "route_5", title: "🧹 Чистота и посуда", time: "5 мин", content: "Исинские чайники моем ТОЛЬКО водой. Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
+// --- 15 БАЗОВЫХ ЗАДАЧ ---
+const INITIAL_TASKS = [
+  { id: 1, text: "🏮 Проверить чистоту чабани", completed: false },
+  { id: 2, text: "🏮 Наполнить термопот водой", completed: false },
+  { id: 3, text: "🏮 Протереть витрину с чаем", completed: false },
+  { id: 4, text: "🏮 Подготовить пиалы к смене", completed: false },
+  { id: 5, text: "🏮 Проверить кассовую ленту", completed: false },
+  { id: 6, text: "🏮 Очистить ситечки и гайвани", completed: false },
+  { id: 7, text: "🏮 Выровнять баночки на полках", completed: false },
+  { id: 8, text: "🏮 Проверить температуру воды", completed: false },
+  { id: 9, text: "🏮 Смахнуть пыль с чайников", completed: false },
+  { id: 10, text: "🏮 Включить атмосферную музыку", completed: false },
+  { id: 11, text: "🏮 Подготовить меню для гостей", completed: false },
+  { id: 12, text: "🏮 Проверить заряд весов", completed: false },
+  { id: 13, text: "🏮 Навести порядок в зоне гостя", completed: false },
+  { id: 14, text: "🏮 Проверить наличие полотенец", completed: false },
+  { id: 15, text: "🏮 Проверить остатки упаковки", completed: false }
+];
+
 // --- 2. БАЗА ЗНАНИЙ (10 РАЗДЕЛОВ) ---
 const BASICS_DATA = [
   {
@@ -58,8 +77,8 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
-  
-  // --- НОВАЯ ЛОГИКА ЗАДАЧ ---
+
+  // --- ЛОГИКА ЗАДАЧ ---
   const [localTasks, setLocalTasks] = useState<{id: number, text: string, completed: boolean}[]>([]);
   const [taskInput, setTaskInput] = useState('');
 
@@ -70,9 +89,17 @@ function ShiftContent() {
         const sRoute = localStorage.getItem(STORAGE_KEYS.ONBOARD_ROUTE);
         const sBasics = localStorage.getItem(STORAGE_KEYS.BASICS_PROGRESS);
         const sTasks = localStorage.getItem(STORAGE_KEYS.TASKS);
+        
         if (sRoute) setCompletedRoute(JSON.parse(sRoute));
         if (sBasics) setCompletedBasics(JSON.parse(sBasics));
-        if (sTasks) setLocalTasks(JSON.parse(sTasks));
+        
+        // Инициализация задач: если пусто - загружаем 15 базовых
+        if (sTasks) {
+            setLocalTasks(JSON.parse(sTasks));
+        } else {
+            setLocalTasks(INITIAL_TASKS);
+            localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(INITIAL_TASKS));
+        }
         setIsMounted(true);
     };
     load();
@@ -83,10 +110,12 @@ function ShiftContent() {
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(newTasks));
   };
 
-  const addTask = () => {
+  const addTask = (e?: any) => {
+    if (e) e.preventDefault(); // Предотвращаем любые лишние действия
     if (!taskInput.trim()) return;
     const newTask = { id: Date.now(), text: taskInput, completed: false };
-    saveTasks([...localTasks, newTask]);
+    const updated = [...localTasks, newTask];
+    saveTasks(updated);
     setTaskInput('');
   };
 
@@ -96,7 +125,8 @@ function ShiftContent() {
   };
 
   const deleteTask = (id: number) => {
-    saveTasks(localTasks.filter(t => t.id !== id));
+    const updated = localTasks.filter(t => t.id !== id);
+    saveTasks(updated);
   };
 
   const routePercent = Math.round((completedRoute.length / WELCOME_ROUTE.length) * 100);
@@ -160,16 +190,20 @@ function ShiftContent() {
               <input 
                 value={taskInput}
                 onChange={(e) => setTaskInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addTask()}
+                onKeyDown={(e) => e.key === 'Enter' && addTask()}
                 placeholder="Добавить новую задачу..." 
                 style={{ flex: 1, background: '#161816', border: '1px solid #333', padding: '18px 25px', borderRadius: '15px', color: '#fff', fontSize: '16px', outline: 'none' }} 
               />
-              <button onClick={addTask} style={{ background: '#4CAF50', color: '#000', border: 'none', padding: '0 30px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '20px' }}>+</button>
+              <button 
+                type="button"
+                onClick={() => addTask()} 
+                style={{ background: '#4CAF50', color: '#000', border: 'none', padding: '0 30px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '24px', transition: '0.2s active' }}
+              >+</button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {localTasks.length === 0 ? (
-                <p style={{ color: '#555', textAlign: 'center', marginTop: '20px' }}>Список пуст. Добавьте первую задачу.</p>
+                <p style={{ color: '#555', textAlign: 'center', marginTop: '20px' }}>Список пуст.</p>
               ) : (
                 localTasks.map(task => (
                   <div key={task.id} style={{ background: '#161816', padding: '18px 25px', borderRadius: '18px', border: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
