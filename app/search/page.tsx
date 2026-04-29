@@ -355,44 +355,54 @@ export default function SearchPage() {
 
               {/* ТЕСТ */}
               <div style={{ background: '#161816', padding: '40px', borderRadius: '35px', border: '1px solid #222' } as any}>
-                {!showQuiz ? (
-                  <button onClick={() => setShowQuiz(true)} style={btnMain as any}>🧠 ПРОВЕРИТЬ СЕБЯ</button>
-                ) : (
-                  <div>
-                    <h3 style={{ marginBottom: '25px', color: '#4CAF50' }}>МИНИ-ТЕСТ</h3>
-                    {(selectedTea.quiz || [{q: "Это отличный сорт?", o: ["Да", "Нет"], c: 0}]).map((q, qIdx) => (
-                      <div key={qIdx} style={{ marginBottom: '30px' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '15px' }}>{qIdx + 1}. {q.q}</p>
-                        <div style={{ display: 'grid', gap: '10px' }}>
-                          {q.o.map((opt, oIdx) => {
-                            const isCorrect = oIdx === q.c;
-                            const isSelected = quizResults[selectedTea.id]?.includes(oIdx);
-                            return (
-                              <div 
-                                key={oIdx} 
-                                onClick={() => {
-                                  const current = quizResults[selectedTea.id] || [];
-                                  setQuizResults({...quizResults, [selectedTea.id]: [...current, oIdx]});
-                                }}
-                                style={{ 
-                                  padding: '15px 20px', 
-                                  background: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#0d0f0d',
-                                  borderRadius: '12px',
-                                  cursor: 'pointer',
-                                  border: '1px solid #333'
-                                } as any}
-                              >
-                                {opt} {isSelected && (isCorrect ? '✅' : '❌')}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                    <button onClick={() => setShowQuiz(false)} style={btnCancel as any}>Завершить тест</button>
-                  </div>
-                )}
+                <button onClick={() => { setQuizResults({}); setShowQuiz(true); }} style={btnMain as any}>🧠 ПРОВЕРИТЬ СЕБЯ</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* НОВОЕ МОДАЛЬНОЕ ОКНО ДЛЯ ТЕСТА (В ЦЕНТРЕ ЭКРАНА) */}
+        {showQuiz && selectedTea && (
+          <div style={modalOverlay as any}>
+            <div style={{ ...modalContent, maxWidth: '600px' } as any}>
+              <h3 style={{ marginBottom: '25px', color: '#4CAF50', fontSize: '24px' }}>МИНИ-ТЕСТ</h3>
+              {(selectedTea.quiz || [{q: "Это отличный сорт?", o: ["Да", "Нет"], c: 0}]).map((q, qIdx) => (
+                <div key={qIdx} style={{ marginBottom: '30px' }}>
+                  <p style={{ fontWeight: 'bold', marginBottom: '15px', fontSize: '18px' }}>{qIdx + 1}. {q.q}</p>
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    {q.o.map((opt, oIdx) => {
+                      const isCorrect = oIdx === q.c;
+                      const isSelected = quizResults[selectedTea.id]?.includes(oIdx);
+                      return (
+                        <div 
+                          key={oIdx} 
+                          onClick={() => {
+                            const current = quizResults[selectedTea.id] || [];
+                            if (!current.includes(oIdx)) {
+                              setQuizResults({...quizResults, [selectedTea.id]: [...current, oIdx]});
+                            }
+                          }}
+                          style={{ 
+                            padding: '20px', 
+                            background: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#0d0f0d',
+                            borderRadius: '15px',
+                            cursor: 'pointer',
+                            border: '1px solid #333',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontWeight: 'bold'
+                          } as any}
+                        >
+                          {opt} 
+                          <span>{isSelected && (isCorrect ? '✅' : '❌')}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => { setShowQuiz(false); setQuizResults({}); }} style={btnCancel as any}>Завершить тест</button>
             </div>
           </div>
         )}
