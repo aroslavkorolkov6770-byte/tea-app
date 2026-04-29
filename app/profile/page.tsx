@@ -1,156 +1,169 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import Navigation from '@/app/components/Navigation';
 
-export default function Navigation() {
-  const pathname = usePathname();
-  const router = useRouter();
-  
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showIntroModal, setShowIntroModal] = useState(false); 
-  
-  const [login, setLogin] = useState("");
-  const [pass, setPass] = useState("");
+function ProfileContent() {
+    const [isMounted, setIsMounted] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    
+    const [userData, setUserData] = useState({
+        name: 'Сотрудник',
+        avatar: '',
+        tg: '@username',
+        phone: ''
+    });
 
-  useEffect(() => {
-    const auth = localStorage.getItem('isLoggedIn');
-    const role = localStorage.getItem('userRole');
-    if (auth === 'true') {
-      setIsLoggedIn(true);
-      setUserRole(role);
-    }
-  }, []);
+    const [progress, setProgress] = useState({
+        route: 0,
+        basics: 0,
+        deadline: ''
+    });
 
-  const handleLogin = () => {
-    if (login === "11" && pass === "11") {
-      setIsLoggedIn(true);
-      setUserRole('admin');
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userRole', 'admin');
-      setShowLoginModal(false);
-      router.push('/search');
-    } 
-    else if (login === "1" && pass === "1") {
-      setIsLoggedIn(true);
-      setUserRole('staff');
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userRole', 'staff');
-      setShowLoginModal(false);
+    useEffect(() => {
+        try {
+            const savedName = localStorage.getItem('user_name');
+            const savedAv = localStorage.getItem('user_avatar');
+            const savedTg = localStorage.getItem('user_tg');
+            const savedPhone = localStorage.getItem('user_phone');
+            const firstLogin = localStorage.getItem('first_login_date');
 
-      const introSeen = localStorage.getItem('intro_seen');
-      if (!introSeen) {
-          setShowIntroModal(true);
-      }
-      
-      setLogin(""); setPass("");
-      router.push('/tasks?tab=welcome');
-    } 
-    else {
-      alert("Неверный логин или пароль!");
-    }
-  };
+            if (savedName) setUserData(prev => ({ ...prev, name: savedName }));
+            if (savedAv) setUserData(prev => ({ ...prev, avatar: savedAv }));
+            if (savedTg) setUserData(prev => ({ ...prev, tg: savedTg }));
+            if (savedPhone) setUserData(prev => ({ ...prev, phone: savedPhone }));
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUserRole(null);
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userRole');
-    setIsMenuOpen(false);
-    router.push('/');
-  };
+            // Расчет дедлайна
+            let dl = "";
+            if (!firstLogin) {
+                const now = new Date();
+                localStorage.setItem('first_login_date', now.toISOString());
+                dl = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString();
+            } else {
+                dl = new Date(new Date(firstLogin).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString();
+            }
 
-  const startTraining = () => {
-    setShowIntroModal(false);
-    localStorage.setItem('intro_seen', 'true'); 
-    router.push('/tasks?tab=welcome');
-  };
+            // Безопасное чтение прогресса
+            const sRouteRaw = localStorage.getItem('tea_hub_onboard_route_v1');
+            const sBasicsRaw = localStorage.getItem('tea_hub_basics_progress_v1');
+            
+            const sRoute = sRouteRaw ? JSON.parse(sRouteRaw) : [];
+            const sBasics = sBasicsRaw ? JSON.parse(sBasicsRaw) : [];
 
-  const navItems = [
-    { id: '/tasks?tab=welcome', label: 'ОСНОВЫ', icon: '👋' },
-    { id: '/tasks?tab=standards', label: 'РАБОТА', icon: '💡' },
-    { id: '/tasks?tab=checklist', label: 'СМЕНА', icon: '📋' },
-    { id: '/search', label: 'Продукты', icon: '🍃' },
-  ];
+            setProgress({
+                route: sRoute.length,
+                basics: sBasics.length,
+                deadline: dl
+            });
+        } catch (error) {
+            console.error("Error loading profile data:", error);
+        }
+        setIsMounted(true);
+    }, []);
 
-  return (
-    <>
-      <header style={headerCenterStyle as any}>
-        <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={bigBurgerStyle as any}>
-          <span style={{ fontSize: '18px' }}>{isMenuOpen ? '✕' : '☰'}</span>
-          <span style={{ letterSpacing: '2px' }}>{isMenuOpen ? 'ЗАКРЫТЬ' : 'ВХОД'}</span>
+    const handleSave = () => {
+        localStorage.setItem('user_name', userData.name);
+        localStorage.setItem('user_avatar', userData.avatar);
+        localStorage.setItem('user_tg', userData.tg);
+        localStorage.setItem('user_phone', userData.phone);
+        setIsEditing(false);
+    };
+
+    if (!isMounted) return <div style={{backgroundColor: '#0d0f0d', minHeight: '100vh'}} />;
+
+    const routePercent = Math.round((progress.route / 5) * 100);
+    const basicsPercent = Math.round((progress.basics / 10) * 100);
+
+    return (
+        <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', fontFamily: 'Inter, sans-serif' }}>
+            <Navigation />
+            
+            <main style={{ maxWidth: '600px', margin: '0 auto', padding: '120px 20px 140px 20px' }}>
+                
+                {/* ШАПКА ПРОФИЛЯ */}
+                <section style={{ textAlign: 'center', marginBottom: '40px' }}>
+                    <div style={{ width: '120px', height: '120px', borderRadius: '40px', backgroundColor: '#161816', margin: '0 auto 20px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(76, 175, 80, 0.1)' }}>
+                        {userData.avatar ? (
+                            <img src={userData.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Avatar" />
+                        ) : (
+                            <span style={{ fontSize: '40px' }}>👤</span>
+                        )}
+                    </div>
+                    <h2 style={{ fontSize: '28px', fontWeight: '900', margin: '0 0 5px 0', color: '#fff' }}>{userData.name}</h2>
+                    <p style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '12px', margin: 0, letterSpacing: '1px' }}>ЧАЙНЫЙ МАСТЕР (УЧЕНИК)</p>
+                    <div onClick={() => setIsEditing(true)} style={{ color: '#666', fontSize: '12px', marginTop: '12px', cursor: 'pointer', textDecoration: 'underline' }}>редактировать данные</div>
+                </section>
+
+                {/* ПРОГРЕСС */}
+                <section style={{ background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', marginBottom: '25px' }}>
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '900' }}>
+                            <span style={{color: '#aaa'}}>ПЛАН НА НЕДЕЛЮ</span>
+                            <span style={{ color: '#4CAF50' }}>{progress.route}/5</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
+                            <div style={{ width: `${routePercent}%`, height: '100%', background: '#4CAF50', transition: '1s ease-in-out' }} />
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: '5px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '900' }}>
+                            <span style={{color: '#aaa'}}>ОСНОВЫ ОБУЧЕНИЯ</span>
+                            <span style={{ color: '#4CAF50' }}>{progress.basics}/10</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
+                            <div style={{ width: `${basicsPercent}%`, height: '100%', background: '#4CAF50', transition: '1s ease-in-out' }} />
+                        </div>
+                    </div>
+                    
+                    <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px solid #222', fontSize: '11px', color: '#555', textAlign: 'center', letterSpacing: '0.5px' }}>
+                        📅 СЛЕДУЮЩИЙ ДЕДЛАЙН: <span style={{ color: '#ff7675', fontWeight: 'bold' }}>{progress.deadline}</span>
+                    </div>
+                </section>
+
+                {/* ДОСТИЖЕНИЯ */}
+                <h3 style={{ fontSize: '12px', fontWeight: '900', color: '#444', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center' }}>ДОСТИЖЕНИЯ</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '30px' }}>
+                    <div title="Первый шаг" style={{ ...badgeStyle, opacity: progress.route >= 1 ? 1 : 0.15 }}>🌱</div>
+                    <div title="План выполнен" style={{ ...badgeStyle, opacity: progress.route === 5 ? 1 : 0.15 }}>🚀</div>
+                    <div title="Знаток" style={{ ...badgeStyle, opacity: progress.basics >= 5 ? 1 : 0.15 }}>📚</div>
+                    <div title="Мастер" style={{ ...badgeStyle, opacity: progress.basics === 10 ? 1 : 0.15 }}>🏮</div>
+                </div>
+
+                {/* КОНТАКТЫ */}
+                <section style={{ background: '#161816', padding: '25px', borderRadius: '25px', border: '1px solid #222' }}>
+                    <div style={{ fontSize: '11px', color: '#444', marginBottom: '15px', fontWeight: '900', letterSpacing: '1px' }}>СВЯЗЬ</div>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center', color: '#fff' }}>
+                        <div style={{width: '40px', height: '40px', background: '#000', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>💬</div>
+                        <div>
+                            <div style={{fontSize: '14px', fontWeight: 'bold'}}>{userData.tg}</div>
+                            <div style={{fontSize: '11px', color: '#555'}}>{userData.phone || 'телефон не указан'}</div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* МОДАЛКА */}
+                {isEditing && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.96)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px', backdropFilter: 'blur(10px)' }}>
+                        <div style={{ background: '#111', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #222' }}>
+                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900' }}>ПРОФИЛЬ</h2>
+                            <input value={userData.name} onChange={e => setUserData({...userData, name: e.target.value})} placeholder="Твое имя" style={inputStyle} />
+                            <input value={userData.avatar} onChange={e => setUserData({...userData, avatar: e.target.value})} placeholder="URL аватара" style={inputStyle} />
+                            <input value={userData.tg} onChange={e => setUserData({...userData, tg: e.target.value})} placeholder="Telegram (напр. @tea_master)" style={inputStyle} />
+                            <input value={userData.phone} onChange={e => setUserData({...userData, phone: e.target.value})} placeholder="Телефон" style={inputStyle} />
+                            <button onClick={handleSave} style={{ width: '100%', padding: '20px', background: '#4CAF50', border: 'none', borderRadius: '15px', fontWeight: '900', color: '#000', cursor: 'pointer', marginTop: '10px' }}>СОХРАНИТЬ</button>
+                            <div onClick={() => setIsEditing(false)} style={{ textAlign: 'center', marginTop: '20px', color: '#444', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>ОТМЕНА</div>
+                        </div>
+                    </div>
+                )}
+
+            </main>
         </div>
-        
-        {/* НОВАЯ КНОПКА ПРОФИЛЯ В ПРАВОМ ВЕРХНЕМ УГЛУ */}
-        {isLoggedIn && (
-          <Link href="/profile" style={profileIconStyle as any}>
-             👤
-          </Link>
-        )}
-
-        {isMenuOpen && (
-          <div style={menuDropdownCenterStyle as any}>
-            {!isLoggedIn ? (
-              <div onClick={() => {setShowLoginModal(true); setIsMenuOpen(false)}} style={menuItemStyle as any}>🔑 Авторизация</div>
-            ) : (
-              <>
-                <div style={{...menuItemStyle, color: '#4CAF50', fontSize: '11px', cursor: 'default', opacity: 0.7} as any}>STATUS: {userRole?.toUpperCase()}</div>
-                <Link href="/profile" onClick={() => setIsMenuOpen(false)} style={menuItemStyle as any}>👤 Личный кабинет</Link>
-                <div onClick={handleLogout} style={{...menuItemStyle, color: '#ff7675', borderBottom: 'none'} as any}>ВЫЙТИ</div>
-              </>
-            )}
-          </div>
-        )}
-      </header>
-
-      {showLoginModal && (
-        <div style={modalOverlayStyle as any}>
-          <div style={modalContentStyle as any}>
-            <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontSize: '20px', fontWeight: '800' }}>IDENTIFICATION</h2>
-            <input type="text" placeholder="Логин" value={login} onChange={(e) => setLogin(e.target.value)} style={inputStyle as any} />
-            <input type="password" placeholder="Пароль" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} style={inputStyle as any} />
-            <div onClick={handleLogin} style={loginButtonStyle as any}>ВОЙТИ</div>
-            <div onClick={() => setShowLoginModal(false)} style={{ textAlign: 'center', color: '#444', marginTop: '20px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>ОТМЕНА</div>
-          </div>
-        </div>
-      )}
-
-      {showIntroModal && (
-        <div style={modalOverlayStyle as any}>
-          <div style={{...modalContentStyle, textAlign: 'center'} as any}>
-            <div style={{fontSize: '40px', marginBottom: '20px'}}>📖</div>
-            <h2 style={{ color: '#fff', marginBottom: '15px', fontWeight: '900' }}>ОБРАТИТЕ ВНИМАНИЕ</h2>
-            <p style={{ color: '#aaa', fontSize: '14px', lineHeight: '1.6', marginBottom: '30px' }}>Для начала работы необходимо изучить раздел Приветствие (Основы)</p>
-            <div onClick={startTraining} style={loginButtonStyle as any}>ХОРОШО</div>
-          </div>
-        </div>
-      )}
-
-      {isLoggedIn && (
-        <nav style={navBarStyle as any}>
-          {navItems.map(t => (
-            <Link key={t.id} href={t.id} style={{ ...navItemStyle, color: (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === t.id ? '#4CAF50' : '#888' } as any}>
-              <span style={{ fontSize: '22px' }}>{t.icon}</span>
-              <span style={{ fontSize: '9px', fontWeight: '900', letterSpacing: '1px' }}>{t.label}</span>
-            </Link>
-          ))}
-        </nav>
-      )}
-    </>
-  );
+    );
 }
 
-const profileIconStyle = { position: 'fixed', right: '20px', top: '40px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', width: '45px', height: '45px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', cursor: 'pointer', zIndex: 10002, textDecoration: 'none' };
-const bigBurgerStyle = { background: 'rgba(0, 0, 0, 0.6)', color: '#fff', border: '1px solid rgba(76, 175, 80, 0.5)', padding: '12px 30px', borderRadius: '15px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', backdropFilter: 'blur(10px)', zIndex: 10002 };
-const headerCenterStyle = { position: 'fixed', top: '40px', left: 0, width: '100%', display: 'flex', justifyContent: 'center', zIndex: 10000 };
-const menuDropdownCenterStyle = { position: 'absolute', top: '80px', backgroundColor: '#111', borderRadius: '20px', width: '220px', overflow: 'hidden', border: '1px solid #222' };
-const menuItemStyle = { padding: '20px', borderBottom: '1px solid #1a1a1a', color: '#fff', fontSize: '13px', fontWeight: 'bold', display: 'block', textDecoration: 'none', cursor: 'pointer', textAlign: 'center' };
-const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.98)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 };
-const modalContentStyle = { background: '#111', padding: '50px 40px', borderRadius: '40px', width: '340px', border: '1px solid #222' };
-const inputStyle = { width: '100%', padding: '18px', marginBottom: '15px', borderRadius: '15px', background: '#000', border: '1px solid #222', color: '#fff', boxSizing: 'border-box', outline: 'none' };
-const loginButtonStyle = { width: '100%', padding: '20px', borderRadius: '15px', background: '#4CAF50', color: '#000', fontWeight: '900', cursor: 'pointer', textAlign: 'center' };
-const navBarStyle = { position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', width: '320px', height: '80px', backgroundColor: 'rgba(17, 17, 17, 0.8)', backdropFilter: 'blur(20px)', borderRadius: '25px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid rgba(255, 255, 255, 0.05)', zIndex: 9998 };
-const navItemStyle = { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', textDecoration: 'none' };
+const badgeStyle = { background: '#111', height: '75px', borderRadius: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', border: '1px solid #222', transition: '0.3s' };
+const inputStyle = { width: '100%', padding: '18px', background: '#000', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '15px', outline: 'none', fontSize: '15px' };
+
+export default function ProfilePage() {
+    return <Suspense fallback={<div style={{backgroundColor: '#0d0f0d', minHeight: '100vh'}} />}><ProfileContent /></Suspense>;
+}
