@@ -16,7 +16,7 @@ export default function Navigation() {
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
 
-  // ИСПРАВЛЕНИЕ: Добавили pathname в зависимости и проверку intro_seen здесь
+  // ГЛАВНЫЙ ЭФФЕКТ: Проверка авторизации и интро при каждом изменении страницы или статуса входа
   useEffect(() => {
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
@@ -26,12 +26,12 @@ export default function Navigation() {
       setIsLoggedIn(true);
       setUserRole(role);
 
-      // Если это сотрудник и он еще не видел (не закрыл) интро — показываем
-      if (role === 'staff' && !introSeen) {
+      // Если зашел сотрудник и он еще не нажимал "ХОРОШО" (ключ intro_seen не равен 'true')
+      if (role === 'staff' && introSeen !== 'true') {
         setShowIntroModal(true);
       }
     }
-  }, [pathname]); // Эффект срабатывает при загрузке и переходах
+  }, [pathname, isLoggedIn]); // Зависимости гарантируют проверку после логина и переходов
 
   const handleLogin = () => {
     if (login === "11" && pass === "11") {
@@ -43,14 +43,16 @@ export default function Navigation() {
       router.push('/search');
     } 
     else if (login === "1" && pass === "1") {
-      setIsLoggedIn(true);
-      setUserRole('staff');
+      // Сначала записываем данные в память, затем меняем состояние
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('userRole', 'staff');
+      
+      setIsLoggedIn(true);
+      setUserRole('staff');
       setShowLoginModal(false);
 
       const introSeen = localStorage.getItem('intro_seen');
-      if (!introSeen) {
+      if (introSeen !== 'true') {
           setShowIntroModal(true);
       }
       
@@ -67,13 +69,15 @@ export default function Navigation() {
     setUserRole(null);
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userRole');
+    // Мы не удаляем intro_seen, чтобы окно не задалбывало при каждом входе, 
+    // но если нужно показывать его каждый раз — можно добавить очистку и здесь.
     setIsMenuOpen(false);
     router.push('/');
   };
 
   const startTraining = () => {
-    setShowIntroModal(false);
-    localStorage.setItem('intro_seen', 'true'); 
+    localStorage.setItem('intro_seen', 'true'); // ПОМЕЧАЕМ КАК ПРОЧИТАННОЕ
+    setShowIntroModal(false); // ЗАКРЫВАЕМ ОКНО
     router.push('/tasks?tab=welcome');
   };
 
@@ -125,9 +129,10 @@ export default function Navigation() {
         </div>
       )}
 
+      {/* ОКНО ПРИВЕТСТВИЯ */}
       {showIntroModal && (
         <div style={modalOverlayStyle as any}>
-          <div style={{...modalContentStyle, textAlign: 'center'} as any}>
+          <div style={{...modalContentStyle, textAlign: 'center', border: '1px solid #4CAF50'} as any}>
             <div style={{fontSize: '40px', marginBottom: '20px'}}>📖</div>
             <h2 style={{ color: '#fff', marginBottom: '15px', fontWeight: '900' }}>ОБРАТИТЕ ВНИМАНИЕ</h2>
             <p style={{ color: '#aaa', fontSize: '14px', lineHeight: '1.6', marginBottom: '30px' }}>Для начала работы необходимо изучить раздел Приветствие (Основы)</p>
