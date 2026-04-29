@@ -58,6 +58,10 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  
+  // --- НОВАЯ ЛОГИКА ЗАДАЧ ---
+  const [localTasks, setLocalTasks] = useState<{id: number, text: string, completed: boolean}[]>([]);
+  const [taskInput, setTaskInput] = useState('');
 
   useEffect(() => {
     const load = () => {
@@ -65,12 +69,35 @@ function ShiftContent() {
         if (urlTab) setActiveTab(urlTab as any);
         const sRoute = localStorage.getItem(STORAGE_KEYS.ONBOARD_ROUTE);
         const sBasics = localStorage.getItem(STORAGE_KEYS.BASICS_PROGRESS);
+        const sTasks = localStorage.getItem(STORAGE_KEYS.TASKS);
         if (sRoute) setCompletedRoute(JSON.parse(sRoute));
         if (sBasics) setCompletedBasics(JSON.parse(sBasics));
+        if (sTasks) setLocalTasks(JSON.parse(sTasks));
         setIsMounted(true);
     };
     load();
   }, [searchParams]);
+
+  const saveTasks = (newTasks: any) => {
+    setLocalTasks(newTasks);
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(newTasks));
+  };
+
+  const addTask = () => {
+    if (!taskInput.trim()) return;
+    const newTask = { id: Date.now(), text: taskInput, completed: false };
+    saveTasks([...localTasks, newTask]);
+    setTaskInput('');
+  };
+
+  const toggleTask = (id: number) => {
+    const updated = localTasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+    saveTasks(updated);
+  };
+
+  const deleteTask = (id: number) => {
+    saveTasks(localTasks.filter(t => t.id !== id));
+  };
 
   const routePercent = Math.round((completedRoute.length / WELCOME_ROUTE.length) * 100);
   const basicsTotalModules = BASICS_DATA.reduce((acc, s) => acc + s.modules.length, 0);
@@ -121,7 +148,42 @@ function ShiftContent() {
         {activeTab !== 'welcome' && (
           <div style={{ display: 'flex', gap: '15px', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '25px', marginBottom: '60px', border: '1px solid #222' } as any}>
             <div onClick={() => setActiveTab('checklist')} style={{ flex: 1, padding: '20px', borderRadius: '18px', textAlign: 'center', cursor: 'pointer', fontSize: '15px', fontWeight: '900', backgroundColor: activeTab === 'checklist' ? '#4CAF50' : 'transparent', color: activeTab === 'checklist' ? '#000' : '#555' } as any}>📋 СМЕНА</div>
-            <div onClick={() => setActiveTab('edu')} style={{ flex: 1, padding: '20px', borderRadius: '18px', textAlign: 'center', cursor: 'pointer', fontSize: '15px', fontWeight: '900', backgroundColor: activeTab === 'edu' ? '#4CAF50' : 'transparent', color: activeTab === 'edu' ? '#000' : '#555' } as any}>🎓 ОБУЧЕНИЕ</div>
+            <div onClick={() => setActiveTab('edu')} style={{ flex: 1, padding: '20px', borderRadius: '18px', textAlign: 'center', cursor: 'pointer', fontSize: '15px', fontWeight: '900', backgroundColor: activeTab === 'edu' ? '#4CAF50' : 'transparent', color: activeTab === 'edu' ? '#000' : '#555', display: 'none' } as any}>🎓 ОБУЧЕНИЕ</div>
+          </div>
+        )}
+
+        {activeTab === 'checklist' && (
+          <div style={{ animation: 'fadeInUp 0.6s ease' }}>
+            <h2 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '30px' }}>📋 ЗАДАЧИ НА СМЕНУ</h2>
+            
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '40px' }}>
+              <input 
+                value={taskInput}
+                onChange={(e) => setTaskInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addTask()}
+                placeholder="Добавить новую задачу..." 
+                style={{ flex: 1, background: '#161816', border: '1px solid #333', padding: '18px 25px', borderRadius: '15px', color: '#fff', fontSize: '16px', outline: 'none' }} 
+              />
+              <button onClick={addTask} style={{ background: '#4CAF50', color: '#000', border: 'none', padding: '0 30px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '20px' }}>+</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {localTasks.length === 0 ? (
+                <p style={{ color: '#555', textAlign: 'center', marginTop: '20px' }}>Список пуст. Добавьте первую задачу.</p>
+              ) : (
+                localTasks.map(task => (
+                  <div key={task.id} style={{ background: '#161816', padding: '18px 25px', borderRadius: '18px', border: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer', flex: 1 }} onClick={() => toggleTask(task.id)}>
+                      <div style={{ width: '24px', height: '24px', border: '2px solid #4CAF50', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: task.completed ? '#4CAF50' : 'transparent' }}>
+                        {task.completed && <span style={{ color: '#000', fontWeight: '900', fontSize: '14px' }}>✓</span>}
+                      </div>
+                      <span style={{ fontSize: '17px', textDecoration: task.completed ? 'line-through' : 'none', color: task.completed ? '#444' : '#fff', fontWeight: '500' }}>{task.text}</span>
+                    </div>
+                    <button onClick={() => deleteTask(task.id)} style={{ background: 'transparent', border: 'none', color: '#cc4444', fontSize: '20px', cursor: 'pointer', padding: '5px' }}>✕</button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 

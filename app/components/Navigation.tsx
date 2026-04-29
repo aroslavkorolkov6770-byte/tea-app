@@ -73,7 +73,7 @@ export default function Navigation() {
   const navItems = [
     {id: '/tasks?tab=welcome', label: 'ОСНОВЫ', icon: '👋'},
     {id: '/tasks?tab=checklist', label: 'СМЕНА', icon: '📋'},
-    {id: '/search', label: 'БАЗА', icon: '🍃'},
+    {id: '/search', label: 'Продукты', icon: '🍃'},
   ];
 
   return (
