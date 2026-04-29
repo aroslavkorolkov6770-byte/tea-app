@@ -8,20 +8,22 @@ function ProfileContent() {
     const [isEditing, setIsEditing] = useState(false);
     const [userRole, setUserRole] = useState('staff');
     
+    // Данные профиля
     const [userData, setUserData] = useState({
-        name: 'Сотрудник',
+        name: '',
         avatar: '',
-        tg: '@username',
+        tg: '',
         phone: ''
     });
 
+    // Прогресс сотрудника
     const [progress, setProgress] = useState({
         route: 0,
         basics: 0,
         deadline: ''
     });
 
-    // Статистика для админа
+    // Статистика админа
     const [adminStats, setAdminStats] = useState({
         totalTeas: 0,
         totalLessons: 0,
@@ -33,18 +35,23 @@ function ProfileContent() {
             const role = localStorage.getItem('userRole') || 'staff';
             setUserRole(role);
 
-            const savedName = localStorage.getItem('user_name');
-            const savedAv = localStorage.getItem('user_avatar');
-            const savedTg = localStorage.getItem('user_tg');
-            const savedPhone = localStorage.getItem('user_phone');
+            // РАЗДЕЛЕНИЕ КЛЮЧЕЙ: админ и сотрудник теперь хранятся отдельно
+            const prefix = role === 'admin' ? 'admin_' : 'user_';
+            
+            const savedName = localStorage.getItem(prefix + 'name');
+            const savedAv = localStorage.getItem(prefix + 'avatar');
+            const savedTg = localStorage.getItem(prefix + 'tg');
+            const savedPhone = localStorage.getItem(prefix + 'phone');
             const firstLogin = localStorage.getItem('first_login_date');
 
-            if (savedName) setUserData(prev => ({ ...prev, name: savedName }));
-            if (savedAv) setUserData(prev => ({ ...prev, avatar: savedAv }));
-            if (savedTg) setUserData(prev => ({ ...prev, tg: savedTg }));
-            if (savedPhone) setUserData(prev => ({ ...prev, phone: savedPhone }));
+            setUserData({
+                name: savedName || (role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+                avatar: savedAv || '',
+                tg: savedTg || (role === 'admin' ? '@admin_tea' : '@username'),
+                phone: savedPhone || ''
+            });
 
-            // Расчет дедлайна
+            // Логика дедлайна
             let dl = "";
             if (!firstLogin) {
                 const now = new Date();
@@ -54,19 +61,13 @@ function ProfileContent() {
                 dl = new Date(new Date(firstLogin).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString();
             }
 
-            // Данные для сотрудника
-            const sRouteRaw = localStorage.getItem('tea_hub_onboard_route_v1');
-            const sBasicsRaw = localStorage.getItem('tea_hub_basics_progress_v1');
-            const sRoute = sRouteRaw ? JSON.parse(sRouteRaw) : [];
-            const sBasics = sBasicsRaw ? JSON.parse(sBasicsRaw) : [];
+            // Загрузка прогресса (для сотрудника)
+            const sRoute = JSON.parse(localStorage.getItem('tea_hub_onboard_route_v1') || '[]');
+            const sBasics = JSON.parse(localStorage.getItem('tea_hub_basics_progress_v1') || '[]');
+            setProgress({ route: sRoute.length, basics: sBasics.length, deadline: dl });
 
-            setProgress({
-                route: sRoute.length,
-                basics: sBasics.length,
-                deadline: dl
-            });
-
-            // Данные для админа (сбор статистики из разных разделов)
+            // ИСПРАВЛЕННЫЙ ПОДСЧЕТ СТАТИСТИКИ (для админа)
+            // Берем ключи в точности как в admin/page.tsx и tasks/page.tsx
             const teaDb = JSON.parse(localStorage.getItem('local_tea_db') || '[]');
             const basicsDb = JSON.parse(localStorage.getItem('tea_hub_dynamic_basics_v1') || '[]');
             const standardsDb = JSON.parse(localStorage.getItem('tea_hub_dynamic_standards_v1') || '[]');
@@ -78,23 +79,21 @@ function ProfileContent() {
             });
 
         } catch (error) {
-            console.error("Error loading profile data:", error);
+            console.error("Error loading data:", error);
         }
         setIsMounted(true);
     }, []);
 
     const handleSave = () => {
-        localStorage.setItem('user_name', userData.name);
-        localStorage.setItem('user_avatar', userData.avatar);
-        localStorage.setItem('user_tg', userData.tg);
-        localStorage.setItem('user_phone', userData.phone);
+        const prefix = userRole === 'admin' ? 'admin_' : 'user_';
+        localStorage.setItem(prefix + 'name', userData.name);
+        localStorage.setItem(prefix + 'avatar', userData.avatar);
+        localStorage.setItem(prefix + 'tg', userData.tg);
+        localStorage.setItem(prefix + 'phone', userData.phone);
         setIsEditing(false);
     };
 
     if (!isMounted) return <div style={{backgroundColor: '#0d0f0d', minHeight: '100vh'}} />;
-
-    const routePercent = Math.round((progress.route / 5) * 100);
-    const basicsPercent = Math.round((progress.basics / 10) * 100);
 
     return (
         <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', fontFamily: 'Inter, sans-serif' }}>
@@ -102,125 +101,102 @@ function ProfileContent() {
             
             <main style={{ maxWidth: '600px', margin: '0 auto', padding: '120px 20px 140px 20px' }}>
                 
-                {/* ОБЩАЯ ШАПКА ПРОФИЛЯ */}
+                {/* ШАПКА */}
                 <section style={{ textAlign: 'center', marginBottom: '40px' }}>
-                    <div style={{ width: '120px', height: '120px', borderRadius: '40px', backgroundColor: '#161816', margin: '0 auto 20px', border: `2px solid ${userRole === 'admin' ? '#4CAF50' : '#4CAF50'}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(76, 175, 80, 0.1)' }}>
+                    <div style={{ width: '120px', height: '120px', borderRadius: '40px', backgroundColor: '#161816', margin: '0 auto 20px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(76, 175, 80, 0.2)' }}>
                         {userData.avatar ? (
                             <img src={userData.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Avatar" />
                         ) : (
                             <span style={{ fontSize: '40px' }}>{userRole === 'admin' ? '👑' : '👤'}</span>
                         )}
                     </div>
-                    <h2 style={{ fontSize: '28px', fontWeight: '900', margin: '0 0 5px 0', color: '#fff' }}>{userData.name}</h2>
+                    <h2 style={{ fontSize: '28px', fontWeight: '900', margin: '0 0 5px 0' }}>{userData.name}</h2>
                     <p style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '12px', margin: 0, letterSpacing: '2px' }}>
                         {userRole === 'admin' ? 'ГЛАВНЫЙ МАСТЕР (ADMIN)' : 'ЧАЙНЫЙ МАСТЕР (УЧЕНИК)'}
                     </p>
                     <div onClick={() => setIsEditing(true)} style={{ color: '#666', fontSize: '12px', marginTop: '12px', cursor: 'pointer', textDecoration: 'underline' }}>редактировать профиль</div>
                 </section>
 
-                {/* --- КОНТЕНТ ДЛЯ АДМИНА --- */}
+                {/* КОНТЕНТ ДЛЯ АДМИНА */}
                 {userRole === 'admin' ? (
-                    <div style={{ animation: 'fadeIn 0.5s ease' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '25px' }}>
-                            <div style={statCard}>
-                                <span style={statNum}>{adminStats.totalTeas}</span>
-                                <span style={statLabel}>СОРТОВ</span>
-                            </div>
-                            <div style={statCard}>
-                                <span style={statNum}>{adminStats.totalLessons}</span>
-                                <span style={statLabel}>УРОКОВ</span>
-                            </div>
-                            <div style={statCard}>
-                                <span style={statNum}>{adminStats.totalStandards}</span>
-                                <span style={statLabel}>ПРАВИЛ</span>
-                            </div>
+                    <div style={{ animation: 'fadeInUp 0.4s ease' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '30px' }}>
+                            <div style={statCard}><span style={statNum}>{adminStats.totalTeas}</span><span style={statLabel}>СОРТОВ</span></div>
+                            <div style={statCard}><span style={statNum}>{adminStats.totalLessons}</span><span style={statLabel}>УРОКОВ</span></div>
+                            <div style={statCard}><span style={statNum}>{adminStats.totalStandards}</span><span style={statLabel}>ПРАВИЛ</span></div>
                         </div>
 
-                        <section style={{ background: '#161816', padding: '25px', borderRadius: '30px', border: '1px solid #222', marginBottom: '25px' }}>
-                            <h3 style={{ fontSize: '14px', fontWeight: '900', marginBottom: '20px', color: '#4CAF50' }}>УПРАВЛЕНИЕ СИСТЕМОЙ</h3>
-                            <Link href="/admin" style={adminLinkStyle}>⚙️ Панель мониторинга сотрудников</Link>
-                            <Link href="/tasks?tab=welcome" style={adminLinkStyle}>📝 Конструктор обучения и планов</Link>
+                        <section style={{ background: '#161816', padding: '25px', borderRadius: '30px', border: '1px solid #222', marginBottom: '30px' }}>
+                            <h3 style={{ fontSize: '13px', fontWeight: '900', marginBottom: '20px', color: '#4CAF50', letterSpacing: '1px' }}>УПРАВЛЕНИЕ СИСТЕМОЙ</h3>
+                            <Link href="/admin" style={adminLinkStyle}>⚙️ Таблица мониторинга сотрудников</Link>
+                            <Link href="/tasks?tab=welcome" style={adminLinkStyle}>📝 Конструктор уроков и тестов</Link>
                             <Link href="/search" style={adminLinkStyle}>🍃 Редактор базы продуктов</Link>
                         </section>
                     </div>
                 ) : (
-                    /* --- КОНТЕНТ ДЛЯ СОТРУДНИКА --- */
-                    <div style={{ animation: 'fadeIn 0.5s ease' }}>
-                        <section style={{ background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', marginBottom: '25px' }}>
-                            <div style={{ marginBottom: '25px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '900' }}>
-                                    <span style={{color: '#aaa'}}>ПЛАН НА НЕДЕЛЮ</span>
+                    /* КОНТЕНТ ДЛЯ СОТРУДНИКА */
+                    <div style={{ animation: 'fadeInUp 0.4s ease' }}>
+                        <section style={{ background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', marginBottom: '30px' }}>
+                            <div style={{ marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '13px', fontWeight: 'bold' }}>
+                                    <span>ПЛАН НЕДЕЛИ</span>
                                     <span style={{ color: '#4CAF50' }}>{progress.route}/5</span>
                                 </div>
-                                <div style={{ width: '100%', height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
-                                    <div style={{ width: `${routePercent}%`, height: '100%', background: '#4CAF50', transition: '1s ease-in-out' }} />
-                                </div>
+                                <div style={pBarBg}><div style={{ ...pBarFill, width: `${(progress.route/5)*100}%` }} /></div>
                             </div>
-
-                            <div style={{ marginBottom: '5px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '900' }}>
-                                    <span style={{color: '#aaa'}}>ОСНОВЫ ОБУЧЕНИЯ</span>
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '13px', fontWeight: 'bold' }}>
+                                    <span>ОСНОВЫ</span>
                                     <span style={{ color: '#4CAF50' }}>{progress.basics}/10</span>
                                 </div>
-                                <div style={{ width: '100%', height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
-                                    <div style={{ width: `${basicsPercent}%`, height: '100%', background: '#4CAF50', transition: '1s ease-in-out' }} />
-                                </div>
-                            </div>
-                            
-                            <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px solid #222', fontSize: '11px', color: '#555', textAlign: 'center' }}>
-                                📅 СЛЕДУЮЩИЙ ДЕДЛАЙН: <span style={{ color: '#ff7675', fontWeight: 'bold' }}>{progress.deadline}</span>
+                                <div style={pBarBg}><div style={{ ...pBarFill, width: `${(progress.basics/10)*100}%` }} /></div>
                             </div>
                         </section>
-
-                        <h3 style={{ fontSize: '12px', fontWeight: '900', color: '#444', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center' }}>ДОСТИЖЕНИЯ</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '30px' }}>
-                            <div title="Первый шаг" style={{ ...badgeStyle, opacity: progress.route >= 1 ? 1 : 0.15 }}>🌱</div>
-                            <div title="План выполнен" style={{ ...badgeStyle, opacity: progress.route === 5 ? 1 : 0.15 }}>🚀</div>
-                            <div title="Знаток" style={{ ...badgeStyle, opacity: progress.basics >= 5 ? 1 : 0.15 }}>📚</div>
-                            <div title="Мастер" style={{ ...badgeStyle, opacity: progress.basics === 10 ? 1 : 0.15 }}>🏮</div>
-                        </div>
                     </div>
                 )}
 
-                {/* КОНТАКТЫ (ОБЩИЕ) */}
-                <section style={{ background: '#161816', padding: '25px', borderRadius: '25px', border: '1px solid #222' }}>
+                {/* СВЯЗЬ */}
+                <section style={{ background: '#161816', padding: '25px', borderRadius: '30px', border: '1px solid #222' }}>
                     <div style={{ fontSize: '11px', color: '#444', marginBottom: '15px', fontWeight: '900', letterSpacing: '1px' }}>СВЯЗЬ</div>
-                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center', color: '#fff' }}>
-                        <div style={{width: '40px', height: '40px', background: '#000', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>💬</div>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                        <div style={{ width: '40px', height: '40px', background: '#000', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>💬</div>
                         <div>
-                            <div style={{fontSize: '14px', fontWeight: 'bold'}}>{userData.tg}</div>
-                            <div style={{fontSize: '11px', color: '#555'}}>{userData.phone || 'телефон не указан'}</div>
+                            <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#fff' }}>{userData.tg}</div>
+                            <div style={{ fontSize: '12px', color: '#555' }}>{userData.phone || 'номер не указан'}</div>
                         </div>
                     </div>
                 </section>
 
-                {/* МОДАЛКА РЕДАКТИРОВАНИЯ */}
+                {/* МОДАЛКА */}
                 {isEditing && (
-                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.96)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px', backdropFilter: 'blur(10px)' }}>
-                        <div style={{ background: '#111', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #222' }}>
-                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900' }}>{userRole === 'admin' ? 'ДАННЫЕ МАСТЕРА' : 'ПРОФИЛЬ'}</h2>
-                            <input value={userData.name} onChange={e => setUserData({...userData, name: e.target.value})} placeholder="Твое имя" style={inputStyle} />
-                            <input value={userData.avatar} onChange={e => setUserData({...userData, avatar: e.target.value})} placeholder="URL аватара" style={inputStyle} />
-                            <input value={userData.tg} onChange={e => setUserData({...userData, tg: e.target.value})} placeholder="Telegram (напр. @tea_master)" style={inputStyle} />
-                            <input value={userData.phone} onChange={e => setUserData({...userData, phone: e.target.value})} placeholder="Телефон" style={inputStyle} />
-                            <button onClick={handleSave} style={{ width: '100%', padding: '20px', background: '#4CAF50', border: 'none', borderRadius: '15px', fontWeight: '900', color: '#000', cursor: 'pointer', marginTop: '10px' }}>СОХРАНИТЬ</button>
-                            <div onClick={() => setIsEditing(false)} style={{ textAlign: 'center', marginTop: '20px', color: '#444', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>ОТМЕНА</div>
+                    <div style={modalOverlay}>
+                        <div style={modalContent}>
+                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900' }}>РЕДАКТОР</h2>
+                            <input value={userData.name} onChange={e => setUserData({...userData, name: e.target.value})} placeholder="Твое имя" style={inputS} />
+                            <input value={userData.avatar} onChange={e => setUserData({...userData, avatar: e.target.value})} placeholder="URL аватара" style={inputS} />
+                            <input value={userData.tg} onChange={e => setUserData({...userData, tg: e.target.value})} placeholder="Telegram" style={inputS} />
+                            <input value={userData.phone} onChange={e => setUserData({...userData, phone: e.target.value})} placeholder="Телефон" style={inputS} />
+                            <button onClick={handleSave} style={saveB}>СОХРАНИТЬ</button>
+                            <div onClick={() => setIsEditing(false)} style={{ textAlign: 'center', marginTop: '20px', color: '#444', cursor: 'pointer', fontSize: '13px' }}>ОТМЕНА</div>
                         </div>
                     </div>
                 )}
-
             </main>
         </div>
     );
 }
 
-// Стили компонентов
-const badgeStyle = { background: '#111', height: '75px', borderRadius: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', border: '1px solid #222', transition: '0.3s' };
-const inputStyle = { width: '100%', padding: '18px', background: '#000', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '15px', outline: 'none', fontSize: '15px' };
-const statCard = { background: '#161816', padding: '20px 10px', borderRadius: '20px', border: '1px solid #222', display: 'flex', flexDirection: 'column' as const, alignItems: 'center' };
+// Стили
+const statCard = { background: '#161816', padding: '20px 5px', borderRadius: '20px', border: '1px solid #222', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' };
 const statNum = { fontSize: '24px', fontWeight: '900', color: '#4CAF50' };
 const statLabel = { fontSize: '9px', color: '#555', marginTop: '5px', fontWeight: 'bold', letterSpacing: '1px' };
-const adminLinkStyle = { display: 'block', padding: '18px 20px', background: '#0d0f0d', borderRadius: '15px', marginBottom: '10px', border: '1px solid #222', textDecoration: 'none', color: '#fff', fontSize: '14px', fontWeight: 'bold' };
+const adminLinkStyle = { display: 'block', padding: '20px', background: '#0d0f0d', borderRadius: '15px', marginBottom: '10px', border: '1px solid #222', textDecoration: 'none', color: '#fff', fontSize: '14px', fontWeight: 'bold', transition: '0.2s' };
+const pBarBg = { width: '100%', height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' };
+const pBarFill = { height: '100%', background: '#4CAF50', transition: '1s ease-in-out' };
+const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.97)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px' } as any;
+const modalContent = { background: '#111', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #222' };
+const inputS = { width: '100%', padding: '18px', background: '#000', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '15px', outline: 'none' };
+const saveB = { width: '100%', padding: '20px', background: '#4CAF50', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer' };
 
 export default function ProfilePage() {
     return <Suspense fallback={<div style={{backgroundColor: '#0d0f0d', minHeight: '100vh'}} />}><ProfileContent /></Suspense>;
