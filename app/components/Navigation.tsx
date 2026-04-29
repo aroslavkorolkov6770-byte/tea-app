@@ -16,7 +16,6 @@ export default function Navigation() {
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
 
-  // ГЛАВНЫЙ ЭФФЕКТ: Проверка авторизации и интро при каждом изменении страницы или статуса входа
   useEffect(() => {
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
@@ -26,27 +25,24 @@ export default function Navigation() {
       setIsLoggedIn(true);
       setUserRole(role);
 
-      // Если зашел сотрудник и он еще не нажимал "ХОРОШО" (ключ intro_seen не равен 'true')
       if (role === 'staff' && introSeen !== 'true') {
         setShowIntroModal(true);
       }
     }
-  }, [pathname, isLoggedIn]); // Зависимости гарантируют проверку после логина и переходов
+  }, [pathname, isLoggedIn]);
 
   const handleLogin = () => {
     if (login === "11" && pass === "11") {
-      setIsLoggedIn(true);
-      setUserRole('admin');
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('userRole', 'admin');
+      setIsLoggedIn(true);
+      setUserRole('admin');
       setShowLoginModal(false);
       router.push('/search');
     } 
     else if (login === "1" && pass === "1") {
-      // Сначала записываем данные в память, затем меняем состояние
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('userRole', 'staff');
-      
       setIsLoggedIn(true);
       setUserRole('staff');
       setShowLoginModal(false);
@@ -69,15 +65,13 @@ export default function Navigation() {
     setUserRole(null);
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userRole');
-    // Мы не удаляем intro_seen, чтобы окно не задалбывало при каждом входе, 
-    // но если нужно показывать его каждый раз — можно добавить очистку и здесь.
     setIsMenuOpen(false);
     router.push('/');
   };
 
   const startTraining = () => {
-    localStorage.setItem('intro_seen', 'true'); // ПОМЕЧАЕМ КАК ПРОЧИТАННОЕ
-    setShowIntroModal(false); // ЗАКРЫВАЕМ ОКНО
+    localStorage.setItem('intro_seen', 'true'); 
+    setShowIntroModal(false); 
     router.push('/tasks?tab=welcome');
   };
 
@@ -109,6 +103,12 @@ export default function Navigation() {
             ) : (
               <>
                 <div style={{...menuItemStyle, color: '#4CAF50', fontSize: '11px', cursor: 'default', opacity: 0.7} as any}>STATUS: {userRole?.toUpperCase()}</div>
+                
+                {/* ССЫЛКА НА АДМИН-ПАНЕЛЬ (ТОЛЬКО ДЛЯ АДМИНА) */}
+                {userRole === 'admin' && (
+                    <Link href="/admin" onClick={() => setIsMenuOpen(false)} style={{...menuItemStyle, color: '#4CAF50'} as any}>⚙️ Админ-панель</Link>
+                )}
+
                 <Link href="/profile" onClick={() => setIsMenuOpen(false)} style={menuItemStyle as any}>👤 Личный кабинет</Link>
                 <div onClick={handleLogout} style={{...menuItemStyle, color: '#ff7675', borderBottom: 'none'} as any}>ВЫЙТИ</div>
               </>
@@ -129,7 +129,6 @@ export default function Navigation() {
         </div>
       )}
 
-      {/* ОКНО ПРИВЕТСТВИЯ */}
       {showIntroModal && (
         <div style={modalOverlayStyle as any}>
           <div style={{...modalContentStyle, textAlign: 'center', border: '1px solid #4CAF50'} as any}>
