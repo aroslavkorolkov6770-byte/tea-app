@@ -67,6 +67,9 @@ export default function SearchPage() {
   const [activeStrength, setActiveStrength] = useState("Все");
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
 
+  // НОВЫЕ СОСТОЯНИЯ ДЛЯ СИСТЕМЫ РАЗДЕЛОВ
+  const [topCategory, setTopCategory] = useState("Все");
+
   // Состояния для теста
   const [quizResults, setQuizResults] = useState<{[key: number]: number[]}>({});
   const [showQuiz, setShowQuiz] = useState(false);
@@ -172,9 +175,19 @@ export default function SearchPage() {
 
   const filteredTeas = teas.filter(t => {
     const mSearch = t.name.toLowerCase().includes(search.toLowerCase());
-    const mCat = activeCategory === "Все" || t.type === activeCategory;
+    
+    // Новая логика фильтрации по уровням
+    let mLevel = true;
+    if (topCategory === "Кофе") mLevel = t.type === "Кофе";
+    else if (topCategory === "Чай") {
+      if (activeCategory === "Все") mLevel = t.type !== "Кофе";
+      else mLevel = t.type === activeCategory;
+    } else {
+      mLevel = true; // "Все"
+    }
+
     const mStr = activeStrength === "Все" || t.strength === activeStrength;
-    return mSearch && mCat && mStr;
+    return mSearch && mLevel && mStr;
   });
 
   if (!isMounted) return null;
@@ -197,16 +210,26 @@ export default function SearchPage() {
 
           <input type="text" placeholder="Поиск сорта..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle as any} />
           
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px', alignItems: 'center' } as any}>
-            <div onClick={() => {setActiveCategory("Все"); setActiveStrength("Все");}} style={{ ...typeBadge, backgroundColor: activeCategory === "Все" ? '#4CAF50' : '#161816', color: activeCategory === "Все" ? '#000' : '#fff' } as any}>Все</div>
-            {teaTypes.map(type => (
-              <div key={type} style={{ position: 'relative' }}>
-                <div onClick={() => {setActiveCategory(type); setActiveStrength("Все");}} style={{ ...typeBadge, backgroundColor: activeCategory === type ? '#4CAF50' : '#161816', color: activeCategory === type ? '#000' : '#fff' } as any}>{type}</div>
-                {isAdmin && <span onClick={(e) => { e.stopPropagation(); setTypeToDelete(type); setShowDeleteModal(true); }} style={deleteTypeBtn as any}>✕</span>}
-              </div>
-            ))}
-            {isAdmin && <div onClick={() => setShowTypeForm(true)} style={{ ...typeBadge, border: '1px dashed #4CAF50', color: '#4CAF50' } as any}>+</div>}
+          {/* НОВАЯ СИСТЕМА ГЛАВНЫХ РАЗДЕЛОВ */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+            <div onClick={() => {setTopCategory("Все"); setActiveCategory("Все");}} style={{ ...typeBadge, backgroundColor: topCategory === "Все" ? '#4CAF50' : '#161816', color: topCategory === "Все" ? '#000' : '#fff' } as any}>Все</div>
+            <div onClick={() => {setTopCategory("Чай"); setActiveCategory("Все");}} style={{ ...typeBadge, backgroundColor: topCategory === "Чай" ? '#4CAF50' : '#161816', color: topCategory === "Чай" ? '#000' : '#fff' } as any}>Чай</div>
+            <div onClick={() => {setTopCategory("Кофе"); setActiveCategory("Кофе");}} style={{ ...typeBadge, backgroundColor: topCategory === "Кофе" ? '#4CAF50' : '#161816', color: topCategory === "Кофе" ? '#000' : '#fff' } as any}>Кофе</div>
           </div>
+
+          {/* ПОДРАЗДЕЛЫ (ВИДЫ ЧАЯ) - ПОЯВЛЯЮТСЯ ТОЛЬКО ЕСЛИ ВЫБРАН "ЧАЙ" */}
+          {topCategory === "Чай" && (
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px', alignItems: 'center' } as any}>
+              <div onClick={() => setActiveCategory("Все")} style={{ ...typeBadge, padding: '8px 18px', fontSize: '13px', backgroundColor: activeCategory === "Все" ? '#333' : '#161816', color: '#fff', border: '1px solid #333' } as any}>Все виды</div>
+              {teaTypes.filter(type => type !== "Кофе").map(type => (
+                <div key={type} style={{ position: 'relative' }}>
+                  <div onClick={() => {setActiveCategory(type); setActiveStrength("Все");}} style={{ ...typeBadge, padding: '8px 18px', fontSize: '13px', backgroundColor: activeCategory === type ? '#333' : '#161816', color: '#fff', border: '1px solid #333' } as any}>{type}</div>
+                  {isAdmin && <span onClick={(e) => { e.stopPropagation(); setTypeToDelete(type); setShowDeleteModal(true); }} style={deleteTypeBtn as any}>✕</span>}
+                </div>
+              ))}
+              {isAdmin && <div onClick={() => setShowTypeForm(true)} style={{ ...typeBadge, padding: '8px 18px', fontSize: '13px', border: '1px dashed #4CAF50', color: '#4CAF50' } as any}>+</div>}
+            </div>
+          )}
 
           {activeCategory !== "Все" && (
             <div style={{ background: '#121412', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px' } as any}>
