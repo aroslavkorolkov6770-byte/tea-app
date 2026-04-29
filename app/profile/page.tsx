@@ -76,7 +76,7 @@ function ProfileContent() {
             });
 
             // 3. Расчет статистики (admin)
-            const teaDb = safeParse('local_tea_db', []);
+            const teaDb = safeParse('tea_master_unified_v1', []); // Синхронизировано с новым ключом базы
             const basicsDb = safeParse('tea_hub_dynamic_basics_v1', []);
             const standardsDb = safeParse('tea_hub_dynamic_standards_v1', []);
 
@@ -129,15 +129,15 @@ function ProfileContent() {
                 {userRole === 'admin' ? (
                     <div style={{ animation: 'fadeInUp 0.5s ease' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '35px' }}>
-                            <div style={statCardStyle}><span style={statNum}>{adminStats.teas}</span><span style={statLabel}>СОРТОВ</span></div>
+                            <div style={statCardStyle}><span style={statNum}>{adminStats.teas}</span><span style={statLabel}>ПРОДУКТОВ</span></div>
                             <div style={statCardStyle}><span style={statNum}>{adminStats.lessons}</span><span style={statLabel}>УРОКОВ</span></div>
                             <div style={statCardStyle}><span style={statNum}>{adminStats.rules}</span><span style={statLabel}>ПРАВИЛ</span></div>
                         </div>
                         <h3 style={sectionTitle}>ИНСТРУМЕНТЫ МАСТЕРА</h3>
                         <div style={adminPanelStyle}>
                             <Link href="/admin" style={adminLinkStyle}>📊 Таблица мониторинга персонала</Link>
-                            {/* Кнопка Конструктор обучения LMS удалена согласно ТЗ */}
-                            <Link href="/search" style={adminLinkStyle}>🍃 Редактор базы продуктов</Link>
+                            <Link href="/tasks?tab=welcome" style={adminLinkStyle}>✍️ Конструктор обучения и планов</Link>
+                            {/* Ссылка на редактор базы продуктов удалена отсюда */}
                         </div>
                     </div>
                 ) : (
