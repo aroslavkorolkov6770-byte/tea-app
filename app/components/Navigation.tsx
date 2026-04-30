@@ -75,11 +75,12 @@ export default function Navigation() {
     router.push('/tasks?tab=welcome');
   };
 
+  // ПУТИ НАВИГАЦИИ (Продукты переименованы в БАЗА)
   const navItems = [
     { id: '/tasks?tab=welcome', label: 'ОСНОВЫ', icon: '👋' },
     { id: '/tasks?tab=standards', label: 'РАБОТА', icon: '💡' },
     { id: '/tasks?tab=checklist', label: 'СМЕНА', icon: '📋' },
-    { id: '/search', label: 'Продукты', icon: '🍃' },
+    { id: '/search', label: 'БАЗА', icon: '🍃' },
   ];
 
   return (
@@ -141,11 +142,11 @@ export default function Navigation() {
 
       {isLoggedIn && (
         <nav style={navBarStyle as any}>
-          {/* ФИЛЬТРАЦИЯ: Если админ - убираем вкладку СМЕНА */}
+          {/* ФИЛЬТРАЦИЯ: У админа не показывается СМЕНА */}
           {navItems
             .filter(t => !(userRole === 'admin' && t.label === 'СМЕНА'))
             .map(t => (
-            <Link key={t.id} href={t.id} style={{ ...navItemStyle, color: (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === t.id ? '#4CAF50' : '#888' } as any}>
+            <Link key={t.id} href={t.id} style={{ ...navItemStyle, color: (pathname === t.id.split('?')[0]) ? '#4CAF50' : '#888' } as any}>
               <span style={{ fontSize: '22px' }}>{t.icon}</span>
               <span style={{ fontSize: '9px', fontWeight: '900', letterSpacing: '1px' }}>{t.label}</span>
             </Link>
