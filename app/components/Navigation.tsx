@@ -106,9 +106,7 @@ export default function Navigation() {
               <>
                 <div style={{...menuItemStyle, color: '#4CAF50', fontSize: '11px', cursor: 'default', opacity: 0.7} as any}>STATUS: {userRole?.toUpperCase()}</div>
                 
-                {userRole === 'admin' && (
-                    <Link href="/admin" onClick={() => setIsMenuOpen(false)} style={{...menuItemStyle, color: '#4CAF50'} as any}>⚙️ Админ-панель</Link>
-                )}
+                {/* Кнопка "Админ-панель" отсюда удалена, так как она есть в нижней панели под названием "ТАБЛИЦА" */}
 
                 <Link href="/profile" onClick={() => setIsMenuOpen(false)} style={menuItemStyle as any}>👤 Личный кабинет</Link>
                 <div onClick={handleLogout} style={{...menuItemStyle, color: '#ff7675', borderBottom: 'none'} as any}>ВЫЙТИ</div>
@@ -171,5 +169,5 @@ const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', h
 const modalContentStyle = { background: '#111', padding: '50px 40px', borderRadius: '40px', width: '340px', border: '1px solid #222' };
 const inputStyle = { width: '100%', padding: '18px', marginBottom: '15px', borderRadius: '15px', background: '#000', border: '1px solid #222', color: '#fff', boxSizing: 'border-box', outline: 'none' };
 const loginButtonStyle = { width: '100%', padding: '20px', borderRadius: '15px', background: '#4CAF50', color: '#000', fontWeight: '900', cursor: 'pointer', textAlign: 'center' };
-const navBarStyle = { position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', width: '380px', height: '80px', backgroundColor: 'rgba(17, 17, 17, 0.8)', backdropFilter: 'blur(20px)', borderRadius: '25px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid rgba(255, 255, 255, 0.05)', zIndex: 9998 };
+const navBarStyle = { position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', width: '320px', height: '80px', backgroundColor: 'rgba(17, 17, 17, 0.8)', backdropFilter: 'blur(20px)', borderRadius: '25px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid rgba(255, 255, 255, 0.05)', zIndex: 9998 };
 const navItemStyle = { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', textDecoration: 'none' };
