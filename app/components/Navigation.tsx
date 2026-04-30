@@ -80,6 +80,7 @@ export default function Navigation() {
     { id: '/tasks?tab=welcome', label: 'ОСНОВЫ', icon: '👋' },
     { id: '/tasks?tab=standards', label: 'РАБОТА', icon: '💡' },
     { id: '/tasks?tab=checklist', label: 'СМЕНА', icon: '📋' },
+    { id: '/tasks?tab=monitor', label: 'Мониторинг', icon: '📊' },
     { id: '/search', label: 'БАЗА', icon: '🍃' },
   ];
 
