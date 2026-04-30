@@ -12,7 +12,7 @@ interface Tea {
 
 const STRENGTHS_BACKUP = ["Мягкий", "Средний", "Крепкий"];
 
-// --- МАКСИМАЛЬНО ПОЛНАЯ БАЗА (30 ПОЗИЦИЙ) - НЕ СОКРАЩЕНО ---
+// --- МАКСИМАЛЬНО ПОЛНАЯ БАЗА (30 ПОЗИЦИЙ) ---
 const INITIAL_DATABASE: Tea[] = [
   // ЧАЙ (15 позиций)
   { 
@@ -58,7 +58,7 @@ export default function SearchPage() {
   const [products, setProducts] = useState<Tea[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Динамические категории
+  // Динамические категории (управление админом)
   const [topCats, setTopCats] = useState<string[]>(["Чай", "Кофе"]);
   const [teaSubs, setTeaSubs] = useState<string[]>(["Зеленый", "Белый", "Улун", "Красный", "Пуэр"]);
   const [coffeeSubs, setCoffeeSubs] = useState<string[]>(["Арабика", "Робуста", "Азия", "Премиум", "Спешиалти"]);
@@ -74,7 +74,7 @@ export default function SearchPage() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  // --- СОСТОЯНИЯ ДЛЯ НОВОГО УПРАВЛЕНИЯ КАТЕГОРИЯМИ ---
+  // Состояния для управления
   const [confirmDelete, setConfirmDelete] = useState<{type: string, val: string} | null>(null);
   const [addItemModal, setAddItemModal] = useState<string | null>(null);
   const [newValue, setNewValue] = useState("");
@@ -88,6 +88,7 @@ export default function SearchPage() {
     const role = localStorage.getItem('userRole');
     setIsAdmin(localStorage.getItem('isLoggedIn') === 'true' && role === 'admin');
     
+    // Загрузка базы
     const saved = localStorage.getItem('tea_master_unified_v1');
     if (saved) setProducts(JSON.parse(saved));
     else {
@@ -95,6 +96,7 @@ export default function SearchPage() {
       localStorage.setItem('tea_master_unified_v1', JSON.stringify(INITIAL_DATABASE));
     }
 
+    // Загрузка структуры
     const sT = localStorage.getItem('sys_top_cats');
     const sS = localStorage.getItem('sys_tea_subs');
     const sC = localStorage.getItem('sys_coffee_subs');
@@ -116,7 +118,6 @@ export default function SearchPage() {
       localStorage.setItem(key, JSON.stringify(list));
   };
 
-  // --- ЛОГИКА НОВОГО УПРАВЛЕНИЯ ---
   const handleAddItem = () => {
       if(!newValue.trim()) return;
       let n = [];
@@ -191,7 +192,7 @@ export default function SearchPage() {
 
           <input type="text" placeholder="Поиск по названию..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle as any} />
           
-          {/* ГЛАВНЫЕ РАЗДЕЛЫ */}
+          {/* СТРОКА 1: РАЗДЕЛЫ (Чай, Кофе...) */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' } as any}>
             <div onClick={() => {setTopCategory("Все"); setActiveCategory("Все");}} style={{ ...badge, backgroundColor: topCategory === "Все" ? '#4CAF50' : '#161816', color: topCategory === "Все" ? '#000' : '#fff' } as any}>Все</div>
             {topCats.map(c => (
@@ -203,7 +204,7 @@ export default function SearchPage() {
             {isAdmin && <div onClick={() => setAddItemModal('top')} style={addPlusStyle as any}>+</div>}
           </div>
 
-          {/* ВИДЫ */}
+          {/* СТРОКА 2: ВИДЫ (Зеленый, Арабика...) */}
           {(topCategory === "Чай" || topCategory === "Кофе") && (
             <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px', alignItems: 'center' } as any}>
               <div onClick={() => setActiveCategory("Все")} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === "Все" ? '#333' : '#161816' } as any}>Все виды</div>
@@ -217,7 +218,7 @@ export default function SearchPage() {
             </div>
           )}
 
-          {/* КРЕПОСТЬ */}
+          {/* СТРОКА 3: КРЕПОСТЬ */}
           <div style={strengthFilterRow as any}>
             <div onClick={() => setActiveStrength("Все")} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === "Все" ? '#4CAF50' : '#111', color: activeStrength === "Все" ? '#000' : '#555' } as any}>Все уровни</div>
             {strengths.map(s => (
@@ -256,18 +257,18 @@ export default function SearchPage() {
           <aside style={{ position: 'sticky', top: '120px' }}>
             <div style={adminSidebar as any}>
               <h3 style={{ color: '#4CAF50', fontSize: '14px', marginBottom: '25px', textAlign: 'center', fontWeight: '900' }}>МАСТЕР-ПАНЕЛЬ</h3>
-              <button onClick={() => { setEditingId(null); setShowForm(true); }} style={saveBtn as any}>+ НОВЫЙ ПРОДУКТ</button>
-              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Для управления категориями используйте <b>+</b> и <b>✕</b> прямо в плитках фильтров.</p>
+              <button onClick={() => { setEditingId(null); setFormData({name:'', type:topCats[0], category:teaSubs[0], strength:strengths[0]}); setShowForm(true); }} style={saveBtn as any}>+ НОВЫЙ ПРОДУКТ</button>
+              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Управление категориями: <b>+</b> и <b>✕</b> в строках фильтров.</p>
             </div>
           </aside>
         )}
 
-        {/* --- НОВЫЕ МОДАЛКИ (ЦЕНТР) --- */}
+        {/* МОДАЛКИ (ЦЕНТР) */}
         {addItemModal && (
             <div style={modalOverlay as any}>
                 <div style={modalContentSmall as any}>
                     <h2 style={{color:'#4CAF50', marginBottom:'20px'}}>НОВЫЙ ЭЛЕМЕНТ</h2>
-                    <input autoFocus style={inputStyle as any} placeholder="Введите название..." value={newValue} onChange={(e)=>setNewValue(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&handleAddItem()} />
+                    <input autoFocus style={inputStyle as any} placeholder="Название..." value={newValue} onChange={(e)=>setNewValue(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&handleAddItem()} />
                     <button onClick={handleAddItem} style={{...saveBtn, width:'100%'} as any}>ДОБАВИТЬ</button>
                     <div onClick={()=>setAddItemModal(null)} style={{textAlign:'center', marginTop:'15px', cursor:'pointer', color:'#666'}}>Отмена</div>
                 </div>
@@ -278,7 +279,7 @@ export default function SearchPage() {
             <div style={modalOverlay as any}>
                 <div style={modalContentSmall as any}>
                     <h2 style={{color:'#ff7675', marginBottom:'15px'}}>УДАЛИТЬ?</h2>
-                    <p style={{marginBottom:'25px', color:'#888'}}>Вы действительно хотите удалить «{confirmDelete.val}»?</p>
+                    <p style={{marginBottom:'25px', color:'#888'}}>Удалить «{confirmDelete.val}»?</p>
                     <button onClick={handleDeleteItem} style={{...saveBtn, background:'#ff7675', width:'100%'} as any}>ДА, УДАЛИТЬ</button>
                     <div onClick={()=>setConfirmDelete(null)} style={{textAlign:'center', marginTop:'15px', cursor:'pointer', color:'#666'}}>Отмена</div>
                 </div>
@@ -332,7 +333,6 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* ТЕСТ (overlay) */}
         {showQuiz && selectedTea && (
           <div style={{ ...modalOverlay, zIndex: 30000 } as any}>
             <div style={modalContent as any}>
@@ -345,7 +345,7 @@ export default function SearchPage() {
                       const isCorrect = oIdx === q.c;
                       const isSelected = quizResults[selectedTea.id]?.includes(oIdx);
                       return (
-                        <div key={oIdx} onClick={() => setQuizResults({...quizResults, [selectedTea.id]: [...(quizResults[selectedTea.id] || []), oIdx]})} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#000', borderRadius: '12px', cursor: 'pointer', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' } as any}>
+                        <div key={oIdx} onClick={() => setQuizResults({...quizResults, [selectedTea.id]: [...(quizResults[selectedTea.id] || []), oIdx]})} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#0d0f0d', borderRadius: '12px', cursor: 'pointer', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' } as any}>
                           {opt} <span>{isSelected && (isCorrect ? '✅' : '❌')}</span>
                         </div>
                       );
