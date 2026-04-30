@@ -137,7 +137,7 @@ function ProfileContent() {
                         <div style={adminPanelStyle}>
                             <Link href="/admin" style={adminLinkStyle}>📊 Таблица мониторинга персонала</Link>
                             <Link href="/tasks?tab=welcome" style={adminLinkStyle}>✍️ Конструктор обучения и планов</Link>
-                            {/* Ссылка на редактор базы продуктов удалена отсюда */}
+                            {/* Ссылка на редактор базы продуктов удалена, так как она теперь в нижней навигации "БАЗА" */}
                         </div>
                     </div>
                 ) : (

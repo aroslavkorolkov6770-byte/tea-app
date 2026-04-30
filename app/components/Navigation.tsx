@@ -75,11 +75,12 @@ export default function Navigation() {
     router.push('/tasks?tab=welcome');
   };
 
-  // ПУТИ НАВИГАЦИИ (Продукты переименованы в БАЗА)
+  // ПУТИ НАВИГАЦИИ (Добавлена ТАБЛИЦА)
   const navItems = [
     { id: '/tasks?tab=welcome', label: 'ОСНОВЫ', icon: '👋' },
     { id: '/tasks?tab=standards', label: 'РАБОТА', icon: '💡' },
     { id: '/tasks?tab=checklist', label: 'СМЕНА', icon: '📋' },
+    { id: '/admin', label: 'ТАБЛИЦА', icon: '📊' }, // Кнопка только для админа
     { id: '/search', label: 'БАЗА', icon: '🍃' },
   ];
 
@@ -142,9 +143,13 @@ export default function Navigation() {
 
       {isLoggedIn && (
         <nav style={navBarStyle as any}>
-          {/* ФИЛЬТРАЦИЯ: У админа не показывается СМЕНА */}
+          {/* ФИЛЬТРАЦИЯ: Админ не видит СМЕНУ, Сотрудник не видит ТАБЛИЦУ */}
           {navItems
-            .filter(t => !(userRole === 'admin' && t.label === 'СМЕНА'))
+            .filter(t => {
+                if (userRole === 'admin') return t.label !== 'СМЕНА';
+                if (userRole === 'staff') return t.label !== 'ТАБЛИЦА';
+                return true;
+            })
             .map(t => (
             <Link key={t.id} href={t.id} style={{ ...navItemStyle, color: (pathname === t.id.split('?')[0]) ? '#4CAF50' : '#888' } as any}>
               <span style={{ fontSize: '22px' }}>{t.icon}</span>
@@ -166,5 +171,5 @@ const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', h
 const modalContentStyle = { background: '#111', padding: '50px 40px', borderRadius: '40px', width: '340px', border: '1px solid #222' };
 const inputStyle = { width: '100%', padding: '18px', marginBottom: '15px', borderRadius: '15px', background: '#000', border: '1px solid #222', color: '#fff', boxSizing: 'border-box', outline: 'none' };
 const loginButtonStyle = { width: '100%', padding: '20px', borderRadius: '15px', background: '#4CAF50', color: '#000', fontWeight: '900', cursor: 'pointer', textAlign: 'center' };
-const navBarStyle = { position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', width: '320px', height: '80px', backgroundColor: 'rgba(17, 17, 17, 0.8)', backdropFilter: 'blur(20px)', borderRadius: '25px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid rgba(255, 255, 255, 0.05)', zIndex: 9998 };
+const navBarStyle = { position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', width: '380px', height: '80px', backgroundColor: 'rgba(17, 17, 17, 0.8)', backdropFilter: 'blur(20px)', borderRadius: '25px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid rgba(255, 255, 255, 0.05)', zIndex: 9998 };
 const navItemStyle = { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', textDecoration: 'none' };
