@@ -10,9 +10,6 @@ interface Tea {
   quiz?: { q: string; o: string[]; c: number }[];
 }
 
-const STRENGTHS_BACKUP = ["Мягкий", "Средний", "Крепкий"];
-
-// --- МАКСИМАЛЬНО ПОЛНАЯ БАЗА (30 ПОЗИЦИЙ) ---
 const INITIAL_DATABASE: Tea[] = [
   // ЧАЙ (15 позиций)
   { 
@@ -58,11 +55,16 @@ export default function SearchPage() {
   const [products, setProducts] = useState<Tea[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Динамические категории (управление админом)
+  // СИСТЕМА ДИНАМИЧЕСКИХ КАТЕГОРИЙ (привязанная к TopCategory)
   const [topCats, setTopCats] = useState<string[]>(["Чай", "Кофе"]);
-  const [teaSubs, setTeaSubs] = useState<string[]>(["Зеленый", "Белый", "Улун", "Красный", "Пуэр"]);
-  const [coffeeSubs, setCoffeeSubs] = useState<string[]>(["Арабика", "Робуста", "Азия", "Премиум", "Спешиалти"]);
-  const [strengths, setStrengths] = useState<string[]>(STRENGTHS_BACKUP);
+  const [subsMap, setSubsMap] = useState<Record<string, string[]>>({
+      "Чай": ["Зеленый", "Белый", "Улун", "Красный", "Пуэр"],
+      "Кофе": ["Арабика", "Робуста", "Азия", "Премиум", "Спешиалти"]
+  });
+  const [strengthsMap, setStrengthsMap] = useState<Record<string, string[]>>({
+      "Чай": ["Мягкий", "Средний", "Крепкий"],
+      "Кофе": ["Мягкий", "Средний", "Крепкий"]
+  });
 
   const [search, setSearch] = useState("");
   const [topCategory, setTopCategory] = useState("Все");
@@ -74,9 +76,9 @@ export default function SearchPage() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  // Состояния для управления
+  // Модалки управления категориями
   const [confirmDelete, setConfirmDelete] = useState<{type: string, val: string} | null>(null);
-  const [addItemModal, setAddItemModal] = useState<string | null>(null);
+  const [addItemModal, setAddItemModal] = useState<{type: string} | null>(null);
   const [newValue, setNewValue] = useState("");
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -88,7 +90,7 @@ export default function SearchPage() {
     const role = localStorage.getItem('userRole');
     setIsAdmin(localStorage.getItem('isLoggedIn') === 'true' && role === 'admin');
     
-    // Загрузка базы
+    // Загрузка продуктов
     const saved = localStorage.getItem('tea_master_unified_v1');
     if (saved) setProducts(JSON.parse(saved));
     else {
@@ -96,15 +98,13 @@ export default function SearchPage() {
       localStorage.setItem('tea_master_unified_v1', JSON.stringify(INITIAL_DATABASE));
     }
 
-    // Загрузка структуры
-    const sT = localStorage.getItem('sys_top_cats');
-    const sS = localStorage.getItem('sys_tea_subs');
-    const sC = localStorage.getItem('sys_coffee_subs');
-    const sStr = localStorage.getItem('sys_strengths');
+    // Загрузка категорий и их уровней
+    const sT = localStorage.getItem('sys_top_cats_v2');
+    const sMap = localStorage.getItem('sys_subs_map_v2');
+    const sStr = localStorage.getItem('sys_strengths_map_v2');
     if (sT) setTopCats(JSON.parse(sT));
-    if (sS) setTeaSubs(JSON.parse(sS));
-    if (sC) setCoffeeSubs(JSON.parse(sC));
-    if (sStr) setStrengths(JSON.parse(sStr));
+    if (sMap) setSubsMap(JSON.parse(sMap));
+    if (sStr) setStrengthsMap(JSON.parse(sStr));
 
     setIsMounted(true);
   }, []);
@@ -114,27 +114,58 @@ export default function SearchPage() {
     localStorage.setItem('tea_master_unified_v1', JSON.stringify(list));
   };
 
-  const saveConfig = (key: string, list: string[]) => {
-      localStorage.setItem(key, JSON.stringify(list));
+  const syncSystem = (t: string[], m: any, s: any) => {
+      localStorage.setItem('sys_top_cats_v2', JSON.stringify(t));
+      localStorage.setItem('sys_subs_map_v2', JSON.stringify(m));
+      localStorage.setItem('sys_strengths_map_v2', JSON.stringify(s));
   };
 
+  // --- ЛОГИКА ДОБАВЛЕНИЯ ---
   const handleAddItem = () => {
       if(!newValue.trim()) return;
-      let n = [];
-      if(addItemModal === 'top') { n = [...topCats, newValue]; setTopCats(n); saveConfig('sys_top_cats', n); }
-      if(addItemModal === 'teaSub') { n = [...teaSubs, newValue]; setTeaSubs(n); saveConfig('sys_tea_subs', n); }
-      if(addItemModal === 'coffeeSub') { n = [...coffeeSubs, newValue]; setCoffeeSubs(n); saveConfig('sys_coffee_subs', n); }
-      if(addItemModal === 'strength') { n = [...strengths, newValue]; setStrengths(n); saveConfig('sys_strengths', n); }
+      let newT = [...topCats];
+      let newM = {...subsMap};
+      let newS = {...strengthsMap};
+
+      if(addItemModal?.type === 'top') {
+          newT.push(newValue);
+          newM[newValue] = [];
+          newS[newValue] = ["Мягкий", "Средний", "Крепкий"]; // Дефолт
+      }
+      if(addItemModal?.type === 'sub') {
+          newM[topCategory] = [...(newM[topCategory] || []), newValue];
+      }
+      if(addItemModal?.type === 'strength') {
+          newS[topCategory] = [...(newS[topCategory] || []), newValue];
+      }
+
+      setTopCats(newT); setSubsMap(newM); setStrengthsMap(newS);
+      syncSystem(newT, newM, newS);
       setNewValue(""); setAddItemModal(null);
   };
 
+  // --- ЛОГИКА УДАЛЕНИЯ ---
   const handleDeleteItem = () => {
       if(!confirmDelete) return;
-      let n = [];
-      if(confirmDelete.type === 'top') { n = topCats.filter(x=>x!==confirmDelete.val); setTopCats(n); saveConfig('sys_top_cats', n); }
-      if(confirmDelete.type === 'teaSub') { n = teaSubs.filter(x=>x!==confirmDelete.val); setTeaSubs(n); saveConfig('sys_tea_subs', n); }
-      if(confirmDelete.type === 'coffeeSub') { n = coffeeSubs.filter(x=>x!==confirmDelete.val); setCoffeeSubs(n); saveConfig('sys_coffee_subs', n); }
-      if(confirmDelete.type === 'strength') { n = strengths.filter(x=>x!==confirmDelete.val); setStrengths(n); saveConfig('sys_strengths', n); }
+      let newT = [...topCats];
+      let newM = {...subsMap};
+      let newS = {...strengthsMap};
+
+      if(confirmDelete.type === 'top') {
+          newT = newT.filter(x => x !== confirmDelete.val);
+          delete newM[confirmDelete.val];
+          delete newS[confirmDelete.val];
+          setTopCategory("Все");
+      }
+      if(confirmDelete.type === 'sub') {
+          newM[topCategory] = (newM[topCategory] || []).filter(x => x !== confirmDelete.val);
+      }
+      if(confirmDelete.type === 'strength') {
+          newS[topCategory] = (newS[topCategory] || []).filter(x => x !== confirmDelete.val);
+      }
+
+      setTopCats(newT); setSubsMap(newM); setStrengthsMap(newS);
+      syncSystem(newT, newM, newS);
       setConfirmDelete(null);
   };
 
@@ -147,7 +178,7 @@ export default function SearchPage() {
     saveToLocal(newList);
   };
 
-  const handleSave = () => {
+  const handleSaveProduct = () => {
     let list = [...products];
     const newId = editingId || Date.now();
     const data = { ...formData, id: newId } as Tea;
@@ -157,11 +188,11 @@ export default function SearchPage() {
     saveToLocal(list);
     setShowForm(false);
     setEditingId(null);
-    setFormData({ name: '', type: topCats[0], category: 'Зеленый', strength: strengths[0], summary: '', desc: '', img: '', isDayTea: false });
+    setFormData({ name: '', type: topCats[0], category: (subsMap[topCats[0]] || [])[0], strength: (strengthsMap[topCats[0]] || [])[0], summary: '', desc: '', img: '', isDayTea: false });
   };
 
   const deleteProduct = (id: number) => {
-    if (confirm("Удалить продукт?")) saveToLocal(products.filter(p => p.id !== id));
+    if (confirm("Удалить продукт из базы?")) saveToLocal(products.filter(p => p.id !== id));
   };
 
   const filtered = products.filter(p => {
@@ -192,43 +223,45 @@ export default function SearchPage() {
 
           <input type="text" placeholder="Поиск по названию..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle as any} />
           
-          {/* СТРОКА 1: РАЗДЕЛЫ (Чай, Кофе...) */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' } as any}>
-            <div onClick={() => {setTopCategory("Все"); setActiveCategory("Все");}} style={{ ...badge, backgroundColor: topCategory === "Все" ? '#4CAF50' : '#161816', color: topCategory === "Все" ? '#000' : '#fff' } as any}>Все</div>
+          {/* РЯД 1: РАЗДЕЛЫ */}
+          <div style={filterContainer}>
+            <div onClick={() => {setTopCategory("Все"); setActiveCategory("Все"); setActiveStrength("Все");}} style={{ ...badge, backgroundColor: topCategory === "Все" ? '#4CAF50' : '#161816', color: topCategory === "Все" ? '#000' : '#fff' } as any}>Все</div>
             {topCats.map(c => (
               <div key={c} style={{ position: 'relative' }}>
-                <div onClick={() => {setTopCategory(c); setActiveCategory("Все");}} style={{ ...badge, backgroundColor: topCategory === c ? '#4CAF50' : '#161816', color: topCategory === c ? '#000' : '#fff' } as any}>{c}</div>
+                <div onClick={() => {setTopCategory(c); setActiveCategory("Все"); setActiveStrength("Все");}} style={{ ...badge, backgroundColor: topCategory === c ? '#4CAF50' : '#161816', color: topCategory === c ? '#000' : '#fff' } as any}>{c}</div>
                 {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'top', val:c})}} style={delXStyle as any}>✕</span>}
               </div>
             ))}
-            {isAdmin && <div onClick={() => setAddItemModal('top')} style={addPlusStyle as any}>+</div>}
+            {isAdmin && <div onClick={() => setAddItemModal({type:'top'})} style={addPlusStyle as any}>+</div>}
           </div>
 
-          {/* СТРОКА 2: ВИДЫ (Зеленый, Арабика...) */}
-          {(topCategory === "Чай" || topCategory === "Кофе") && (
-            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px', alignItems: 'center' } as any}>
+          {/* РЯД 2: ВИДЫ (Отображается всегда, если выбран не "Все") */}
+          {topCategory !== "Все" && (
+            <div style={filterContainer}>
               <div onClick={() => setActiveCategory("Все")} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === "Все" ? '#333' : '#161816' } as any}>Все виды</div>
-              {(topCategory === "Чай" ? teaSubs : coffeeSubs).map(s => (
+              {(subsMap[topCategory] || []).map(s => (
                 <div key={s} style={{ position: 'relative' }}>
                   <div onClick={() => setActiveCategory(s)} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === s ? '#333' : '#161816' } as any}>{s}</div>
-                  {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type: topCategory==='Чай'?'teaSub':'coffeeSub', val:s})}} style={delXStyle as any}>✕</span>}
+                  {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'sub', val:s})}} style={delXStyle as any}>✕</span>}
                 </div>
               ))}
-              {isAdmin && <div onClick={() => setAddItemModal(topCategory==='Чай'?'teaSub':'coffeeSub')} style={{...addPlusStyle, minWidth:'40px', height:'35px'} as any}>+</div>}
+              {isAdmin && <div onClick={() => setAddItemModal({type:'sub'})} style={{...addPlusStyle, minWidth:'40px', height:'35px'} as any}>+</div>}
             </div>
           )}
 
-          {/* СТРОКА 3: КРЕПОСТЬ */}
-          <div style={strengthFilterRow as any}>
-            <div onClick={() => setActiveStrength("Все")} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === "Все" ? '#4CAF50' : '#111', color: activeStrength === "Все" ? '#000' : '#555' } as any}>Все уровни</div>
-            {strengths.map(s => (
-              <div key={s} style={{ position: 'relative' }}>
-                <div onClick={() => setActiveStrength(s)} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === s ? '#4CAF50' : '#111', color: activeStrength === s ? '#000' : '#555' } as any}>{s}</div>
-                {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'strength', val:s})}} style={delXStyle as any}>✕</span>}
-              </div>
-            ))}
-            {isAdmin && <div onClick={() => setAddItemModal('strength')} style={{...addPlusStyle, minWidth:'40px', height:'32px'} as any}>+</div>}
-          </div>
+          {/* РЯД 3: УРОВНИ (Отображается всегда, если выбран не "Все") */}
+          {topCategory !== "Все" && (
+            <div style={strengthFilterRow as any}>
+                <div onClick={() => setActiveStrength("Все")} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === "Все" ? '#4CAF50' : '#111', color: activeStrength === "Все" ? '#000' : '#555' } as any}>Все уровни</div>
+                {(strengthsMap[topCategory] || []).map(s => (
+                <div key={s} style={{ position: 'relative' }}>
+                    <div onClick={() => setActiveStrength(s)} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === s ? '#4CAF50' : '#111', color: activeStrength === s ? '#000' : '#555' } as any}>{s}</div>
+                    {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'strength', val:s})}} style={delXStyle as any}>✕</span>}
+                </div>
+                ))}
+                {isAdmin && <div onClick={() => setAddItemModal({type:'strength'})} style={{...addPlusStyle, minWidth:'40px', height:'32px'} as any}>+</div>}
+            </div>
+          )}
 
           <div style={{ display: 'grid', gap: '12px' }}>
             {filtered.map(p => (
@@ -252,23 +285,23 @@ export default function SearchPage() {
           </div>
         </section>
 
-        {/* ПРАВАЯ ПАНЕЛЬ */}
+        {/* МАСТЕР-ПАНЕЛЬ */}
         {isAdmin && (
           <aside style={{ position: 'sticky', top: '120px' }}>
             <div style={adminSidebar as any}>
               <h3 style={{ color: '#4CAF50', fontSize: '14px', marginBottom: '25px', textAlign: 'center', fontWeight: '900' }}>МАСТЕР-ПАНЕЛЬ</h3>
-              <button onClick={() => { setEditingId(null); setFormData({name:'', type:topCats[0], category:teaSubs[0], strength:strengths[0]}); setShowForm(true); }} style={saveBtn as any}>+ НОВЫЙ ПРОДУКТ</button>
-              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Управление категориями: <b>+</b> и <b>✕</b> в строках фильтров.</p>
+              <button onClick={() => { setEditingId(null); setFormData({name:'', type: topCategory==='Все' ? topCats[0] : topCategory, category: (subsMap[topCategory] || [])[0] || '', strength: (strengthsMap[topCategory] || [])[0] || ''}); setShowForm(true); }} style={saveBtn as any}>+ НОВЫЙ ПРОДУКТ</button>
+              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Для управления категориями используйте <b>+</b> и <b>✕</b> прямо в плитках фильтров.</p>
             </div>
           </aside>
         )}
 
-        {/* МОДАЛКИ (ЦЕНТР) */}
+        {/* --- МОДАЛКИ УПРАВЛЕНИЯ КАТЕГОРИЯМИ --- */}
         {addItemModal && (
             <div style={modalOverlay as any}>
                 <div style={modalContentSmall as any}>
                     <h2 style={{color:'#4CAF50', marginBottom:'20px'}}>НОВЫЙ ЭЛЕМЕНТ</h2>
-                    <input autoFocus style={inputStyle as any} placeholder="Название..." value={newValue} onChange={(e)=>setNewValue(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&handleAddItem()} />
+                    <input autoFocus style={inputStyle as any} placeholder="Введите название..." value={newValue} onChange={(e)=>setNewValue(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&handleAddItem()} />
                     <button onClick={handleAddItem} style={{...saveBtn, width:'100%'} as any}>ДОБАВИТЬ</button>
                     <div onClick={()=>setAddItemModal(null)} style={{textAlign:'center', marginTop:'15px', cursor:'pointer', color:'#666'}}>Отмена</div>
                 </div>
@@ -279,7 +312,7 @@ export default function SearchPage() {
             <div style={modalOverlay as any}>
                 <div style={modalContentSmall as any}>
                     <h2 style={{color:'#ff7675', marginBottom:'15px'}}>УДАЛИТЬ?</h2>
-                    <p style={{marginBottom:'25px', color:'#888'}}>Удалить «{confirmDelete.val}»?</p>
+                    <p style={{marginBottom:'25px', color:'#888'}}>Удалить «{confirmDelete.val}» из системы?</p>
                     <button onClick={handleDeleteItem} style={{...saveBtn, background:'#ff7675', width:'100%'} as any}>ДА, УДАЛИТЬ</button>
                     <div onClick={()=>setConfirmDelete(null)} style={{textAlign:'center', marginTop:'15px', cursor:'pointer', color:'#666'}}>Отмена</div>
                 </div>
@@ -312,22 +345,22 @@ export default function SearchPage() {
               <h2 style={{ textAlign: 'center', marginBottom: '25px', fontWeight: '900' }}>{editingId ? 'РЕДАКТОР' : 'НОВЫЙ ПРОДУКТ'}</h2>
               <input style={adminIn as any} placeholder="Название" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               <div style={{ display: 'flex', gap: '10px' }}>
-                <select style={adminIn as any} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value, category: e.target.value === 'Чай' ? teaSubs[0] : coffeeSubs[0]})}>
+                <select style={adminIn as any} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value, category: (subsMap[e.target.value] || [])[0] || '', strength: (strengthsMap[e.target.value] || [])[0] || ''})}>
                     {topCats.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <select style={adminIn as any} value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                    {(formData.type === 'Чай' ? teaSubs : coffeeSubs).map(s => <option key={s} value={s}>{s}</option>)}
+                    {(subsMap[formData.type || 'Чай'] || []).map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <select style={adminIn as any} value={formData.strength} onChange={e => setFormData({...formData, strength: e.target.value})}>
-                  {strengths.map(s => <option key={s} value={s}>{s}</option>)}
+                  {(strengthsMap[formData.type || 'Чай'] || []).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               <textarea style={{ ...adminIn, height: '100px' } as any} placeholder="Описание" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
               <input style={adminIn as any} placeholder="Регион" value={formData.region} onChange={e => setFormData({...formData, region: e.target.value})} />
               <input style={adminIn as any} placeholder="Советы" value={formData.advice} onChange={e => setFormData({...formData, advice: e.target.value})} />
               <input style={adminIn as any} placeholder="URL фото" value={formData.img} onChange={e => setFormData({...formData, img: e.target.value})} />
               <label style={{ display: 'flex', gap: '10px', marginBottom: '20px', cursor: 'pointer' }}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> Продукт дня ⭐</label>
-              <button onClick={handleSave} style={saveBtn as any}>СОХРАНИТЬ</button>
+              <button onClick={handleSaveProduct} style={saveBtn as any}>СОХРАНИТЬ</button>
               <div onClick={() => setShowForm(false)} style={{ textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer' }}>ОТМЕНА</div>
             </div>
           </div>
@@ -345,7 +378,7 @@ export default function SearchPage() {
                       const isCorrect = oIdx === q.c;
                       const isSelected = quizResults[selectedTea.id]?.includes(oIdx);
                       return (
-                        <div key={oIdx} onClick={() => setQuizResults({...quizResults, [selectedTea.id]: [...(quizResults[selectedTea.id] || []), oIdx]})} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#0d0f0d', borderRadius: '12px', cursor: 'pointer', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' } as any}>
+                        <div key={oIdx} onClick={() => setQuizResults({...quizResults, [selectedTea.id]: [...(quizResults[selectedTea.id] || []), oIdx]})} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#000', borderRadius: '12px', cursor: 'pointer', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' } as any}>
                           {opt} <span>{isSelected && (isCorrect ? '✅' : '❌')}</span>
                         </div>
                       );
@@ -363,6 +396,7 @@ export default function SearchPage() {
 }
 
 // --- СТИЛИ ---
+const filterContainer = { display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' as any, alignItems: 'center' };
 const addPlusStyle = { minWidth: '50px', background: '#111', borderRadius: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#4CAF50', border: '1px dashed #4CAF50', fontSize: '20px' };
 const delXStyle = { position: 'absolute' as any, top: '-5px', right: '-5px', background: '#ff7675', color: '#fff', width: '16px', height: '16px', borderRadius: '50%', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #0d0f0d' };
 const modalContentSmall = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '350px', border: '1px solid #333' };
@@ -370,12 +404,12 @@ const modalContentSmall = { background: '#161816', padding: '40px', borderRadius
 const badge = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' };
 const inputStyle = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' };
 const dayTeaCard = { background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '40px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' };
-const strengthFilterRow = { background: '#121412', padding: '12px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px', overflowX: 'auto', alignItems: 'center' };
+const strengthFilterRow = { background: '#121412', padding: '12px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px', overflowX: 'auto' as any, alignItems: 'center' };
 const productRow = { background: '#161816', padding: '24px 30px', borderRadius: '25px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' };
 const adminSidebar = { background: '#161816', padding: '30px', borderRadius: '35px', border: '1px solid #222' };
 const adminIn = { width: '100%', padding: '14px', background: '#000', border: '1px solid #222', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none', fontSize: '14px' };
 const saveBtn = { width: '100%', padding: '18px', background: '#4CAF50', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer' };
-const fullOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#0d0f0d', zIndex: 15000, padding: '40px 20px', overflowY: 'auto' };
+const fullOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#0d0f0d', zIndex: 15000, padding: '40px 20px', overflowY: 'auto' } as any;
 const fullImageWrap = { width: '100%', height: '380px', borderRadius: '35px', overflow: 'hidden', border: '1px solid #222', margin: '30px 0' };
 const infoBox = { background: '#161816', padding: '25px', borderRadius: '25px', border: '1px solid #222' };
 const infoTag = { color: '#4CAF50', fontSize: '11px', fontWeight: '900', marginBottom: '8px', letterSpacing: '1px' };
