@@ -10,7 +10,7 @@ interface Tea {
   quiz?: { q: string; o: string[]; c: number }[];
 }
 
-const STRENGTHS = ["Все", "Мягкий", "Средний", "Крепкий"];
+const STRENGTHS_BACKUP = ["Мягкий", "Средний", "Крепкий"];
 
 // --- МАКСИМАЛЬНО ПОЛНАЯ БАЗА (30 ПОЗИЦИЙ) ---
 const INITIAL_DATABASE: Tea[] = [
@@ -56,10 +56,14 @@ const INITIAL_DATABASE: Tea[] = [
 export default function SearchPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [products, setProducts] = useState<Tea[]>([]);
-  const [teaSubCategories] = useState(["Зеленый", "Белый", "Улун", "Красный", "Пуэр"]);
-  const [coffeeSubCategories] = useState(["Арабика", "Робуста", "Азия", "Премиум", "Спешиалти"]);
-  
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Динамические категории (управление админом)
+  const [topCats, setTopCats] = useState<string[]>(["Чай", "Кофе"]);
+  const [teaSubs, setTeaSubs] = useState<string[]>(["Зеленый", "Белый", "Улун", "Красный", "Пуэр"]);
+  const [coffeeSubs, setCoffeeSubs] = useState<string[]>(["Арабика", "Робуста", "Азия", "Премиум", "Спешиалти"]);
+  const [strengths, setStrengths] = useState<string[]>(STRENGTHS_BACKUP);
+
   const [search, setSearch] = useState("");
   const [topCategory, setTopCategory] = useState("Все");
   const [activeCategory, setActiveCategory] = useState("Все");
@@ -69,6 +73,7 @@ export default function SearchPage() {
   const [quizResults, setQuizResults] = useState<{[key: number]: number[]}>({});
   const [showQuiz, setShowQuiz] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showSystemEditor, setShowSystemEditor] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<Partial<Tea>>({
@@ -79,13 +84,24 @@ export default function SearchPage() {
     const role = localStorage.getItem('userRole');
     setIsAdmin(localStorage.getItem('isLoggedIn') === 'true' && role === 'admin');
     
-    // Единый ключ для всех
+    // Загрузка базы
     const saved = localStorage.getItem('tea_master_unified_v1');
     if (saved) setProducts(JSON.parse(saved));
     else {
       setProducts(INITIAL_DATABASE);
       localStorage.setItem('tea_master_unified_v1', JSON.stringify(INITIAL_DATABASE));
     }
+
+    // Загрузка структуры
+    const sT = localStorage.getItem('sys_top_cats');
+    const sS = localStorage.getItem('sys_tea_subs');
+    const sC = localStorage.getItem('sys_coffee_subs');
+    const sStr = localStorage.getItem('sys_strengths');
+    if (sT) setTopCats(JSON.parse(sT));
+    if (sS) setTeaSubs(JSON.parse(sS));
+    if (sC) setCoffeeSubs(JSON.parse(sC));
+    if (sStr) setStrengths(JSON.parse(sStr));
+
     setIsMounted(true);
   }, []);
 
@@ -94,19 +110,30 @@ export default function SearchPage() {
     localStorage.setItem('tea_master_unified_v1', JSON.stringify(list));
   };
 
+  const saveConfig = (key: string, list: string[]) => {
+      localStorage.setItem(key, JSON.stringify(list));
+  };
+
+  const toggleDayProduct = (product: Tea) => {
+    const newList = products.map(p => {
+        if (p.id === product.id) return { ...p, isDayTea: !p.isDayTea };
+        if (p.type === product.type) return { ...p, isDayTea: false };
+        return p;
+    });
+    saveToLocal(newList);
+  };
+
   const handleSave = () => {
     let list = [...products];
     const newId = editingId || Date.now();
     const data = { ...formData, id: newId } as Tea;
-
     if (data.isDayTea) list = list.map(p => p.type === data.type ? { ...p, isDayTea: false } : p);
     if (editingId) list = list.map(p => p.id === editingId ? data : p);
     else list.push(data);
-
     saveToLocal(list);
     setShowForm(false);
     setEditingId(null);
-    setFormData({ name: '', type: 'Чай', category: 'Зеленый', strength: 'Мягкий', summary: '', desc: '', img: '', isDayTea: false, region: '', brewGuide: '', advice: '' });
+    setFormData({ name: '', type: topCats[0], category: 'Зеленый', strength: strengths[0], summary: '', desc: '', img: '', isDayTea: false });
   };
 
   const deleteProduct = (id: number) => {
@@ -130,51 +157,50 @@ export default function SearchPage() {
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '120px 20px', display: 'grid', gridTemplateColumns: isAdmin ? '1fr 340px' : '1fr', gap: '40px' }}>
         
         <section>
-          {/* ПРОДУКТ ДНЯ С УМНЫМ ЗАГОЛОВКОМ */}
           {filtered.find(p => p.isDayTea) && !search && (
-            <div onClick={() => setSelectedTea(filtered.find(p => p.isDayTea)!)} style={dayTeaCard}>
-              <span style={{ color: '#4CAF50', fontSize: '11px', fontWeight: '900' }}>
-                 ⭐ {filtered.find(p => p.isDayTea)?.type === 'Чай' ? 'ЧАЙ ДНЯ' : 'КОФЕ ДНЯ'}
-              </span>
+            <div onClick={() => setSelectedTea(filtered.find(p => p.isDayTea)!)} style={dayTeaCard as any}>
+              <span style={{ color: '#4CAF50', fontSize: '11px', fontWeight: '900' }}>⭐ {filtered.find(p => p.isDayTea)?.type.toUpperCase()} ДНЯ</span>
               <h2 style={{ fontSize: '36px', margin: '12px 0' }}>{filtered.find(p => p.isDayTea)?.name}</h2>
               <p style={{ color: '#888' }}>{filtered.find(p => p.isDayTea)?.summary}</p>
             </div>
           )}
 
-          <input type="text" placeholder="Поиск по названию..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle} />
+          <input type="text" placeholder="Поиск по названию..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle as any} />
           
           <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-            {["Все", "Чай", "Кофе"].map(c => (
-              <div key={c} onClick={() => {setTopCategory(c); setActiveCategory("Все");}} style={{ ...badge, backgroundColor: topCategory === c ? '#4CAF50' : '#161816', color: topCategory === c ? '#000' : '#fff' }}>{c}</div>
+            <div onClick={() => {setTopCategory("Все"); setActiveCategory("Все");}} style={{ ...badge, backgroundColor: topCategory === "Все" ? '#4CAF50' : '#161816', color: topCategory === "Все" ? '#000' : '#fff' } as any}>Все</div>
+            {topCats.map(c => (
+              <div key={c} onClick={() => {setTopCategory(c); setActiveCategory("Все");}} style={{ ...badge, backgroundColor: topCategory === c ? '#4CAF50' : '#161816', color: topCategory === c ? '#000' : '#fff' } as any}>{c}</div>
             ))}
           </div>
 
           {(topCategory === "Чай" || topCategory === "Кофе") && (
-            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px' }}>
-              <div onClick={() => setActiveCategory("Все")} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === "Все" ? '#333' : '#161816' }}>Все виды</div>
-              {(topCategory === "Чай" ? teaSubCategories : coffeeSubCategories).map(s => (
-                <div key={s} onClick={() => setActiveCategory(s)} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === s ? '#333' : '#161816' }}>{s}</div>
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px' } as any}>
+              <div onClick={() => setActiveCategory("Все")} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === "Все" ? '#333' : '#161816' } as any}>Все виды</div>
+              {(topCategory === "Чай" ? teaSubs : coffeeSubs).map(s => (
+                <div key={s} onClick={() => setActiveCategory(s)} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === s ? '#333' : '#161816' } as any}>{s}</div>
               ))}
             </div>
           )}
 
-          {/* ПОДРАЗДЕЛЫ КРЕПОСТИ (РАБОТАЮТ И ДЛЯ ЧАЯ, И ДЛЯ КОФЕ) */}
-          <div style={strengthFilterRow}>
-            {STRENGTHS.map(s => (
-              <div key={s} onClick={() => setActiveStrength(s)} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === s ? '#4CAF50' : '#111', color: activeStrength === s ? '#000' : '#555' }}>{s}</div>
+          <div style={strengthFilterRow as any}>
+            <div onClick={() => setActiveStrength("Все")} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === "Все" ? '#4CAF50' : '#111', color: activeStrength === "Все" ? '#000' : '#555' } as any}>Все уровни</div>
+            {strengths.map(s => (
+              <div key={s} onClick={() => setActiveStrength(s)} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === s ? '#4CAF50' : '#111', color: activeStrength === s ? '#000' : '#555' } as any}>{s}</div>
             ))}
           </div>
 
           <div style={{ display: 'grid', gap: '12px' }}>
             {filtered.map(p => (
-              <div key={p.id} onClick={() => setSelectedTea(p)} style={productRow}>
+              <div key={p.id} onClick={() => setSelectedTea(p)} style={productRow as any}>
                 <div style={{ flex: 1 }}>
                   <h3 style={{ margin: 0, fontSize: '18px' }}>{p.name} {p.isDayTea && "⭐"}</h3>
                   <p style={{ margin: '5px 0 0 0', color: '#555', fontSize: '13px' }}>{p.summary}</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                   {isAdmin && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                      <span onClick={(e) => { e.stopPropagation(); toggleDayProduct(p); }} style={{ fontSize: '20px', cursor: 'pointer', color: p.isDayTea ? '#4CAF50' : '#333' }}>⭐</span>
                       <span onClick={(e) => { e.stopPropagation(); setEditingId(p.id); setFormData(p); setShowForm(true); }} style={{ color: '#4CAF50', cursor: 'pointer' }}>✎</span>
                       <span onClick={(e) => { e.stopPropagation(); deleteProduct(p.id); }} style={{ color: '#ff7675', cursor: 'pointer' }}>✕</span>
                     </div>
@@ -186,59 +212,95 @@ export default function SearchPage() {
           </div>
         </section>
 
-        {/* ПРОДУМАННАЯ МАСТЕР-ПАНЕЛЬ (Quick Add Sidebar) */}
         {isAdmin && (
           <aside style={{ position: 'sticky', top: '120px' }}>
-            <div style={adminSidebar}>
-              <h3 style={{ color: '#4CAF50', fontSize: '14px', marginBottom: '25px', textAlign: 'center', fontWeight: '900' }}>БЫСТРОЕ ДОБАВЛЕНИЕ</h3>
-              <input style={adminIn} placeholder="Название продукта" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <select style={adminIn} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-                  <option value="Чай">Чай</option>
-                  <option value="Кофе">Кофе</option>
-                </select>
-                <select style={adminIn} value={formData.strength} onChange={e => setFormData({...formData, strength: e.target.value})}>
-                  {STRENGTHS.filter(s => s !== "Все").map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <input style={adminIn} placeholder="Регион (напр. Китай, Юньнань)" value={formData.region} onChange={e => setFormData({...formData, region: e.target.value})} />
-              <textarea style={{ ...adminIn, height: '80px' }} placeholder="Краткое описание" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
-              <input style={adminIn} placeholder="URL фото" value={formData.img} onChange={e => setFormData({...formData, img: e.target.value})} />
-              <button onClick={handleSave} style={saveBtn}>+ СОХРАНИТЬ В БАЗУ</button>
-              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '15px', lineHeight: '1.5' }}>
-                 Все изменения мгновенно увидят сотрудники. Детали и тесты можно настроить через <b>✎</b>.
-              </p>
+            <div style={adminSidebar as any}>
+              <h3 style={{ color: '#4CAF50', fontSize: '14px', marginBottom: '25px', textAlign: 'center', fontWeight: '900' }}>МАСТЕР-ПАНЕЛЬ</h3>
+              <button onClick={() => { setEditingId(null); setFormData({name:'', type:'Чай', category:'Зеленый', strength:'Мягкий'}); setShowForm(true); }} style={saveBtn as any}>+ НОВЫЙ ПРОДУКТ</button>
+              <div onClick={() => setShowSystemEditor(true)} style={{ marginTop: '15px', padding: '15px', background: '#000', borderRadius: '12px', border: '1px solid #333', textAlign: 'center', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>⚙️ НАСТРОЙКА КАТЕГОРИЙ</div>
+              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Для изменения описаний и тестов используйте <b>✎</b> на карточках.</p>
             </div>
           </aside>
         )}
 
-        {/* ДЕТАЛИ ПРОДУКТА (МОДАЛКА) */}
+        {/* СИСТЕМНЫЙ РЕДАКТОР КАТЕГОРИЙ */}
+        {showSystemEditor && (
+            <div style={modalOverlay as any}>
+                <div style={{...modalContent, maxWidth: '600px'} as any}>
+                    <h2 style={{textAlign:'center', marginBottom:'30px', color: '#4CAF50'}}>НАСТРОЙКА СИСТЕМЫ</h2>
+                    <div style={sysSec as any}><label style={sysLab as any}>РАЗДЕЛЫ (Чай, Кофе...)</label>
+                        <input style={adminIn as any} placeholder="Добавить..." onKeyDown={(e:any)=>{if(e.key==='Enter'){const n=[...topCats,e.target.value];setTopCats(n);saveConfig('sys_top_cats',n);e.target.value='';}}} />
+                        <div style={flexGap as any}>{topCats.map(c=><span key={c} style={miniBadge as any}>{c} <i onClick={()=>{const n=topCats.filter(x=>x!==c);setTopCats(n);saveConfig('sys_top_cats',n);}}>✕</i></span>)}</div>
+                    </div>
+                    <div style={sysSec as any}><label style={sysLab as any}>ВИДЫ ЧАЯ</label>
+                        <input style={adminIn as any} placeholder="Добавить..." onKeyDown={(e:any)=>{if(e.key==='Enter'){const n=[...teaSubs,e.target.value];setTeaSubs(n);saveConfig('sys_tea_subs',n);e.target.value='';}}} />
+                        <div style={flexGap as any}>{teaSubs.map(c=><span key={c} style={miniBadge as any}>{c} <i onClick={()=>{const n=teaSubs.filter(x=>x!==c);setTeaSubs(n);saveConfig('sys_tea_subs',n);}}>✕</i></span>)}</div>
+                    </div>
+                    <div style={sysSec as any}><label style={sysLab as any}>ВИДЫ КОФЕ</label>
+                        <input style={adminIn as any} placeholder="Добавить..." onKeyDown={(e:any)=>{if(e.key==='Enter'){const n=[...coffeeSubs,e.target.value];setCoffeeSubs(n);saveConfig('sys_coffee_subs',n);e.target.value='';}}} />
+                        <div style={flexGap as any}>{coffeeSubs.map(c=><span key={c} style={miniBadge as any}>{c} <i onClick={()=>{const n=coffeeSubs.filter(x=>x!==c);setCoffeeSubs(n);saveConfig('sys_coffee_subs',n);}}>✕</i></span>)}</div>
+                    </div>
+                    <div style={sysSec as any}><label style={sysLab as any}>КРЕПОСТЬ</label>
+                        <input style={adminIn as any} placeholder="Добавить..." onKeyDown={(e:any)=>{if(e.key==='Enter'){const n=[...strengths,e.target.value];setStrengths(n);saveConfig('sys_strengths',n);e.target.value='';}}} />
+                        <div style={flexGap as any}>{strengths.map(c=><span key={c} style={miniBadge as any}>{c} <i onClick={()=>{const n=strengths.filter(x=>x!==c);setStrengths(n);saveConfig('sys_strengths',n);}}>✕</i></span>)}</div>
+                    </div>
+                    <button onClick={()=>setShowSystemEditor(false)} style={saveBtn as any}>ГОТОВО</button>
+                </div>
+            </div>
+        )}
+
+        {/* КАРТОЧКА ПРОДУКТА */}
         {selectedTea && (
-          <div style={fullOverlay}>
+          <div style={fullOverlay as any}>
             <div style={{ maxWidth: '750px', margin: '0 auto' }}>
               <div onClick={() => setSelectedTea(null)} style={{ color: '#4CAF50', marginBottom: '30px', cursor: 'pointer', fontWeight: '900' }}>← ЗАКРЫТЬ</div>
               <h2 style={{ fontSize: '48px', color: '#4CAF50', margin: '0 0 10px 0' }}>{selectedTea.name}</h2>
-              <div style={fullImageWrap}><img src={selectedTea.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={selectedTea.name} /></div>
+              <div style={fullImageWrap as any}><img src={selectedTea.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={selectedTea.name} /></div>
               <p style={{ fontSize: '20px', lineHeight: '1.8', color: '#ccc', marginBottom: '40px' }}>{selectedTea.desc}</p>
-              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
-                <div style={infoBox}><div style={infoTag}>🌍 РЕГИОН</div>{selectedTea.region || '—'}</div>
-                <div style={infoBox}><div style={infoTag}>🌡️ ЗАВАРИВАНИЕ</div>{selectedTea.brewGuide || selectedTea.info}</div>
-                <div style={infoBox}><div style={infoTag}>💡 СОВЕТ</div>{selectedTea.advice || '—'}</div>
-                <div style={infoBox}><div style={infoTag}>🔄 ОТЛИЧИЕ</div>{selectedTea.analogsDiff || '—'}</div>
+                <div style={infoBox as any}><div style={infoTag as any}>🌍 РЕГИОН</div>{selectedTea.region || '—'}</div>
+                <div style={infoBox as any}><div style={infoTag as any}>🌡️ ЗАВАРИВАНИЕ</div>{selectedTea.brewGuide || selectedTea.info}</div>
+                <div style={infoBox as any}><div style={infoTag as any}>💡 СОВЕТ</div>{selectedTea.advice || '—'}</div>
+                <div style={infoBox as any}><div style={infoTag as any}>🔄 ОТЛИЧИЕ</div>{selectedTea.analogsDiff || '—'}</div>
               </div>
-
-              <button onClick={() => { setQuizResults({}); setShowQuiz(true); }} style={checkBtn}>🧠 ПРОВЕРИТЬ СЕБЯ</button>
+              <button onClick={() => { setQuizResults({}); setShowQuiz(true); }} style={checkBtn as any}>🧠 ПРОВЕРИТЬ СЕБЯ</button>
             </div>
           </div>
         )}
 
-        {/* ТЕСТ ( overlay ) */}
+        {/* МОДАЛКА РЕДАКТИРОВАНИЯ ТОВАРА */}
+        {showForm && (
+          <div style={modalOverlay as any}>
+            <div style={{ ...modalContent, maxWidth: '500px' } as any}>
+              <h2 style={{ textAlign: 'center', marginBottom: '25px', fontWeight: '900' }}>{editingId ? 'РЕДАКТОР' : 'НОВЫЙ ПРОДУКТ'}</h2>
+              <input style={adminIn as any} placeholder="Название" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <select style={adminIn as any} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value, category: e.target.value === 'Чай' ? teaSubs[0] : coffeeSubs[0]})}>
+                    {topCats.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select style={adminIn as any} value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                    {(formData.type === 'Чай' ? teaSubs : coffeeSubs).map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <select style={adminIn as any} value={formData.strength} onChange={e => setFormData({...formData, strength: e.target.value})}>
+                  {strengths.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <textarea style={{ ...adminIn, height: '100px' } as any} placeholder="Описание" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
+              <input style={adminIn as any} placeholder="Регион" value={formData.region} onChange={e => setFormData({...formData, region: e.target.value})} />
+              <input style={adminIn as any} placeholder="Советы" value={formData.advice} onChange={e => setFormData({...formData, advice: e.target.value})} />
+              <input style={adminIn as any} placeholder="URL фото" value={formData.img} onChange={e => setFormData({...formData, img: e.target.value})} />
+              <label style={{ display: 'flex', gap: '10px', marginBottom: '20px', cursor: 'pointer' }}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> Продукт дня ⭐</label>
+              <button onClick={handleSave} style={saveBtn as any}>СОХРАНИТЬ</button>
+              <div onClick={() => setShowForm(false)} style={{ textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer' }}>ОТМЕНА</div>
+            </div>
+          </div>
+        )}
+
         {showQuiz && selectedTea && (
-          <div style={{ ...modalOverlay, zIndex: 30000 }}>
-            <div style={modalContent}>
+          <div style={{ ...modalOverlay, zIndex: 30000 } as any}>
+            <div style={modalContent as any}>
               <h3 style={{ color: '#4CAF50', marginBottom: '25px' }}>ТЕСТ: {selectedTea.name}</h3>
-              {(selectedTea.quiz || [{q: "Профиль продукта понятен?", o: ["Да", "Нет", "Частично"], c: 0}]).map((q, idx) => (
+              {(selectedTea.quiz || [{q: "Профиль понятен?", o: ["Да", "Нет", "Частично"], c: 0}]).map((q, idx) => (
                 <div key={idx} style={{ marginBottom: '25px' }}>
                   <p style={{ fontWeight: 'bold', marginBottom: '15px' }}>{q.q}</p>
                   <div style={{ display: 'grid', gap: '10px' }}>
@@ -246,7 +308,7 @@ export default function SearchPage() {
                       const isCorrect = oIdx === q.c;
                       const isSelected = quizResults[selectedTea.id]?.includes(oIdx);
                       return (
-                        <div key={oIdx} onClick={() => setQuizResults({...quizResults, [selectedTea.id]: [...(quizResults[selectedTea.id] || []), oIdx]})} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#000', borderRadius: '12px', cursor: 'pointer', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' }}>
+                        <div key={oIdx} onClick={() => setQuizResults({...quizResults, [selectedTea.id]: [...(quizResults[selectedTea.id] || []), oIdx]})} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#2e7d32' : '#d32f2f') : '#000', borderRadius: '12px', cursor: 'pointer', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' } as any}>
                           {opt} <span>{isSelected && (isCorrect ? '✅' : '❌')}</span>
                         </div>
                       );
@@ -258,41 +320,28 @@ export default function SearchPage() {
             </div>
           </div>
         )}
-
-        {/* МОДАЛКА ПОЛНОГО РЕДАКТИРОВАНИЯ */}
-        {showForm && editingId && (
-          <div style={modalOverlay}>
-            <div style={{ ...modalContent, maxWidth: '500px' }}>
-              <h2 style={{ textAlign: 'center', marginBottom: '25px' }}>ПОЛНЫЙ РЕДАКТОР</h2>
-              <input style={adminIn} placeholder="Название" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              <textarea style={{ ...adminIn, height: '100px' }} placeholder="Полное описание" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} />
-              <input style={adminIn} placeholder="Регион" value={formData.region} onChange={e => setFormData({...formData, region: e.target.value})} />
-              <input style={adminIn} placeholder="Инструкция по завариванию" value={formData.brewGuide} onChange={e => setFormData({...formData, brewGuide: e.target.value})} />
-              <input style={adminIn} placeholder="Что советовать клиенту" value={formData.advice} onChange={e => setFormData({...formData, advice: e.target.value})} />
-              <label style={{ display: 'flex', gap: '10px', marginBottom: '20px', cursor: 'pointer' }}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> ⭐ Сделать продуктом дня</label>
-              <button onClick={handleSave} style={saveBtn}>ОБНОВИТЬ ДАННЫЕ</button>
-              <div onClick={() => setShowForm(false)} style={{ textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer' }}>ОТМЕНА</div>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
 }
 
-// --- СТИЛИ С ПРАВИЛЬНЫМИ ТИПАМИ TYPESCRIPT ---
-const badge: React.CSSProperties = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' };
-const inputStyle: React.CSSProperties = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' };
-const dayTeaCard: React.CSSProperties = { background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '40px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' };
-const strengthFilterRow: React.CSSProperties = { background: '#121412', padding: '12px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px', overflowX: 'auto' };
-const productRow: React.CSSProperties = { background: '#161816', padding: '24px 30px', borderRadius: '25px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' };
-const adminSidebar: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '35px', border: '1px solid #222' };
-const adminIn: React.CSSProperties = { width: '100%', padding: '14px', background: '#000', border: '1px solid #333', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none' };
-const saveBtn: React.CSSProperties = { width: '100%', padding: '15px', background: '#4CAF50', color: '#000', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center' };
-const fullOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#0d0f0d', zIndex: 12000, padding: '40px 20px', overflowY: 'auto' };
-const fullImageWrap: React.CSSProperties = { height: '300px', borderRadius: '30px', overflow: 'hidden', marginBottom: '30px' };
-const infoBox: React.CSSProperties = { background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222' };
-const infoTag: React.CSSProperties = { color: '#4CAF50', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' };
-const checkBtn: React.CSSProperties = { width: '100%', padding: '20px', background: 'transparent', color: '#4CAF50', border: '2px solid #4CAF50', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center', fontSize: '16px', marginTop: '20px' };
-const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 };
-const modalContent: React.CSSProperties = { background: '#161816', padding: '40px', borderRadius: '35px', width: '90%', maxWidth: '450px', border: '1px solid #333', maxHeight: '90vh', overflowY: 'auto' };
+// СТИЛИ
+const badge = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' };
+const inputStyle = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' };
+const dayTeaCard = { background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '40px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' };
+const strengthFilterRow = { background: '#121412', padding: '12px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px', overflowX: 'auto' };
+const productRow = { background: '#161816', padding: '24px 30px', borderRadius: '25px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' };
+const adminSidebar = { background: '#161816', padding: '30px', borderRadius: '35px', border: '1px solid #222' };
+const adminIn = { width: '100%', padding: '14px', background: '#000', border: '1px solid #222', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none', fontSize: '14px' };
+const saveBtn = { width: '100%', padding: '18px', background: '#4CAF50', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer' };
+const fullOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#0d0f0d', zIndex: 15000, padding: '40px 20px', overflowY: 'auto' };
+const fullImageWrap = { width: '100%', height: '380px', borderRadius: '35px', overflow: 'hidden', border: '1px solid #222', margin: '30px 0' };
+const infoBox = { background: '#161816', padding: '25px', borderRadius: '25px', border: '1px solid #222' };
+const infoTag = { color: '#4CAF50', fontSize: '11px', fontWeight: '900', marginBottom: '8px', letterSpacing: '1px' };
+const checkBtn = { width: '100%', padding: '25px', background: '#4CAF50', border: 'none', borderRadius: '20px', fontWeight: '900', color: '#000', fontSize: '18px', cursor: 'pointer' };
+const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.96)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px' };
+const modalContent = { background: '#111', padding: '40px', borderRadius: '40px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
+const sysSec = { marginBottom: '25px', background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222' };
+const sysLab = { display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#4CAF50', marginBottom: '10px', letterSpacing: '1px' };
+const flexGap = { display: 'flex', gap: '8px', flexWrap: 'wrap' };
+const miniBadge = { padding: '6px 12px', background: '#000', borderRadius: '10px', fontSize: '12px', border: '1px solid #333', display: 'flex', gap: '8px', alignItems: 'center' };
