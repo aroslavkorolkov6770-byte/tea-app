@@ -12,7 +12,7 @@ interface Tea {
 
 const STRENGTHS_BACKUP = ["Мягкий", "Средний", "Крепкий"];
 
-// --- МАКСИМАЛЬНО ПОЛНАЯ БАЗА (30 ПОЗИЦИЙ) ---
+// --- МАКСИМАЛЬНО ПОЛНАЯ БАЗА (30 ПОЗИЦИЙ) - НЕ СОКРАЩЕНО ---
 const INITIAL_DATABASE: Tea[] = [
   // ЧАЙ (15 позиций)
   { 
@@ -73,9 +73,13 @@ export default function SearchPage() {
   const [quizResults, setQuizResults] = useState<{[key: number]: number[]}>({});
   const [showQuiz, setShowQuiz] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [showSystemEditor, setShowSystemEditor] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
 
+  // --- СОСТОЯНИЯ ДЛЯ НОВОГО УПРАВЛЕНИЯ КАТЕГОРИЯМИ ---
+  const [confirmDelete, setConfirmDelete] = useState<{type: string, val: string} | null>(null);
+  const [addItemModal, setAddItemModal] = useState<string | null>(null);
+  const [newValue, setNewValue] = useState("");
+
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<Partial<Tea>>({
     name: '', type: 'Чай', category: 'Зеленый', strength: 'Мягкий', summary: '', desc: '', img: '', isDayTea: false, region: '', brewGuide: '', advice: '', analogsDiff: ''
   });
@@ -110,6 +114,27 @@ export default function SearchPage() {
 
   const saveConfig = (key: string, list: string[]) => {
       localStorage.setItem(key, JSON.stringify(list));
+  };
+
+  // --- ЛОГИКА НОВОГО УПРАВЛЕНИЯ ---
+  const handleAddItem = () => {
+      if(!newValue.trim()) return;
+      let n = [];
+      if(addItemModal === 'top') { n = [...topCats, newValue]; setTopCats(n); saveConfig('sys_top_cats', n); }
+      if(addItemModal === 'teaSub') { n = [...teaSubs, newValue]; setTeaSubs(n); saveConfig('sys_tea_subs', n); }
+      if(addItemModal === 'coffeeSub') { n = [...coffeeSubs, newValue]; setCoffeeSubs(n); saveConfig('sys_coffee_subs', n); }
+      if(addItemModal === 'strength') { n = [...strengths, newValue]; setStrengths(n); saveConfig('sys_strengths', n); }
+      setNewValue(""); setAddItemModal(null);
+  };
+
+  const handleDeleteItem = () => {
+      if(!confirmDelete) return;
+      let n = [];
+      if(confirmDelete.type === 'top') { n = topCats.filter(x=>x!==confirmDelete.val); setTopCats(n); saveConfig('sys_top_cats', n); }
+      if(confirmDelete.type === 'teaSub') { n = teaSubs.filter(x=>x!==confirmDelete.val); setTeaSubs(n); saveConfig('sys_tea_subs', n); }
+      if(confirmDelete.type === 'coffeeSub') { n = coffeeSubs.filter(x=>x!==confirmDelete.val); setCoffeeSubs(n); saveConfig('sys_coffee_subs', n); }
+      if(confirmDelete.type === 'strength') { n = strengths.filter(x=>x!==confirmDelete.val); setStrengths(n); saveConfig('sys_strengths', n); }
+      setConfirmDelete(null);
   };
 
   const toggleDayProduct = (product: Tea) => {
@@ -155,6 +180,7 @@ export default function SearchPage() {
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '120px 20px', display: 'grid', gridTemplateColumns: isAdmin ? '1fr 340px' : '1fr', gap: '40px' }}>
         
         <section>
+          {/* ПРОДУКТ ДНЯ */}
           {filtered.find(p => p.isDayTea) && !search && (
             <div onClick={() => setSelectedTea(filtered.find(p => p.isDayTea)!)} style={dayTeaCard as any}>
               <span style={{ color: '#4CAF50', fontSize: '11px', fontWeight: '900' }}>⭐ {filtered.find(p => p.isDayTea)?.type.toUpperCase()} ДНЯ</span>
@@ -165,27 +191,42 @@ export default function SearchPage() {
 
           <input type="text" placeholder="Поиск по названию..." value={search} onChange={e => setSearch(e.target.value)} style={inputStyle as any} />
           
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+          {/* ГЛАВНЫЕ РАЗДЕЛЫ */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' } as any}>
             <div onClick={() => {setTopCategory("Все"); setActiveCategory("Все");}} style={{ ...badge, backgroundColor: topCategory === "Все" ? '#4CAF50' : '#161816', color: topCategory === "Все" ? '#000' : '#fff' } as any}>Все</div>
             {topCats.map(c => (
-              <div key={c} onClick={() => {setTopCategory(c); setActiveCategory("Все");}} style={{ ...badge, backgroundColor: topCategory === c ? '#4CAF50' : '#161816', color: topCategory === c ? '#000' : '#fff' } as any}>{c}</div>
+              <div key={c} style={{ position: 'relative' }}>
+                <div onClick={() => {setTopCategory(c); setActiveCategory("Все");}} style={{ ...badge, backgroundColor: topCategory === c ? '#4CAF50' : '#161816', color: topCategory === c ? '#000' : '#fff' } as any}>{c}</div>
+                {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'top', val:c})}} style={delXStyle as any}>✕</span>}
+              </div>
             ))}
+            {isAdmin && <div onClick={() => setAddItemModal('top')} style={addPlusStyle as any}>+</div>}
           </div>
 
+          {/* ВИДЫ */}
           {(topCategory === "Чай" || topCategory === "Кофе") && (
-            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px' } as any}>
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '15px', alignItems: 'center' } as any}>
               <div onClick={() => setActiveCategory("Все")} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === "Все" ? '#333' : '#161816' } as any}>Все виды</div>
               {(topCategory === "Чай" ? teaSubs : coffeeSubs).map(s => (
-                <div key={s} onClick={() => setActiveCategory(s)} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === s ? '#333' : '#161816' } as any}>{s}</div>
+                <div key={s} style={{ position: 'relative' }}>
+                  <div onClick={() => setActiveCategory(s)} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === s ? '#333' : '#161816' } as any}>{s}</div>
+                  {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type: topCategory==='Чай'?'teaSub':'coffeeSub', val:s})}} style={delXStyle as any}>✕</span>}
+                </div>
               ))}
+              {isAdmin && <div onClick={() => setAddItemModal(topCategory==='Чай'?'teaSub':'coffeeSub')} style={{...addPlusStyle, minWidth:'40px', height:'35px'} as any}>+</div>}
             </div>
           )}
 
+          {/* КРЕПОСТЬ */}
           <div style={strengthFilterRow as any}>
             <div onClick={() => setActiveStrength("Все")} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === "Все" ? '#4CAF50' : '#111', color: activeStrength === "Все" ? '#000' : '#555' } as any}>Все уровни</div>
             {strengths.map(s => (
-              <div key={s} onClick={() => setActiveStrength(s)} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === s ? '#4CAF50' : '#111', color: activeStrength === s ? '#000' : '#555' } as any}>{s}</div>
+              <div key={s} style={{ position: 'relative' }}>
+                <div onClick={() => setActiveStrength(s)} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === s ? '#4CAF50' : '#111', color: activeStrength === s ? '#000' : '#555' } as any}>{s}</div>
+                {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'strength', val:s})}} style={delXStyle as any}>✕</span>}
+              </div>
             ))}
+            {isAdmin && <div onClick={() => setAddItemModal('strength')} style={{...addPlusStyle, minWidth:'40px', height:'32px'} as any}>+</div>}
           </div>
 
           <div style={{ display: 'grid', gap: '12px' }}>
@@ -210,75 +251,41 @@ export default function SearchPage() {
           </div>
         </section>
 
+        {/* ПРАВАЯ ПАНЕЛЬ */}
         {isAdmin && (
           <aside style={{ position: 'sticky', top: '120px' }}>
             <div style={adminSidebar as any}>
               <h3 style={{ color: '#4CAF50', fontSize: '14px', marginBottom: '25px', textAlign: 'center', fontWeight: '900' }}>МАСТЕР-ПАНЕЛЬ</h3>
-              <button onClick={() => { setEditingId(null); setFormData({name:'', type:'Чай', category:'Зеленый', strength:'Мягкий'}); setShowForm(true); }} style={saveBtn as any}>+ НОВЫЙ ПРОДУКТ</button>
-              <div onClick={() => setShowSystemEditor(true)} style={{ marginTop: '15px', padding: '15px', background: '#000', borderRadius: '12px', border: '1px solid #333', textAlign: 'center', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>⚙️ НАСТРОЙКА СИСТЕМЫ</div>
-              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Изменяйте описание и тесты через <b>✎</b> на карточках.</p>
+              <button onClick={() => { setEditingId(null); setShowForm(true); }} style={saveBtn as any}>+ НОВЫЙ ПРОДУКТ</button>
+              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Для управления категориями используйте <b>+</b> и <b>✕</b> прямо в плитках фильтров.</p>
             </div>
           </aside>
         )}
 
-        {/* --- ПЕРЕРАБОТАННЫЙ КОНСТРУКТОР КАТЕГОРИЙ --- */}
-        {showSystemEditor && (
+        {/* --- НОВЫЕ МОДАЛКИ (ЦЕНТР) --- */}
+        {addItemModal && (
             <div style={modalOverlay as any}>
-                <div style={{ ...modalContent, maxWidth: '750px', background: 'rgba(20,22,20,0.95)', border: '1px solid #4CAF5044', backdropFilter: 'blur(20px)' } as any}>
-                    <h2 style={{ textAlign: 'center', marginBottom: '40px', color: '#4CAF50', fontSize: '28px', fontWeight: '900', letterSpacing: '1px' }}>🛠️ КОНСТРУКТОР БАЗЫ</h2>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
-                        {/* Группа 1: Глобальные разделы */}
-                        <div style={modernCard}>
-                            <div style={cardHeader}>
-                                <span>📦 РАЗДЕЛЫ</span>
-                                <input style={miniInput} placeholder="+ новый..." onKeyDown={(e:any) => { if(e.key==='Enter' && e.target.value){ const n = [...topCats, e.target.value]; setTopCats(n); saveConfig('sys_top_cats', n); e.target.value=''; }}} />
-                            </div>
-                            <div style={chipContainer}>
-                                {topCats.map(c => <div key={c} style={chip}>{c} <span onClick={() => { const n = topCats.filter(x=>x!==c); setTopCats(n); saveConfig('sys_top_cats', n); }}>✕</span></div>)}
-                            </div>
-                        </div>
-
-                        {/* Группа 2: Крепость */}
-                        <div style={modernCard}>
-                            <div style={cardHeader}>
-                                <span>⚡ КРЕПОСТЬ</span>
-                                <input style={miniInput} placeholder="+ тип..." onKeyDown={(e:any) => { if(e.key==='Enter' && e.target.value){ const n = [...strengths, e.target.value]; setStrengths(n); saveConfig('sys_strengths', n); e.target.value=''; }}} />
-                            </div>
-                            <div style={chipContainer}>
-                                {strengths.map(c => <div key={c} style={chip}>{c} <span onClick={() => { const n = strengths.filter(x=>x!==c); setStrengths(n); saveConfig('sys_strengths', n); }}>✕</span></div>)}
-                            </div>
-                        </div>
-
-                        {/* Группа 3: Виды Чая */}
-                        <div style={{ ...modernCard, gridColumn: 'span 2' }}>
-                            <div style={cardHeader}>
-                                <span>🍵 ВИДЫ ЧАЯ (Зеленый, Пуэр и т.д.)</span>
-                                <input style={{ ...miniInput, width: '200px' }} placeholder="+ добавить вид..." onKeyDown={(e:any) => { if(e.key==='Enter' && e.target.value){ const n = [...teaSubs, e.target.value]; setTeaSubs(n); saveConfig('sys_tea_subs', n); e.target.value=''; }}} />
-                            </div>
-                            <div style={chipContainer}>
-                                {teaSubs.map(c => <div key={c} style={{ ...chip, borderColor: '#4CAF5033' }}>{c} <span onClick={() => { const n = teaSubs.filter(x=>x!==c); setTeaSubs(n); saveConfig('sys_tea_subs', n); }}>✕</span></div>)}
-                            </div>
-                        </div>
-
-                        {/* Группа 4: Виды Кофе */}
-                        <div style={{ ...modernCard, gridColumn: 'span 2' }}>
-                            <div style={cardHeader}>
-                                <span>☕ ВИДЫ КОФЕ (Арабика, Робуста...)</span>
-                                <input style={{ ...miniInput, width: '200px' }} placeholder="+ добавить вид..." onKeyDown={(e:any) => { if(e.key==='Enter' && e.target.value){ const n = [...coffeeSubs, e.target.value]; setCoffeeSubs(n); saveConfig('sys_coffee_subs', n); e.target.value=''; }}} />
-                            </div>
-                            <div style={chipContainer}>
-                                {coffeeSubs.map(c => <div key={c} style={{ ...chip, borderColor: '#79554833' }}>{c} <span onClick={() => { const n = coffeeSubs.filter(x=>x!==c); setCoffeeSubs(n); saveConfig('sys_coffee_subs', n); }}>✕</span></div>)}
-                            </div>
-                        </div>
-                    </div>
-
-                    <button onClick={() => setShowSystemEditor(false)} style={{ ...saveBtn, marginTop: '30px', background: '#fff', color: '#000' }}>ЗАВЕРШИТЬ НАСТРОЙКУ</button>
+                <div style={modalContentSmall as any}>
+                    <h2 style={{color:'#4CAF50', marginBottom:'20px'}}>НОВЫЙ ЭЛЕМЕНТ</h2>
+                    <input autoFocus style={inputStyle as any} placeholder="Введите название..." value={newValue} onChange={(e)=>setNewValue(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&handleAddItem()} />
+                    <button onClick={handleAddItem} style={{...saveBtn, width:'100%'} as any}>ДОБАВИТЬ</button>
+                    <div onClick={()=>setAddItemModal(null)} style={{textAlign:'center', marginTop:'15px', cursor:'pointer', color:'#666'}}>Отмена</div>
                 </div>
             </div>
         )}
 
-        {/* КАРТОЧКА ПРОДУКТА (МОДАЛКА) */}
+        {confirmDelete && (
+            <div style={modalOverlay as any}>
+                <div style={modalContentSmall as any}>
+                    <h2 style={{color:'#ff7675', marginBottom:'15px'}}>УДАЛИТЬ?</h2>
+                    <p style={{marginBottom:'25px', color:'#888'}}>Вы действительно хотите удалить «{confirmDelete.val}»?</p>
+                    <button onClick={handleDeleteItem} style={{...saveBtn, background:'#ff7675', width:'100%'} as any}>ДА, УДАЛИТЬ</button>
+                    <div onClick={()=>setConfirmDelete(null)} style={{textAlign:'center', marginTop:'15px', cursor:'pointer', color:'#666'}}>Отмена</div>
+                </div>
+            </div>
+        )}
+
+        {/* ДЕТАЛИ ПРОДУКТА */}
         {selectedTea && (
           <div style={fullOverlay as any}>
             <div style={{ maxWidth: '750px', margin: '0 auto' }}>
@@ -325,6 +332,7 @@ export default function SearchPage() {
           </div>
         )}
 
+        {/* ТЕСТ (overlay) */}
         {showQuiz && selectedTea && (
           <div style={{ ...modalOverlay, zIndex: 30000 } as any}>
             <div style={modalContent as any}>
@@ -354,18 +362,15 @@ export default function SearchPage() {
   );
 }
 
-// --- НОВЫЕ СТИЛИ (MODERN UI) ---
-const modernCard = { background: '#000', padding: '20px', borderRadius: '25px', border: '1px solid #222' };
-const cardHeader = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', color: '#666', fontSize: '11px', fontWeight: 'bold' as any, letterSpacing: '1px' };
-const miniInput = { background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '6px 12px', color: '#fff', fontSize: '12px', outline: 'none' };
-const chipContainer = { display: 'flex', gap: '8px', flexWrap: 'wrap' as any };
-const chip = { padding: '8px 16px', background: '#161816', borderRadius: '12px', border: '1px solid #222', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px', color: '#fff' };
+// --- СТИЛИ ---
+const addPlusStyle = { minWidth: '50px', background: '#111', borderRadius: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#4CAF50', border: '1px dashed #4CAF50', fontSize: '20px' };
+const delXStyle = { position: 'absolute' as any, top: '-5px', right: '-5px', background: '#ff7675', color: '#fff', width: '16px', height: '16px', borderRadius: '50%', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #0d0f0d' };
+const modalContentSmall = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '350px', border: '1px solid #333' };
 
-// СТИЛИ (ПОЛНОСТЬЮ СОХРАНЕНЫ)
 const badge = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' };
 const inputStyle = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' };
 const dayTeaCard = { background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '40px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' };
-const strengthFilterRow = { background: '#121412', padding: '12px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px', overflowX: 'auto' };
+const strengthFilterRow = { background: '#121412', padding: '12px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px', overflowX: 'auto', alignItems: 'center' };
 const productRow = { background: '#161816', padding: '24px 30px', borderRadius: '25px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' };
 const adminSidebar = { background: '#161816', padding: '30px', borderRadius: '35px', border: '1px solid #222' };
 const adminIn = { width: '100%', padding: '14px', background: '#000', border: '1px solid #222', borderRadius: '12px', color: '#fff', marginBottom: '12px', outline: 'none', fontSize: '14px' };
