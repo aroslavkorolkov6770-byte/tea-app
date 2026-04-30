@@ -58,7 +58,7 @@ export default function SearchPage() {
   const [products, setProducts] = useState<Tea[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Динамические категории (управление админом)
+  // Динамические категории
   const [topCats, setTopCats] = useState<string[]>(["Чай", "Кофе"]);
   const [teaSubs, setTeaSubs] = useState<string[]>(["Зеленый", "Белый", "Улун", "Красный", "Пуэр"]);
   const [coffeeSubs, setCoffeeSubs] = useState<string[]>(["Арабика", "Робуста", "Азия", "Премиум", "Спешиалти"]);
@@ -84,7 +84,6 @@ export default function SearchPage() {
     const role = localStorage.getItem('userRole');
     setIsAdmin(localStorage.getItem('isLoggedIn') === 'true' && role === 'admin');
     
-    // Загрузка базы
     const saved = localStorage.getItem('tea_master_unified_v1');
     if (saved) setProducts(JSON.parse(saved));
     else {
@@ -92,7 +91,6 @@ export default function SearchPage() {
       localStorage.setItem('tea_master_unified_v1', JSON.stringify(INITIAL_DATABASE));
     }
 
-    // Загрузка структуры
     const sT = localStorage.getItem('sys_top_cats');
     const sS = localStorage.getItem('sys_tea_subs');
     const sC = localStorage.getItem('sys_coffee_subs');
@@ -217,39 +215,70 @@ export default function SearchPage() {
             <div style={adminSidebar as any}>
               <h3 style={{ color: '#4CAF50', fontSize: '14px', marginBottom: '25px', textAlign: 'center', fontWeight: '900' }}>МАСТЕР-ПАНЕЛЬ</h3>
               <button onClick={() => { setEditingId(null); setFormData({name:'', type:'Чай', category:'Зеленый', strength:'Мягкий'}); setShowForm(true); }} style={saveBtn as any}>+ НОВЫЙ ПРОДУКТ</button>
-              <div onClick={() => setShowSystemEditor(true)} style={{ marginTop: '15px', padding: '15px', background: '#000', borderRadius: '12px', border: '1px solid #333', textAlign: 'center', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>⚙️ НАСТРОЙКА КАТЕГОРИЙ</div>
-              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Для изменения описаний и тестов используйте <b>✎</b> на карточках.</p>
+              <div onClick={() => setShowSystemEditor(true)} style={{ marginTop: '15px', padding: '15px', background: '#000', borderRadius: '12px', border: '1px solid #333', textAlign: 'center', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>⚙️ НАСТРОЙКА СИСТЕМЫ</div>
+              <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Изменяйте описание и тесты через <b>✎</b> на карточках.</p>
             </div>
           </aside>
         )}
 
-        {/* СИСТЕМНЫЙ РЕДАКТОР КАТЕГОРИЙ */}
+        {/* --- ПЕРЕРАБОТАННЫЙ КОНСТРУКТОР КАТЕГОРИЙ --- */}
         {showSystemEditor && (
             <div style={modalOverlay as any}>
-                <div style={{...modalContent, maxWidth: '600px'} as any}>
-                    <h2 style={{textAlign:'center', marginBottom:'30px', color: '#4CAF50'}}>НАСТРОЙКА СИСТЕМЫ</h2>
-                    <div style={sysSec as any}><label style={sysLab as any}>РАЗДЕЛЫ (Чай, Кофе...)</label>
-                        <input style={adminIn as any} placeholder="Добавить..." onKeyDown={(e:any)=>{if(e.key==='Enter'){const n=[...topCats,e.target.value];setTopCats(n);saveConfig('sys_top_cats',n);e.target.value='';}}} />
-                        <div style={flexGap as any}>{topCats.map(c=><span key={c} style={miniBadge as any}>{c} <i onClick={()=>{const n=topCats.filter(x=>x!==c);setTopCats(n);saveConfig('sys_top_cats',n);}}>✕</i></span>)}</div>
+                <div style={{ ...modalContent, maxWidth: '750px', background: 'rgba(20,22,20,0.95)', border: '1px solid #4CAF5044', backdropFilter: 'blur(20px)' } as any}>
+                    <h2 style={{ textAlign: 'center', marginBottom: '40px', color: '#4CAF50', fontSize: '28px', fontWeight: '900', letterSpacing: '1px' }}>🛠️ КОНСТРУКТОР БАЗЫ</h2>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
+                        {/* Группа 1: Глобальные разделы */}
+                        <div style={modernCard}>
+                            <div style={cardHeader}>
+                                <span>📦 РАЗДЕЛЫ</span>
+                                <input style={miniInput} placeholder="+ новый..." onKeyDown={(e:any) => { if(e.key==='Enter' && e.target.value){ const n = [...topCats, e.target.value]; setTopCats(n); saveConfig('sys_top_cats', n); e.target.value=''; }}} />
+                            </div>
+                            <div style={chipContainer}>
+                                {topCats.map(c => <div key={c} style={chip}>{c} <span onClick={() => { const n = topCats.filter(x=>x!==c); setTopCats(n); saveConfig('sys_top_cats', n); }}>✕</span></div>)}
+                            </div>
+                        </div>
+
+                        {/* Группа 2: Крепость */}
+                        <div style={modernCard}>
+                            <div style={cardHeader}>
+                                <span>⚡ КРЕПОСТЬ</span>
+                                <input style={miniInput} placeholder="+ тип..." onKeyDown={(e:any) => { if(e.key==='Enter' && e.target.value){ const n = [...strengths, e.target.value]; setStrengths(n); saveConfig('sys_strengths', n); e.target.value=''; }}} />
+                            </div>
+                            <div style={chipContainer}>
+                                {strengths.map(c => <div key={c} style={chip}>{c} <span onClick={() => { const n = strengths.filter(x=>x!==c); setStrengths(n); saveConfig('sys_strengths', n); }}>✕</span></div>)}
+                            </div>
+                        </div>
+
+                        {/* Группа 3: Виды Чая */}
+                        <div style={{ ...modernCard, gridColumn: 'span 2' }}>
+                            <div style={cardHeader}>
+                                <span>🍵 ВИДЫ ЧАЯ (Зеленый, Пуэр и т.д.)</span>
+                                <input style={{ ...miniInput, width: '200px' }} placeholder="+ добавить вид..." onKeyDown={(e:any) => { if(e.key==='Enter' && e.target.value){ const n = [...teaSubs, e.target.value]; setTeaSubs(n); saveConfig('sys_tea_subs', n); e.target.value=''; }}} />
+                            </div>
+                            <div style={chipContainer}>
+                                {teaSubs.map(c => <div key={c} style={{ ...chip, borderColor: '#4CAF5033' }}>{c} <span onClick={() => { const n = teaSubs.filter(x=>x!==c); setTeaSubs(n); saveConfig('sys_tea_subs', n); }}>✕</span></div>)}
+                            </div>
+                        </div>
+
+                        {/* Группа 4: Виды Кофе */}
+                        <div style={{ ...modernCard, gridColumn: 'span 2' }}>
+                            <div style={cardHeader}>
+                                <span>☕ ВИДЫ КОФЕ (Арабика, Робуста...)</span>
+                                <input style={{ ...miniInput, width: '200px' }} placeholder="+ добавить вид..." onKeyDown={(e:any) => { if(e.key==='Enter' && e.target.value){ const n = [...coffeeSubs, e.target.value]; setCoffeeSubs(n); saveConfig('sys_coffee_subs', n); e.target.value=''; }}} />
+                            </div>
+                            <div style={chipContainer}>
+                                {coffeeSubs.map(c => <div key={c} style={{ ...chip, borderColor: '#79554833' }}>{c} <span onClick={() => { const n = coffeeSubs.filter(x=>x!==c); setCoffeeSubs(n); saveConfig('sys_coffee_subs', n); }}>✕</span></div>)}
+                            </div>
+                        </div>
                     </div>
-                    <div style={sysSec as any}><label style={sysLab as any}>ВИДЫ ЧАЯ</label>
-                        <input style={adminIn as any} placeholder="Добавить..." onKeyDown={(e:any)=>{if(e.key==='Enter'){const n=[...teaSubs,e.target.value];setTeaSubs(n);saveConfig('sys_tea_subs',n);e.target.value='';}}} />
-                        <div style={flexGap as any}>{teaSubs.map(c=><span key={c} style={miniBadge as any}>{c} <i onClick={()=>{const n=teaSubs.filter(x=>x!==c);setTeaSubs(n);saveConfig('sys_tea_subs',n);}}>✕</i></span>)}</div>
-                    </div>
-                    <div style={sysSec as any}><label style={sysLab as any}>ВИДЫ КОФЕ</label>
-                        <input style={adminIn as any} placeholder="Добавить..." onKeyDown={(e:any)=>{if(e.key==='Enter'){const n=[...coffeeSubs,e.target.value];setCoffeeSubs(n);saveConfig('sys_coffee_subs',n);e.target.value='';}}} />
-                        <div style={flexGap as any}>{coffeeSubs.map(c=><span key={c} style={miniBadge as any}>{c} <i onClick={()=>{const n=coffeeSubs.filter(x=>x!==c);setCoffeeSubs(n);saveConfig('sys_coffee_subs',n);}}>✕</i></span>)}</div>
-                    </div>
-                    <div style={sysSec as any}><label style={sysLab as any}>КРЕПОСТЬ</label>
-                        <input style={adminIn as any} placeholder="Добавить..." onKeyDown={(e:any)=>{if(e.key==='Enter'){const n=[...strengths,e.target.value];setStrengths(n);saveConfig('sys_strengths',n);e.target.value='';}}} />
-                        <div style={flexGap as any}>{strengths.map(c=><span key={c} style={miniBadge as any}>{c} <i onClick={()=>{const n=strengths.filter(x=>x!==c);setStrengths(n);saveConfig('sys_strengths',n);}}>✕</i></span>)}</div>
-                    </div>
-                    <button onClick={()=>setShowSystemEditor(false)} style={saveBtn as any}>ГОТОВО</button>
+
+                    <button onClick={() => setShowSystemEditor(false)} style={{ ...saveBtn, marginTop: '30px', background: '#fff', color: '#000' }}>ЗАВЕРШИТЬ НАСТРОЙКУ</button>
                 </div>
             </div>
         )}
 
-        {/* КАРТОЧКА ПРОДУКТА */}
+        {/* КАРТОЧКА ПРОДУКТА (МОДАЛКА) */}
         {selectedTea && (
           <div style={fullOverlay as any}>
             <div style={{ maxWidth: '750px', margin: '0 auto' }}>
@@ -325,7 +354,14 @@ export default function SearchPage() {
   );
 }
 
-// СТИЛИ
+// --- НОВЫЕ СТИЛИ (MODERN UI) ---
+const modernCard = { background: '#000', padding: '20px', borderRadius: '25px', border: '1px solid #222' };
+const cardHeader = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', color: '#666', fontSize: '11px', fontWeight: 'bold' as any, letterSpacing: '1px' };
+const miniInput = { background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '6px 12px', color: '#fff', fontSize: '12px', outline: 'none' };
+const chipContainer = { display: 'flex', gap: '8px', flexWrap: 'wrap' as any };
+const chip = { padding: '8px 16px', background: '#161816', borderRadius: '12px', border: '1px solid #222', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px', color: '#fff' };
+
+// СТИЛИ (ПОЛНОСТЬЮ СОХРАНЕНЫ)
 const badge = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' };
 const inputStyle = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' };
 const dayTeaCard = { background: 'linear-gradient(135deg, #1b3d1d 0%, #161816 100%)', padding: '40px', borderRadius: '35px', border: '1px solid #4CAF50', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' };
@@ -341,7 +377,3 @@ const infoTag = { color: '#4CAF50', fontSize: '11px', fontWeight: '900', marginB
 const checkBtn = { width: '100%', padding: '25px', background: '#4CAF50', border: 'none', borderRadius: '20px', fontWeight: '900', color: '#000', fontSize: '18px', cursor: 'pointer' };
 const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.96)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px' };
 const modalContent = { background: '#111', padding: '40px', borderRadius: '40px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
-const sysSec = { marginBottom: '25px', background: '#161816', padding: '20px', borderRadius: '20px', border: '1px solid #222' };
-const sysLab = { display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#4CAF50', marginBottom: '10px', letterSpacing: '1px' };
-const flexGap = { display: 'flex', gap: '8px', flexWrap: 'wrap' };
-const miniBadge = { padding: '6px 12px', background: '#000', borderRadius: '10px', fontSize: '12px', border: '1px solid #333', display: 'flex', gap: '8px', alignItems: 'center' };
