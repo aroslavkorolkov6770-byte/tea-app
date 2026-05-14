@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import CookieBanner from "@/app/components/CookieBanner";
+import CookieBanner from "./components/CookieBanner";
 
 export const metadata: Metadata = {
   title: "Master HUB",

@@ -5,6 +5,15 @@ import Navigation from '@/app/components/Navigation';
 const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 const DAYS_OF_WEEK = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
+// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
+const saveDataToServer = (key: string, data: any) => {
+    fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, data })
+    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
+};
+
 export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -28,6 +37,7 @@ export default function AdminDashboard() {
   const [totalBasicsModules, setTotalBasicsModules] = useState(50);
   const [totalRouteSteps, setTotalRouteSteps] = useState(5);
   const [testResults, setTestResults] = useState<any[]>([]);
+  const [usersStats, setUsersStats] = useState<Record<string, {route: number, basics: number}>>({});
   
   // Состояния для зоны загрузки файлов
   const [isDragging, setIsDragging] = useState(false);
@@ -37,58 +47,87 @@ export default function AdminDashboard() {
   // СОСТОЯНИЕ МОДАЛЬНОГО ОКНА СПИСКА ФАЙЛОВ
   const [showFilesList, setShowFilesList] = useState(false);
 
+  // СОСТОЯНИЕ ФИРМЕННОГО УВЕДОМЛЕНИЯ ОБ УСПЕХЕ (ВМЕСТО ALERT)
+  const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, title: string, text: string}>({ 
+    show: false, 
+    title: '', 
+    text: '' 
+  });
+
   useEffect(() => {
     setIsMounted(true);
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
     window.addEventListener('sidebarToggle', handleToggle);
 
-    // Загружаем сохраненные заметки календаря
-    const savedNotes = localStorage.getItem('admin_cal_notes_v1');
-    if (savedNotes) {
-        setNotes(JSON.parse(savedNotes));
-    }
+    // --- ЗАГРУЗКА ВСЕХ ДАННЫХ С СЕРВЕРА ПРИ ВХОДЕ ---
+    const loadAllData = async () => {
+        try {
+            // Заметки
+            const notesRes = await fetch('/api/storage?key=admin_cal_notes_v1');
+            const notesData = await notesRes.json();
+            if (notesData && Object.keys(notesData).length > 0 && !Array.isArray(notesData)) setNotes(notesData);
 
-    // ИНИЦИАЛИЗАЦИЯ БАЗЫ ПОЛЬЗОВАТЕЛЕЙ
-    const savedUsers = localStorage.getItem('tea_hub_users_v1');
-    if (savedUsers) {
-        setUsers(JSON.parse(savedUsers));
-    } else {
-        const initialUsers = [
-            { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' },
-            { id: 'u_staff', login: '1', pass: '1', role: 'staff', name: 'Ярик' }
-        ];
-        setUsers(initialUsers);
-        localStorage.setItem('tea_hub_users_v1', JSON.stringify(initialUsers));
-    }
+            // Пользователи
+            const usersRes = await fetch('/api/storage?key=tea_hub_users_v1');
+            let usersData = await usersRes.json();
+            if (!Array.isArray(usersData) || usersData.length === 0) {
+                usersData = [
+                    { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' },
+                    { id: 'u_staff', login: '1', pass: '1', role: 'staff', name: 'Ярик' }
+                ];
+                saveDataToServer('tea_hub_users_v1', usersData);
+            }
+            setUsers(usersData);
 
-    // Загрузка результатов тестов (Список задач)
-    const savedResults = localStorage.getItem('tea_hub_test_results_v1');
-    if (savedResults) {
-        setTestResults(JSON.parse(savedResults));
-    } else {
-        // Демо-данные для визуализации (потом их будут заполнять сотрудники)
-        const demoResults = [
-            { id: 1, userName: 'Ярик', testName: 'История и Бренд', score: 100, attempts: 1, date: '14 Мая, 10:30' },
-            { id: 2, userName: 'Ярик', testName: 'Ботаника чая', score: 60, attempts: 3, date: '13 Мая, 15:20' },
-            { id: 3, userName: 'Ярик', testName: 'Зеленый чай', score: 85, attempts: 2, date: '12 Мая, 18:00' }
-        ];
-        setTestResults(demoResults);
-        localStorage.setItem('tea_hub_test_results_v1', JSON.stringify(demoResults));
-    }
-    
-    // ЗАГРУЗКА СРОЧНЫХ ФАЙЛОВ ИЗ БАЗЫ
-    const savedFiles = localStorage.getItem('tea_hub_urgent_files_v1');
-    if (savedFiles) {
-        setUrgentFiles(JSON.parse(savedFiles));
-    }
+            // Результаты тестов
+            const testRes = await fetch('/api/storage?key=tea_hub_test_results_v1');
+            let testData = await testRes.json();
+            if (!Array.isArray(testData) || testData.length === 0) {
+                testData = [
+                    { id: 1, userName: 'Ярик', testName: 'История и Бренд', score: 100, attempts: 1, date: '14 Мая, 10:30' },
+                    { id: 2, userName: 'Ярик', testName: 'Ботаника чая', score: 60, attempts: 3, date: '13 Мая, 15:20' },
+                    { id: 3, userName: 'Ярик', testName: 'Зеленый чай', score: 85, attempts: 2, date: '12 Мая, 18:00' }
+                ];
+                saveDataToServer('tea_hub_test_results_v1', testData);
+            }
+            setTestResults(testData);
 
-    // Загружаем актуальное количество уроков и шагов плана для точного расчета %
-    const bDb = JSON.parse(localStorage.getItem('tea_hub_dynamic_basics_v1') || '[]');
-    const rDb = JSON.parse(localStorage.getItem('tea_hub_dynamic_route_v1') || '[]');
-    
-    const tBasics = bDb.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) || 50;
-    setTotalBasicsModules(tBasics);
-    setTotalRouteSteps(rDb.length || 5);
+            // Загруженные файлы
+            const filesRes = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+            const filesData = await filesRes.json();
+            if (Array.isArray(filesData)) setUrgentFiles(filesData);
+
+            // Данные для статистики
+            const bRes = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1');
+            const bDb = await bRes.json().catch(() => []);
+            const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v1');
+            const rDb = await rRes.json().catch(() => []);
+            
+            setTotalBasicsModules((Array.isArray(bDb) ? bDb : []).reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) || 50);
+            setTotalRouteSteps(Array.isArray(rDb) ? rDb.length : 5);
+
+            // Прогресс каждого сотрудника
+            const stats: Record<string, {route: number, basics: number}> = {};
+            for (const u of usersData) {
+                if (u.role === 'staff') {
+                    const uRouteRes = await fetch(`/api/storage?key=prog_route_${u.id}`);
+                    const uRouteData = await uRouteRes.json().catch(() => []);
+                    const uBasicsRes = await fetch(`/api/storage?key=prog_basics_${u.id}`);
+                    const uBasicsData = await uBasicsRes.json().catch(() => []);
+                    
+                    stats[u.id] = {
+                        route: Array.isArray(uRouteData) ? uRouteData.length : 0,
+                        basics: Array.isArray(uBasicsData) ? uBasicsData.length : 0
+                    };
+                }
+            }
+            setUsersStats(stats);
+        } catch (error) {
+            console.error("Ошибка загрузки данных с сервера:", error);
+        }
+    };
+
+    loadAllData();
 
     return () => window.removeEventListener('sidebarToggle', handleToggle);
   }, []);
@@ -114,8 +153,15 @@ export default function AdminDashboard() {
 
       const updatedUsers = [...users, createdUser];
       setUsers(updatedUsers);
-      localStorage.setItem('tea_hub_users_v1', JSON.stringify(updatedUsers));
+      saveDataToServer('tea_hub_users_v1', updatedUsers);
       setShowUserForm(false);
+      
+      setShowSuccessModal({ 
+        show: true, 
+        title: 'СОТРУДНИК СОЗДАН', 
+        text: `Учетная запись для ${newUser.name} успешно добавлена в базу данных.` 
+      });
+
       setNewUser({ name: '', login: '', pass: '', role: 'staff' });
   };
 
@@ -127,7 +173,7 @@ export default function AdminDashboard() {
       if (confirm("Точно удалить учетную запись сотрудника?")) {
           const updatedUsers = users.filter(u => u.id !== id);
           setUsers(updatedUsers);
-          localStorage.setItem('tea_hub_users_v1', JSON.stringify(updatedUsers));
+          saveDataToServer('tea_hub_users_v1', updatedUsers);
       }
   };
 
@@ -144,9 +190,14 @@ export default function AdminDashboard() {
 
       const updatedFiles = [newFile, ...urgentFiles];
       setUrgentFiles(updatedFiles);
-      localStorage.setItem('tea_hub_urgent_files_v1', JSON.stringify(updatedFiles));
+      saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
       
-      alert(`Файл "${selectedFile.name}" отправлен сотрудникам в раздел "Срочно к прохождению"!`);
+      setShowSuccessModal({ 
+        show: true, 
+        title: 'МАТЕРИАЛ ОТПРАВЛЕН', 
+        text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников в разделе обучения.` 
+      });
+
       setSelectedFile(null);
   };
 
@@ -154,7 +205,7 @@ export default function AdminDashboard() {
       if(confirm("Удалить этот файл у всех сотрудников?")) {
           const updatedFiles = urgentFiles.filter(f => f.id !== id);
           setUrgentFiles(updatedFiles);
-          localStorage.setItem('tea_hub_urgent_files_v1', JSON.stringify(updatedFiles));
+          saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
       }
   };
 
@@ -191,7 +242,7 @@ export default function AdminDashboard() {
           delete newNotes[selectedDateKey];
       }
       setNotes(newNotes);
-      localStorage.setItem('admin_cal_notes_v1', JSON.stringify(newNotes));
+      saveDataToServer('admin_cal_notes_v1', newNotes);
       closeNotePanel();
   };
 
@@ -200,7 +251,7 @@ export default function AdminDashboard() {
       const newNotes = { ...notes };
       delete newNotes[selectedDateKey];
       setNotes(newNotes);
-      localStorage.setItem('admin_cal_notes_v1', JSON.stringify(newNotes));
+      saveDataToServer('admin_cal_notes_v1', newNotes);
       closeNotePanel();
   };
 
@@ -211,10 +262,13 @@ export default function AdminDashboard() {
   };
 
   // --- ФУНКЦИЯ ОТПРАВКИ УВЕДОМЛЕНИЯ ---
-  const handleSendNotification = () => {
+  const handleSendNotification = async () => {
     if (!notifText.trim()) return;
-    const saved = localStorage.getItem('tea_hub_notifications_v1');
-    const currentNotifs = saved ? JSON.parse(saved) : [];
+    
+    // Получаем текущие уведомления с сервера перед добавлением
+    const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
+    const currentNotifs = await res.json().catch(() => []);
+    const arr = Array.isArray(currentNotifs) ? currentNotifs : [];
 
     const newNotif = {
         id: Date.now(),
@@ -224,12 +278,15 @@ export default function AdminDashboard() {
         target: selectedStaff
     };
 
-    localStorage.setItem('tea_hub_notifications_v1', JSON.stringify([newNotif, ...currentNotifs]));
-    window.dispatchEvent(new Event('storage'));
-    setNotifText("");
+    saveDataToServer('tea_hub_notifications_v1', [newNotif, ...arr]);
     
-    const targetName = selectedStaff === 'Все' ? 'Всем сотрудникам' : users.find(u => u.id === selectedStaff)?.name;
-    alert(`Уведомление успешно отправлено: ${targetName}`);
+    setShowSuccessModal({ 
+        show: true, 
+        title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', 
+        text: 'Ваше уведомление мгновенно доставлено в панели сотрудников.' 
+    });
+
+    setNotifText("");
   };
 
   const upcomingEvents = Object.entries(notes)
@@ -252,14 +309,14 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden', width: '100vw' }}>
+    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
       <Navigation />
       <div style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
 
-      <main style={{ flex: 1, padding: '110px 40px 40px 40px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden' }}>
+      <main style={{ flex: 1, padding: '110px 40px 40px 40px', transition: '0.3s' }}>
           <div style={{ animation: 'fadeInUp 0.4s ease' }}>
             
-            {/* ИСПРАВЛЕННАЯ ЗОНА: КОМПАКТНОЕ ПРИКРЕПЛЕНИЕ ФАЙЛОВ */}
+            {/* ЗОНА: КОМПАКТНОЕ ПРИКРЕПЛЕНИЕ ФАЙЛОВ */}
             <div 
               style={{ ...uploadZoneStyle, borderColor: isDragging ? '#0abab5' : '#333' } as any}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -296,7 +353,7 @@ export default function AdminDashboard() {
                          ВЫБРАТЬ ФАЙЛ
                        </button>
 
-                       {/* ТА САМАЯ АККУРАТНАЯ НАДПИСЬ */}
+                       {/* НАДПИСЬ */}
                        {urgentFiles.length > 0 && (
                            <div 
                             onClick={() => setShowFilesList(true)}
@@ -323,10 +380,8 @@ export default function AdminDashboard() {
                )}
             </div>
 
-            {/* ОСНОВНАЯ СЕТКА С ЖЕСТКИМ ОГРАНИЧЕНИЕМ */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', marginBottom: '30px', marginTop: '40px', width: '100%' }}>
-              
-              <section style={{ flex: '1 1 600px', minWidth: '0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px', marginBottom: '30px', marginTop: '40px' }}>
+              <section>
                 
                 {/* --- УПРАВЛЕНИЕ ПЕРСОНАЛОМ --- */}
                 <div style={flexSpace}>
@@ -334,18 +389,18 @@ export default function AdminDashboard() {
                   <span onClick={() => setShowUserForm(true)} style={actionBtn}>+ Новый сотрудник</span>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', width: '100%' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                   {users.map(u => (
                     <div key={u.id} style={userCardStyle as any}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-                            <div style={{ minWidth: '0', flex: 1 }}>
-                                <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
+                            <div>
+                                <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
                                 <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>
                                     {u.role === 'admin' ? 'Администратор' : 'Сотрудник'}
                                 </div>
                             </div>
                             {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
-                                <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', marginLeft: '10px' }}>✕</div>
+                                <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>✕</div>
                             )}
                         </div>
                         
@@ -368,7 +423,7 @@ export default function AdminDashboard() {
                   <h2 style={sectionTitle}>Результаты тестирования</h2>
                   <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Всего записей: {testResults.length}</span>
                 </div>
-                <div style={{ ...tableContainer, maxWidth: '100%', overflowX: 'auto' }}>
+                <div style={tableContainer}>
                   <table style={adminTable}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #222' }}>
@@ -402,9 +457,9 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* ОТПРАВКА УВЕДОМЛЕНИЙ */}
-                <div style={{ ...adminCard, marginTop: '30px', padding: '25px', width: '100%' } as any}>
+                <div style={{ ...adminCard, marginTop: '30px', padding: '25px' } as any}>
                     <h2 style={{ ...sectionTitle, fontSize: '18px', marginBottom: '15px' }}>Отправить уведомление</h2>
-                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                         <select 
                             style={{ ...adminIn, width: '180px', marginBottom: 0 } as any}
                             value={selectedStaff}
@@ -417,7 +472,7 @@ export default function AdminDashboard() {
                         </select>
                         <input 
                             type="text"
-                            style={{ ...adminIn, flex: '1 1 200px', marginBottom: 0 } as any}
+                            style={{ ...adminIn, flex: 1, marginBottom: 0 } as any}
                             placeholder="Текст уведомления..."
                             value={notifText}
                             onChange={(e) => setNotifText(e.target.value)}
@@ -429,7 +484,7 @@ export default function AdminDashboard() {
               </section>
 
               {/* ПРАВАЯ КОЛОНКА (Календарь) */}
-              <aside style={{ flex: '0 0 350px', display: 'flex', flexDirection: 'column', gap: '30px', minWidth: '300px' }}>
+              <aside style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
                 <div style={adminCard}>
                     <h2 style={{ ...sectionTitle, fontSize: '18px', marginBottom: '20px' }}>Ближайшие события</h2>
                     {upcomingEvents.length === 0 ? (
@@ -480,33 +535,37 @@ export default function AdminDashboard() {
               </aside>
             </div>
 
-            {/* СТАТИСТИКА СОТРУДНИКОВ */}
-            <div style={{ width: '100%' }}>
-               <section style={{...adminCard, padding: '35px', width: '100%'} as any}>
+            {/* СТАТИСТИКА ВСЕХ ДОБАВЛЕННЫХ СОТРУДНИКОВ */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+               <section style={{...adminCard, padding: '35px'} as any}>
                     <div style={flexSpace}>
                         <h2 style={sectionTitle}>Статистика обучения</h2>
                         <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Сотрудников в базе: {users.filter(u => u.role === 'staff').length}</span>
                     </div>
                     
+                    {users.filter(u => u.role === 'staff').length === 0 && (
+                        <div style={{ color: '#555', textAlign: 'center', padding: '30px', fontWeight: 'bold' }}>Нет добавленных сотрудников</div>
+                    )}
+
                     {users.filter(u => u.role === 'staff').map(user => {
-                        const userRoute = JSON.parse(localStorage.getItem(`prog_route_${user.id}`) || '[]');
-                        const userBasics = JSON.parse(localStorage.getItem(`prog_basics_${user.id}`) || '[]');
-                        const planPercent = Math.round((userRoute.length / (totalRouteSteps || 1)) * 100);
-                        const basicsPercent = Math.round((userBasics.length / (totalBasicsModules || 1)) * 100);
+                        const routeLen = usersStats[user.id]?.route || 0;
+                        const basicsLen = usersStats[user.id]?.basics || 0;
+                        const planPercent = Math.round((routeLen / (totalRouteSteps || 1)) * 100);
+                        const basicsPercent = Math.round((basicsLen / (totalBasicsModules || 1)) * 100);
 
                         return (
-                            <div key={user.id} style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px', flexWrap: 'wrap' }}>
+                            <div key={user.id} style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px' }}>
-                                    <div style={{ width: '55px', height: '55px', borderRadius: '18px', background: '#222', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #333' }}>
+                                    <div style={{ width: '55px', height: '55px', borderRadius: '18px', background: '#222', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #333' }}>
                                         <span style={{ fontSize: '24px' }}>👤</span>
                                     </div>
-                                    <div style={{ minWidth: '0' }}>
-                                        <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</h3>
+                                    <div>
+                                        <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0 }}>{user.name}</h3>
                                         <div style={{ fontSize: '12px', color: '#0abab5', fontWeight: 'bold', marginTop: '3px' }}>@{user.login}</div>
                                     </div>
                                 </div>
 
-                                <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                         <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ПЛАН</div>
                                         <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
@@ -562,7 +621,26 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
+      {/* --- ФИРМЕННЫЕ МОДАЛЬНЫЕ ОКНА --- */}
+
+      {/* 1. ОКНО УСПЕХА (ВМЕСТО ALERT) */}
+      {showSuccessModal.show && (
+          <div style={modalOverlay as any} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
+              <div style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                  <div style={{ fontSize: '50px', marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>✅</div>
+                  <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{showSuccessModal.title}</h2>
+                  <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.6', marginBottom: '25px' }}>
+                      {showSuccessModal.text.includes('"') 
+                        ? showSuccessModal.text.split('"').map((part, i) => i === 1 ? <span key={i} style={{fontSize: '18px', color: '#fff', fontWeight: '900'}}>"{part}"</span> : part)
+                        : showSuccessModal.text
+                      }
+                  </p>
+                  <button onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })} style={saveBtn as any}>ПОНЯТНО</button>
+              </div>
+          </div>
+      )}
+
+      {/* 2. МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
       {showUserForm && (
         <div style={modalOverlay as any}>
             <div style={modalContentSmall as any}>
@@ -583,7 +661,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ПАНЕЛЬ ЗАМЕТОК */}
+      {/* 3. ПАНЕЛЬ ЗАМЕТОК (САЙДБАР) */}
       {selectedDateKey && (
         <div style={noteOverlayStyle as any} onClick={closeNotePanel}>
           <div style={noteSidebarStyle as any} onClick={e => e.stopPropagation()}>
@@ -604,6 +682,7 @@ export default function AdminDashboard() {
       <style jsx global>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .cal-day { position: relative; font-size: 13px; padding: 10px 0; border-radius: 12px; font-weight: 800; color: #fff; cursor: pointer; transition: 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 38px; }
         .cal-day:hover { background: #0abab5; color: #000; }
         .cal-day.today { background: #0abab5; color: #000; }
@@ -621,10 +700,10 @@ const uploadZoneStyle = { background: '#111', border: '2px dashed', borderRadius
 const flexSpace: any = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' };
 const sectionTitle: any = { fontSize: '22px', fontWeight: '900', color: '#fff' };
 const actionBtn: any = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
-const adminCard: any = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', maxWidth: '100%' };
-const userCardStyle: any = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s', minWidth: '0' };
+const adminCard: any = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
+const userCardStyle: any = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s' };
 const tableContainer: any = { background: '#161816', borderRadius: '30px', border: '1px solid #222', overflow: 'hidden', padding: '10px' };
-const adminTable: any = { width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '500px' };
+const adminTable: any = { width: '100%', borderCollapse: 'collapse', textAlign: 'left' };
 const thStyle: any = { padding: '20px', fontSize: '12px', opacity: 0.3, textTransform: 'uppercase', letterSpacing: '1px' };
 const trStyle: any = { borderBottom: '1px solid #111' };
 const statusBadge = (color: string): any => ({ background: `${color}15`, color: color, padding: '6px 15px', borderRadius: '10px', fontSize: '11px', fontWeight: '900' });
