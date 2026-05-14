@@ -113,7 +113,7 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// --- СТИЛИ (Оптимизированные для предотвращения переполнения) ---
+// --- СТИЛИ ---
 const wideChartCard: React.CSSProperties = { background: '#161816', padding: '45px', borderRadius: '40px', border: '1px solid #222', marginBottom: '40px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
 const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
 const dashboardGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px', width: '100%' };
@@ -125,7 +125,6 @@ const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height:
 const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#000', borderRadius: '5px', transition: '0.3s' });
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };
 
-// Сетка карточек с адаптивным заполнением и запретом на вылет за экран
 const courseGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '30px', width: '100%', boxSizing: 'border-box' };
 
 const courseCard: React.CSSProperties = { background: '#161816', borderRadius: '35px', overflow: 'hidden', cursor: 'pointer', border: '1px solid #222', transition: '0.3s', position:'relative', minWidth: '0' }; 
@@ -146,10 +145,8 @@ const checkKnowledgeBtn: React.CSSProperties = { width: '100%', padding: '25px',
 const quizBox: React.CSSProperties = { borderTop: '1px solid #222', paddingTop: '40px', marginTop: '10px' };
 const flexSpace: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px', flexWrap: 'wrap', gap: '20px' };
 
-// СТИЛИ ОТВЕТОВ ТЕСТА
 const ansBtn = (active: boolean, isCorrect: boolean): React.CSSProperties => ({ padding: '20px 30px', background: active ? (isCorrect ? '#0abab5' : '#ff4d4d') : '#111', color: active ? (isCorrect ? '#000' : '#fff') : '#fff', borderRadius: '18px', cursor: 'pointer', border: '1px solid #222', fontWeight: '800', marginBottom: '12px', transition: '0.2s' });
 
-// Стили окон ошибок и редактора
 const errorOverlayStyle: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', zIndex: 40000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(12px)' };
 const errorModalContent: React.CSSProperties = { background: '#111', padding: '50px', borderRadius: '40px', border: '2px solid #ff4d4d', textAlign: 'center', maxWidth: '450px', boxShadow: '0 20px 50px rgba(255, 77, 77, 0.15)' };
 const errorBtnStyle: React.CSSProperties = { background: '#ff4d4d', color: '#fff', border: 'none', padding: '18px 40px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '15px', letterSpacing: '1px', marginTop: '15px' };
@@ -166,21 +163,17 @@ function ShiftContent() {
   const [activeTab, setActiveTab] = useState('welcome');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
-  // СОСТОЯНИЯ РОЛЕЙ И ИДЕНТИФИКАЦИИ
   const [isAdmin, setIsAdmin] = useState(false);
   const [userId, setUserId] = useState<string>('');
   
-  // Форма План на неделю
   const [showRouteForm, setShowRouteForm] = useState(false);
   const [routeFormData, setRouteFormData] = useState({ id: '', title: '', time: '', content: '' });
   const [routeToDelete, setRouteToDelete] = useState<string | null>(null);
 
-  // Формы Каталог курсов (Разделы)
   const [showSectionForm, setShowSectionForm] = useState(false);
   const [sectionFormData, setSectionFormData] = useState({ id: '', title: '' });
   const [sectionToDelete, setSectionToDelete] = useState<string | null>(null);
 
-  // Формы Каталог курсов (Уроки и МНОЖЕСТВО ВОПРОСОВ)
   const [showModuleForm, setShowModuleForm] = useState(false);
   const [moduleFormData, setModuleFormData] = useState({
       id: '', title: '', t1: '', t2: '', t3: '',
@@ -193,7 +186,6 @@ function ShiftContent() {
   const [completedRoute, setCompletedRoute] = useState<string[]>([]);
   const [completedBasics, setCompletedBasics] = useState<string[]>([]);
   
-  // --- СОСТОЯНИЕ ДЛЯ СРОЧНЫХ ФАЙЛОВ ---
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   const [previewFile, setPreviewFile] = useState<any>(null);
 
@@ -206,7 +198,6 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
-  // НОВАЯ АСИНХРОННАЯ ЗАГРУЗКА С СЕРВЕРА
   const loadAllData = async (currentUserId: string) => {
       try {
           const sFiles = await fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => []);
@@ -239,19 +230,16 @@ function ShiftContent() {
   useEffect(() => {
     setIsMounted(true);
     
-    // Сессия (кто мы такие) остается в localStorage браузера
     const role = localStorage.getItem('userRole');
     const currentId = localStorage.getItem('current_user_id') || 'guest';
     setIsAdmin(role === 'admin');
     setUserId(currentId);
 
-    // Первичная загрузка данных с сервера
     loadAllData(currentId);
 
     const urlTab = searchParams.get('tab');
     if (urlTab) setActiveTab(urlTab);
 
-    // Загружаем вкладки если переданы в URL
     const loadUrlParams = async () => {
         const sBasics = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => INITIAL_BASICS);
         const sRoute = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => INITIAL_ROUTE);
@@ -286,7 +274,6 @@ function ShiftContent() {
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
     window.addEventListener('sidebarToggle', handleToggle);
     
-    // Автообновление каждые 5 секунд (чтобы не перегружать VPS)
     const syncInterval = setInterval(() => loadAllData(currentId), 5000);
     const focusHandler = () => loadAllData(currentId);
     window.addEventListener('focus', focusHandler);
@@ -298,7 +285,6 @@ function ShiftContent() {
     };
   }, [searchParams]);
 
-  // --- ЛОГИКА АДМИНА ДЛЯ ПЛАНА НА НЕДЕЛЮ ---
   const handleSaveRoute = () => {
     if (!routeFormData.title.trim()) return;
     let newList = [...dynamicRoute];
@@ -320,7 +306,6 @@ function ShiftContent() {
     setRouteToDelete(null);
   };
 
-  // --- ЛОГИКА АДМИНА ДЛЯ РАЗДЕЛОВ КУРСА ---
   const handleSaveSection = () => {
       if (!sectionFormData.title.trim()) return;
       let newList = [...dynamicBasics];
@@ -455,13 +440,11 @@ function ShiftContent() {
     }
   };
 
-  // --- ФУНКЦИЯ РЕАЛЬНОГО СКАЧИВАНИЯ ---
   const handleDownloadFile = (file: any) => {
       if (!file.data) {
           alert("Этот файл был загружен в старой версии платформы и содержит только название.");
           return;
       }
-      // Создаем невидимую ссылку, привязываем Base64 и кликаем
       const link = document.createElement('a');
       link.href = file.data;
       link.download = file.name;
@@ -552,14 +535,12 @@ function ShiftContent() {
           <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
              {!selectedSection ? (
                <>
-                  {/* --- СРОЧНО К ПРОХОЖДЕНИЮ (ЖЕСТКАЯ СЕТКА БЕЗ ВЫЛЕТОВ) --- */}
                   <div style={{ marginBottom: '60px', width: '100%', boxSizing: 'border-box' }}>
                       <div style={flexSpace}>
                           <h2 style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>⚠️ Срочно к прохождению</h2>
                       </div>
                       {urgentFiles.length > 0 ? (
                           <div style={courseGrid}> 
-                              {/* Используем общую сетку для файлов, чтобы они переносились на новую строку */}
                               {urgentFiles.map((file) => (
                                   <div key={file.id} style={{ ...courseCard, background: '#161816', border: '1px solid #0abab5', padding: '25px', display: 'flex', flexDirection: 'column', minHeight: '160px' }}>
                                       <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#0abab5' }} />
@@ -567,7 +548,6 @@ function ShiftContent() {
                                       <h4 style={{ margin: '0 0 10px 0', fontSize: '17px', fontWeight: '900', wordBreak: 'break-word', color: '#fff', flex: 1 }}>📄 {file.name}</h4>
                                       <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px' }}>{file.size}</div>
                                       
-                                      {/* РАБОЧИЕ КНОПКИ: ОТКРЫТЬ И СКАЧАТЬ */}
                                       <div style={{ display: 'flex', gap: '20px' }}>
                                           <div onClick={() => setPreviewFile(file)} style={{ color: '#0abab5', fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>ОТКРЫТЬ</div>
                                           <div onClick={() => handleDownloadFile(file)} style={{ color: '#0abab5', fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>СКАЧАТЬ ↓</div>
@@ -687,7 +667,7 @@ function ShiftContent() {
           </section>
         )}
 
-        {/* --- ОКНО ПРЕДПРОСМОТРА ФАЙЛА --- */}
+        {/* --- УМНОЕ ОКНО ПРЕДПРОСМОТРА ФАЙЛА --- */}
         {previewFile && (
             <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
                 <div style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
@@ -697,7 +677,20 @@ function ShiftContent() {
                     </div>
                     <div style={{ flex: 1, width: '100%', background: '#fff', borderRadius: '15px', overflow: 'hidden' }}>
                         {previewFile.data ? (
-                            <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
+                            /* Если файл - это Word, Excel или Архивы, выводим красивую заглушку */
+                            previewFile.name.toLowerCase().match(/\.(docx|doc|xls|xlsx|ppt|pptx|zip|rar)$/i) ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', textAlign: 'center', padding: '20px' }}>
+                                    <div style={{ fontSize: '60px', marginBottom: '15px' }}>📄</div>
+                                    <h3 style={{ margin: '0 0 10px 0', fontSize: '20px' }}>Формат не поддерживается для просмотра</h3>
+                                    <p style={{ color: '#555', fontSize: '14px', maxWidth: '350px', lineHeight: '1.5' }}>
+                                        Браузеры не умеют открывать файлы Word и Excel прямо внутри сайта. Вы можете скачать этот файл для изучения.
+                                    </p>
+                                    <button onClick={() => handleDownloadFile(previewFile)} style={{ ...saveBtn, width: 'auto', padding: '12px 30px', marginTop: '20px', borderRadius: '12px' } as any}>СКАЧАТЬ ФАЙЛ</button>
+                                </div>
+                            ) : (
+                                /* Иначе (PDF, Картинки, TXT) - просто открываем в iFrame */
+                                <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
+                            )
                         ) : (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold' }}>
                                 Нет данных для отображения (загружено в старой версии)
