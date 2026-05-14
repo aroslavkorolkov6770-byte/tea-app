@@ -198,30 +198,63 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
-  const loadAllData = async (currentUserId: string) => {
+  // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА (БЕЗ ОЧЕРЕДИ) ---
+  const loadAllData = async (currentUserId: string, checkUrl = false) => {
       try {
-          const sFiles = await fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => []);
+          // Запускаем ВСЕ 5 запросов ПАРАЛЛЕЛЬНО!
+          const [sFiles, cRoute, cBasics, sBasicsData, sRouteData] = await Promise.all([
+              fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => []),
+              fetch(`/api/storage?key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => []),
+              fetch(`/api/storage?key=prog_basics_${currentUserId}`).then(r => r.json()).catch(() => []),
+              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => []),
+              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => [])
+          ]);
+
           setUrgentFiles(Array.isArray(sFiles) ? sFiles : []);
-
-          const cRoute = await fetch(`/api/storage?key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => []);
           setCompletedRoute(Array.isArray(cRoute) ? cRoute : []);
-
-          const cBasics = await fetch(`/api/storage?key=prog_basics_${currentUserId}`).then(r => r.json()).catch(() => []);
           setCompletedBasics(Array.isArray(cBasics) ? cBasics : []);
 
-          let sBasics = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => []);
+          let sBasics = sBasicsData;
           if (!Array.isArray(sBasics) || sBasics.length === 0) {
               sBasics = INITIAL_BASICS;
               saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, sBasics);
           }
           setDynamicBasics(sBasics);
 
-          let sRoute = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => []);
+          let sRoute = sRouteData;
           if (!Array.isArray(sRoute) || sRoute.length === 0) {
               sRoute = INITIAL_ROUTE;
               saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, sRoute);
           }
           setDynamicRoute(sRoute);
+
+          // Раскрываем нужный урок, если перешли по ссылке из поиска (только при первом рендере)
+          if (checkUrl) {
+              const sectionId = searchParams.get('sectionId');
+              const moduleId = searchParams.get('moduleId');
+              const routeId = searchParams.get('routeId');
+
+              if (sectionId && sBasics) {
+                  const foundSection = sBasics.find((s: any) => s.id === sectionId);
+                  if (foundSection) {
+                      setSelectedSection(foundSection);
+                      if (moduleId) {
+                          const foundModule = foundSection.modules?.find((m: any) => m.id === moduleId);
+                          if (foundModule) {
+                              setSelectedModule(foundModule);
+                              setModuleView('content');
+                          }
+                      }
+                  }
+              }
+
+              if (routeId && sRoute) {
+                  const foundRoute = sRoute.find((r: any) => r.id === routeId);
+                  if (foundRoute) {
+                      setSelectedRouteStep(foundRoute);
+                  }
+              }
+          }
       } catch (e) {
           console.error("Ошибка синхронизации с сервером", e);
       }
@@ -235,47 +268,18 @@ function ShiftContent() {
     setIsAdmin(role === 'admin');
     setUserId(currentId);
 
-    loadAllData(currentId);
+    // Первый запуск - загружаем всё сразу и проверяем URL
+    loadAllData(currentId, true);
 
     const urlTab = searchParams.get('tab');
     if (urlTab) setActiveTab(urlTab);
 
-    const loadUrlParams = async () => {
-        const sBasics = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => INITIAL_BASICS);
-        const sRoute = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => INITIAL_ROUTE);
-        
-        const sectionId = searchParams.get('sectionId');
-        const moduleId = searchParams.get('moduleId');
-        const routeId = searchParams.get('routeId');
-
-        if (sectionId) {
-            const foundSection = sBasics.find((s: any) => s.id === sectionId);
-            if (foundSection) {
-                setSelectedSection(foundSection);
-                if (moduleId) {
-                    const foundModule = foundSection.modules?.find((m: any) => m.id === moduleId);
-                    if (foundModule) {
-                        setSelectedModule(foundModule);
-                        setModuleView('content');
-                    }
-                }
-            }
-        }
-
-        if (routeId) {
-            const foundRoute = sRoute.find((r: any) => r.id === routeId);
-            if (foundRoute) {
-                setSelectedRouteStep(foundRoute);
-            }
-        }
-    };
-    loadUrlParams();
-
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
     window.addEventListener('sidebarToggle', handleToggle);
     
-    const syncInterval = setInterval(() => loadAllData(currentId), 5000);
-    const focusHandler = () => loadAllData(currentId);
+    // Автообновление (уже без перепроверки URL)
+    const syncInterval = setInterval(() => loadAllData(currentId, false), 5000);
+    const focusHandler = () => loadAllData(currentId, false);
     window.addEventListener('focus', focusHandler);
 
     return () => {
