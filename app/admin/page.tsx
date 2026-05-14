@@ -44,8 +44,9 @@ export default function AdminDashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   
-  // СОСТОЯНИЕ МОДАЛЬНОГО ОКНА СПИСКА ФАЙЛОВ
+  // СОСТОЯНИЕ МОДАЛЬНОГО ОКНА СПИСКА ФАЙЛОВ И ПРЕДПРОСМОТРА
   const [showFilesList, setShowFilesList] = useState(false);
+  const [previewFile, setPreviewFile] = useState<any>(null);
 
   // СОСТОЯНИЕ ФИРМЕННОГО УВЕДОМЛЕНИЯ ОБ УСПЕХЕ (ВМЕСТО ALERT)
   const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, title: string, text: string}>({ 
@@ -177,28 +178,39 @@ export default function AdminDashboard() {
       }
   };
 
-  // --- ЛОГИКА СОХРАНЕНИЯ И УДАЛЕНИЯ ФАЙЛА В БАЗУ ---
+  // --- ИЗМЕНЕННАЯ ЛОГИКА: ЧИТАЕМ ФАЙЛ И СОХРАНЯЕМ В BASE64 ---
   const handleSaveFile = () => {
       if (!selectedFile) return;
 
-      const newFile = {
-          id: 'file_' + Date.now(),
-          name: selectedFile.name,
-          size: (selectedFile.size / 1024 / 1024).toFixed(2) + ' MB',
-          date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+      const reader = new FileReader();
+      
+      // Сработает, когда файл будет полностью прочитан браузером
+      reader.onload = (e) => {
+          const fileData = e.target?.result; // <- Здесь лежит содержимое файла в Base64
+
+          const newFile = {
+              id: 'file_' + Date.now(),
+              name: selectedFile.name,
+              size: (selectedFile.size / 1024 / 1024).toFixed(2) + ' MB',
+              date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
+              data: fileData // Добавили содержимое файла в объект
+          };
+
+          const updatedFiles = [newFile, ...urgentFiles];
+          setUrgentFiles(updatedFiles);
+          saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+          
+          setShowSuccessModal({ 
+            show: true, 
+            title: 'МАТЕРИАЛ ОТПРАВЛЕН', 
+            text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников в разделе обучения.` 
+          });
+
+          setSelectedFile(null);
       };
 
-      const updatedFiles = [newFile, ...urgentFiles];
-      setUrgentFiles(updatedFiles);
-      saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-      
-      setShowSuccessModal({ 
-        show: true, 
-        title: 'МАТЕРИАЛ ОТПРАВЛЕН', 
-        text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников в разделе обучения.` 
-      });
-
-      setSelectedFile(null);
+      // Запускаем процесс чтения файла
+      reader.readAsDataURL(selectedFile);
   };
 
   const handleDeleteFile = (id: string) => {
@@ -207,6 +219,21 @@ export default function AdminDashboard() {
           setUrgentFiles(updatedFiles);
           saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
       }
+  };
+
+  // --- ФУНКЦИЯ РЕАЛЬНОГО СКАЧИВАНИЯ ---
+  const handleDownloadFile = (file: any) => {
+      if (!file.data) {
+          alert("Этот файл был загружен в старой версии платформы и содержит только название.");
+          return;
+      }
+      // Создаем невидимую ссылку и кликаем по ней
+      const link = document.createElement('a');
+      link.href = file.data;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
   };
 
   // --- ФУНКЦИИ КАЛЕНДАРЯ ---
@@ -594,10 +621,10 @@ export default function AdminDashboard() {
           </div>
       </main>
 
-      {/* МЕНЮ С ДОКУМЕНТАМИ В ЦЕНТРЕ ЭКРАНА */}
+      {/* МЕНЮ С ДОКУМЕНТАМИ В ЦЕНТРЕ ЭКРАНА (АДМИН) */}
       {showFilesList && (
           <div style={modalOverlay as any}>
-              <div style={{ ...modalContentSmall, maxWidth: '500px' } as any}>
+              <div style={{ ...modalContentSmall, maxWidth: '550px' } as any}>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center' }}>ЗАГРУЖЕННЫЕ МАТЕРИАЛЫ</h2>
                   
                   <div style={{ maxHeight: '350px', overflowY: 'auto', marginBottom: '25px', paddingRight: '10px' }}>
@@ -606,11 +633,15 @@ export default function AdminDashboard() {
                       ) : (
                           urgentFiles.map(file => (
                               <div key={file.id} style={{ background: '#000', border: '1px solid #222', padding: '15px', borderRadius: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <div style={{ overflow: 'hidden', flex: 1 }}>
+                                  <div style={{ overflow: 'hidden', flex: 1, paddingRight: '10px' }}>
                                       <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>📄 {file.name}</div>
                                       <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>{file.date} • {file.size}</div>
                                   </div>
-                                  <button onClick={() => handleDeleteFile(file.id)} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', padding: '0 10px' }}>✕</button>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <button onClick={() => setPreviewFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>
+                                      <button onClick={() => handleDownloadFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>СКАЧАТЬ</button>
+                                      <button onClick={() => handleDeleteFile(file.id)} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', padding: '0 5px' }}>✕</button>
+                                  </div>
                               </div>
                           ))
                       )}
@@ -623,7 +654,7 @@ export default function AdminDashboard() {
 
       {/* --- ФИРМЕННЫЕ МОДАЛЬНЫЕ ОКНА --- */}
 
-      {/* 1. ОКНО УСПЕХА (ВМЕСТО ALERT) */}
+      {/* 1. ОКНО УСПЕХА */}
       {showSuccessModal.show && (
           <div style={modalOverlay as any} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
               <div style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
@@ -640,7 +671,28 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* 2. МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
+      {/* 2. ОКНО ПРЕДПРОСМОТРА ФАЙЛА */}
+      {previewFile && (
+          <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
+              <div style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
+                      <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile.name}</h2>
+                      <div onClick={() => setPreviewFile(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
+                  </div>
+                  <div style={{ flex: 1, width: '100%', background: '#fff', borderRadius: '15px', overflow: 'hidden' }}>
+                      {previewFile.data ? (
+                          <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
+                      ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold' }}>
+                              Нет данных для отображения (загружено в старой версии)
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* 3. МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
       {showUserForm && (
         <div style={modalOverlay as any}>
             <div style={modalContentSmall as any}>
@@ -661,7 +713,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 3. ПАНЕЛЬ ЗАМЕТОК (САЙДБАР) */}
+      {/* 4. ПАНЕЛЬ ЗАМЕТОК (САЙДБАР) */}
       {selectedDateKey && (
         <div style={noteOverlayStyle as any} onClick={closeNotePanel}>
           <div style={noteSidebarStyle as any} onClick={e => e.stopPropagation()}>

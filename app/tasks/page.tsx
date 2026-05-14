@@ -138,6 +138,7 @@ const topicRow: React.CSSProperties = { display: 'flex', alignItems: 'center', p
 const checkIcon = (done: boolean): React.CSSProperties => ({ width: '28px', height: '28px', border: '2px solid #0abab5', borderRadius: '50%', marginRight: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0abab5', fontWeight: '900', background: done ? 'rgba(10,186,181,0.1)' : 'transparent', flexShrink: 0 });
 const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.98)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(20px)', padding: '20px', boxSizing: 'border-box' };
 const modalContent: React.CSSProperties = { background: '#000', padding: '60px', borderRadius: '50px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
+const modalContentSmall: React.CSSProperties = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #333' };
 const theoryBlock: React.CSSProperties = { background: '#0d0d0d', padding: '30px', borderRadius: '25px', border: '1px solid #222' };
 const theoryLabel: React.CSSProperties = { fontSize: '11px', fontWeight: '900', color: '#0abab5', letterSpacing: '2px', marginBottom: '15px' };
 const theoryText: React.CSSProperties = { fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0 };
@@ -194,6 +195,7 @@ function ShiftContent() {
   
   // --- СОСТОЯНИЕ ДЛЯ СРОЧНЫХ ФАЙЛОВ ---
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
+  const [previewFile, setPreviewFile] = useState<any>(null);
 
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
   const [selectedSection, setSelectedSection] = useState<any>(null);
@@ -453,6 +455,21 @@ function ShiftContent() {
     }
   };
 
+  // --- ФУНКЦИЯ РЕАЛЬНОГО СКАЧИВАНИЯ ---
+  const handleDownloadFile = (file: any) => {
+      if (!file.data) {
+          alert("Этот файл был загружен в старой версии платформы и содержит только название.");
+          return;
+      }
+      // Создаем невидимую ссылку, привязываем Base64 и кликаем
+      const link = document.createElement('a');
+      link.href = file.data;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
   if (!isMounted) return null;
 
   const totalBasicsModules = dynamicBasics.reduce((acc, s) => acc + (s.modules?.length || 0), 0);
@@ -544,12 +561,17 @@ function ShiftContent() {
                           <div style={courseGrid}> 
                               {/* Используем общую сетку для файлов, чтобы они переносились на новую строку */}
                               {urgentFiles.map((file) => (
-                                  <div key={file.id} onClick={() => alert(`Начато скачивание: ${file.name}`)} style={{ ...courseCard, background: '#161816', border: '1px solid #0abab5', padding: '25px', display: 'flex', flexDirection: 'column', minHeight: '160px' }}>
+                                  <div key={file.id} style={{ ...courseCard, background: '#161816', border: '1px solid #0abab5', padding: '25px', display: 'flex', flexDirection: 'column', minHeight: '160px' }}>
                                       <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#0abab5' }} />
                                       <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginBottom: '10px', opacity: 0.8 }}>{file.date}</div>
                                       <h4 style={{ margin: '0 0 10px 0', fontSize: '17px', fontWeight: '900', wordBreak: 'break-word', color: '#fff', flex: 1 }}>📄 {file.name}</h4>
                                       <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px' }}>{file.size}</div>
-                                      <div style={{ color: '#0abab5', fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>СКАЧАТЬ ↓</div>
+                                      
+                                      {/* РАБОЧИЕ КНОПКИ: ОТКРЫТЬ И СКАЧАТЬ */}
+                                      <div style={{ display: 'flex', gap: '20px' }}>
+                                          <div onClick={() => setPreviewFile(file)} style={{ color: '#0abab5', fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>ОТКРЫТЬ</div>
+                                          <div onClick={() => handleDownloadFile(file)} style={{ color: '#0abab5', fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>СКАЧАТЬ ↓</div>
+                                      </div>
                                   </div>
                               ))}
                           </div>
@@ -665,7 +687,28 @@ function ShiftContent() {
           </section>
         )}
 
-        {/* --- МОДАЛКИ (БЕЗ ИЗМЕНЕНИЙ ЛОГИКИ) --- */}
+        {/* --- ОКНО ПРЕДПРОСМОТРА ФАЙЛА --- */}
+        {previewFile && (
+            <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
+                <div style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
+                        <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile.name}</h2>
+                        <div onClick={() => setPreviewFile(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
+                    </div>
+                    <div style={{ flex: 1, width: '100%', background: '#fff', borderRadius: '15px', overflow: 'hidden' }}>
+                        {previewFile.data ? (
+                            <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold' }}>
+                                Нет данных для отображения (загружено в старой версии)
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- МОДАЛКИ ДЛЯ АДМИНА --- */}
 
         {showRouteForm && (
             <div style={modalOverlay}>
