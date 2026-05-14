@@ -3,7 +3,16 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-// --- РЕЗЕРВНЫЕ БАЗЫ ДЛЯ ПОИСКА (ЕСЛИ КЭШ ПУСТОЙ) ---
+// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
+const saveDataToServer = (key: string, data: any) => {
+    fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, data })
+    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
+};
+
+// --- РЕЗЕРВНЫЕ БАЗЫ ДЛЯ ПОИСКА (ЕСЛИ СЕРВЕР ПУСТОЙ) ---
 const FALLBACK_ROUTE = [
   { id: "route_1", title: "О компании и бренде", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной." },
   { id: "route_2", title: "Работа с кассой", content: "Открытие смены в 09:50. Работа в системе учета." },
@@ -35,11 +44,17 @@ export default function Navigation() {
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
 
+  // Базы данных для поиска (скачиваются с сервера)
+  const [searchDbProducts, setSearchDbProducts] = useState<any[]>([]);
+  const [searchDbBasics, setSearchDbBasics] = useState<any[]>(FALLBACK_BASICS);
+  const [searchDbRoutes, setSearchDbRoutes] = useState<any[]>(FALLBACK_ROUTE);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
+    // Сессия остается в браузере
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
     if (auth === 'true') {
@@ -47,45 +62,76 @@ export default function Navigation() {
       setUserRole(role);
     }
 
-    const loadNotifs = () => {
-        const savedNotifs = localStorage.getItem('tea_hub_notifications_v1');
-        const currentUserId = localStorage.getItem('current_user_id') || 'guest';
-        
-        if (savedNotifs) {
-            const allNotifs = JSON.parse(savedNotifs);
-            const myNotifs = allNotifs.filter((n: any) => n.target === 'Все' || n.target === currentUserId || !n.target);
-            setNotifications(myNotifs);
+    // Фоновая загрузка уведомлений и баз для поиска с сервера
+    const loadServerData = async () => {
+        try {
+            const currentUserId = localStorage.getItem('current_user_id') || 'guest';
+            
+            // 1. Загрузка уведомлений
+            const notifsRes = await fetch('/api/storage?key=tea_hub_notifications_v1').then(r => r.json()).catch(() => []);
+            if (Array.isArray(notifsRes)) {
+                const myNotifs = notifsRes.filter((n: any) => n.target === 'Все' || n.target === currentUserId || !n.target);
+                setNotifications(myNotifs);
+            }
+
+            // 2. Загрузка баз для глобального поиска
+            const pRes = await fetch('/api/storage?key=tea_master_unified_v1').then(r => r.json()).catch(() => []);
+            if (Array.isArray(pRes)) setSearchDbProducts(pRes);
+
+            const bRes = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1').then(r => r.json()).catch(() => []);
+            if (Array.isArray(bRes) && bRes.length > 0) setSearchDbBasics(bRes);
+
+            const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v1').then(r => r.json()).catch(() => []);
+            if (Array.isArray(rRes) && rRes.length > 0) setSearchDbRoutes(rRes);
+
+        } catch (e) {
+            console.error("Ошибка синхронизации Navigation:", e);
         }
     };
 
-    loadNotifs();
-    window.addEventListener('storage', loadNotifs);
-    return () => window.removeEventListener('storage', loadNotifs);
+    loadServerData();
+    // Интервал для проверки новых уведомлений (раз в 5 секунд)
+    const syncInterval = setInterval(loadServerData, 5000);
+    
+    return () => clearInterval(syncInterval);
   }, []);
 
-  const handleLogin = () => {
-    const savedUsers = localStorage.getItem('tea_hub_users_v1');
-    const users = savedUsers ? JSON.parse(savedUsers) : [
-        { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' },
-        { id: 'u_staff', login: '1', pass: '1', role: 'staff', name: 'Ярик' }
-    ];
+  // --- АВТОРИЗАЦИЯ ЧЕРЕЗ СЕРВЕР ---
+  const handleLogin = async () => {
+    try {
+        const res = await fetch('/api/storage?key=tea_hub_users_v1');
+        let users = await res.json().catch(() => []);
+        
+        // Если сервер пустой, создаем первичную базу пользователей
+        if (!Array.isArray(users) || users.length === 0) {
+            users = [
+                { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' },
+                { id: 'u_staff', login: '1', pass: '1', role: 'staff', name: 'Ярик' }
+            ];
+            saveDataToServer('tea_hub_users_v1', users);
+        }
 
-    const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
+        const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
-    if (foundUser) {
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userRole', foundUser.role);
-      localStorage.setItem('current_user_id', foundUser.id);
-      localStorage.setItem('current_user_name', foundUser.name);
-      
-      setIsLoggedIn(true);
-      setUserRole(foundUser.role);
-      setShowLoginModal(false);
-      
-      if (foundUser.role === 'admin') router.push('/admin');
-      else router.push('/tasks?tab=welcome');
-    } else {
-      alert("Неверный логин или пароль!");
+        if (foundUser) {
+          // Сессию (токены) оставляем в локальном браузере
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('userRole', foundUser.role);
+          localStorage.setItem('current_user_id', foundUser.id);
+          localStorage.setItem('current_user_name', foundUser.name);
+          
+          setIsLoggedIn(true);
+          setUserRole(foundUser.role);
+          setShowLoginModal(false);
+          
+          if (foundUser.role === 'admin') router.push('/admin');
+          else router.push('/tasks?tab=welcome');
+        } else {
+          alert("Неверный логин или пароль!");
+        }
+    } catch (error) {
+        console.error("Ошибка связи с сервером:", error);
+        alert("Не удалось подключиться к базе данных.");
     }
   };
 
@@ -98,20 +144,26 @@ export default function Navigation() {
     router.push('/');
   };
 
-  const removeNotification = (id: number) => {
-    const savedNotifs = localStorage.getItem('tea_hub_notifications_v1');
-    if (savedNotifs) {
-        const allNotifs = JSON.parse(savedNotifs);
-        const updated = allNotifs.filter((n: any) => n.id !== id);
-        localStorage.setItem('tea_hub_notifications_v1', JSON.stringify(updated));
+  // --- УДАЛЕНИЕ УВЕДОМЛЕНИЙ НА СЕРВЕРЕ ---
+  const removeNotification = async (id: number) => {
+    try {
+        const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
+        const allNotifs = await res.json().catch(() => []);
         
-        const currentUserId = localStorage.getItem('current_user_id') || 'guest';
-        const myNotifs = updated.filter((n: any) => n.target === 'Все' || n.target === currentUserId || !n.target);
-        setNotifications(myNotifs);
+        if (Array.isArray(allNotifs)) {
+            const updated = allNotifs.filter((n: any) => n.id !== id);
+            saveDataToServer('tea_hub_notifications_v1', updated);
+            
+            const currentUserId = localStorage.getItem('current_user_id') || 'guest';
+            const myNotifs = updated.filter((n: any) => n.target === 'Все' || n.target === currentUserId || !n.target);
+            setNotifications(myNotifs);
+        }
+    } catch (e) {
+        console.error("Не удалось удалить уведомление:", e);
     }
   };
 
-  // --- ТОТАЛЬНЫЙ ПОИСК С ФОЛЛБЕКАМИ ---
+  // --- ТОТАЛЬНЫЙ ПОИСК ПО СЕРВЕРНЫМ БАЗАМ ---
   const handleSearch = (val: string) => {
     setSearchQuery(val);
     if (!val.trim()) {
@@ -123,29 +175,22 @@ export default function Navigation() {
     const q = val.toLowerCase();
     const results: any[] = [];
 
-    // 1. Ищем в ПРОДУКТАХ
-    const pStr = localStorage.getItem('tea_master_unified_v1');
-    if (pStr) {
-      const products = JSON.parse(pStr);
-      products.forEach((p: any) => {
-        const allText = [
-          p.name, p.type, p.category, p.strength,
-          p.summary, p.desc, p.info, p.region,
-          p.brewGuide, p.advice, p.analogsDiff,
-          ...(p.quiz ? p.quiz.map((qItem: any) => qItem.q + " " + qItem.o.join(" ")) : [])
-        ].filter(Boolean).join(" ").toLowerCase();
+    // 1. Ищем в ПРОДУКТАХ (база с сервера)
+    searchDbProducts.forEach((p: any) => {
+      const allText = [
+        p.name, p.type, p.category, p.strength,
+        p.summary, p.desc, p.info, p.region,
+        p.brewGuide, p.advice, p.analogsDiff,
+        ...(p.quiz ? p.quiz.map((qItem: any) => qItem.q + " " + qItem.o.join(" ")) : [])
+      ].filter(Boolean).join(" ").toLowerCase();
 
-        if (allText.includes(q)) {
-          results.push({ id: `p_${p.id}`, title: p.name, subtitle: `Каталог • ${p.type} (${p.category})`, link: `/search?productId=${p.id}` });
-        }
-      });
-    }
+      if (allText.includes(q)) {
+        results.push({ id: `p_${p.id}`, title: p.name, subtitle: `Каталог • ${p.type} (${p.category})`, link: `/search?productId=${p.id}` });
+      }
+    });
 
-    // 2. Ищем в ОБУЧЕНИИ (База знаний)
-    const eStr = localStorage.getItem('tea_hub_dynamic_basics_v1');
-    const edu = eStr ? JSON.parse(eStr) : FALLBACK_BASICS;
-    
-    edu.forEach((sec: any) => {
+    // 2. Ищем в ОБУЧЕНИИ (База знаний с сервера)
+    searchDbBasics.forEach((sec: any) => {
       const secText = [sec.title, sec.desc].filter(Boolean).join(" ").toLowerCase();
       if (secText.includes(q)) {
         results.push({ id: `e_${sec.id}`, title: sec.title, subtitle: `Обучение • Раздел`, link: `/tasks?tab=edu&sectionId=${sec.id}` });
@@ -159,11 +204,8 @@ export default function Navigation() {
       });
     });
 
-    // 3. Ищем в ПЛАНАХ НА НЕДЕЛЮ
-    const rStr = localStorage.getItem('tea_hub_dynamic_route_v1');
-    const routes = rStr ? JSON.parse(rStr) : FALLBACK_ROUTE;
-    
-    routes.forEach((route: any) => {
+    // 3. Ищем в ПЛАНАХ НА НЕДЕЛЮ (база с сервера)
+    searchDbRoutes.forEach((route: any) => {
       const rText = [route.title, route.content].filter(Boolean).join(" ").toLowerCase();
       if (rText.includes(q)) {
         results.push({ id: `r_${route.id}`, title: route.title, subtitle: `План обучения`, link: `/tasks?tab=edu&routeId=${route.id}` });

@@ -13,6 +13,15 @@ const STORAGE_KEYS = {
     URGENT_FILES: 'tea_hub_urgent_files_v1'
 };
 
+// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
+const saveDataToServer = (key: string, data: any) => {
+    fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, data })
+    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
+};
+
 // Функция для удаления эмодзи из строк
 const stripEmoji = (str: string) => {
     if (!str) return '';
@@ -195,87 +204,95 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
-  // НОВЫЙ ЖЕЛЕЗОБЕТОННЫЙ СИНХРОНИЗАТОР БАЗЫ
-  const syncAllData = () => {
+  // НОВАЯ АСИНХРОННАЯ ЗАГРУЗКА С СЕРВЕРА
+  const loadAllData = async (currentUserId: string) => {
       try {
-          const sFiles = localStorage.getItem(STORAGE_KEYS.URGENT_FILES);
-          if (sFiles) {
-              const parsedFiles = JSON.parse(sFiles);
-              setUrgentFiles(prev => JSON.stringify(prev) !== sFiles ? parsedFiles : prev);
-          } else {
-              setUrgentFiles(prev => prev.length !== 0 ? [] : prev);
-          }
+          const sFiles = await fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => []);
+          setUrgentFiles(Array.isArray(sFiles) ? sFiles : []);
 
-          const currentId = localStorage.getItem('current_user_id') || 'guest';
-          const cRoute = localStorage.getItem(`prog_route_${currentId}`);
-          const cBasics = localStorage.getItem(`prog_basics_${currentId}`);
-          
-          if (cRoute) setCompletedRoute(prev => JSON.stringify(prev) !== cRoute ? JSON.parse(cRoute) : prev);
-          if (cBasics) setCompletedBasics(prev => JSON.stringify(prev) !== cBasics ? JSON.parse(cBasics) : prev);
+          const cRoute = await fetch(`/api/storage?key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => []);
+          setCompletedRoute(Array.isArray(cRoute) ? cRoute : []);
+
+          const cBasics = await fetch(`/api/storage?key=prog_basics_${currentUserId}`).then(r => r.json()).catch(() => []);
+          setCompletedBasics(Array.isArray(cBasics) ? cBasics : []);
+
+          let sBasics = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => []);
+          if (!Array.isArray(sBasics) || sBasics.length === 0) {
+              sBasics = INITIAL_BASICS;
+              saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, sBasics);
+          }
+          setDynamicBasics(sBasics);
+
+          let sRoute = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => []);
+          if (!Array.isArray(sRoute) || sRoute.length === 0) {
+              sRoute = INITIAL_ROUTE;
+              saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, sRoute);
+          }
+          setDynamicRoute(sRoute);
       } catch (e) {
-          console.error("Sync error", e);
+          console.error("Ошибка синхронизации с сервером", e);
       }
   };
 
   useEffect(() => {
     setIsMounted(true);
     
+    // Сессия (кто мы такие) остается в localStorage браузера
     const role = localStorage.getItem('userRole');
     const currentId = localStorage.getItem('current_user_id') || 'guest';
     setIsAdmin(role === 'admin');
     setUserId(currentId);
 
-    const sBasics = localStorage.getItem(STORAGE_KEYS.DYNAMIC_BASICS);
-    const sRoute = localStorage.getItem(STORAGE_KEYS.DYNAMIC_ROUTE);
-    
-    const loadedBasics = sBasics ? JSON.parse(sBasics) : INITIAL_BASICS;
-    const loadedRoute = sRoute ? JSON.parse(sRoute) : INITIAL_ROUTE;
-
-    setDynamicBasics(loadedBasics);
-    setDynamicRoute(loadedRoute);
-
-    syncAllData();
+    // Первичная загрузка данных с сервера
+    loadAllData(currentId);
 
     const urlTab = searchParams.get('tab');
     if (urlTab) setActiveTab(urlTab);
 
-    const sectionId = searchParams.get('sectionId');
-    const moduleId = searchParams.get('moduleId');
-    const routeId = searchParams.get('routeId');
+    // Загружаем вкладки если переданы в URL
+    const loadUrlParams = async () => {
+        const sBasics = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => INITIAL_BASICS);
+        const sRoute = await fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => INITIAL_ROUTE);
+        
+        const sectionId = searchParams.get('sectionId');
+        const moduleId = searchParams.get('moduleId');
+        const routeId = searchParams.get('routeId');
 
-    if (sectionId) {
-        const foundSection = loadedBasics.find((s: any) => s.id === sectionId);
-        if (foundSection) {
-            setSelectedSection(foundSection);
-            if (moduleId) {
-                const foundModule = foundSection.modules?.find((m: any) => m.id === moduleId);
-                if (foundModule) {
-                    setSelectedModule(foundModule);
-                    setModuleView('content');
+        if (sectionId) {
+            const foundSection = sBasics.find((s: any) => s.id === sectionId);
+            if (foundSection) {
+                setSelectedSection(foundSection);
+                if (moduleId) {
+                    const foundModule = foundSection.modules?.find((m: any) => m.id === moduleId);
+                    if (foundModule) {
+                        setSelectedModule(foundModule);
+                        setModuleView('content');
+                    }
                 }
             }
         }
-    }
 
-    if (routeId) {
-        const foundRoute = loadedRoute.find((r: any) => r.id === routeId);
-        if (foundRoute) {
-            setSelectedRouteStep(foundRoute);
+        if (routeId) {
+            const foundRoute = sRoute.find((r: any) => r.id === routeId);
+            if (foundRoute) {
+                setSelectedRouteStep(foundRoute);
+            }
         }
-    }
+    };
+    loadUrlParams();
 
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
     window.addEventListener('sidebarToggle', handleToggle);
     
-    const syncInterval = setInterval(syncAllData, 1500);
-    window.addEventListener('storage', syncAllData);
-    window.addEventListener('focus', syncAllData);
+    // Автообновление каждые 5 секунд (чтобы не перегружать VPS)
+    const syncInterval = setInterval(() => loadAllData(currentId), 5000);
+    const focusHandler = () => loadAllData(currentId);
+    window.addEventListener('focus', focusHandler);
 
     return () => {
         window.removeEventListener('sidebarToggle', handleToggle);
         clearInterval(syncInterval);
-        window.removeEventListener('storage', syncAllData);
-        window.removeEventListener('focus', syncAllData);
+        window.removeEventListener('focus', focusHandler);
     };
   }, [searchParams]);
 
@@ -289,7 +306,7 @@ function ShiftContent() {
         newList.push({ ...routeFormData, id: 'route_' + Date.now() });
     }
     setDynamicRoute(newList);
-    localStorage.setItem(STORAGE_KEYS.DYNAMIC_ROUTE, JSON.stringify(newList));
+    saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newList);
     setShowRouteForm(false);
   };
 
@@ -297,7 +314,7 @@ function ShiftContent() {
     if (!routeToDelete) return;
     const newList = dynamicRoute.filter(r => r.id !== routeToDelete);
     setDynamicRoute(newList);
-    localStorage.setItem(STORAGE_KEYS.DYNAMIC_ROUTE, JSON.stringify(newList));
+    saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newList);
     setRouteToDelete(null);
   };
 
@@ -311,7 +328,7 @@ function ShiftContent() {
           newList.push({ id: 'sec_' + Date.now(), title: sectionFormData.title, modules: [] });
       }
       setDynamicBasics(newList);
-      localStorage.setItem(STORAGE_KEYS.DYNAMIC_BASICS, JSON.stringify(newList));
+      saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, newList);
       setShowSectionForm(false);
   };
 
@@ -319,7 +336,7 @@ function ShiftContent() {
       if (!sectionToDelete) return;
       const newList = dynamicBasics.filter(s => s.id !== sectionToDelete);
       setDynamicBasics(newList);
-      localStorage.setItem(STORAGE_KEYS.DYNAMIC_BASICS, JSON.stringify(newList));
+      saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, newList);
       setSectionToDelete(null);
   };
 
@@ -376,7 +393,7 @@ function ShiftContent() {
       });
 
       setDynamicBasics(newList);
-      localStorage.setItem(STORAGE_KEYS.DYNAMIC_BASICS, JSON.stringify(newList));
+      saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, newList);
       setSelectedSection(newList.find(s => s.id === selectedSection.id));
       setShowModuleForm(false);
   };
@@ -390,7 +407,7 @@ function ShiftContent() {
           return s;
       });
       setDynamicBasics(newList);
-      localStorage.setItem(STORAGE_KEYS.DYNAMIC_BASICS, JSON.stringify(newList));
+      saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, newList);
       setSelectedSection(newList.find(s => s.id === selectedSection.id));
       setModuleToDelete(null);
   };
@@ -399,7 +416,7 @@ function ShiftContent() {
     if (!completedRoute.includes(id)) {
         const newProg = [...completedRoute, id];
         setCompletedRoute(newProg);
-        localStorage.setItem(`prog_route_${userId}`, JSON.stringify(newProg));
+        saveDataToServer(`prog_route_${userId}`, newProg);
     }
     setSelectedRouteStep(null);
   };
@@ -419,7 +436,7 @@ function ShiftContent() {
             if (!completedBasics.includes(selectedModule.id)) {
                 const newComp = [...completedBasics, selectedModule.id];
                 setCompletedBasics(newComp);
-                localStorage.setItem(`prog_basics_${userId}`, JSON.stringify(newComp));
+                saveDataToServer(`prog_basics_${userId}`, newComp);
             }
             setTimeout(() => { 
                 setSelectedModule(null); 

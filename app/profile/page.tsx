@@ -3,21 +3,20 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import Link from 'next/link';
 
-// Вспомогательная функция для безопасного парсинга JSON
-const safeParse = (key: string, fallback: any) => {
-    try {
-        const item = localStorage.getItem(key);
-        return item ? JSON.parse(item) : fallback;
-    } catch (e) {
-        return fallback;
-    }
+// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
+const saveDataToServer = (key: string, data: any) => {
+    fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, data })
+    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 function ProfileContent() {
     const [isMounted, setIsMounted] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     
-    // Состояния авторизации
+    // Состояния авторизации (берутся из сессии браузера)
     const [userRole, setUserRole] = useState('staff');
     const [userId, setUserId] = useState('guest');
     
@@ -45,7 +44,7 @@ function ProfileContent() {
     });
 
     useEffect(() => {
-        const initProfile = () => {
+        const loadProfileData = async () => {
             const role = localStorage.getItem('userRole') || 'staff';
             const currentId = localStorage.getItem('current_user_id') || 'guest';
             const currentName = localStorage.getItem('current_user_name') || (role === 'admin' ? 'Главный Мастер' : 'Сотрудник');
@@ -53,65 +52,100 @@ function ProfileContent() {
             setUserRole(role);
             setUserId(currentId);
 
-            // 1. Загрузка личных данных профиля по уникальному ID
-            setProfile({
-                name: currentName,
-                avatar: localStorage.getItem('avatar_' + currentId) || '',
-                tg: localStorage.getItem('tg_' + currentId) || (role === 'admin' ? '@admin_tea' : '@username'),
-                phone: localStorage.getItem('phone_' + currentId) || ''
-            });
+            try {
+                // 1. Загрузка личных данных профиля с сервера
+                let pData = await fetch(`/api/storage?key=profile_data_${currentId}`).then(r => r.json()).catch(() => null);
+                
+                let dlDate = new Date();
+                
+                // Если профиль на сервере еще не создан (первый вход)
+                if (!pData || Array.isArray(pData) || Object.keys(pData).length === 0) {
+                    pData = {
+                        avatar: '',
+                        tg: role === 'admin' ? '@admin_tea' : '@username',
+                        phone: '',
+                        firstLogin: dlDate.toISOString()
+                    };
+                    saveDataToServer(`profile_data_${currentId}`, pData);
+                    dlDate.setDate(dlDate.getDate() + 7);
+                } else {
+                    // Если зайден не в первый раз, проверяем дату
+                    if (!pData.firstLogin) {
+                        pData.firstLogin = dlDate.toISOString();
+                        saveDataToServer(`profile_data_${currentId}`, pData);
+                    }
+                    dlDate = new Date(new Date(pData.firstLogin).getTime() + 7 * 24 * 60 * 60 * 1000);
+                }
 
-            // 2. Расчет дедлайна (индивидуально) и личного прогресса
-            const firstLogin = localStorage.getItem('first_login_' + currentId);
-            let dlDate = new Date();
-            if (!firstLogin) {
-                localStorage.setItem('first_login_' + currentId, dlDate.toISOString());
-                dlDate.setDate(dlDate.getDate() + 7);
-            } else {
-                dlDate = new Date(new Date(firstLogin).getTime() + 7 * 24 * 60 * 60 * 1000);
+                setProfile({
+                    name: currentName,
+                    avatar: pData.avatar || '',
+                    tg: pData.tg || '',
+                    phone: pData.phone || ''
+                });
+
+                // 2. Изолированный прогресс сотрудника с сервера
+                const routeData = await fetch(`/api/storage?key=prog_route_${currentId}`).then(r => r.json()).catch(() => []);
+                const basicsData = await fetch(`/api/storage?key=prog_basics_${currentId}`).then(r => r.json()).catch(() => []);
+                
+                const rCount = Array.isArray(routeData) ? routeData.length : 0;
+                const bCount = Array.isArray(basicsData) ? basicsData.length : 0;
+
+                setProgress({
+                    routeCount: rCount,
+                    basicsCount: bCount,
+                    deadline: dlDate.toLocaleDateString(),
+                    isOverdue: new Date() > dlDate && (rCount < 5 || bCount < 10)
+                });
+
+                // 3. Расчет статистики для админа
+                if (role === 'admin') {
+                    const teaDb = await fetch('/api/storage?key=tea_master_unified_v1').then(r => r.json()).catch(() => []);
+                    const basicsDb = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1').then(r => r.json()).catch(() => []);
+                    const standardsDb = await fetch('/api/storage?key=tea_hub_dynamic_standards_v1').then(r => r.json()).catch(() => []);
+
+                    setAdminStats({
+                        teas: Array.isArray(teaDb) ? teaDb.length : 0,
+                        lessons: Array.isArray(basicsDb) ? basicsDb.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 0,
+                        rules: Array.isArray(standardsDb) ? standardsDb.length : 0
+                    });
+                }
+
+                setIsMounted(true);
+            } catch (error) {
+                console.error("Ошибка загрузки профиля:", error);
+                setIsMounted(true); // Показываем как есть при сбое
             }
-
-            // Изолированный прогресс сотрудника
-            const routeData = safeParse('prog_route_' + currentId, []);
-            const basicsData = safeParse('prog_basics_' + currentId, []);
-            
-            setProgress({
-                routeCount: routeData.length,
-                basicsCount: basicsData.length,
-                deadline: dlDate.toLocaleDateString(),
-                isOverdue: new Date() > dlDate && (routeData.length < 5 || basicsData.length < 10)
-            });
-
-            // 3. Расчет статистики (admin)
-            const teaDb = safeParse('tea_master_unified_v1', []);
-            const basicsDb = safeParse('tea_hub_dynamic_basics_v1', []);
-            const standardsDb = safeParse('tea_hub_dynamic_standards_v1', []);
-
-            setAdminStats({
-                teas: teaDb.length,
-                lessons: basicsDb.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0),
-                rules: standardsDb.length
-            });
-
-            setIsMounted(true);
         };
 
-        initProfile();
+        loadProfileData();
     }, []);
 
-    const handleSaveProfile = () => {
-        // Сохраняем имя в активную сессию
+    const handleSaveProfile = async () => {
+        // Имя для текущей сессии браузера
         localStorage.setItem('current_user_name', profile.name);
         
-        // Сохраняем личные данные (аватарку, телефон и тд)
-        localStorage.setItem('avatar_' + userId, profile.avatar);
-        localStorage.setItem('tg_' + userId, profile.tg);
-        localStorage.setItem('phone_' + userId, profile.phone);
+        try {
+            // Скачиваем текущий объект профиля, чтобы не затереть дату первого входа (firstLogin)
+            let pData = await fetch(`/api/storage?key=profile_data_${userId}`).then(r => r.json()).catch(() => ({}));
+            if (Array.isArray(pData)) pData = {};
+            
+            pData.avatar = profile.avatar;
+            pData.tg = profile.tg;
+            pData.phone = profile.phone;
+            
+            // Сохраняем личные данные на сервер
+            saveDataToServer(`profile_data_${userId}`, pData);
 
-        // Синхронизируем имя в общей базе пользователей (чтобы у админа обновилось в списке)
-        const users = safeParse('tea_hub_users_v1', []);
-        const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, name: profile.name } : u);
-        localStorage.setItem('tea_hub_users_v1', JSON.stringify(updatedUsers));
+            // Синхронизируем имя в общей базе пользователей (чтобы у админа обновилось в списке)
+            const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
+            if (Array.isArray(users)) {
+                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, name: profile.name } : u);
+                saveDataToServer('tea_hub_users_v1', updatedUsers);
+            }
+        } catch (error) {
+            console.error("Ошибка сохранения профиля:", error);
+        }
 
         setIsEditing(false);
     };
