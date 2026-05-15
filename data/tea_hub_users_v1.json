@@ -1,0 +1,16 @@
+[
+  {
+    "id": "u_admin",
+    "login": "11",
+    "pass": "11",
+    "role": "admin",
+    "name": "Главный Мастер"
+  },
+  {
+    "id": "u_staff",
+    "login": "1",
+    "pass": "1",
+    "role": "staff",
+    "name": "Ярик"
+  }
+]
