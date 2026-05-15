@@ -184,16 +184,15 @@ export default function AdminDashboard() {
 
       const reader = new FileReader();
       
-      // Сработает, когда файл будет полностью прочитан браузером
       reader.onload = (e) => {
-          const fileData = e.target?.result; // <- Здесь лежит содержимое файла в Base64
+          const fileData = e.target?.result;
 
           const newFile = {
               id: 'file_' + Date.now(),
               name: selectedFile.name,
               size: (selectedFile.size / 1024 / 1024).toFixed(2) + ' MB',
               date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
-              data: fileData // Добавили содержимое файла в объект
+              data: fileData 
           };
 
           const updatedFiles = [newFile, ...urgentFiles];
@@ -209,7 +208,6 @@ export default function AdminDashboard() {
           setSelectedFile(null);
       };
 
-      // Запускаем процесс чтения файла
       reader.readAsDataURL(selectedFile);
   };
 
@@ -227,7 +225,6 @@ export default function AdminDashboard() {
           alert("Этот файл был загружен в старой версии платформы и содержит только название.");
           return;
       }
-      // Создаем невидимую ссылку и кликаем по ней
       const link = document.createElement('a');
       link.href = file.data;
       link.download = file.name;
@@ -288,20 +285,27 @@ export default function AdminDashboard() {
       return `${d} ${MONTH_NAMES[parseInt(m)]} ${y}`;
   };
 
-  // --- ФУНКЦИЯ ОТПРАВКИ УВЕДОМЛЕНИЯ ---
+  // --- ФУНКЦИЯ ОТПРАВКИ УВЕДОМЛЕНИЯ С ТОЧНЫМ ВРЕМЕНЕМ ---
   const handleSendNotification = async () => {
     if (!notifText.trim()) return;
     
-    // Получаем текущие уведомления с сервера перед добавлением
     const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
     const currentNotifs = await res.json().catch(() => []);
     const arr = Array.isArray(currentNotifs) ? currentNotifs : [];
+
+    // Генерируем точное время отправки (Например: 15 мая, 14:30)
+    const formattedTime = new Date().toLocaleDateString('ru-RU', { 
+        day: 'numeric', 
+        month: 'long', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
 
     const newNotif = {
         id: Date.now(),
         title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение',
         text: notifText.trim(),
-        time: 'Только что',
+        time: formattedTime, // Заменили 'Только что' на реальное время
         target: selectedStaff
     };
 
