@@ -19,6 +19,10 @@ function ProfileContent() {
     const [isEditing, setIsEditing] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false); // Состояние для контекстного меню
     
+    // Новые состояния для смены пароля
+    const [isPassModalOpen, setIsPassModalOpen] = useState(false);
+    const [newPass, setNewPass] = useState('');
+    
     // Состояния авторизации
     const [userRole, setUserRole] = useState('staff');
     const [userId, setUserId] = useState('guest');
@@ -122,12 +126,20 @@ function ProfileContent() {
         setIsEditing(true);
     };
 
+    // Действие: Открыть смену пароля и закрыть меню
+    const handleOpenPassChange = () => {
+        setIsMenuOpen(false);
+        setIsPassModalOpen(true);
+        setNewPass('');
+    };
+
     // Действие: Выход
     const handleLogout = () => {
         localStorage.clear();
         router.push('/');
     };
 
+    // Сохранение профиля
     const handleSaveProfile = async () => {
         localStorage.setItem('current_user_name', profile.name);
         
@@ -154,6 +166,29 @@ function ProfileContent() {
         setIsEditing(false);
     };
 
+    // Сохранение нового пароля
+    const handleChangePassword = async () => {
+        if (!newPass.trim()) return;
+        
+        try {
+            // Скачиваем актуальную базу пользователей
+            const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
+            
+            if (Array.isArray(users)) {
+                // Находим текущего пользователя и обновляем ему пароль
+                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, pass: newPass.trim() } : u);
+                saveDataToServer('tea_hub_users_v1', updatedUsers);
+                
+                alert("Пароль успешно изменен!");
+                setIsPassModalOpen(false);
+                setNewPass('');
+            }
+        } catch (error) {
+            console.error("Ошибка смены пароля:", error);
+            alert("Не удалось изменить пароль.");
+        }
+    };
+
     if (!isMounted) return <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh' }} />;
 
     return (
@@ -162,17 +197,17 @@ function ProfileContent() {
             
             <main style={{ maxWidth: '600px', margin: '0 auto', padding: '120px 20px 140px 20px' }}>
                 
-                {/* --- ВЕРХНЯЯ КАРТОЧКА (ОБНОВЛЕННЫЙ МАКЕТ ПО СКРИНШОТУ) --- */}
+                {/* --- ВЕРХНЯЯ КАРТОЧКА --- */}
                 <section style={profileHeaderCardStyle}>
                     
-                    {/* Кнопка "Три точки" (абсолютное позиционирование) */}
+                    {/* Кнопка Три точки */}
                     <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={threeDotsButtonStyle}>•••</div>
 
-                    {/* Контекстное меню (выпадает при нажатии) */}
+                    {/* Контекстное меню */}
                     {isMenuOpen && (
                         <div style={contextMenuStyle}>
                             <div onClick={handleOpenEdit} style={menuItemStyle}>✎ Настроить данные</div>
-                            <div style={menuItemStyle}>🔒 Сменить пароль</div>
+                            <div onClick={handleOpenPassChange} style={menuItemStyle}>🔒 Сменить пароль</div>
                             <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>✕ Выйти</div>
                         </div>
                     )}
@@ -264,6 +299,20 @@ function ProfileContent() {
                         </div>
                     </div>
                 )}
+
+                {/* МОДАЛКА СМЕНЫ ПАРОЛЯ */}
+                {isPassModalOpen && (
+                    <div style={overlayStyle}>
+                        <div style={modalStyle}>
+                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px', color: '#fff' }}>СМЕНА ПАРОЛЯ</h2>
+                            <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
+                                <input type="text" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Придумайте новый пароль" style={inputItemStyle} />
+                            </div>
+                            <button onClick={handleChangePassword} style={saveButtonStyle}>ОБНОВИТЬ ПАРОЛЬ</button>
+                            <div onClick={() => setIsPassModalOpen(false)} style={cancelButtonStyle}>ОТМЕНА</div>
+                        </div>
+                    </div>
+                )}
             </main>
 
             <style jsx global>{` 
@@ -274,9 +323,8 @@ function ProfileContent() {
     );
 }
 
-// --- НОВЫЕ И ОБНОВЛЕННЫЕ СТИЛИ (ПО СКРИНШОТУ) ---
+// --- СТИЛИ ---
 
-// Сама карточка профиля (position relative для абсолютных элементов внутри)
 const profileHeaderCardStyle: any = { 
     position: 'relative',
     backgroundColor: '#161816', 
@@ -288,7 +336,6 @@ const profileHeaderCardStyle: any = {
     boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
 };
 
-// Кнопка Три точки
 const threeDotsButtonStyle: any = { 
     position: 'absolute', 
     top: '25px', 
@@ -301,7 +348,6 @@ const threeDotsButtonStyle: any = {
     letterSpacing: '-1px'
 };
 
-// Контекстное меню
 const contextMenuStyle: any = { 
     position: 'absolute', 
     top: '60px', 
@@ -317,7 +363,6 @@ const contextMenuStyle: any = {
     animation: 'fadeIn 0.2s ease'
 };
 
-// Пункт меню
 const menuItemStyle: any = { 
     padding: '16px 20px', 
     color: '#eee', 
@@ -328,7 +373,6 @@ const menuItemStyle: any = {
     transition: '0.2s' 
 };
 
-// --- ОСТАЛЬНЫЕ СТИЛИ ---
 const sectionTitle: any = { fontSize: '12px', fontWeight: '900', color: '#444', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center', textTransform: 'uppercase' };
 const statCardStyle: any = { background: '#161816', padding: '25px 10px', borderRadius: '25px', border: '1px solid #222', display: 'flex', flexDirection: 'column', alignItems: 'center' };
 const statNum: any = { fontSize: '28px', fontWeight: '900', color: '#0abab5' };
