@@ -63,22 +63,22 @@ export default function Navigation() {
   // --- СОСТОЯНИЕ ДЛЯ ФИРМЕННОГО УВЕДОМЛЕНИЯ ОБ ОШИБКЕ ---
   const [errorMessage, setErrorMessage] = useState("");
 
-  // --- СОСТОЯНИЯ ДЛЯ ИМИТАЦИИ Google reCAPTCHA ---
+  // --- СОСТОЯНИЯ ДЛЯ ИМИТАЦИИ TeaGuard ---
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [isCaptchaLoading, setIsCaptchaLoading] = useState(false);
 
-  // Функция клика по каптче
+  // Функция клика по каптче TeaGuard
   const handleCaptchaClick = () => {
       if (isCaptchaVerified || isCaptchaLoading) return;
       
       setIsCaptchaLoading(true);
-      // Имитируем запрос к серверу каптчи (1.5 секунды)
+      // Имитируем запрос к серверу проверки (1.2 секунды)
       setTimeout(() => {
           setIsCaptchaLoading(false);
           setIsCaptchaVerified(true);
           setErrorMessage(""); // Убираем ошибку, если она была
-      }, 1500);
+      }, 1200);
   };
 
   useEffect(() => {
@@ -120,9 +120,9 @@ export default function Navigation() {
 
   // --- ЛОГИКА АВТОРИЗАЦИИ С УЧЕТОМ КАПТЧИ ---
   const handleLogin = async () => {
-    // Проверка каптчи
+    // Проверка TeaGuard
     if (failedAttempts >= 3 && !isCaptchaVerified) {
-        setErrorMessage("Пожалуйста, подтвердите, что вы не робот.");
+        setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
         return;
     }
 
@@ -146,7 +146,7 @@ export default function Navigation() {
           localStorage.setItem('current_user_id', foundUser.id);
           localStorage.setItem('current_user_name', foundUser.name);
           
-          setFailedAttempts(0); // Сбрасываем счетчик ошибок при успехе
+          setFailedAttempts(0); 
           setIsCaptchaVerified(false);
           
           setIsLoggedIn(true);
@@ -159,7 +159,6 @@ export default function Navigation() {
           const newFails = failedAttempts + 1;
           setFailedAttempts(newFails);
           
-          // Если ошиблись и каптча уже была пройдена - сбрасываем её
           if (isCaptchaVerified) setIsCaptchaVerified(false);
 
           setErrorMessage("Неправильно введен логин или пароль!");
@@ -170,16 +169,16 @@ export default function Navigation() {
     }
   };
 
-  // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА С УЧЕТОМ КАПТЧИ ---
+  // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
       }
 
-      // Проверка каптчи
+      // Проверка TeaGuard
       if (failedAttempts >= 3 && !isCaptchaVerified) {
-          setErrorMessage("Пожалуйста, подтвердите, что вы не робот.");
+          setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
           return;
       }
 
@@ -218,7 +217,7 @@ export default function Navigation() {
           localStorage.setItem('current_user_id', existingUser.id);
           localStorage.setItem('current_user_name', regName.trim());
 
-          setFailedAttempts(0); // Сбрасываем счетчик
+          setFailedAttempts(0); 
           setIsCaptchaVerified(false);
           
           setIsLoggedIn(true);
@@ -436,16 +435,18 @@ export default function Navigation() {
                   border: '1px solid #333',
                   textAlign: 'center',
                   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  animation: 'scaleIn 0.2s ease'
               }} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
                   <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
                   <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{errorMessage}</p>
-                  <div onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase' }}>ЗАКРЫТЬ</div>
+                  <div onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ЗАКРЫТЬ</div>
               </div>
           </div>
       )}
 
+      {/* --- МОДАЛЬНОЕ ОКНО ВХОДА И РЕГИСТРАЦИИ --- */}
       {showLoginModal && (
         <div style={modalOverlay}>
           <div style={{ ...modalContent, maxHeight: '90vh', overflowY: 'auto' }}>
@@ -468,24 +469,28 @@ export default function Navigation() {
                 </>
             )}
 
-            {/* --- ВИТРИНА Google reCAPTCHA (Визуальный клон) --- */}
+            {/* --- ВИТРИНА TeaGuard (Кастомная Каптча) --- */}
             {failedAttempts >= 3 && (
                 <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '15px', marginTop: '5px' }}>
-                    <div style={recaptchaContainerStyle as any}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            {/* Чекбокс Каптчи */}
-                            <div onClick={handleCaptchaClick} style={recaptchaCheckboxStyle(isCaptchaVerified) as any}>
+                    <div style={teaGuardContainerStyle as any}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <div onClick={handleCaptchaClick} style={teaGuardCheckboxStyle(isCaptchaVerified) as any}>
                                 {isCaptchaLoading && <div className="captcha-spinner"></div>}
-                                {isCaptchaVerified && <span style={{ color: '#0f9d58', fontSize: '22px', fontWeight: 'bold' }}>✓</span>}
+                                {isCaptchaVerified && <span style={{ color: '#0abab5', fontSize: '24px', fontWeight: 'bold' }}>✓</span>}
                             </div>
-                            <span style={{ color: '#fff', fontSize: '14px', fontFamily: 'Roboto, sans-serif' }}>Я не робот</span>
+                            <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>I am a human</span>
                         </div>
                         
-                        {/* Правый логотип reCAPTCHA */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <img src="https://www.gstatic.com/recaptcha/api2/logo_48.png" alt="reCAPTCHA" style={{ width: '32px' }} />
-                            <div style={{ color: '#999', fontSize: '10px', marginTop: '4px' }}>reCAPTCHA</div>
-                            <div style={{ color: '#999', fontSize: '8px', marginTop: '2px' }}>Конфиденциальность - Условия</div>
+                            {/* SVG Логотип TeaGuard (Щит с замком) */}
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                <rect x="9" y="11" width="6" height="5" rx="1" stroke="#0abab5" strokeWidth="1.5"/>
+                                <path d="M10 11V9a2 2 0 014 0v2" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round"/>
+                                <circle cx="12" cy="13.5" r="1" fill="#0abab5"/>
+                            </svg>
+                            <div style={{ color: '#fff', fontSize: '11px', fontWeight: '900', marginTop: '4px', letterSpacing: '0.5px' }}>TeaGuard</div>
+                            <div style={{ color: '#666', fontSize: '9px', marginTop: '2px' }}>by Tea Hub</div>
                         </div>
                     </div>
                 </div>
@@ -514,16 +519,20 @@ export default function Navigation() {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
         }
+        @keyframes scaleIn { 
+          from { transform: scale(0.9); opacity: 0; } 
+          to { transform: scale(1); opacity: 1; } 
+        }
         
-        /* Анимация крутилки для Каптчи */
+        /* Анимация крутилки для TeaGuard */
         @keyframes captchaSpin {
           100% { transform: rotate(360deg); }
         }
         .captcha-spinner {
           width: 18px;
           height: 18px;
-          border: 3px solid #ccc;
-          border-top-color: #333;
+          border: 3px solid #333;
+          border-top-color: #0abab5;
           border-radius: 50%;
           animation: captchaSpin 1s linear infinite;
         }
@@ -592,33 +601,33 @@ const modalContent: any = {
     className: 'custom-scroll' 
 };
 
-// --- СТИЛИ ДЛЯ ИМИТАЦИИ Google reCAPTCHA ---
-const recaptchaContainerStyle = {
-    background: '#222',
-    border: '1px solid #525252',
-    borderRadius: '3px',
-    width: '300px',
-    height: '76px',
+// --- СТИЛИ ДЛЯ ИМИТАЦИИ TeaGuard ---
+const teaGuardContainerStyle = {
+    background: '#161816',
+    border: '1px solid #333',
+    borderRadius: '12px',
+    width: '100%',
+    height: '78px',
     display: 'flex',
     alignItems: 'center',
-    padding: '0 12px',
+    padding: '0 20px',
     justifyContent: 'space-between',
-    boxShadow: '0px 0px 4px rgba(0,0,0,0.2)',
+    boxShadow: '0px 4px 10px rgba(0,0,0,0.3)',
     boxSizing: 'border-box'
 };
 
-const recaptchaCheckboxStyle = (isVerified: boolean) => ({
-    width: '28px',
-    height: '28px',
-    background: isVerified ? 'transparent' : '#fff',
-    border: isVerified ? 'none' : '2px solid #c1c1c1',
-    borderRadius: '2px',
+const teaGuardCheckboxStyle = (isVerified: boolean) => ({
+    width: '32px',
+    height: '32px',
+    background: isVerified ? 'transparent' : '#000',
+    border: isVerified ? '2px solid #0abab5' : '2px solid #444',
+    borderRadius: '6px',
     cursor: isVerified ? 'default' : 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative' as any,
-    transition: '0.2s'
+    transition: '0.2s ease',
+    boxShadow: isVerified ? '0 0 10px rgba(10,186,181,0.2)' : 'none'
 });
 
 const inputS: any = { 
