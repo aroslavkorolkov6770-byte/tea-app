@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Импортируем роутер для выхода
+import { useRouter } from 'next/navigation';
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
@@ -14,10 +14,10 @@ const saveDataToServer = (key: string, data: any) => {
 };
 
 function ProfileContent() {
-    const router = useRouter(); // Инициализируем роутер
+    const router = useRouter();
     const [isMounted, setIsMounted] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const [isMenuOpen, setIsMenuOpen] = useState(false); // Состояние для контекстного меню
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     
     // Новые состояния для смены пароля
     const [isPassModalOpen, setIsPassModalOpen] = useState(false);
@@ -120,26 +120,22 @@ function ProfileContent() {
         loadProfileData();
     }, []);
 
-    // Действие: Открыть редактор и закрыть меню
     const handleOpenEdit = () => {
         setIsMenuOpen(false);
         setIsEditing(true);
     };
 
-    // Действие: Открыть смену пароля и закрыть меню
     const handleOpenPassChange = () => {
         setIsMenuOpen(false);
         setIsPassModalOpen(true);
         setNewPass('');
     };
 
-    // Действие: Выход
     const handleLogout = () => {
         localStorage.clear();
         router.push('/');
     };
 
-    // Сохранение профиля
     const handleSaveProfile = async () => {
         localStorage.setItem('current_user_name', profile.name);
         
@@ -166,16 +162,13 @@ function ProfileContent() {
         setIsEditing(false);
     };
 
-    // Сохранение нового пароля
     const handleChangePassword = async () => {
         if (!newPass.trim()) return;
         
         try {
-            // Скачиваем актуальную базу пользователей
             const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
             
             if (Array.isArray(users)) {
-                // Находим текущего пользователя и обновляем ему пароль
                 const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, pass: newPass.trim() } : u);
                 saveDataToServer('tea_hub_users_v1', updatedUsers);
                 
@@ -189,6 +182,21 @@ function ProfileContent() {
         }
     };
 
+    // --- ФУНКЦИЯ ЗАГРУЗКИ ФОТОГРАФИИ ---
+    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                // Сохраняем готовую картинку в Base64 в поле аватара
+                setProfile(prev => ({ ...prev, avatar: event.target!.result as string }));
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
     if (!isMounted) return <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh' }} />;
 
     return (
@@ -200,10 +208,8 @@ function ProfileContent() {
                 {/* --- ВЕРХНЯЯ КАРТОЧКА --- */}
                 <section style={profileHeaderCardStyle}>
                     
-                    {/* Кнопка Три точки */}
                     <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={threeDotsButtonStyle}>•••</div>
 
-                    {/* Контекстное меню */}
                     {isMenuOpen && (
                         <div style={contextMenuStyle}>
                             <div onClick={handleOpenEdit} style={menuItemStyle}>✎ Настроить данные</div>
@@ -212,7 +218,6 @@ function ProfileContent() {
                         </div>
                     )}
 
-                    {/* Аватар */}
                     <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
                         {profile.avatar ? (
                             <img src={profile.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
@@ -221,7 +226,6 @@ function ProfileContent() {
                         )}
                     </div>
 
-                    {/* Имя и Роль */}
                     <h2 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', color: '#fff' }}>{profile.name}</h2>
                     <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>
                         {userRole === 'admin' ? 'ГЛАВНЫЙ МАСТЕР (ADMIN)' : 'ЧАЙНЫЙ МАСТЕР (УЧЕНИК)'}
@@ -289,7 +293,31 @@ function ProfileContent() {
                             <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px' }}>РЕДАКТОР ПРОФИЛЯ</h2>
                             <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
                                 <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} placeholder="Твое имя" style={inputItemStyle} />
-                                <input value={profile.avatar} onChange={e => setProfile({...profile, avatar: e.target.value})} placeholder="Ссылка на фото (URL)" style={inputItemStyle} />
+                                
+                                {/* ЗОНА ЗАГРУЗКИ АВАТАРА */}
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    <input 
+                                        type="file" 
+                                        id="avatar-upload" 
+                                        accept="image/*" 
+                                        style={{ display: 'none' }} 
+                                        onChange={handleAvatarUpload} 
+                                    />
+                                    <input 
+                                        value={profile.avatar} 
+                                        onChange={e => setProfile({...profile, avatar: e.target.value})} 
+                                        placeholder="Ссылка на фото (URL)" 
+                                        style={{ ...inputItemStyle, flex: 1, marginBottom: 0 }} 
+                                    />
+                                    <button 
+                                        onClick={() => document.getElementById('avatar-upload')?.click()} 
+                                        style={{ background: '#222', color: '#0abab5', border: '1px solid #333', padding: '0 20px', height: '58px', borderRadius: '18px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                                    >
+                                        ЗАГРУЗИТЬ
+                                    </button>
+                                </div>
+                                {/* КОНЕЦ ЗОНЫ АВАТАРА */}
+
                                 <input value={profile.tg} onChange={e => setProfile({...profile, tg: e.target.value})} placeholder="Telegram (напр. @nik_name)" style={inputItemStyle} />
                                 <input value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} placeholder="E-mail адрес" style={inputItemStyle} />
                                 <input value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} placeholder="Номер телефона" style={inputItemStyle} />
@@ -389,7 +417,7 @@ const contactCardStyle: any = { background: '#161816', padding: '30px', borderRa
 const contactIconStyle: any = { width: '45px', height: '45px', background: '#000', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
 const overlayStyle: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.98)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px', backdropFilter: 'blur(15px)' };
 const modalStyle: any = { background: '#111', padding: '50px 40px', borderRadius: '45px', width: '100%', maxWidth: '420px', border: '1px solid #222' };
-const inputItemStyle: any = { width: '100%', padding: '20px', background: '#000', border: '1px solid #222', borderRadius: '18px', color: '#fff', outline: 'none', fontSize: '16px' };
+const inputItemStyle: any = { width: '100%', padding: '20px', background: '#000', border: '1px solid #222', borderRadius: '18px', color: '#fff', outline: 'none', fontSize: '16px', boxSizing: 'border-box' };
 const saveButtonStyle: any = { width: '100%', padding: '22px', background: '#0abab5', border: 'none', borderRadius: '18px', fontWeight: '900', color: '#000', cursor: 'pointer', marginTop: '20px', fontSize: '15px' };
 const cancelButtonStyle: any = { textAlign: 'center', marginTop: '25px', color: '#444', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' };
 
