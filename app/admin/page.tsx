@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [showUserForm, setShowUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
-  const [userSearchQuery, setUserSearchQuery] = useState(""); // <-- СОСТОЯНИЕ ДЛЯ ПОИСКА
+  const [userSearchQuery, setUserSearchQuery] = useState("");
 
   // --- СОСТОЯНИЯ ДЛЯ ОТПРАВКИ УВЕДОМЛЕНИЙ ---
   const [notifText, setNotifText] = useState("");
