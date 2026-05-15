@@ -3,6 +3,29 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
+// --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES (ВМЕСТО LOCALSTORAGE) ---
+const setAppCookie = (name: string, value: string, days = 7) => {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    // encodeURIComponent защищает русские символы (например, имена) от поломки в куках
+    document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
+};
+
+const getAppCookie = (name: string) => {
+    if (typeof document === 'undefined') return null; // Защита для серверного рендера Next.js
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        const raw = parts.pop()?.split(';').shift();
+        return raw ? decodeURIComponent(raw) : null;
+    }
+    return null;
+};
+
+const deleteAppCookie = (name: string) => {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+};
+
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
@@ -82,8 +105,9 @@ export default function Navigation() {
   };
 
   useEffect(() => {
-    const auth = localStorage.getItem('isLoggedIn');
-    const role = localStorage.getItem('userRole');
+    // ЧИТАЕМ АВТОРИЗАЦИЮ ИЗ COOKIES
+    const auth = getAppCookie('isLoggedIn');
+    const role = getAppCookie('userRole');
     if (auth === 'true') {
       setIsLoggedIn(true);
       setUserRole(role);
@@ -91,7 +115,7 @@ export default function Navigation() {
 
     const loadServerData = async () => {
         try {
-            const currentUserId = localStorage.getItem('current_user_id') || 'guest';
+            const currentUserId = getAppCookie('current_user_id') || 'guest';
             
             const notifsRes = await fetch('/api/storage?key=tea_hub_notifications_v1').then(r => r.json()).catch(() => []);
             if (Array.isArray(notifsRes)) {
@@ -118,9 +142,8 @@ export default function Navigation() {
     return () => clearInterval(syncInterval);
   }, []);
 
-  // --- ЛОГИКА АВТОРИЗАЦИИ С УЧЕТОМ КАПТЧИ ---
+  // --- ЛОГИКА АВТОРИЗАЦИИ С УЧЕТОМ КАПТЧИ И COOKIES ---
   const handleLogin = async () => {
-    // Проверка TeaGuard
     if (failedAttempts >= 3 && !isCaptchaVerified) {
         setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
         return;
@@ -141,10 +164,11 @@ export default function Navigation() {
         const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
         if (foundUser) {
-          localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userRole', foundUser.role);
-          localStorage.setItem('current_user_id', foundUser.id);
-          localStorage.setItem('current_user_name', foundUser.name);
+          // СОХРАНЯЕМ В COOKIES
+          setAppCookie('isLoggedIn', 'true');
+          setAppCookie('userRole', foundUser.role);
+          setAppCookie('current_user_id', foundUser.id);
+          setAppCookie('current_user_name', foundUser.name);
           
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
@@ -169,14 +193,13 @@ export default function Navigation() {
     }
   };
 
-  // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА ---
+  // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА (COOKIES) ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
       }
 
-      // Проверка TeaGuard
       if (failedAttempts >= 3 && !isCaptchaVerified) {
           setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
           return;
@@ -212,10 +235,11 @@ export default function Navigation() {
           };
           saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
 
-          localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userRole', existingUser.role);
-          localStorage.setItem('current_user_id', existingUser.id);
-          localStorage.setItem('current_user_name', regName.trim());
+          // СОХРАНЯЕМ В COOKIES
+          setAppCookie('isLoggedIn', 'true');
+          setAppCookie('userRole', existingUser.role);
+          setAppCookie('current_user_id', existingUser.id);
+          setAppCookie('current_user_name', regName.trim());
 
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
@@ -234,10 +258,12 @@ export default function Navigation() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('current_user_id');
-    localStorage.removeItem('current_user_name');
+    // УДАЛЯЕМ COOKIES ПРИ ВЫХОДЕ
+    deleteAppCookie('isLoggedIn');
+    deleteAppCookie('userRole');
+    deleteAppCookie('current_user_id');
+    deleteAppCookie('current_user_name');
+    
     setIsLoggedIn(false);
     router.push('/');
   };
@@ -251,7 +277,7 @@ export default function Navigation() {
             const updated = allNotifs.filter((n: any) => n.id !== id);
             saveDataToServer('tea_hub_notifications_v1', updated);
             
-            const currentUserId = localStorage.getItem('current_user_id') || 'guest';
+            const currentUserId = getAppCookie('current_user_id') || 'guest';
             const myNotifs = updated.filter((n: any) => n.target === 'Все' || n.target === currentUserId || !n.target);
             setNotifications(myNotifs);
         }
