@@ -84,16 +84,19 @@ export default function Navigation() {
       if (isCaptchaVerified || isCaptchaLoading) return;
       
       setIsCaptchaLoading(true);
-      // Имитируем запрос к серверу проверки (1.2 секунды)
       setTimeout(() => {
           setIsCaptchaLoading(false);
           setIsCaptchaVerified(true);
-          setErrorMessage(""); // Убираем ошибку, если она была
+          setErrorMessage(""); 
       }, 1200);
   };
 
   useEffect(() => {
-    // ВОЗВРАЩЕНО: ЧИТАЕМ ИЗ LOCALSTORAGE ЧТОБЫ НЕ ЛОМАТЬ ОСТАЛЬНОЙ САЙТ
+    // На мобилках по умолчанию закрываем меню при загрузке страницы
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        setIsSidebarOpen(false);
+    }
+
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
     if (auth === 'true') {
@@ -130,9 +133,8 @@ export default function Navigation() {
     return () => clearInterval(syncInterval);
   }, []);
 
-  // --- ЛОГИКА АВТОРИЗАЦИИ (ГРАМОТНАЯ СИНХРОНИЗАЦИЯ) ---
+  // --- ЛОГИКА АВТОРИЗАЦИИ ---
   const handleLogin = async () => {
-    // Проверка TeaGuard
     if (failedAttempts >= 3 && !isCaptchaVerified) {
         setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
         return;
@@ -153,13 +155,11 @@ export default function Navigation() {
         const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
         if (foundUser) {
-          // СОХРАНЯЕМ В LOCALSTORAGE ДЛЯ КЛИЕНТА
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userRole', foundUser.role);
           localStorage.setItem('current_user_id', foundUser.id);
           localStorage.setItem('current_user_name', foundUser.name);
 
-          // ПАРАЛЛЕЛЬНО ПИШЕМ В COOKIES ДЛЯ БУДУЩЕГО СЕРВЕРА
           setAppCookie('isLoggedIn', 'true');
           setAppCookie('userRole', foundUser.role);
           setAppCookie('current_user_id', foundUser.id);
@@ -177,9 +177,7 @@ export default function Navigation() {
         } else {
           const newFails = failedAttempts + 1;
           setFailedAttempts(newFails);
-          
           if (isCaptchaVerified) setIsCaptchaVerified(false);
-
           setErrorMessage("Неправильно введен логин или пароль!");
         }
     } catch (error) {
@@ -188,14 +186,13 @@ export default function Navigation() {
     }
   };
 
-  // --- ЛОГИКА РЕГИСТРАЦИИ (ГРАМОТНАЯ СИНХРОНИЗАЦИЯ) ---
+  // --- ЛОГИКА РЕГИСТРАЦИИ ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
       }
 
-      // Проверка TeaGuard
       if (failedAttempts >= 3 && !isCaptchaVerified) {
           setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
           return;
@@ -212,7 +209,6 @@ export default function Navigation() {
               const newFails = failedAttempts + 1;
               setFailedAttempts(newFails);
               if (isCaptchaVerified) setIsCaptchaVerified(false);
-
               setErrorMessage("Неправильно введен логин или пароль! Убедитесь, что администратор выдал вам доступы.");
               return;
           }
@@ -231,13 +227,11 @@ export default function Navigation() {
           };
           saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
 
-          // СОХРАНЯЕМ В LOCALSTORAGE
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userRole', existingUser.role);
           localStorage.setItem('current_user_id', existingUser.id);
           localStorage.setItem('current_user_name', regName.trim());
 
-          // ПАРАЛЛЕЛЬНО ПИШЕМ В COOKIES
           setAppCookie('isLoggedIn', 'true');
           setAppCookie('userRole', existingUser.role);
           setAppCookie('current_user_id', existingUser.id);
@@ -260,13 +254,11 @@ export default function Navigation() {
   };
 
   const handleLogout = () => {
-    // УДАЛЯЕМ ИЗ LOCALSTORAGE
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userRole');
     localStorage.removeItem('current_user_id');
     localStorage.removeItem('current_user_name');
 
-    // УДАЛЯЕМ ИЗ COOKIES
     deleteAppCookie('isLoggedIn');
     deleteAppCookie('userRole');
     deleteAppCookie('current_user_id');
@@ -346,6 +338,11 @@ export default function Navigation() {
   const handleResultClick = (link: string) => {
     setIsSearchOpen(false);
     setSearchQuery('');
+    
+    // При переходе на мобилках сразу прячем меню
+    if (window.innerWidth <= 768) {
+        setIsSidebarOpen(false);
+    }
     router.push(link);
   };
 
@@ -359,15 +356,21 @@ export default function Navigation() {
   return (
     <>
       {!isLoggedIn ? (
-        <header style={guestHeader}>
+        <header style={guestHeader} className="guest-header">
            <div onClick={() => setShowLoginModal(true)} style={loginBtn}>ВХОД</div>
         </header>
       ) : (
         <>
-          <aside style={{ ...sidebarStyle, left: isSidebarOpen ? 0 : '-260px', transition: '0.3s ease' }}>
+          {/* Мобильное затемнение фона при открытом меню */}
+          {isSidebarOpen && <div className="sidebar-mobile-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+
+          <aside style={{ ...sidebarStyle, left: isSidebarOpen ? 0 : '-260px', transition: '0.3s ease' }} className="nav-sidebar">
             <div style={logoArea}>
-                <div onClick={() => setIsSidebarOpen(!isSidebarOpen)} style={logoIcon}>≡</div>
+                {/* Гамбургер на десктопе */}
+                <div onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="desktop-hamburger" style={logoIcon}>≡</div>
                 <span style={logoText}>Dash Board</span>
+                {/* Кнопка закрытия на мобилках */}
+                <div onClick={() => setIsSidebarOpen(false)} className="mobile-close-btn" style={{ marginLeft: 'auto', fontSize: '24px', cursor: 'pointer', color: '#ff4d4d' }}>✕</div>
              </div>
              <nav style={sideNav}>
                 {sideItems.map(item => (
@@ -378,9 +381,14 @@ export default function Navigation() {
              </nav>
           </aside>
 
-          <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '0', transition: '0.3s ease' }}>
-             <div style={searchBox}>
-                {!isSidebarOpen && <div onClick={() => setIsSidebarOpen(true)} style={{ cursor: 'pointer', fontSize: '20px', marginRight: '10px' }}>☰</div>}
+          <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '0', transition: '0.3s ease' }} className="nav-topbar">
+             <div style={searchBox} className="search-box-container">
+                {/* Гамбургер для десктопа (если меню закрыто) */}
+                {!isSidebarOpen && <div onClick={() => setIsSidebarOpen(true)} className="desktop-hamburger" style={{ cursor: 'pointer', fontSize: '20px', marginRight: '10px' }}>☰</div>}
+                
+                {/* Гамбургер для мобилок (всегда виден) */}
+                <div onClick={() => setIsSidebarOpen(true)} className="mobile-hamburger" style={{ cursor: 'pointer', fontSize: '24px' }}>☰</div>
+                
                 <span style={{opacity: 0.5}}>🔍</span>
                 <input 
                   type="text" 
@@ -408,7 +416,7 @@ export default function Navigation() {
                 )}
               </div>
              
-             <div style={topActions}>
+             <div style={topActions} className="top-actions">
                 <div onClick={() => setIsNotifOpen(true)} style={topIcon}>
                   🔔
                   {notifications.length > 0 && (
@@ -430,7 +438,7 @@ export default function Navigation() {
 
           {isNotifOpen && (
             <div style={notifOverlayStyle as any} onClick={() => setIsNotifOpen(false)}>
-              <div style={notifSidebarStyle as any} onClick={e => e.stopPropagation()}>
+              <div style={notifSidebarStyle as any} className="notif-sidebar-custom" onClick={e => e.stopPropagation()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                   <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#fff' }}>УВЕДОМЛЕНИЯ</h2>
                   <div onClick={() => setIsNotifOpen(false)} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5 }}>✕</div>
@@ -460,7 +468,7 @@ export default function Navigation() {
       {/* --- МОДАЛЬНОЕ ОКНО ОШИБКИ (ФИРМЕННОЕ) --- */}
       {errorMessage && (
           <div style={{...modalOverlay, zIndex: 40000} as any} onClick={() => setErrorMessage("")}>
-              <div style={{
+              <div className="modal-content-custom" style={{
                   background: '#111',
                   padding: '40px 30px',
                   borderRadius: '30px',
@@ -483,8 +491,8 @@ export default function Navigation() {
       {/* --- МОДАЛЬНОЕ ОКНО ВХОДА И РЕГИСТРАЦИИ --- */}
       {showLoginModal && (
         <div style={modalOverlay}>
-          <div style={{ ...modalContent, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{color:'#fff', textAlign:'center', marginBottom:'25px', fontWeight: '900', letterSpacing: '1px'}}>
+          <div className="modal-content-custom" style={{ ...modalContent, maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{color:'#fff', textAlign:'center', marginBottom:'25px', fontWeight: '900', letterSpacing: '1px', fontSize: '18px'}}>
                 {isLoginMode ? 'ВХОД В СИСТЕМУ' : 'АКТИВАЦИЯ АККАУНТА'}
             </h2>
             
@@ -516,7 +524,6 @@ export default function Navigation() {
                         </div>
                         
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            {/* SVG Логотип TeaGuard (Щит с замком) */}
                             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                                 <rect x="9" y="11" width="6" height="5" rx="1" stroke="#0abab5" strokeWidth="1.5"/>
@@ -558,7 +565,6 @@ export default function Navigation() {
           to { transform: scale(1); opacity: 1; } 
         }
         
-        /* Анимация крутилки для TeaGuard */
         @keyframes captchaSpin {
           100% { transform: rotate(360deg); }
         }
@@ -579,13 +585,71 @@ export default function Navigation() {
         * {
             box-sizing: border-box;
         }
-        /* Стилизация скроллбара внутри модального окна */
         .custom-scroll::-webkit-scrollbar {
             width: 4px;
         }
         .custom-scroll::-webkit-scrollbar-thumb {
             background: #333;
             border-radius: 10px;
+        }
+
+        /* КЛАССЫ СКРЫТЫЕ НА ДЕСКТОПЕ ПО УМОЛЧАНИЮ */
+        .sidebar-mobile-overlay { display: none; }
+        .mobile-hamburger { display: none; }
+        .mobile-close-btn { display: none; }
+
+        /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
+        @media (max-width: 768px) {
+            /* Шапка и Навигация */
+            .nav-topbar {
+                left: 0 !important;
+                padding: 0 15px !important;
+                height: 70px !important;
+            }
+            .nav-sidebar {
+                z-index: 10005 !important;
+            }
+            .sidebar-mobile-overlay {
+                display: block !important;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.6);
+                z-index: 10004;
+                backdrop-filter: blur(5px);
+            }
+            .desktop-hamburger { display: none !important; }
+            .mobile-hamburger { 
+                display: block !important; 
+                margin-right: 15px; 
+                color: #fff;
+            }
+            .mobile-close-btn { display: block !important; }
+
+            /* Строка поиска */
+            .search-box-container {
+                width: auto !important;
+                flex: 1;
+                padding: 10px 15px !important;
+                margin-right: 15px;
+            }
+
+            /* Кнопка "Вход" для неавторизованных */
+            .guest-header {
+                right: 15px !important;
+                top: 15px !important;
+            }
+
+            /* Всплывающие модальные окна */
+            .modal-content-custom {
+                padding: 30px 20px !important;
+                width: 95% !important;
+            }
+
+            /* Панель уведомлений */
+            .notif-sidebar-custom {
+                width: 100% !important;
+                border-left: none !important;
+            }
         }
       `}</style>
     </>
