@@ -60,6 +60,9 @@ export default function Navigation() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // --- СОСТОЯНИЕ ДЛЯ ФИРМЕННОГО УВЕДОМЛЕНИЯ ОБ ОШИБКЕ ---
+  const [errorMessage, setErrorMessage] = useState("");
+
   useEffect(() => {
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
@@ -126,18 +129,18 @@ export default function Navigation() {
           if (foundUser.role === 'admin') router.push('/admin');
           else router.push('/tasks?tab=welcome');
         } else {
-          alert("Неправильно введен логин или пароль!");
+          setErrorMessage("Неправильно введен логин или пароль!");
         }
     } catch (error) {
         console.error("Ошибка связи с сервером:", error);
-        alert("Не удалось подключиться к базе данных.");
+        setErrorMessage("Не удалось подключиться к базе данных.");
     }
   };
 
   // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
-          alert("Пожалуйста, заполните Имя, Логин и Пароль!");
+          setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
       }
 
@@ -149,7 +152,7 @@ export default function Navigation() {
           const foundUserIndex = users.findIndex((u: any) => u.login === login.trim() && u.pass === pass.trim());
 
           if (foundUserIndex === -1) {
-              alert("Неправильно введен логин или пароль! Убедитесь, что администратор выдал вам доступы.");
+              setErrorMessage("Неправильно введен логин или пароль! Убедитесь, что администратор выдал вам доступы.");
               return;
           }
 
@@ -181,7 +184,7 @@ export default function Navigation() {
 
       } catch (error) {
           console.error("Ошибка при регистрации:", error);
-          alert("Не удалось подключиться к базе данных для регистрации.");
+          setErrorMessage("Не удалось подключиться к базе данных для регистрации.");
       }
   };
 
@@ -375,15 +378,37 @@ export default function Navigation() {
         </>
       )}
 
+      {/* --- МОДАЛЬНОЕ ОКНО ОШИБКИ (ФИРМЕННОЕ) --- */}
+      {errorMessage && (
+          <div style={{...modalOverlay, zIndex: 40000} as any} onClick={() => setErrorMessage("")}>
+              <div style={{
+                  background: '#111',
+                  padding: '40px 30px',
+                  borderRadius: '30px',
+                  width: '90%',
+                  maxWidth: '380px',
+                  border: '1px solid #333',
+                  textAlign: 'center',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+                  boxSizing: 'border-box'
+              }} onClick={e => e.stopPropagation()}>
+                  <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
+                  <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
+                  <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{errorMessage}</p>
+                  <div onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase' }}>ЗАКРЫТЬ</div>
+              </div>
+          </div>
+      )}
+
       {showLoginModal && (
         <div style={modalOverlay}>
-          <div style={modalContent}>
+          <div style={{ ...modalContent, maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{color:'#fff', textAlign:'center', marginBottom:'25px', fontWeight: '900', letterSpacing: '1px'}}>
                 {isLoginMode ? 'ВХОД В СИСТЕМУ' : 'АКТИВАЦИЯ АККАУНТА'}
             </h2>
             
             {!isLoginMode && (
-                <input type="text" placeholder="Ваше Имя" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
+                <input type="text" placeholder="Ваше Имя (для профиля)" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
             )}
             
             <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
@@ -467,14 +492,13 @@ const notifSidebarStyle = { width: '350px', height: '100%', background: '#000', 
 const notifItemStyle = { background: '#0d0d0d', padding: '20px', borderRadius: '18px', border: '1px solid #1a1a1a', marginBottom: '10px' };
 const modalOverlay: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)', boxSizing: 'border-box' };
 
-// ИСПРАВЛЕННЫЕ СТИЛИ ДЛЯ МОДАЛКИ (Сделал шире, отступы меньше)
 const modalContent: any = { 
     background: '#000', 
     padding: '40px 35px', 
     borderRadius: '35px', 
     width: '90%', 
-    maxWidth: '440px', // Увеличил ширину для пропорций
-    maxHeight: '95vh', // Оставил запас для экранов поменьше
+    maxWidth: '440px', 
+    maxHeight: '95vh', 
     overflowY: 'auto',
     border: '1px solid #222', 
     display: 'flex', 
@@ -482,10 +506,9 @@ const modalContent: any = {
     alignItems: 'center', 
     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', 
     boxSizing: 'border-box',
-    className: 'custom-scroll' // Добавил класс для тонкого скроллбара
+    className: 'custom-scroll' 
 };
 
-// ИСПРАВЛЕННЫЕ СТИЛИ ДЛЯ ИНПУТОВ (Меньше высота, меньше скругление)
 const inputS: any = { 
     width: '100%', 
     padding: '14px 20px', 
