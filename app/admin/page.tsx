@@ -48,12 +48,10 @@ export default function AdminDashboard() {
   const [showFilesList, setShowFilesList] = useState(false);
   const [previewFile, setPreviewFile] = useState<any>(null);
 
-  // СОСТОЯНИЕ ФИРМЕННОГО УВЕДОМЛЕНИЯ ОБ УСПЕХЕ (ВМЕСТО ALERT)
-  const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, title: string, text: string}>({ 
-    show: false, 
-    title: '', 
-    text: '' 
-  });
+  // --- СОСТОЯНИЯ ФИРМЕННЫХ МОДАЛЬНЫХ ОКОН ---
+  const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, title: string, text: string}>({ show: false, title: '', text: '' });
+  const [errorModal, setErrorModal] = useState({ show: false, text: '' });
+  const [confirmModal, setConfirmModal] = useState<{show: boolean, type: 'user'|'file'|null, id: string, title: string, text: string}>({ show: false, type: null, id: '', title: '', text: '' });
 
   useEffect(() => {
     setIsMounted(true);
@@ -136,11 +134,11 @@ export default function AdminDashboard() {
   // --- ЛОГИКА УПРАВЛЕНИЯ ПЕРСОНАЛОМ ---
   const handleCreateUser = () => {
       if (!newUser.name.trim() || !newUser.login.trim() || !newUser.pass.trim()) {
-          alert("Заполните все поля!");
+          setErrorModal({ show: true, text: "Заполните все поля для создания сотрудника!" });
           return;
       }
       if (users.find(u => u.login === newUser.login.trim())) {
-          alert("Пользователь с таким логином уже существует!");
+          setErrorModal({ show: true, text: "Пользователь с таким логином уже существует!" });
           return;
       }
 
@@ -168,17 +166,20 @@ export default function AdminDashboard() {
 
   const handleDeleteUser = (id: string) => {
       if (id === 'u_admin' || id === 'u_staff') {
-          alert("Базовые аккаунты удалить нельзя!");
+          setErrorModal({ show: true, text: "Базовые системные аккаунты удалить нельзя!" });
           return;
       }
-      if (confirm("Точно удалить учетную запись сотрудника?")) {
-          const updatedUsers = users.filter(u => u.id !== id);
-          setUsers(updatedUsers);
-          saveDataToServer('tea_hub_users_v1', updatedUsers);
-      }
+      
+      setConfirmModal({
+          show: true,
+          type: 'user',
+          id: id,
+          title: 'УДАЛЕНИЕ СОТРУДНИКА',
+          text: 'Вы уверены, что хотите удалить учетную запись этого сотрудника? Это действие необратимо.'
+      });
   };
 
-  // --- ИЗМЕНЕННАЯ ЛОГИКА: ЧИТАЕМ ФАЙЛ И СОХРАНЯЕМ В BASE64 ---
+  // --- ЛОГИКА: ЧИТАЕМ ФАЙЛ И СОХРАНЯЕМ В BASE64 ---
   const handleSaveFile = () => {
       if (!selectedFile) return;
 
@@ -212,17 +213,32 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteFile = (id: string) => {
-      if(confirm("Удалить этот файл у всех сотрудников?")) {
-          const updatedFiles = urgentFiles.filter(f => f.id !== id);
+      setConfirmModal({
+          show: true,
+          type: 'file',
+          id: id,
+          title: 'УДАЛЕНИЕ МАТЕРИАЛА',
+          text: 'Вы действительно хотите удалить этот учебный материал у всех сотрудников?'
+      });
+  };
+
+  // Выполнение подтвержденного удаления
+  const executeConfirmAction = () => {
+      if (confirmModal.type === 'user') {
+          const updatedUsers = users.filter(u => u.id !== confirmModal.id);
+          setUsers(updatedUsers);
+          saveDataToServer('tea_hub_users_v1', updatedUsers);
+      } else if (confirmModal.type === 'file') {
+          const updatedFiles = urgentFiles.filter(f => f.id !== confirmModal.id);
           setUrgentFiles(updatedFiles);
           saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
       }
+      setConfirmModal({ ...confirmModal, show: false });
   };
 
-  // --- ФУНКЦИЯ РЕАЛЬНОГО СКАЧИВАНИЯ ---
   const handleDownloadFile = (file: any) => {
       if (!file.data) {
-          alert("Этот файл был загружен в старой версии платформы и содержит только название.");
+          setErrorModal({ show: true, text: "Этот файл был загружен в старой версии платформы и недоступен для скачивания." });
           return;
       }
       const link = document.createElement('a');
@@ -293,7 +309,6 @@ export default function AdminDashboard() {
     const currentNotifs = await res.json().catch(() => []);
     const arr = Array.isArray(currentNotifs) ? currentNotifs : [];
 
-    // Генерируем точное время отправки (Например: 15 мая, 14:30)
     const formattedTime = new Date().toLocaleDateString('ru-RU', { 
         day: 'numeric', 
         month: 'long', 
@@ -305,7 +320,7 @@ export default function AdminDashboard() {
         id: Date.now(),
         title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение',
         text: notifText.trim(),
-        time: formattedTime, // Заменили 'Только что' на реальное время
+        time: formattedTime, 
         target: selectedStaff
     };
 
@@ -656,7 +671,7 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* --- ФИРМЕННЫЕ МОДАЛЬНЫЕ ОКНА --- */}
+      {/* --- ФИРМЕННЫЕ МОДАЛЬНЫЕ ОКНА (УВЕДОМЛЕНИЯ) --- */}
 
       {/* 1. ОКНО УСПЕХА */}
       {showSuccessModal.show && (
@@ -675,7 +690,36 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* 2. ОКНО ПРЕДПРОСМОТРА ФАЙЛА */}
+      {/* 2. ОКНО ПОДТВЕРЖДЕНИЯ (УДАЛЕНИЕ) */}
+      {confirmModal.show && (
+          <div style={modalOverlay as any} onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
+              <div style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                  <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                  <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{confirmModal.title}</h2>
+                  <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
+                      {confirmModal.text}
+                  </p>
+                  <div style={{ display: 'flex', gap: '15px' }}>
+                      <button onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ ...saveBtn, background: '#222', color: '#fff' } as any}>ОТМЕНА</button>
+                      <button onClick={executeConfirmAction} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff' } as any}>УДАЛИТЬ</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* 3. ОКНО ОШИБКИ */}
+      {errorModal.show && (
+          <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
+              <div style={{ ...modalContentSmall, maxWidth: '380px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                  <div style={{ fontSize: '50px', marginBottom: '20px' }}>⛔</div>
+                  <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ОШИБКА</h2>
+                  <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{errorModal.text}</p>
+                  <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>
+              </div>
+          </div>
+      )}
+
+      {/* 4. ОКНО ПРЕДПРОСМОТРА ФАЙЛА */}
       {previewFile && (
           <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
               <div style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
@@ -696,7 +740,7 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* 3. МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
+      {/* 5. МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
       {showUserForm && (
         <div style={modalOverlay as any}>
             <div style={modalContentSmall as any}>
@@ -717,7 +761,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 4. ПАНЕЛЬ ЗАМЕТОК (САЙДБАР) */}
+      {/* 6. ПАНЕЛЬ ЗАМЕТОК (САЙДБАР) */}
       {selectedDateKey && (
         <div style={noteOverlayStyle as any} onClick={closeNotePanel}>
           <div style={noteSidebarStyle as any} onClick={e => e.stopPropagation()}>
