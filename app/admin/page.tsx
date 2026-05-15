@@ -53,6 +53,10 @@ export default function AdminDashboard() {
   const [errorModal, setErrorModal] = useState({ show: false, text: '' });
   const [confirmModal, setConfirmModal] = useState<{show: boolean, type: 'user'|'file'|null, id: string, title: string, text: string}>({ show: false, type: null, id: '', title: '', text: '' });
 
+  // --- СОСТОЯНИЯ ДЛЯ МОДАЛКИ РЕЗУЛЬТАТОВ ТЕСТОВ ---
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [selectedTestUser, setSelectedTestUser] = useState("Все");
+
   useEffect(() => {
     setIsMounted(true);
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
@@ -464,42 +468,15 @@ export default function AdminDashboard() {
                   ))}
                 </div>
 
-                {/* --- ДИНАМИЧЕСКИЙ СПИСОК ЗАДАЧ (РЕЗУЛЬТАТЫ ТЕСТОВ) --- */}
+                {/* --- КНОПКА ОТКРЫТИЯ РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ --- */}
                 <div style={{ ...flexSpace, marginTop: '40px' }}>
-                  <h2 style={sectionTitle}>Результаты тестирования</h2>
+                  <h2 
+                    style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'underline' }}
+                    onClick={() => setShowTestModal(true)}
+                  >
+                    Результаты тестирования ↗
+                  </h2>
                   <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Всего записей: {testResults.length}</span>
-                </div>
-                <div style={tableContainer}>
-                  <table style={adminTable}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #222' }}>
-                        <th style={thStyle}>Сотрудник</th>
-                        <th style={thStyle}>Тест</th>
-                        <th style={thStyle}>Балл</th>
-                        <th style={thStyle}>Попытки</th>
-                        <th style={thStyle}>Статус</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {testResults.length === 0 && (
-                          <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#555' }}>Нет данных о прохождении тестов</td></tr>
-                      )}
-                      {testResults.map((res: any) => {
-                          const isPassed = res.score >= 80;
-                          const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
-                          
-                          return (
-                              <tr key={res.id} style={trStyle}>
-                                <td style={{ padding: '20px', fontWeight: 'bold' }}>{res.userName}</td>
-                                <td style={{ color: '#ccc', fontSize: '14px' }}>{res.testName}</td>
-                                <td style={{ fontWeight: '900', color: scoreColor }}>{res.score}%</td>
-                                <td style={{ color: '#888', fontSize: '13px' }}>{res.attempts}</td>
-                                <td><span style={statusBadge(scoreColor)}>{isPassed ? 'Пройден' : 'Не пройден'}</span></td>
-                              </tr>
-                          );
-                      })}
-                    </tbody>
-                  </table>
                 </div>
 
                 {/* ОТПРАВКА УВЕДОМЛЕНИЙ */}
@@ -646,7 +623,7 @@ export default function AdminDashboard() {
               <div style={{ ...modalContentSmall, maxWidth: '550px' } as any}>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center' }}>ЗАГРУЖЕННЫЕ МАТЕРИАЛЫ</h2>
                   
-                  <div style={{ maxHeight: '350px', overflowY: 'auto', marginBottom: '25px', paddingRight: '10px' }}>
+                  <div style={{ maxHeight: '350px', overflowY: 'auto', marginBottom: '25px', paddingRight: '10px' }} className="custom-scroll">
                       {urgentFiles.length === 0 ? (
                           <p style={{ textAlign: 'center', color: '#666' }}>Список пуст</p>
                       ) : (
@@ -667,6 +644,54 @@ export default function AdminDashboard() {
                   </div>
 
                   <button onClick={() => setShowFilesList(false)} style={saveBtn as any}>← НАЗАД К ПАНЕЛИ</button>
+              </div>
+          </div>
+      )}
+
+      {/* --- НОВОЕ МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ --- */}
+      {showTestModal && (
+          <div style={modalOverlay as any} onClick={() => setShowTestModal(false)}>
+              <div style={{ ...modalContentSmall, maxWidth: '650px', padding: '35px' } as any} onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                      <h2 style={{ color: '#0abab5', fontWeight: '900', margin: 0, letterSpacing: '1px' }}>РЕЗУЛЬТАТЫ ТЕСТОВ</h2>
+                      <div onClick={() => setShowTestModal(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', lineHeight: 1, fontWeight: 'bold' }}>✕</div>
+                  </div>
+
+                  <select
+                      style={{ ...adminIn, marginBottom: '25px', border: '1px solid #333' } as any}
+                      value={selectedTestUser}
+                      onChange={(e) => setSelectedTestUser(e.target.value)}
+                  >
+                      <option value="Все">Показать всех сотрудников</option>
+                      {users.filter(u => u.role === 'staff').map(u => (
+                          <option key={u.id} value={u.name}>{u.name} ({u.login})</option>
+                      ))}
+                  </select>
+
+                  <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '10px' }} className="custom-scroll">
+                      {testResults
+                          .filter(res => selectedTestUser === 'Все' || res.userName === selectedTestUser)
+                          .map((res: any) => {
+                              const isPassed = res.score >= 80;
+                              const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
+
+                              return (
+                                  <div key={res.id} style={{ background: '#000', border: '1px solid #222', padding: '20px', borderRadius: '20px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                      <div style={{ flex: 1 }}>
+                                          <div style={{ fontWeight: '900', color: '#fff', fontSize: '16px', marginBottom: '6px' }}>{res.testName}</div>
+                                          <div style={{ fontSize: '13px', color: '#888' }}>Сотрудник: <span style={{color: '#ccc', fontWeight: 'bold'}}>{res.userName}</span> • Попыток: {res.attempts}</div>
+                                      </div>
+                                      <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                                          <div style={{ fontWeight: '900', color: scoreColor, fontSize: '20px' }}>{res.score}%</div>
+                                          <span style={statusBadge(scoreColor)}>{isPassed ? 'Пройден' : 'Не пройден'}</span>
+                                      </div>
+                                  </div>
+                              );
+                      })}
+                      {testResults.filter(res => selectedTestUser === 'Все' || res.userName === selectedTestUser).length === 0 && (
+                          <div style={{ textAlign: 'center', color: '#666', padding: '30px', fontWeight: 'bold', fontSize: '15px' }}>У этого сотрудника пока нет пройденных тестов</div>
+                      )}
+                  </div>
               </div>
           </div>
       )}
@@ -788,8 +813,10 @@ export default function AdminDashboard() {
         .cal-day.today { background: #0abab5; color: #000; }
         .note-dot { position: absolute; bottom: 4px; width: 4px; height: 4px; background: #0abab5; border-radius: 50%; }
         .cal-day:hover .note-dot, .cal-day.today .note-dot { background: #000; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: #222; borderRadius: 10px; }
+        
+        /* Стилизация скроллбара для модальных окон */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
       `}</style>
     </div>
   );
