@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [showUserForm, setShowUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
-  const [userSearchQuery, setUserSearchQuery] = useState(""); // <-- СОСТОЯНИЕ ДЛЯ ПОИСКА
+  const [userSearchQuery, setUserSearchQuery] = useState("");
 
   // --- СОСТОЯНИЯ ДЛЯ ОТПРАВКИ УВЕДОМЛЕНИЙ ---
   const [notifText, setNotifText] = useState("");
@@ -184,15 +184,12 @@ export default function AdminDashboard() {
       });
   };
 
-  // --- ЛОГИКА: ЧИТАЕМ ФАЙЛ И СОХРАНЯЕМ В BASE64 ---
   const handleSaveFile = () => {
       if (!selectedFile) return;
 
       const reader = new FileReader();
-      
       reader.onload = (e) => {
           const fileData = e.target?.result;
-
           const newFile = {
               id: 'file_' + Date.now(),
               name: selectedFile.name,
@@ -213,21 +210,13 @@ export default function AdminDashboard() {
 
           setSelectedFile(null);
       };
-
       reader.readAsDataURL(selectedFile);
   };
 
   const handleDeleteFile = (id: string) => {
-      setConfirmModal({
-          show: true,
-          type: 'file',
-          id: id,
-          title: 'УДАЛЕНИЕ МАТЕРИАЛА',
-          text: 'Вы действительно хотите удалить этот учебный материал у всех сотрудников?'
-      });
+      setConfirmModal({ show: true, type: 'file', id: id, title: 'УДАЛЕНИЕ МАТЕРИАЛА', text: 'Вы действительно хотите удалить этот учебный материал у всех сотрудников?' });
   };
 
-  // Выполнение подтвержденного удаления
   const executeConfirmAction = () => {
       if (confirmModal.type === 'user') {
           const updatedUsers = users.filter(u => u.id !== confirmModal.id);
@@ -254,7 +243,6 @@ export default function AdminDashboard() {
       document.body.removeChild(link);
   };
 
-  // --- ФУНКЦИИ КАЛЕНДАРЯ ---
   const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
@@ -266,7 +254,6 @@ export default function AdminDashboard() {
   today.setHours(0, 0, 0, 0);
   const isToday = (d: number) => today.getDate() === d && today.getMonth() === currentDate.getMonth() && today.getFullYear() === currentDate.getFullYear();
 
-  // --- ФУНКЦИИ ЗАМЕТОК ---
   const openNotePanel = (day: number) => {
       const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`;
       setSelectedDateKey(key);
@@ -281,11 +268,9 @@ export default function AdminDashboard() {
   const saveNote = () => {
       if (!selectedDateKey) return;
       const newNotes = { ...notes };
-      if (noteText.trim()) {
-          newNotes[selectedDateKey] = noteText.trim();
-      } else {
-          delete newNotes[selectedDateKey];
-      }
+      if (noteText.trim()) newNotes[selectedDateKey] = noteText.trim();
+      else delete newNotes[selectedDateKey];
+      
       setNotes(newNotes);
       saveDataToServer('admin_cal_notes_v1', newNotes);
       closeNotePanel();
@@ -306,24 +291,24 @@ export default function AdminDashboard() {
       return `${d} ${MONTH_NAMES[parseInt(m)]} ${y}`;
   };
 
-  // --- ФУНКЦИЯ ОТПРАВКИ УВЕДОМЛЕНИЯ С ТОЧНЫМ ВРЕМЕНЕМ ---
+  // === ОБНОВЛЕННАЯ ФУНКЦИЯ ОТПРАВКИ УВЕДОМЛЕНИЙ (С TELEGRAM) ===
   const handleSendNotification = async () => {
     if (!notifText.trim()) return;
     
+    // 1. Сохраняем уведомление в базу сайта
     const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
     const currentNotifs = await res.json().catch(() => []);
     const arr = Array.isArray(currentNotifs) ? currentNotifs : [];
 
     const formattedTime = new Date().toLocaleDateString('ru-RU', { 
-        day: 'numeric', 
-        month: 'long', 
-        hour: '2-digit', 
-        minute: '2-digit' 
+        day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' 
     });
+
+    const notifTitle = selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение';
 
     const newNotif = {
         id: Date.now(),
-        title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение',
+        title: notifTitle,
         text: notifText.trim(),
         time: formattedTime, 
         target: selectedStaff
@@ -331,10 +316,31 @@ export default function AdminDashboard() {
 
     saveDataToServer('tea_hub_notifications_v1', [newNotif, ...arr]);
     
+    // 2. ОТПРАВЛЯЕМ PUSH В TELEGRAM
+    try {
+        // Тот самый мост! Для теста используем твой личный ID
+        const targetTelegramId = '1266708271'; 
+        
+        // Красивое форматирование для Телеграма
+        const tgMessage = `🔔 <b>${notifTitle.toUpperCase()}</b>\n\n${notifText.trim()}\n\n<i>Tea Hub | Система обучения</i>`;
+
+        await fetch('/api/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: targetTelegramId,
+                text: tgMessage
+            })
+        });
+    } catch (err) {
+        console.error("Ошибка при отправке пуша в Telegram:", err);
+    }
+
+    // 3. Показываем успех на экране
     setShowSuccessModal({ 
         show: true, 
         title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', 
-        text: 'Ваше уведомление мгновенно доставлено в панели сотрудников.' 
+        text: 'Ваше уведомление сохранено на сайте и отправлено в Telegram.' 
     });
 
     setNotifText("");
@@ -350,7 +356,6 @@ export default function AdminDashboard() {
     .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
     .slice(0, 3);
 
-  // --- ЛОГИКА ФИЛЬТРАЦИИ ПОЛЬЗОВАТЕЛЕЙ ПО ПОИСКУ ---
   const filteredUsers = users.filter(u => 
       u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
       u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
@@ -381,9 +386,7 @@ export default function AdminDashboard() {
               onDrop={(e) => { 
                 e.preventDefault(); 
                 setIsDragging(false); 
-                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    setSelectedFile(e.dataTransfer.files[0]);
-                } 
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) setSelectedFile(e.dataTransfer.files[0]);
               }}
             >
                <div style={{ fontSize: '28px', marginBottom: '10px' }}>📁</div>
@@ -391,47 +394,19 @@ export default function AdminDashboard() {
                
                {!selectedFile ? (
                    <>
-                       <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>
-                         Перетащите сюда документ (PDF, DOCX, TXT) или нажмите кнопку ниже.
-                       </p>
-                       
-                       <input 
-                          type="file" 
-                          id="file-upload-admin" 
-                          style={{ display: 'none' }} 
-                          onChange={(e) => {
-                              if (e.target.files && e.target.files.length > 0) {
-                                  setSelectedFile(e.target.files[0]);
-                              }
-                          }} 
-                       />
-                       
-                       <button onClick={() => document.getElementById('file-upload-admin')?.click()} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px', fontSize: '13px' } as any}>
-                         ВЫБРАТЬ ФАЙЛ
-                       </button>
-
-                       {/* НАДПИСЬ */}
+                       <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>Перетащите сюда документ (PDF, DOCX, TXT) или нажмите кнопку ниже.</p>
+                       <input type="file" id="file-upload-admin" style={{ display: 'none' }} onChange={(e) => { if (e.target.files && e.target.files.length > 0) setSelectedFile(e.target.files[0]); }} />
+                       <button onClick={() => document.getElementById('file-upload-admin')?.click()} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px', fontSize: '13px' } as any}>ВЫБРАТЬ ФАЙЛ</button>
                        {urgentFiles.length > 0 && (
-                           <div 
-                            onClick={() => setShowFilesList(true)}
-                            style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8 }}
-                           >
-                               Загруженный материал ({urgentFiles.length})
-                           </div>
+                           <div onClick={() => setShowFilesList(true)} style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8 }}>Загруженный материал ({urgentFiles.length})</div>
                        )}
                    </>
                ) : (
                    <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333' }}>
-                       <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px' }}>
-                           📎 {selectedFile.name}
-                       </div>
+                       <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px' }}>📎 {selectedFile.name}</div>
                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                           <button onClick={handleSaveFile} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' } as any}>
-                               ПРИКРЕПИТЬ
-                           </button>
-                           <button onClick={() => setSelectedFile(null)} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' } as any}>
-                               ОТМЕНИТЬ
-                           </button>
+                           <button onClick={handleSaveFile} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' } as any}>ПРИКРЕПИТЬ</button>
+                           <button onClick={() => setSelectedFile(null)} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' } as any}>ОТМЕНИТЬ</button>
                        </div>
                    </div>
                )}
@@ -446,19 +421,11 @@ export default function AdminDashboard() {
                   <span onClick={() => setShowUserForm(true)} style={actionBtn}>+ Новый сотрудник</span>
                 </div>
 
-                {/* Строка поиска сотрудников */}
                 <div style={{ marginBottom: '20px', position: 'relative' }}>
                     <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5, fontSize: '14px' }}>🔍</span>
-                    <input 
-                        type="text"
-                        placeholder="Поиск по имени или логину..."
-                        value={userSearchQuery}
-                        onChange={(e) => setUserSearchQuery(e.target.value)}
-                        style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' } as any}
-                    />
+                    <input type="text" placeholder="Поиск по имени или логину..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' } as any} />
                 </div>
                 
-                {/* Внутренний скролл для карточек */}
                 <div className="custom-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '10px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                       {filteredUsers.length === 0 ? (
@@ -469,9 +436,7 @@ export default function AdminDashboard() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                                     <div>
                                         <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
-                                        <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>
-                                            {u.role === 'admin' ? 'Администратор' : 'Сотрудник'}
-                                        </div>
+                                        <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>{u.role === 'admin' ? 'Администратор' : 'Сотрудник'}</div>
                                     </div>
                                     {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
                                         <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>✕</div>
@@ -480,12 +445,10 @@ export default function AdminDashboard() {
                                 
                                 <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
-                                        <span style={{ color: '#666' }}>Логин:</span>
-                                        <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
+                                        <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                        <span style={{ color: '#666' }}>Пароль:</span>
-                                        <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
+                                        <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
                                     </div>
                                 </div>
                             </div>
@@ -494,39 +457,22 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* --- КНОПКА ОТКРЫТИЯ РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ --- */}
                 <div style={{ ...flexSpace, marginTop: '40px' }}>
-                  <h2 
-                    style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'underline' }}
-                    onClick={() => setShowTestModal(true)}
-                  >
-                    Результаты тестирования ↗
-                  </h2>
+                  <h2 style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'underline' }} onClick={() => setShowTestModal(true)}>Результаты тестирования ↗</h2>
                   <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Всего записей: {testResults.length}</span>
                 </div>
 
                 {/* ОТПРАВКА УВЕДОМЛЕНИЙ */}
                 <div style={{ ...adminCard, marginTop: '30px', padding: '25px' } as any}>
-                    <h2 style={{ ...sectionTitle, fontSize: '18px', marginBottom: '15px' }}>Отправить уведомление</h2>
+                    <h2 style={{ ...sectionTitle, fontSize: '18px', marginBottom: '15px' }}>Отправить уведомление (с Push в Telegram)</h2>
                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                        <select 
-                            style={{ ...adminIn, width: '180px', marginBottom: 0 } as any}
-                            value={selectedStaff}
-                            onChange={(e) => setSelectedStaff(e.target.value)}
-                        >
+                        <select style={{ ...adminIn, width: '180px', marginBottom: 0 } as any} value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}>
                             <option value="Все">Всем сотрудникам</option>
                             {users.filter(u => u.role === 'staff').map(u => (
                                 <option key={u.id} value={u.id}>{u.name} ({u.login})</option>
                             ))}
                         </select>
-                        <input 
-                            type="text"
-                            style={{ ...adminIn, flex: 1, marginBottom: 0 } as any}
-                            placeholder="Текст уведомления..."
-                            value={notifText}
-                            onChange={(e) => setNotifText(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()}
-                        />
+                        <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} placeholder="Текст уведомления..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} />
                         <button onClick={handleSendNotification} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px' } as any}>ОТПРАВИТЬ</button>
                     </div>
                 </div>
@@ -592,9 +538,7 @@ export default function AdminDashboard() {
                         <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Сотрудников в базе: {users.filter(u => u.role === 'staff').length}</span>
                     </div>
                     
-                    {users.filter(u => u.role === 'staff').length === 0 && (
-                        <div style={{ color: '#555', textAlign: 'center', padding: '30px', fontWeight: 'bold' }}>Нет добавленных сотрудников</div>
-                    )}
+                    {users.filter(u => u.role === 'staff').length === 0 && <div style={{ color: '#555', textAlign: 'center', padding: '30px', fontWeight: 'bold' }}>Нет добавленных сотрудников</div>}
 
                     {users.filter(u => u.role === 'staff').map(user => {
                         const routeLen = usersStats[user.id]?.route || 0;
@@ -617,16 +561,12 @@ export default function AdminDashboard() {
                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                         <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ПЛАН</div>
-                                        <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
-                                            <div style={{ width: `${planPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
-                                        </div>
+                                        <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}><div style={{ width: `${planPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} /></div>
                                         <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{planPercent}%</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                         <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>БАЗА</div>
-                                        <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
-                                            <div style={{ width: `${basicsPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
-                                        </div>
+                                        <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}><div style={{ width: `${basicsPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} /></div>
                                         <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{basicsPercent}%</div>
                                     </div>
                                 </div>
@@ -643,38 +583,32 @@ export default function AdminDashboard() {
           </div>
       </main>
 
-      {/* МЕНЮ С ДОКУМЕНТАМИ В ЦЕНТРЕ ЭКРАНА (АДМИН) */}
+      {/* МЕНЮ С ДОКУМЕНТАМИ В ЦЕНТРЕ ЭКРАНА */}
       {showFilesList && (
           <div style={modalOverlay as any}>
               <div style={{ ...modalContentSmall, maxWidth: '550px' } as any}>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center' }}>ЗАГРУЖЕННЫЕ МАТЕРИАЛЫ</h2>
-                  
                   <div style={{ maxHeight: '350px', overflowY: 'auto', marginBottom: '25px', paddingRight: '10px' }} className="custom-scroll">
-                      {urgentFiles.length === 0 ? (
-                          <p style={{ textAlign: 'center', color: '#666' }}>Список пуст</p>
-                      ) : (
-                          urgentFiles.map(file => (
-                              <div key={file.id} style={{ background: '#000', border: '1px solid #222', padding: '15px', borderRadius: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <div style={{ overflow: 'hidden', flex: 1, paddingRight: '10px' }}>
-                                      <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>📄 {file.name}</div>
-                                      <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>{file.date} • {file.size}</div>
-                                  </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <button onClick={() => setPreviewFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>
-                                      <button onClick={() => handleDownloadFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>СКАЧАТЬ</button>
-                                      <button onClick={() => handleDeleteFile(file.id)} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', padding: '0 5px' }}>✕</button>
-                                  </div>
+                      {urgentFiles.length === 0 ? <p style={{ textAlign: 'center', color: '#666' }}>Список пуст</p> : urgentFiles.map(file => (
+                          <div key={file.id} style={{ background: '#000', border: '1px solid #222', padding: '15px', borderRadius: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ overflow: 'hidden', flex: 1, paddingRight: '10px' }}>
+                                  <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>📄 {file.name}</div>
+                                  <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>{file.date} • {file.size}</div>
                               </div>
-                          ))
-                      )}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <button onClick={() => setPreviewFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>
+                                  <button onClick={() => handleDownloadFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>СКАЧАТЬ</button>
+                                  <button onClick={() => handleDeleteFile(file.id)} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', padding: '0 5px' }}>✕</button>
+                              </div>
+                          </div>
+                      ))}
                   </div>
-
                   <button onClick={() => setShowFilesList(false)} style={saveBtn as any}>← НАЗАД К ПАНЕЛИ</button>
               </div>
           </div>
       )}
 
-      {/* --- НОВОЕ МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ --- */}
+      {/* НОВОЕ МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ */}
       {showTestModal && (
           <div style={modalOverlay as any} onClick={() => setShowTestModal(false)}>
               <div style={{ ...modalContentSmall, maxWidth: '650px', padding: '35px' } as any} onClick={e => e.stopPropagation()}>
@@ -682,25 +616,14 @@ export default function AdminDashboard() {
                       <h2 style={{ color: '#0abab5', fontWeight: '900', margin: 0, letterSpacing: '1px' }}>РЕЗУЛЬТАТЫ ТЕСТОВ</h2>
                       <div onClick={() => setShowTestModal(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', lineHeight: 1, fontWeight: 'bold' }}>✕</div>
                   </div>
-
-                  <select
-                      style={{ ...adminIn, marginBottom: '25px', border: '1px solid #333' } as any}
-                      value={selectedTestUser}
-                      onChange={(e) => setSelectedTestUser(e.target.value)}
-                  >
+                  <select style={{ ...adminIn, marginBottom: '25px', border: '1px solid #333' } as any} value={selectedTestUser} onChange={(e) => setSelectedTestUser(e.target.value)}>
                       <option value="Все">Показать всех сотрудников</option>
-                      {users.filter(u => u.role === 'staff').map(u => (
-                          <option key={u.id} value={u.name}>{u.name} ({u.login})</option>
-                      ))}
+                      {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.name}>{u.name} ({u.login})</option>)}
                   </select>
-
                   <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '10px' }} className="custom-scroll">
-                      {testResults
-                          .filter(res => selectedTestUser === 'Все' || res.userName === selectedTestUser)
-                          .map((res: any) => {
+                      {testResults.filter(res => selectedTestUser === 'Все' || res.userName === selectedTestUser).map((res: any) => {
                               const isPassed = res.score >= 80;
                               const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
-
                               return (
                                   <div key={res.id} style={{ background: '#000', border: '1px solid #222', padding: '20px', borderRadius: '20px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                       <div style={{ flex: 1 }}>
@@ -714,42 +637,28 @@ export default function AdminDashboard() {
                                   </div>
                               );
                       })}
-                      {testResults.filter(res => selectedTestUser === 'Все' || res.userName === selectedTestUser).length === 0 && (
-                          <div style={{ textAlign: 'center', color: '#666', padding: '30px', fontWeight: 'bold', fontSize: '15px' }}>У этого сотрудника пока нет пройденных тестов</div>
-                      )}
                   </div>
               </div>
           </div>
       )}
 
-      {/* --- ФИРМЕННЫЕ МОДАЛЬНЫЕ ОКНА (УВЕДОМЛЕНИЯ) --- */}
-
-      {/* 1. ОКНО УСПЕХА */}
       {showSuccessModal.show && (
           <div style={modalOverlay as any} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
               <div style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>✅</div>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{showSuccessModal.title}</h2>
-                  <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.6', marginBottom: '25px' }}>
-                      {showSuccessModal.text.includes('"') 
-                        ? showSuccessModal.text.split('"').map((part, i) => i === 1 ? <span key={i} style={{fontSize: '18px', color: '#fff', fontWeight: '900'}}>"{part}"</span> : part)
-                        : showSuccessModal.text
-                      }
-                  </p>
+                  <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.6', marginBottom: '25px' }}>{showSuccessModal.text}</p>
                   <button onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })} style={saveBtn as any}>ПОНЯТНО</button>
               </div>
           </div>
       )}
 
-      {/* 2. ОКНО ПОДТВЕРЖДЕНИЯ (УДАЛЕНИЕ) */}
       {confirmModal.show && (
           <div style={modalOverlay as any} onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
               <div style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
                   <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{confirmModal.title}</h2>
-                  <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
-                      {confirmModal.text}
-                  </p>
+                  <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{confirmModal.text}</p>
                   <div style={{ display: 'flex', gap: '15px' }}>
                       <button onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ ...saveBtn, background: '#222', color: '#fff' } as any}>ОТМЕНА</button>
                       <button onClick={executeConfirmAction} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff' } as any}>УДАЛИТЬ</button>
@@ -758,7 +667,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* 3. ОКНО ОШИБКИ */}
       {errorModal.show && (
           <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
               <div style={{ ...modalContentSmall, maxWidth: '380px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
@@ -770,28 +678,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* 4. ОКНО ПРЕДПРОСМОТРА ФАЙЛА */}
-      {previewFile && (
-          <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
-              <div style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
-                      <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile.name}</h2>
-                      <div onClick={() => setPreviewFile(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
-                  </div>
-                  <div style={{ flex: 1, width: '100%', background: '#fff', borderRadius: '15px', overflow: 'hidden' }}>
-                      {previewFile.data ? (
-                          <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
-                      ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold' }}>
-                              Нет данных для отображения (загружено в старой версии)
-                          </div>
-                      )}
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {/* 5. МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
       {showUserForm && (
         <div style={modalOverlay as any}>
             <div style={modalContentSmall as any}>
@@ -799,20 +685,17 @@ export default function AdminDashboard() {
                 <input style={adminIn as any} placeholder="Имя (напр. Анна)" value={newUser.name} onChange={e=>setNewUser({...newUser, name: e.target.value})} />
                 <input style={adminIn as any} placeholder="Придумайте Логин" value={newUser.login} onChange={e=>setNewUser({...newUser, login: e.target.value})} />
                 <input style={adminIn as any} placeholder="Придумайте Пароль" value={newUser.pass} onChange={e=>setNewUser({...newUser, pass: e.target.value})} />
-                
                 <div style={{ textAlign: 'left', marginBottom: '15px', color: '#888', fontSize: '13px', fontWeight: 'bold', marginLeft: '5px' }}>Роль пользователя:</div>
                 <select style={adminIn as any} value={newUser.role} onChange={e=>setNewUser({...newUser, role: e.target.value})}>
                     <option value="staff">🍵 Чайный мастер (Сотрудник)</option>
                     <option value="admin">👑 Администратор</option>
                 </select>
-                
                 <button onClick={handleCreateUser} style={{...saveBtn, marginTop: '20px'} as any}>СОЗДАТЬ УЧЕТКУ</button>
                 <div onClick={()=>setShowUserForm(false)} style={{textAlign:'center', marginTop:'20px', cursor:'pointer', color:'#666', fontWeight:'bold'}}>ОТМЕНА</div>
             </div>
         </div>
       )}
 
-      {/* 6. ПАНЕЛЬ ЗАМЕТОК (САЙДБАР) */}
       {selectedDateKey && (
         <div style={noteOverlayStyle as any} onClick={closeNotePanel}>
           <div style={noteSidebarStyle as any} onClick={e => e.stopPropagation()}>
@@ -839,8 +722,6 @@ export default function AdminDashboard() {
         .cal-day.today { background: #0abab5; color: #000; }
         .note-dot { position: absolute; bottom: 4px; width: 4px; height: 4px; background: #0abab5; border-radius: 50%; }
         .cal-day:hover .note-dot, .cal-day.today .note-dot { background: #000; }
-        
-        /* Стилизация скроллбара для модальных окон */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
       `}</style>
@@ -855,10 +736,7 @@ const sectionTitle: any = { fontSize: '22px', fontWeight: '900', color: '#fff' }
 const actionBtn: any = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const adminCard: any = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
 const userCardStyle: any = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s' };
-const tableContainer: any = { background: '#161816', borderRadius: '30px', border: '1px solid #222', overflow: 'hidden', padding: '10px' };
 const adminTable: any = { width: '100%', borderCollapse: 'collapse', textAlign: 'left' };
-const thStyle: any = { padding: '20px', fontSize: '12px', opacity: 0.3, textTransform: 'uppercase', letterSpacing: '1px' };
-const trStyle: any = { borderBottom: '1px solid #111' };
 const statusBadge = (color: string): any => ({ background: `${color}15`, color: color, padding: '6px 15px', borderRadius: '10px', fontSize: '11px', fontWeight: '900' });
 const scheduleItem: any = { display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '15px', padding: '15px', background: '#0d0d0d', borderRadius: '20px', border: '1px solid #1a1a1a' };
 const dateBox: any = { background: '#0abab5', color: '#000', padding: '10px', borderRadius: '12px', fontSize: '14px', fontWeight: '900', textAlign: 'center', minWidth: '45px' };
