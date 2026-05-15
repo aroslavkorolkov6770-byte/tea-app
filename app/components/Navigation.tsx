@@ -383,11 +383,11 @@ export default function Navigation() {
             </h2>
             
             {!isLoginMode && (
-                <input type="text" placeholder="Ваше Имя (для профиля)" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
+                <input type="text" placeholder="Ваше Имя" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
             )}
             
-            <input type="text" placeholder="Логин (выданный админом)" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
-            <input type="password" placeholder="Пароль (выданный админом)" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
+            <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
+            <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
             
             {!isLoginMode && (
                 <>
@@ -407,7 +407,7 @@ export default function Navigation() {
                 onClick={() => setIsLoginMode(!isLoginMode)} 
                 style={{...closeText, color: '#0abab5', marginTop: '15px', textDecoration: 'underline'}}
             >
-                {isLoginMode ? 'Первый вход? Завершить регистрацию' : 'Уже настроили профиль? Войти'}
+                {isLoginMode ? 'Регистрация' : 'Вход'}
             </div>
 
             <div onClick={()=> { setShowLoginModal(false); setIsLoginMode(true); }} style={closeText}>ОТМЕНА</div>
