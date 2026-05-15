@@ -1,42 +1,17 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
-import { useRouter } from 'next/navigation';
-
-// --- ХЕЛПЕР ДЛЯ ЧТЕНИЯ COOKIES ---
-const getAppCookie = (name: string) => {
-    if (typeof document === 'undefined') return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-        const raw = parts.pop()?.split(';').shift();
-        return raw ? decodeURIComponent(raw) : null;
-    }
-    return null;
-};
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
-  const router = useRouter();
   const [activeDoc, setActiveDoc] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. ГИБРИДНАЯ ПРОВЕРКА: Смотрим и в куки, и в LocalStorage
-    const cookieAuth = getAppCookie('isLoggedIn');
-    const localAuth = localStorage.getItem('isLoggedIn');
-    const isLoggedIn = cookieAuth === 'true' || localAuth === 'true';
-
-    const cookieRole = getAppCookie('userRole');
-    const localRole = localStorage.getItem('userRole');
-    const role = cookieRole || localRole;
-
-    if (isLoggedIn) {
-        if (role === 'admin') router.push('/admin');
-        else router.push('/tasks?tab=welcome');
-    } else {
-        setIsMounted(true);
-    }
-  }, [router]);
+    // Убрали агрессивный редирект. Теперь красивая главная страница 
+    // будет показываться всегда, а компонент Navigation сам решит, 
+    // показать кнопку "ВХОД" (если гость) или боковое меню (если вошел).
+    setIsMounted(true);
+  }, []);
 
   if (!isMounted) return null;
 
