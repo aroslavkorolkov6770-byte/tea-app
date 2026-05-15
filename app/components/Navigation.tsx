@@ -41,8 +41,10 @@ export default function Navigation() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
+  // Поля авторизации
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
+  const [email, setEmail] = useState(""); // <-- Новое поле для почты
 
   // Базы данных для поиска (скачиваются с сервера)
   const [searchDbProducts, setSearchDbProducts] = useState<any[]>([]);
@@ -96,7 +98,7 @@ export default function Navigation() {
     return () => clearInterval(syncInterval);
   }, []);
 
-  // --- АВТОРИЗАЦИЯ ЧЕРЕЗ СЕРВЕР ---
+  // --- АВТОРИЗАЦИЯ ЧЕРЕЗ СЕРВЕР С СОХРАНЕНИЕМ ПОЧТЫ ---
   const handleLogin = async () => {
     try {
         const res = await fetch('/api/storage?key=tea_hub_users_v1');
@@ -114,16 +116,39 @@ export default function Navigation() {
         const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
         if (foundUser) {
-          // Сессию (токены) оставляем в локальном браузере
+          // 1. Сессию (токены) оставляем в локальном браузере
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userRole', foundUser.role);
           localStorage.setItem('current_user_id', foundUser.id);
           localStorage.setItem('current_user_name', foundUser.name);
           
+          // 2. Если введена почта — привязываем её к профилю на сервере
+          if (email.trim()) {
+              try {
+                  // Скачиваем профиль сотрудника
+                  let pData = await fetch(`/api/storage?key=profile_data_${foundUser.id}`).then(r => r.json()).catch(() => ({}));
+                  if (Array.isArray(pData)) pData = {}; // Защита от пустых массивов
+                  
+                  // Дописываем почту, не затирая аватарку и телеграм
+                  pData.email = email.trim();
+                  
+                  // Заодно запишем дату первой авторизации, если её еще нет
+                  if (!pData.firstLogin) {
+                      pData.firstLogin = new Date().toISOString();
+                  }
+
+                  // Отправляем обновленный профиль обратно на сервер
+                  saveDataToServer(`profile_data_${foundUser.id}`, pData);
+              } catch (e) {
+                  console.error("Ошибка привязки email к профилю:", e);
+              }
+          }
+
           setIsLoggedIn(true);
           setUserRole(foundUser.role);
           setShowLoginModal(false);
           
+          // Редирект в зависимости от роли
           if (foundUser.role === 'admin') router.push('/admin');
           else router.push('/tasks?tab=welcome');
         } else {
@@ -334,8 +359,12 @@ export default function Navigation() {
         <div style={modalOverlay}>
           <div style={modalContent}>
             <h2 style={{color:'#fff', textAlign:'center', marginBottom:'30px', fontWeight: '900', letterSpacing: '1px'}}>IDENTIFICATION</h2>
+            
+            {/* ДОБАВЛЕНО ТРЕТЬЕ ПОЛЕ ДЛЯ ПОЧТЫ */}
             <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
-            <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+            <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} />
+            <input type="email" placeholder="E-mail (для привязки)" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+            
             <div onClick={handleLogin} style={modalLoginBtn}>ВОЙТИ</div>
             <div onClick={()=>setShowLoginModal(false)} style={closeText}>ОТМЕНА</div>
           </div>
