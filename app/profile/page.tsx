@@ -19,15 +19,12 @@ function ProfileContent() {
     const [isEditing, setIsEditing] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     
-    // Новые состояния для смены пароля
     const [isPassModalOpen, setIsPassModalOpen] = useState(false);
     const [newPass, setNewPass] = useState('');
     
-    // Состояния авторизации
     const [userRole, setUserRole] = useState('staff');
     const [userId, setUserId] = useState('guest');
     
-    // Состояние профиля
     const [profile, setProfile] = useState({
         name: '',
         avatar: '',
@@ -36,7 +33,6 @@ function ProfileContent() {
         email: ''
     });
 
-    // Состояние прогресса
     const [progress, setProgress] = useState({
         routeCount: 0,
         basicsCount: 0,
@@ -44,7 +40,6 @@ function ProfileContent() {
         isOverdue: false
     });
 
-    // Состояние статистики
     const [adminStats, setAdminStats] = useState({
         teas: 0,
         lessons: 0,
@@ -182,7 +177,6 @@ function ProfileContent() {
         }
     };
 
-    // --- ФУНКЦИЯ ЗАГРУЗКИ ФОТОГРАФИИ ---
     const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -190,7 +184,6 @@ function ProfileContent() {
         const reader = new FileReader();
         reader.onload = (event) => {
             if (event.target?.result) {
-                // Сохраняем готовую картинку в Base64 в поле аватара
                 setProfile(prev => ({ ...prev, avatar: event.target!.result as string }));
             }
         };
@@ -200,93 +193,92 @@ function ProfileContent() {
     if (!isMounted) return <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh' }} />;
 
     return (
-        <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#e0e0e0', fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', overflowX: 'hidden' }}>
             <Navigation />
             
-            <main style={{ maxWidth: '600px', margin: '0 auto', padding: '120px 20px 140px 20px' }}>
-                
-                {/* --- ВЕРХНЯЯ КАРТОЧКА --- */}
-                <section style={profileHeaderCardStyle}>
-                    
-                    <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={threeDotsButtonStyle}>•••</div>
+            {/* БЛОК-РАСПОРКА ДЛЯ САЙДБАРА (КАК НА ДРУГИХ СТРАНИЦАХ) */}
+            <div style={{ width: '260px', flexShrink: 0 }} className="sidebar-spacer" />
 
-                    {isMenuOpen && (
-                        <div style={contextMenuStyle}>
-                            <div onClick={handleOpenEdit} style={menuItemStyle}>✎ Настроить данные</div>
-                            <div onClick={handleOpenPassChange} style={menuItemStyle}>🔒 Сменить пароль</div>
-                            <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>✕ Выйти</div>
+            <main style={{ flex: 1, padding: '120px 20px 140px 20px', maxWidth: '100%', boxSizing: 'border-box' }}>
+                <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+                    
+                    <section style={profileHeaderCardStyle}>
+                        <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={threeDotsButtonStyle}>•••</div>
+
+                        {isMenuOpen && (
+                            <div style={contextMenuStyle}>
+                                <div onClick={handleOpenEdit} style={menuItemStyle}>✎ Настроить данные</div>
+                                <div onClick={handleOpenPassChange} style={menuItemStyle}>🔒 Сменить пароль</div>
+                                <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>✕ Выйти</div>
+                            </div>
+                        )}
+
+                        <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
+                            {profile.avatar ? (
+                                <img src={profile.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
+                            ) : (
+                                <span style={{ fontSize: '45px' }}>{userRole === 'admin' ? '👑' : '👤'}</span>
+                            )}
+                        </div>
+
+                        <h2 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', color: '#fff' }}>{profile.name}</h2>
+                        <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>
+                            {userRole === 'admin' ? 'ГЛАВНЫЙ МАСТЕР (ADMIN)' : 'ЧАЙНЫЙ МАСТЕР (УЧЕНИК)'}
+                        </p>
+                    </section>
+
+                    {userRole === 'admin' ? (
+                        <div style={{ animation: 'fadeInUp 0.5s ease' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '35px' }}>
+                                <div style={statCardStyle}><span style={statNum}>{adminStats.teas}</span><span style={statLabel}>ПРОДУКТОВ</span></div>
+                                <div style={statCardStyle}><span style={statNum}>{adminStats.lessons}</span><span style={statLabel}>УРОКОВ</span></div>
+                                <div style={statCardStyle}><span style={statNum}>{adminStats.rules}</span><span style={statLabel}>ПРАВИЛ</span></div>
+                            </div>
+                            <h3 style={sectionTitle}>ИНСТРУМЕНТЫ МАСТЕРА</h3>
+                            <div style={adminPanelStyle}>
+                                <Link href="/admin" style={adminLinkStyle}>📊 Управление персоналом и статистика</Link>
+                                <Link href="/tasks?tab=edu" style={adminLinkStyle}>✍️ Конструктор базы знаний</Link>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ animation: 'fadeInUp 0.5s ease' }}>
+                            <section style={progressSectionStyle}>
+                                <div style={{ marginBottom: '25px' }}>
+                                    <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{progress.routeCount}/5</span></div>
+                                    <div style={barBg}><div style={{ ...barFill, width: `${(progress.routeCount/5)*100}%` }} /></div>
+                                </div>
+                                <div style={{ marginBottom: '10px' }}>
+                                    <div style={labelRow}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{progress.basicsCount}/10</span></div>
+                                    <div style={barBg}><div style={{ ...barFill, width: `${(progress.basicsCount/10)*100}%` }} /></div>
+                                </div>
+                                <div style={deadlineStyle}>
+                                    ДЕДЛАЙН: <span style={{ color: progress.isOverdue ? '#ff7675' : '#0abab5', fontWeight: '900' }}>{progress.deadline}</span>
+                                </div>
+                            </section>
+
+                            <h3 style={sectionTitle}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
+                                <div title="Старт" style={{ ...badgeStyle, opacity: progress.routeCount >= 1 ? 1 : 0.1 }}>🌱</div>
+                                <div title="План" style={{ ...badgeStyle, opacity: progress.routeCount >= 5 ? 1 : 0.1 }}>🚀</div>
+                                <div title="Теория" style={{ ...badgeStyle, opacity: progress.basicsCount >= 5 ? 1 : 0.1 }}>📚</div>
+                                <div title="Мастер" style={{ ...badgeStyle, opacity: progress.basicsCount >= 10 ? 1 : 0.1 }}>🏮</div>
+                            </div>
                         </div>
                     )}
 
-                    <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
-                        {profile.avatar ? (
-                            <img src={profile.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
-                        ) : (
-                            <span style={{ fontSize: '45px' }}>{userRole === 'admin' ? '👑' : '👤'}</span>
-                        )}
-                    </div>
-
-                    <h2 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', color: '#fff' }}>{profile.name}</h2>
-                    <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>
-                        {userRole === 'admin' ? 'ГЛАВНЫЙ МАСТЕР (ADMIN)' : 'ЧАЙНЫЙ МАСТЕР (УЧЕНИК)'}
-                    </p>
-                </section>
-
-                {/* КОНТЕНТ АДМИНА */}
-                {userRole === 'admin' ? (
-                    <div style={{ animation: 'fadeInUp 0.5s ease' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '35px' }}>
-                            <div style={statCardStyle}><span style={statNum}>{adminStats.teas}</span><span style={statLabel}>ПРОДУКТОВ</span></div>
-                            <div style={statCardStyle}><span style={statNum}>{adminStats.lessons}</span><span style={statLabel}>УРОКОВ</span></div>
-                            <div style={statCardStyle}><span style={statNum}>{adminStats.rules}</span><span style={statLabel}>ПРАВИЛ</span></div>
-                        </div>
-                        <h3 style={sectionTitle}>ИНСТРУМЕНТЫ МАСТЕРА</h3>
-                        <div style={adminPanelStyle}>
-                            <Link href="/admin" style={adminLinkStyle}>📊 Управление персоналом и статистика</Link>
-                            <Link href="/tasks?tab=edu" style={adminLinkStyle}>✍️ Конструктор базы знаний</Link>
-                        </div>
-                    </div>
-                ) : (
-                    /* КОНТЕНТ СОТРУДНИКА */
-                    <div style={{ animation: 'fadeInUp 0.5s ease' }}>
-                        <section style={progressSectionStyle}>
-                            <div style={{ marginBottom: '25px' }}>
-                                <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{progress.routeCount}/5</span></div>
-                                <div style={barBg}><div style={{ ...barFill, width: `${(progress.routeCount/5)*100}%` }} /></div>
+                    <h3 style={sectionTitle}>СВЯЗЬ</h3>
+                    <section style={contactCardStyle}>
+                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                            <div style={contactIconStyle}>💬</div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{profile.tg || 'telegram не указан'}</div>
+                                <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{profile.email || 'e-mail не указан'}</div>
+                                <div style={{ fontSize: '13px', color: '#555' }}>{profile.phone || 'телефон не указан'}</div>
                             </div>
-                            <div style={{ marginBottom: '10px' }}>
-                                <div style={labelRow}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{progress.basicsCount}/10</span></div>
-                                <div style={barBg}><div style={{ ...barFill, width: `${(progress.basicsCount/10)*100}%` }} /></div>
-                            </div>
-                            <div style={deadlineStyle}>
-                                ДЕДЛАЙН: <span style={{ color: progress.isOverdue ? '#ff7675' : '#0abab5', fontWeight: '900' }}>{progress.deadline}</span>
-                            </div>
-                        </section>
-
-                        <h3 style={sectionTitle}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
-                            <div title="Старт" style={{ ...badgeStyle, opacity: progress.routeCount >= 1 ? 1 : 0.1 }}>🌱</div>
-                            <div title="План" style={{ ...badgeStyle, opacity: progress.routeCount >= 5 ? 1 : 0.1 }}>🚀</div>
-                            <div title="Теория" style={{ ...badgeStyle, opacity: progress.basicsCount >= 5 ? 1 : 0.1 }}>📚</div>
-                            <div title="Мастер" style={{ ...badgeStyle, opacity: progress.basicsCount >= 10 ? 1 : 0.1 }}>🏮</div>
                         </div>
-                    </div>
-                )}
+                    </section>
+                </div>
 
-                {/* КОНТАКТЫ */}
-                <h3 style={sectionTitle}>СВЯЗЬ</h3>
-                <section style={contactCardStyle}>
-                    <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                        <div style={contactIconStyle}>💬</div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{profile.tg || 'telegram не указан'}</div>
-                            <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{profile.email || 'e-mail не указан'}</div>
-                            <div style={{ fontSize: '13px', color: '#555' }}>{profile.phone || 'телефон не указан'}</div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* МОДАЛКА РЕДАКТИРОВАНИЯ */}
                 {isEditing && (
                     <div style={overlayStyle}>
                         <div style={modalStyle}>
@@ -294,29 +286,11 @@ function ProfileContent() {
                             <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
                                 <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} placeholder="Твое имя" style={inputItemStyle} />
                                 
-                                {/* ЗОНА ЗАГРУЗКИ АВАТАРА */}
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <input 
-                                        type="file" 
-                                        id="avatar-upload" 
-                                        accept="image/*" 
-                                        style={{ display: 'none' }} 
-                                        onChange={handleAvatarUpload} 
-                                    />
-                                    <input 
-                                        value={profile.avatar} 
-                                        onChange={e => setProfile({...profile, avatar: e.target.value})} 
-                                        placeholder="Ссылка на фото (URL)" 
-                                        style={{ ...inputItemStyle, flex: 1, marginBottom: 0 }} 
-                                    />
-                                    <button 
-                                        onClick={() => document.getElementById('avatar-upload')?.click()} 
-                                        style={{ background: '#222', color: '#0abab5', border: '1px solid #333', padding: '0 20px', height: '58px', borderRadius: '18px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}
-                                    >
-                                        ЗАГРУЗИТЬ
-                                    </button>
+                                    <input type="file" id="avatar-upload" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
+                                    <input value={profile.avatar} onChange={e => setProfile({...profile, avatar: e.target.value})} placeholder="Ссылка на фото (URL)" style={{ ...inputItemStyle, flex: 1, marginBottom: 0 }} />
+                                    <button onClick={() => document.getElementById('avatar-upload')?.click()} style={{ background: '#222', color: '#0abab5', border: '1px solid #333', padding: '0 20px', height: '58px', borderRadius: '18px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>ЗАГРУЗИТЬ</button>
                                 </div>
-                                {/* КОНЕЦ ЗОНЫ АВАТАРА */}
 
                                 <input value={profile.tg} onChange={e => setProfile({...profile, tg: e.target.value})} placeholder="Telegram (напр. @nik_name)" style={inputItemStyle} />
                                 <input value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} placeholder="E-mail адрес" style={inputItemStyle} />
@@ -328,7 +302,6 @@ function ProfileContent() {
                     </div>
                 )}
 
-                {/* МОДАЛКА СМЕНЫ ПАРОЛЯ */}
                 {isPassModalOpen && (
                     <div style={overlayStyle}>
                         <div style={modalStyle}>
@@ -346,6 +319,11 @@ function ProfileContent() {
             <style jsx global>{` 
                 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } 
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                ::-webkit-scrollbar { width: 6px; height: 6px; }
+                ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                body { overflow-x: hidden; width: 100vw; }
+                @media (max-width: 768px) { .sidebar-spacer { display: none; } }
             `}</style>
         </div>
     );
