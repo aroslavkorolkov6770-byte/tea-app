@@ -3,6 +3,17 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
+// --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES (ПАРАЛЛЕЛЬНАЯ ЗАПИСЬ) ---
+const setAppCookie = (name: string, value: string, days = 7) => {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
+};
+
+const deleteAppCookie = (name: string) => {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+};
+
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
@@ -82,6 +93,7 @@ export default function Navigation() {
   };
 
   useEffect(() => {
+    // ВОЗВРАЩЕНО: ЧИТАЕМ ИЗ LOCALSTORAGE ЧТОБЫ НЕ ЛОМАТЬ ОСТАЛЬНОЙ САЙТ
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
     if (auth === 'true') {
@@ -118,7 +130,7 @@ export default function Navigation() {
     return () => clearInterval(syncInterval);
   }, []);
 
-  // --- ЛОГИКА АВТОРИЗАЦИИ С УЧЕТОМ КАПТЧИ ---
+  // --- ЛОГИКА АВТОРИЗАЦИИ (ГРАМОТНАЯ СИНХРОНИЗАЦИЯ) ---
   const handleLogin = async () => {
     // Проверка TeaGuard
     if (failedAttempts >= 3 && !isCaptchaVerified) {
@@ -141,10 +153,17 @@ export default function Navigation() {
         const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
         if (foundUser) {
+          // СОХРАНЯЕМ В LOCALSTORAGE ДЛЯ КЛИЕНТА
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userRole', foundUser.role);
           localStorage.setItem('current_user_id', foundUser.id);
           localStorage.setItem('current_user_name', foundUser.name);
+
+          // ПАРАЛЛЕЛЬНО ПИШЕМ В COOKIES ДЛЯ БУДУЩЕГО СЕРВЕРА
+          setAppCookie('isLoggedIn', 'true');
+          setAppCookie('userRole', foundUser.role);
+          setAppCookie('current_user_id', foundUser.id);
+          setAppCookie('current_user_name', foundUser.name);
           
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
@@ -169,7 +188,7 @@ export default function Navigation() {
     }
   };
 
-  // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА ---
+  // --- ЛОГИКА РЕГИСТРАЦИИ (ГРАМОТНАЯ СИНХРОНИЗАЦИЯ) ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
@@ -212,10 +231,17 @@ export default function Navigation() {
           };
           saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
 
+          // СОХРАНЯЕМ В LOCALSTORAGE
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userRole', existingUser.role);
           localStorage.setItem('current_user_id', existingUser.id);
           localStorage.setItem('current_user_name', regName.trim());
+
+          // ПАРАЛЛЕЛЬНО ПИШЕМ В COOKIES
+          setAppCookie('isLoggedIn', 'true');
+          setAppCookie('userRole', existingUser.role);
+          setAppCookie('current_user_id', existingUser.id);
+          setAppCookie('current_user_name', regName.trim());
 
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
@@ -234,10 +260,18 @@ export default function Navigation() {
   };
 
   const handleLogout = () => {
+    // УДАЛЯЕМ ИЗ LOCALSTORAGE
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userRole');
     localStorage.removeItem('current_user_id');
     localStorage.removeItem('current_user_name');
+
+    // УДАЛЯЕМ ИЗ COOKIES
+    deleteAppCookie('isLoggedIn');
+    deleteAppCookie('userRole');
+    deleteAppCookie('current_user_id');
+    deleteAppCookie('current_user_name');
+    
     setIsLoggedIn(false);
     router.push('/');
   };
