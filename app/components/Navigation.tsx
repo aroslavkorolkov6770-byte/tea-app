@@ -478,7 +478,7 @@ export default function Navigation() {
                                 {isCaptchaLoading && <div className="captcha-spinner"></div>}
                                 {isCaptchaVerified && <span style={{ color: '#0abab5', fontSize: '24px', fontWeight: 'bold' }}>✓</span>}
                             </div>
-                            <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>I am a human</span>
+                            <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>Я человек</span>
                         </div>
                         
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
