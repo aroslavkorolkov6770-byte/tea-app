@@ -2,6 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation'; // Импортируем роутер для выхода
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
@@ -13,14 +14,16 @@ const saveDataToServer = (key: string, data: any) => {
 };
 
 function ProfileContent() {
+    const router = useRouter(); // Инициализируем роутер
     const [isMounted, setIsMounted] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false); // Состояние для контекстного меню
     
-    // Состояния авторизации (берутся из сессии браузера)
+    // Состояния авторизации
     const [userRole, setUserRole] = useState('staff');
     const [userId, setUserId] = useState('guest');
     
-    // Состояние профиля (ДОБАВЛЕНО ПОЛЕ EMAIL)
+    // Состояние профиля
     const [profile, setProfile] = useState({
         name: '',
         avatar: '',
@@ -29,7 +32,7 @@ function ProfileContent() {
         email: ''
     });
 
-    // Состояние прогресса (для сотрудника)
+    // Состояние прогресса
     const [progress, setProgress] = useState({
         routeCount: 0,
         basicsCount: 0,
@@ -37,7 +40,7 @@ function ProfileContent() {
         isOverdue: false
     });
 
-    // Состояние статистики (для админа)
+    // Состояние статистики
     const [adminStats, setAdminStats] = useState({
         teas: 0,
         lessons: 0,
@@ -54,24 +57,15 @@ function ProfileContent() {
             setUserId(currentId);
 
             try {
-                // 1. Загрузка личных данных профиля с сервера
                 let pData = await fetch(`/api/storage?key=profile_data_${currentId}`).then(r => r.json()).catch(() => null);
                 
                 let dlDate = new Date();
                 
-                // Если профиль на сервере еще не создан (первый вход)
                 if (!pData || Array.isArray(pData) || Object.keys(pData).length === 0) {
-                    pData = {
-                        avatar: '',
-                        tg: role === 'admin' ? '@admin_tea' : '@username',
-                        phone: '',
-                        email: '', // Инициализируем пустое поле для почты
-                        firstLogin: dlDate.toISOString()
-                    };
+                    pData = { avatar: '', tg: role === 'admin' ? '@admin_tea' : '@username', phone: '', email: '', firstLogin: dlDate.toISOString() };
                     saveDataToServer(`profile_data_${currentId}`, pData);
                     dlDate.setDate(dlDate.getDate() + 7);
                 } else {
-                    // Если зайден не в первый раз, проверяем дату
                     if (!pData.firstLogin) {
                         pData.firstLogin = dlDate.toISOString();
                         saveDataToServer(`profile_data_${currentId}`, pData);
@@ -79,7 +73,6 @@ function ProfileContent() {
                     dlDate = new Date(new Date(pData.firstLogin).getTime() + 7 * 24 * 60 * 60 * 1000);
                 }
 
-                // ЗАГРУЖАЕМ ПОЧТУ ИЗ БД В STATE
                 setProfile({
                     name: currentName,
                     avatar: pData.avatar || '',
@@ -88,7 +81,6 @@ function ProfileContent() {
                     email: pData.email || '' 
                 });
 
-                // 2. Изолированный прогресс сотрудника с сервера
                 const routeData = await fetch(`/api/storage?key=prog_route_${currentId}`).then(r => r.json()).catch(() => []);
                 const basicsData = await fetch(`/api/storage?key=prog_basics_${currentId}`).then(r => r.json()).catch(() => []);
                 
@@ -102,7 +94,6 @@ function ProfileContent() {
                     isOverdue: new Date() > dlDate && (rCount < 5 || bCount < 10)
                 });
 
-                // 3. Расчет статистики для админа
                 if (role === 'admin') {
                     const teaDb = await fetch('/api/storage?key=tea_master_unified_v1').then(r => r.json()).catch(() => []);
                     const basicsDb = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1').then(r => r.json()).catch(() => []);
@@ -118,31 +109,39 @@ function ProfileContent() {
                 setIsMounted(true);
             } catch (error) {
                 console.error("Ошибка загрузки профиля:", error);
-                setIsMounted(true); // Показываем как есть при сбое
+                setIsMounted(true); 
             }
         };
 
         loadProfileData();
     }, []);
 
+    // Действие: Открыть редактор и закрыть меню
+    const handleOpenEdit = () => {
+        setIsMenuOpen(false);
+        setIsEditing(true);
+    };
+
+    // Действие: Выход
+    const handleLogout = () => {
+        localStorage.clear();
+        router.push('/');
+    };
+
     const handleSaveProfile = async () => {
-        // Имя для текущей сессии браузера
         localStorage.setItem('current_user_name', profile.name);
         
         try {
-            // Скачиваем текущий объект профиля, чтобы не затереть дату первого входа (firstLogin)
             let pData = await fetch(`/api/storage?key=profile_data_${userId}`).then(r => r.json()).catch(() => ({}));
             if (Array.isArray(pData)) pData = {};
             
             pData.avatar = profile.avatar;
             pData.tg = profile.tg;
             pData.phone = profile.phone;
-            pData.email = profile.email; // СОХРАНЯЕМ ИЗМЕНЕННУЮ ПОЧТУ
+            pData.email = profile.email;
             
-            // Сохраняем личные данные на сервер
             saveDataToServer(`profile_data_${userId}`, pData);
 
-            // Синхронизируем имя в общей базе пользователей (чтобы у админа обновилось в списке)
             const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
             if (Array.isArray(users)) {
                 const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, name: profile.name } : u);
@@ -163,20 +162,35 @@ function ProfileContent() {
             
             <main style={{ maxWidth: '600px', margin: '0 auto', padding: '120px 20px 140px 20px' }}>
                 
-                {/* ВЕРХНЯЯ КАРТОЧКА */}
-                <section style={{ textAlign: 'center', marginBottom: '40px' }}>
-                    <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#161816', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
+                {/* --- ВЕРХНЯЯ КАРТОЧКА (ОБНОВЛЕННЫЙ МАКЕТ ПО СКРИНШОТУ) --- */}
+                <section style={profileHeaderCardStyle}>
+                    
+                    {/* Кнопка "Три точки" (абсолютное позиционирование) */}
+                    <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={threeDotsButtonStyle}>•••</div>
+
+                    {/* Контекстное меню (выпадает при нажатии) */}
+                    {isMenuOpen && (
+                        <div style={contextMenuStyle}>
+                            <div onClick={handleOpenEdit} style={menuItemStyle}>✎ Настроить данные</div>
+                            <div style={menuItemStyle}>🔒 Сменить пароль</div>
+                            <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>✕ Выйти</div>
+                        </div>
+                    )}
+
+                    {/* Аватар */}
+                    <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
                         {profile.avatar ? (
                             <img src={profile.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
                         ) : (
                             <span style={{ fontSize: '45px' }}>{userRole === 'admin' ? '👑' : '👤'}</span>
                         )}
                     </div>
+
+                    {/* Имя и Роль */}
                     <h2 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', color: '#fff' }}>{profile.name}</h2>
                     <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>
                         {userRole === 'admin' ? 'ГЛАВНЫЙ МАСТЕР (ADMIN)' : 'ЧАЙНЫЙ МАСТЕР (УЧЕНИК)'}
                     </p>
-                    <div onClick={() => setIsEditing(true)} style={{ color: '#555', fontSize: '12px', marginTop: '15px', cursor: 'pointer', textDecoration: 'underline' }}>настроить профиль</div>
                 </section>
 
                 {/* КОНТЕНТ АДМИНА */}
@@ -252,12 +266,69 @@ function ProfileContent() {
                 )}
             </main>
 
-            <style jsx global>{` @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } `}</style>
+            <style jsx global>{` 
+                @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } 
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            `}</style>
         </div>
     );
 }
 
-// --- СТИЛИ ---
+// --- НОВЫЕ И ОБНОВЛЕННЫЕ СТИЛИ (ПО СКРИНШОТУ) ---
+
+// Сама карточка профиля (position relative для абсолютных элементов внутри)
+const profileHeaderCardStyle: any = { 
+    position: 'relative',
+    backgroundColor: '#161816', 
+    padding: '40px 30px', 
+    borderRadius: '40px', 
+    border: '1px solid #222', 
+    textAlign: 'center', 
+    marginBottom: '40px',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
+};
+
+// Кнопка Три точки
+const threeDotsButtonStyle: any = { 
+    position: 'absolute', 
+    top: '25px', 
+    right: '30px', 
+    color: '#444', 
+    fontSize: '22px', 
+    cursor: 'pointer', 
+    fontWeight: 'bold', 
+    transition: '0.2s',
+    letterSpacing: '-1px'
+};
+
+// Контекстное меню
+const contextMenuStyle: any = { 
+    position: 'absolute', 
+    top: '60px', 
+    right: '30px', 
+    backgroundColor: '#111', 
+    border: '1px solid #222', 
+    borderRadius: '18px', 
+    width: '200px', 
+    overflow: 'hidden', 
+    boxShadow: '0 20px 40px rgba(0,0,0,0.8)', 
+    zIndex: 100,
+    textAlign: 'left',
+    animation: 'fadeIn 0.2s ease'
+};
+
+// Пункт меню
+const menuItemStyle: any = { 
+    padding: '16px 20px', 
+    color: '#eee', 
+    fontSize: '14px', 
+    fontWeight: 'bold', 
+    cursor: 'pointer', 
+    borderBottom: '1px solid #1a1a1a', 
+    transition: '0.2s' 
+};
+
+// --- ОСТАЛЬНЫЕ СТИЛИ ---
 const sectionTitle: any = { fontSize: '12px', fontWeight: '900', color: '#444', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center', textTransform: 'uppercase' };
 const statCardStyle: any = { background: '#161816', padding: '25px 10px', borderRadius: '25px', border: '1px solid #222', display: 'flex', flexDirection: 'column', alignItems: 'center' };
 const statNum: any = { fontSize: '28px', fontWeight: '900', color: '#0abab5' };
