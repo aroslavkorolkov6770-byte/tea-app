@@ -94,7 +94,7 @@ const INITIAL_BASICS = [
         { id: "m9_2", title: "Выявление вкуса", t1: "Задавайте открытые вопросы.", t2: "Спрашивайте о желаемом состоянии.", t3: "Предлагайте 2-3 варианта на выбор.", quiz: [{q: "Как понять гостя?", o: ["Молча налить", "Задать вопросы", "Дать меню"], c: 1}] },
         { id: "m9_3", title: "Подача", t1: "Пиалу подаем двумя руками.", t2: "Следим за уровнем воды в чайнике.", t3: "Мастер всегда незаметен, но рядом.", quiz: [{q: "Как подавать пиалу?", o: ["Одной левой", "Одной правой", "Двумя руками"], c: 2}] },
         { id: "m9_4", title: "Чистота", t1: "Чабань всегда сухая.", t2: "Никаких крошек листа на столе.", t3: "Порядок — это часть церемонии.", quiz: [{q: "Правило чабани?", o: ["Она всегда сухая", "Можно оставить лужи", "Убираем раз в день"], c: 0}] },
-        { id: "m9_5", title: "Прощание", t1: "Поблагодарите за визит.", t2: "Пригласите вернуться снова.", t3: "Подарите доброе пожелание.", quiz: [{q: "Что делаем при уходе гостя?", o: ["Просто киваем", "Искрен искренне прощаемся", "Молча убираем стол"], c: 1}] },
+        { id: "m9_5", title: "Прощание", t1: "Поблагодарите за визит.", t2: "Пригласите вернуться снова.", t3: "Подарите доброе пожелание.", quiz: [{q: "Что делаем при уходе гостя?", o: ["Просто киваем", "Искренне прощаемся", "Молча убираем стол"], c: 1}] },
   ]},
   { id: "sec_10", title: "10. Аттестация", modules: [
         { id: "m10_1", title: "Теория", t1: "Проверка всех знаний по ботанике.", t2: "История сортов и регионов.", t3: "Химия и воздействие на организм.", quiz: [{q: "Что нужно сдать?", o: ["Всю базу знаний", "Только цены", "Только названия сортов"], c: 0}] },
@@ -471,7 +471,9 @@ function ShiftContent() {
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
       <Navigation />
-      <div style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
+      
+      {/* ⚠️ ИСПРАВЛЕНО ТУТ: ДОБАВЛЕН КЛАСС desktop-sidebar-spacer ⚠️ */}
+      <div className="desktop-sidebar-spacer" style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
@@ -878,6 +880,9 @@ function ShiftContent() {
 
         /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
         @media (max-width: 768px) {
+            /* УБИВАЕМ БОКОВУЮ ПУСТОТУ НА МОБИЛКАХ */
+            .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
+            
             .tasks-main { padding: 90px 15px 50px 15px !important; }
             .tasks-title { font-size: 26px !important; margin-bottom: 25px !important; line-height: 1.2 !important; }
             .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
@@ -888,7 +893,7 @@ function ShiftContent() {
             .tasks-course-card { padding: 20px !important; min-height: auto !important; }
             
             /* Уменьшаем шрифты графиков */
-            .tasks-big-val { font-size: 38px !important; }
+            .tasks-big-val { font-size: 38px !important; flex-wrap: wrap; }
             .tasks-chart-container { height: 160px !important; margin-top: 25px !important; }
 
             /* Модальные окна с теорией */
