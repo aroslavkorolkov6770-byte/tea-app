@@ -103,6 +103,7 @@ export default function Navigation() {
         const res = await fetch('/api/storage?key=tea_hub_users_v1');
         let users = await res.json().catch(() => []);
         
+        // Если сервер пустой, создаем первичную базу пользователей
         if (!Array.isArray(users) || users.length === 0) {
             users = [
                 { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' },
@@ -126,7 +127,7 @@ export default function Navigation() {
           if (foundUser.role === 'admin') router.push('/admin');
           else router.push('/tasks?tab=welcome');
         } else {
-          alert("Неверный логин или пароль!");
+          alert("Неправильно введен логин или пароль!");
         }
     } catch (error) {
         console.error("Ошибка связи с сервером:", error);
@@ -134,7 +135,7 @@ export default function Navigation() {
     }
   };
 
-  // --- ЛОГИКА РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА ---
+  // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           alert("Пожалуйста, заполните Имя, Логин и Пароль!");
@@ -146,25 +147,22 @@ export default function Navigation() {
           let users = await res.json().catch(() => []);
           if (!Array.isArray(users)) users = [];
 
-          if (users.find((u: any) => u.login === login.trim())) {
-              alert("Пользователь с таким логином уже существует! Придумайте другой.");
+          // ПРОВЕРКА: Создал ли админ этот логин и пароль в панели?
+          const foundUserIndex = users.findIndex((u: any) => u.login === login.trim() && u.pass === pass.trim());
+
+          // Если связки Логин + Пароль нет в базе — отказываем в регистрации
+          if (foundUserIndex === -1) {
+              alert("Неправильно введен логин или пароль! Убедитесь, что администратор выдал вам доступы.");
               return;
           }
 
-          const newId = 'u_' + Date.now();
-          const newUser = {
-              id: newId,
-              login: login.trim(),
-              pass: pass.trim(),
-              role: 'staff', // Все зарегистрированные становятся сотрудниками
-              name: regName.trim()
-          };
+          const existingUser = users[foundUserIndex];
 
-          // 1. Сохраняем пользователя в общую базу
-          const updatedUsers = [...users, newUser];
-          saveDataToServer('tea_hub_users_v1', updatedUsers);
+          // Обновляем имя пользователя в общей базе на то, что он ввел при регистрации
+          users[foundUserIndex] = { ...existingUser, name: regName.trim() };
+          saveDataToServer('tea_hub_users_v1', users);
 
-          // 2. Сразу создаем ему профиль с введенными контактами
+          // Создаем/обновляем личный профиль с новыми контактами
           const initialProfile = {
               avatar: '',
               tg: regTg.trim(),
@@ -172,20 +170,21 @@ export default function Navigation() {
               email: email.trim(),
               firstLogin: new Date().toISOString()
           };
-          saveDataToServer(`profile_data_${newId}`, initialProfile);
+          saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
 
-          // 3. Автоматически авторизуем
+          // Автоматически авторизуем
           localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userRole', 'staff');
-          localStorage.setItem('current_user_id', newId);
+          localStorage.setItem('userRole', existingUser.role);
+          localStorage.setItem('current_user_id', existingUser.id);
           localStorage.setItem('current_user_name', regName.trim());
 
           setIsLoggedIn(true);
-          setUserRole('staff');
+          setUserRole(existingUser.role);
           setShowLoginModal(false);
           
           // Редирект внутрь платформы
-          router.push('/tasks?tab=welcome');
+          if (existingUser.role === 'admin') router.push('/admin');
+          else router.push('/tasks?tab=welcome');
 
       } catch (error) {
           console.error("Ошибка при регистрации:", error);
@@ -387,7 +386,7 @@ export default function Navigation() {
         <div style={modalOverlay}>
           <div style={{ ...modalContent, maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{color:'#fff', textAlign:'center', marginBottom:'30px', fontWeight: '900', letterSpacing: '1px'}}>
-                {isLoginMode ? 'IDENTIFICATION' : 'РЕГИСТРАЦИЯ'}
+                {isLoginMode ? 'IDENTIFICATION' : 'АКТИВАЦИЯ АККАУНТА'}
             </h2>
             
             {/* ЕСЛИ РЕЖИМ РЕГИСТРАЦИИ - ПОКАЗЫВАЕМ ПОЛЕ ИМЕНИ */}
@@ -396,8 +395,8 @@ export default function Navigation() {
             )}
             
             {/* БАЗОВЫЕ ПОЛЯ */}
-            <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
-            <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
+            <input type="text" placeholder="Логин (выданный админом)" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
+            <input type="password" placeholder="Пароль (выданный админом)" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
             
             {/* ДОПОЛНИТЕЛЬНЫЕ ПОЛЯ ДЛЯ ПРОФИЛЯ ПРИ РЕГИСТРАЦИИ */}
             {!isLoginMode && (
@@ -420,7 +419,7 @@ export default function Navigation() {
                 onClick={() => setIsLoginMode(!isLoginMode)} 
                 style={{...closeText, color: '#0abab5', marginTop: '20px', textDecoration: 'underline'}}
             >
-                {isLoginMode ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Войти'}
+                {isLoginMode ? 'Первый вход? Завершить регистрацию' : 'Уже настроили профиль? Войти'}
             </div>
 
             <div onClick={()=> { setShowLoginModal(false); setIsLoginMode(true); }} style={closeText}>ОТМЕНА</div>
