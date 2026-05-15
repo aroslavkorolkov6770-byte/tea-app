@@ -94,7 +94,7 @@ const INITIAL_BASICS = [
         { id: "m9_2", title: "Выявление вкуса", t1: "Задавайте открытые вопросы.", t2: "Спрашивайте о желаемом состоянии.", t3: "Предлагайте 2-3 варианта на выбор.", quiz: [{q: "Как понять гостя?", o: ["Молча налить", "Задать вопросы", "Дать меню"], c: 1}] },
         { id: "m9_3", title: "Подача", t1: "Пиалу подаем двумя руками.", t2: "Следим за уровнем воды в чайнике.", t3: "Мастер всегда незаметен, но рядом.", quiz: [{q: "Как подавать пиалу?", o: ["Одной левой", "Одной правой", "Двумя руками"], c: 2}] },
         { id: "m9_4", title: "Чистота", t1: "Чабань всегда сухая.", t2: "Никаких крошек листа на столе.", t3: "Порядок — это часть церемонии.", quiz: [{q: "Правило чабани?", o: ["Она всегда сухая", "Можно оставить лужи", "Убираем раз в день"], c: 0}] },
-        { id: "m9_5", title: "Прощание", t1: "Поблагодарите за визит.", t2: "Пригласите вернуться снова.", t3: "Подарите доброе пожелание.", quiz: [{q: "Что делаем при уходе гостя?", o: ["Просто киваем", "Искренне прощаемся", "Молча убираем стол"], c: 1}] },
+        { id: "m9_5", title: "Прощание", t1: "Поблагодарите за визит.", t2: "Пригласите вернуться снова.", t3: "Подарите доброе пожелание.", quiz: [{q: "Что делаем при уходе гостя?", o: ["Просто киваем", "Искрен искренне прощаемся", "Молча убираем стол"], c: 1}] },
   ]},
   { id: "sec_10", title: "10. Аттестация", modules: [
         { id: "m10_1", title: "Теория", t1: "Проверка всех знаний по ботанике.", t2: "История сортов и регионов.", t3: "Химия и воздействие на организм.", quiz: [{q: "Что нужно сдать?", o: ["Всю базу знаний", "Только цены", "Только названия сортов"], c: 0}] },
@@ -201,7 +201,6 @@ function ShiftContent() {
   // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА (БЕЗ ОЧЕРЕДИ) ---
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
       try {
-          // Запускаем ВСЕ 5 запросов ПАРАЛЛЕЛЬНО!
           const [sFiles, cRoute, cBasics, sBasicsData, sRouteData] = await Promise.all([
               fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => []),
               fetch(`/api/storage?key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => []),
@@ -228,7 +227,6 @@ function ShiftContent() {
           }
           setDynamicRoute(sRoute);
 
-          // Раскрываем нужный урок, если перешли по ссылке из поиска (только при первом рендере)
           if (checkUrl) {
               const sectionId = searchParams.get('sectionId');
               const moduleId = searchParams.get('moduleId');
@@ -268,7 +266,6 @@ function ShiftContent() {
     setIsAdmin(role === 'admin');
     setUserId(currentId);
 
-    // Первый запуск - загружаем всё сразу и проверяем URL
     loadAllData(currentId, true);
 
     const urlTab = searchParams.get('tab');
@@ -277,7 +274,6 @@ function ShiftContent() {
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
     window.addEventListener('sidebarToggle', handleToggle);
     
-    // Автообновление (уже без перепроверки URL)
     const syncInterval = setInterval(() => loadAllData(currentId, false), 5000);
     const focusHandler = () => loadAllData(currentId, false);
     window.addEventListener('focus', focusHandler);
@@ -477,24 +473,24 @@ function ShiftContent() {
       <Navigation />
       <div style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
 
-      <main style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
+      <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
         {activeTab === 'welcome' && (
             <div style={{ animation: 'fadeInUp 0.6s ease' }}>
-                <h1 style={{fontSize:'36px', fontWeight:'900', marginBottom:'40px'}}>Центр управления мастером</h1>
+                <h1 className="tasks-title" style={{fontSize:'36px', fontWeight:'900', marginBottom:'40px'}}>Центр управления мастером</h1>
                 
-                <section style={wideChartCard}>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'40px', flexWrap: 'wrap', gap:'20px'}}>
+                <section className="tasks-chart-card" style={wideChartCard}>
+                    <div className="tasks-flex-space" style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'40px', flexWrap: 'wrap', gap:'20px'}}>
                         <div>
                             <div style={{fontSize:'11px', fontWeight:'900', color:'#0abab5', letterSpacing:'2px', marginBottom:'8px', textTransform:'uppercase'}}>ОБЩАЯ ДИНАМИКА РАЗВИТИЯ</div>
-                            <div style={{fontSize:'48px', fontWeight:'900', color:'#fff', display:'flex', alignItems:'baseline', gap:'12px'}}>
+                            <div className="tasks-big-val" style={{fontSize:'48px', fontWeight:'900', color:'#fff', display:'flex', alignItems:'baseline', gap:'12px'}}>
                                 {totalHubPercent}% <span style={{fontSize:'15px', opacity:0.4, fontWeight:'500'}}>общего прогресса HUB</span>
                             </div>
                         </div>
                         <div style={rankBadge}>{totalHubPercent < 40 ? '🌱 НОВИЧОК' : totalHubPercent < 80 ? '⚖️ ЭРУДИТ' : '🏮 МАСТЕР'}</div>
                     </div>
 
-                    <div style={{ position: 'relative', width: '100%', height: '220px', marginTop: '40px', marginBottom: '20px' }}>
+                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '220px', marginTop: '40px', marginBottom: '20px' }}>
                         {[0, 20, 40, 60, 80, 100].map(v => (
                             <div key={v} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', borderBottom: '1px dashed rgba(255,255,255,0.05)', zIndex: 1 }} />
                         ))}
@@ -517,17 +513,17 @@ function ShiftContent() {
                     </div>
                 </section>
 
-                <div style={dashboardGrid}>
-                      <div style={statCardMain}>
+                <div className="tasks-course-grid" style={dashboardGrid}>
+                      <div className="tasks-stat-card" style={statCardMain}>
                          <div style={cardHeaderLabel}>ПЛАН НА НЕДЕЛЮ</div>
-                         <div style={bigStatVal}>{completedRoute.length} <span style={{fontSize:'20px', opacity:0.4}}>/ {dynamicRoute.length}</span></div>
+                         <div className="tasks-big-val" style={bigStatVal}>{completedRoute.length} <span style={{fontSize:'20px', opacity:0.4}}>/ {dynamicRoute.length}</span></div>
                          <p style={cardSubText}>шагов пройдено</p>
                           <div style={segmentedBar}>{dynamicRoute.map((step, i) => (<div key={i} style={segment(completedRoute.includes(step.id))} />))}</div>
                       </div>
                       
-                      <div style={statCardMain}>
+                      <div className="tasks-stat-card" style={statCardMain}>
                          <div style={cardHeaderLabel}>БАЗА ЗНАНИЙ</div>
-                         <div style={bigStatVal}>{basicsPercent}%</div>
+                         <div className="tasks-big-val" style={bigStatVal}>{basicsPercent}%</div>
                          <p style={cardSubText}>пройдено тем обучения</p>
                          <div style={pBarBg}><div style={pBarFill(basicsPercent)} /></div>
                       </div>
@@ -540,13 +536,13 @@ function ShiftContent() {
              {!selectedSection ? (
                <>
                   <div style={{ marginBottom: '60px', width: '100%', boxSizing: 'border-box' }}>
-                      <div style={flexSpace}>
-                          <h2 style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>⚠️ Срочно к прохождению</h2>
+                      <div className="tasks-flex-space" style={flexSpace}>
+                          <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>⚠️ Срочно к прохождению</h2>
                       </div>
                       {urgentFiles.length > 0 ? (
-                          <div style={courseGrid}> 
+                          <div className="tasks-course-grid" style={courseGrid}> 
                               {urgentFiles.map((file) => (
-                                  <div key={file.id} style={{ ...courseCard, background: '#161816', border: '1px solid #0abab5', padding: '25px', display: 'flex', flexDirection: 'column', minHeight: '160px' }}>
+                                  <div key={file.id} className="tasks-course-card" style={{ ...courseCard, background: '#161816', border: '1px solid #0abab5', padding: '25px', display: 'flex', flexDirection: 'column', minHeight: '160px' }}>
                                       <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#0abab5' }} />
                                       <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginBottom: '10px', opacity: 0.8 }}>{file.date}</div>
                                       <h4 style={{ margin: '0 0 10px 0', fontSize: '17px', fontWeight: '900', wordBreak: 'break-word', color: '#fff', flex: 1 }}>📄 {file.name}</h4>
@@ -567,16 +563,16 @@ function ShiftContent() {
                   </div>
 
                   {/* 1. ПЛАН НА НЕДЕЛЮ */}
-                  <div style={flexSpace}>
-                     <h2 style={sectionTitle}>1. Твой план на неделю</h2>
+                  <div className="tasks-flex-space" style={flexSpace}>
+                     <h2 className="tasks-title" style={sectionTitle}>1. Твой план на неделю</h2>
                      {isAdmin && <button onClick={() => { setRouteFormData({ id: '', title: '', time: '', content: '' }); setShowRouteForm(true); }} style={adminActionBtn}>+ НОВЫЙ ШАГ</button>}
                   </div>
                   
-                  <div style={{ ...courseGrid, marginBottom: '60px' }}>
+                  <div className="tasks-course-grid" style={{ ...courseGrid, marginBottom: '60px' }}>
                      {dynamicRoute.map((step, idx) => {
                         const isDone = completedRoute.includes(step.id);
                         return (
-                           <div key={step.id} onClick={() => setSelectedRouteStep(step)} style={courseCard}>
+                           <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="tasks-course-card" style={courseCard}>
                               {isAdmin && (
                                   <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
                                       <div onClick={(e) => { e.stopPropagation(); setRouteFormData(step); setShowRouteForm(true); }} style={editIconStyle}>✎</div>
@@ -596,17 +592,17 @@ function ShiftContent() {
                   </div>
 
                   {/* 2. КАТАЛОГ КУРСОВ */}
-                  <div style={flexSpace}>
-                      <h2 style={sectionTitle}>2. Каталог курсов (Основы)</h2>
+                  <div className="tasks-flex-space" style={flexSpace}>
+                      <h2 className="tasks-title" style={sectionTitle}>2. Каталог курсов (Основы)</h2>
                       {isAdmin && <button onClick={() => { setSectionFormData({ id: '', title: '' }); setShowSectionForm(true); }} style={adminActionBtn}>+ НОВЫЙ РАЗДЕЛ</button>}
                   </div>
                   
-                  <div style={courseGrid}>
+                  <div className="tasks-course-grid" style={courseGrid}>
                      {dynamicBasics.map((sec) => {
                         const doneCount = sec.modules?.filter((m:any) => completedBasics.includes(m.id)).length || 0;
                         const progress = sec.modules?.length ? Math.round((doneCount / sec.modules.length) * 100) : 0;
                         return (
-                          <div key={sec.id} onClick={() => setSelectedSection(sec)} style={courseCard}>
+                          <div key={sec.id} onClick={() => setSelectedSection(sec)} className="tasks-course-card" style={courseCard}>
                              {isAdmin && (
                                   <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
                                       <div onClick={(e) => { e.stopPropagation(); setSectionFormData({id: sec.id, title: sec.title}); setShowSectionForm(true); }} style={editIconStyle}>✎</div>
@@ -629,8 +625,8 @@ function ShiftContent() {
                <div style={{animation: 'fadeInUp 0.4s ease', maxWidth: '100%'}}>
                   <div onClick={() => setSelectedSection(null)} style={backLink}>← Назад к обучению</div>
                   
-                  <div style={flexSpace}>
-                      <h2 style={{fontSize:'36px', color:'#0abab5', fontWeight:'900', margin: 0}}>{stripEmoji(selectedSection.title)}</h2>
+                  <div className="tasks-flex-space" style={flexSpace}>
+                      <h2 className="tasks-title" style={{fontSize:'36px', color:'#0abab5', fontWeight:'900', margin: 0}}>{stripEmoji(selectedSection.title)}</h2>
                       {isAdmin && <button onClick={() => { 
                           setModuleFormData({ 
                               id: '', title: '', t1: '', t2: '', t3: '', 
@@ -645,7 +641,7 @@ function ShiftContent() {
                      {selectedSection.modules?.map((m:any) => {
                         const isDone = completedBasics.includes(m.id);
                         return (
-                          <div key={m.id} onClick={() => { setSelectedModule(m); setModuleView('content'); }} style={topicRow}>
+                          <div key={m.id} onClick={() => { setSelectedModule(m); setModuleView('content'); }} className="tasks-topic-row" style={topicRow}>
                              {isAdmin && (
                                   <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: '25px', display: 'flex', gap: '8px', zIndex: 10 }}>
                                       <div onClick={(e) => { 
@@ -674,29 +670,27 @@ function ShiftContent() {
         {/* --- УМНОЕ ОКНО ПРЕДПРОСМОТРА ФАЙЛА --- */}
         {previewFile && (
             <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
-                <div style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
+                <div className="tasks-modal" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
+                    <div className="tasks-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
                         <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile.name}</h2>
                         <div onClick={() => setPreviewFile(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
                     </div>
                     <div style={{ flex: 1, width: '100%', background: '#fff', borderRadius: '15px', overflow: 'hidden' }}>
                         {previewFile.data ? (
-                            /* Если файл - это Word, Excel или Архивы, выводим красивую заглушку */
                             previewFile.name.toLowerCase().match(/\.(docx|doc|xls|xlsx|ppt|pptx|zip|rar)$/i) ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', textAlign: 'center', padding: '20px' }}>
                                     <div style={{ fontSize: '60px', marginBottom: '15px' }}>📄</div>
-                                    <h3 style={{ margin: '0 0 10px 0', fontSize: '20px' }}>Формат не поддерживается для просмотра</h3>
+                                    <h3 style={{ margin: '0 0 10px 0', fontSize: '20px' }}>Формат не поддерживается</h3>
                                     <p style={{ color: '#555', fontSize: '14px', maxWidth: '350px', lineHeight: '1.5' }}>
-                                        Браузеры не умеют открывать файлы Word и Excel прямо внутри сайта. Вы можете скачать этот файл для изучения.
+                                        Браузеры не умеют открывать этот формат прямо внутри сайта. Вы можете скачать файл.
                                     </p>
                                     <button onClick={() => handleDownloadFile(previewFile)} style={{ ...saveBtn, width: 'auto', padding: '12px 30px', marginTop: '20px', borderRadius: '12px' } as any}>СКАЧАТЬ ФАЙЛ</button>
                                 </div>
                             ) : (
-                                /* Иначе (PDF, Картинки, TXT) - просто открываем в iFrame */
                                 <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
                             )
                         ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '20px' }}>
                                 Нет данных для отображения (загружено в старой версии)
                             </div>
                         )}
@@ -709,7 +703,7 @@ function ShiftContent() {
 
         {showRouteForm && (
             <div style={modalOverlay}>
-                <div style={{...modalContent, maxWidth: '500px'}}>
+                <div className="tasks-modal" style={{...modalContent, maxWidth: '500px'}}>
                     <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{routeFormData.id ? 'РЕДАКТОР ШАГА' : 'НОВЫЙ ШАГ ПЛАНА'}</h2>
                     <input style={adminIn} placeholder="Название шага" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
                     <input style={adminIn} placeholder="Время (напр. 5 мин)" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
@@ -722,7 +716,7 @@ function ShiftContent() {
 
         {routeToDelete && (
             <div style={errorOverlayStyle}>
-                <div style={errorModalContent}>
+                <div className="tasks-modal" style={errorModalContent}>
                     <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
                     <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ШАГ?</h2>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -735,7 +729,7 @@ function ShiftContent() {
 
         {showSectionForm && (
             <div style={modalOverlay}>
-                <div style={{...modalContent, maxWidth: '500px'}}>
+                <div className="tasks-modal" style={{...modalContent, maxWidth: '500px'}}>
                     <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{sectionFormData.id ? 'РЕДАКТОР РАЗДЕЛА' : 'НОВЫЙ РАЗДЕЛ'}</h2>
                     <input style={adminIn} placeholder="Название раздела" value={sectionFormData.title} onChange={e => setSectionFormData({...sectionFormData, title: e.target.value})} />
                     <button onClick={handleSaveSection} style={saveBtn}>СОХРАНИТЬ РАЗДЕЛ</button>
@@ -746,7 +740,7 @@ function ShiftContent() {
 
         {sectionToDelete && (
             <div style={errorOverlayStyle}>
-                <div style={errorModalContent}>
+                <div className="tasks-modal" style={errorModalContent}>
                     <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
                     <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ РАЗДЕЛ?</h2>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -758,12 +752,12 @@ function ShiftContent() {
         )}
 
         {showModuleForm && (
-            <div style={{...modalOverlay, alignItems: 'flex-start', padding: '40px 20px'}}>
-                <div style={{...modalContent, maxWidth: '900px', margin: '0 auto'}}>
+            <div style={{...modalOverlay, alignItems: 'flex-start'}}>
+                <div className="tasks-modal" style={{...modalContent, maxWidth: '900px', margin: '0 auto'}}>
                     <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{moduleFormData.id ? 'РЕДАКТОР УРОКА' : 'НОВЫЙ УРОК'}</h2>
                     <input style={adminIn} placeholder="Введите название..." value={moduleFormData.title} onChange={e => setModuleFormData({...moduleFormData, title: e.target.value})} />
                     
-                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', margin: '20px 0'}}>
+                    <div className="tasks-course-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', margin: '20px 0'}}>
                         <textarea style={{...adminIn, height: '120px'}} placeholder="Теория 1" value={moduleFormData.t1} onChange={e => setModuleFormData({...moduleFormData, t1: e.target.value})} />
                         <textarea style={{...adminIn, height: '120px'}} placeholder="Теория 2" value={moduleFormData.t2} onChange={e => setModuleFormData({...moduleFormData, t2: e.target.value})} />
                         <textarea style={{...adminIn, height: '120px'}} placeholder="Теория 3" value={moduleFormData.t3} onChange={e => setModuleFormData({...moduleFormData, t3: e.target.value})} />
@@ -775,7 +769,7 @@ function ShiftContent() {
                             <div key={qIdx} style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
                                 {moduleFormData.quiz.length > 1 && <div onClick={() => removeQuizQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'}}>✕</div>}
                                 <input style={adminIn} placeholder="Текст вопроса..." value={q.q} onChange={e => updateQuizQuestion(qIdx, 'q', e.target.value)} />
-                                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px'}}>
+                                <div className="tasks-course-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px'}}>
                                     {[0,1,2].map(i => (
                                         <div key={i} style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                             <label style={{display:'flex', gap:'5px', cursor:'pointer', color: q.c === i ? '#0abab5' : '#fff'}}><input type="radio" checked={q.c === i} onChange={() => updateQuizQuestion(qIdx, 'c', i)} /> Вариант {i+1}</label>
@@ -795,7 +789,7 @@ function ShiftContent() {
 
         {moduleToDelete && (
             <div style={{...errorOverlayStyle, zIndex: 50000}}>
-                <div style={errorModalContent}>
+                <div className="tasks-modal" style={errorModalContent}>
                     <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
                     <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ УРОК?</h2>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -808,18 +802,18 @@ function ShiftContent() {
 
         {selectedModule && !showModuleForm && (
            <div style={modalOverlay}>
-              <div style={modalContent}>
-                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
+              <div className="tasks-modal" style={modalContent}>
+                 <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
                     <div onClick={() => {setSelectedModule(null); setModuleView('content'); setCurrentQuizStep(0);}} style={{...backLink, margin:0}}>← НАЗАД</div>
                     <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(selectedModule.title)}</h2>
-                    <div style={{width:'80px'}} />
+                    <div className="desktop-spacer" style={{width:'80px'}} />
                  </div>
 
                  {moduleView === 'content' ? (
                     <div style={{animation: 'fadeInUp 0.3s ease'}}>
-                        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'20px', marginBottom:'50px'}}>
+                        <div className="tasks-course-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'20px', marginBottom:'50px'}}>
                             {[selectedModule.t1, selectedModule.t2, selectedModule.t3].map((t, i) => (
-                                <div key={i} style={theoryBlock}>
+                                <div key={i} className="tasks-theory-block" style={theoryBlock}>
                                     <h3 style={theoryLabel}>ТЕОРИЯ {i+1}</h3>
                                     <p style={theoryText}>{t || "Информация раздела."}</p>
                                 </div>
@@ -846,17 +840,17 @@ function ShiftContent() {
 
         {selectedRouteStep && !showRouteForm && (
            <div style={modalOverlay}>
-              <div style={modalContent}>
-                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
+              <div className="tasks-modal" style={modalContent}>
+                 <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
                     <div onClick={() => {setSelectedRouteStep(null); setModuleView('content');}} style={{...backLink, margin:0}}>← НАЗАД</div>
                     <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(selectedRouteStep.title)}</h2>
-                    <div style={{width:'80px'}} />
+                    <div className="desktop-spacer" style={{width:'80px'}} />
                  </div>
                  <div style={{animation: 'fadeInUp 0.3s ease'}}>
-                     <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'20px', marginBottom:'50px'}}>
-                         <div style={theoryBlock}><h3 style={theoryLabel}>ЗАДАЧА</h3><p style={theoryText}>{selectedRouteStep.content}</p></div>
-                         <div style={theoryBlock}><h3 style={theoryLabel}>ИНСТРУКЦИЯ</h3><p style={theoryText}>Соблюдайте регламенты и правила при выполнении данного шага.</p></div>
-                         <div style={theoryBlock}><h3 style={theoryLabel}>ИТОГ</h3><p style={theoryText}>После завершения шага вы получите необходимые навыки для работы.</p></div>
+                     <div className="tasks-course-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'20px', marginBottom:'50px'}}>
+                         <div className="tasks-theory-block" style={theoryBlock}><h3 style={theoryLabel}>ЗАДАЧА</h3><p style={theoryText}>{selectedRouteStep.content}</p></div>
+                         <div className="tasks-theory-block" style={theoryBlock}><h3 style={theoryLabel}>ИНСТРУКЦИЯ</h3><p style={theoryText}>Соблюдайте регламенты и правила при выполнении данного шага.</p></div>
+                         <div className="tasks-theory-block" style={theoryBlock}><h3 style={theoryLabel}>ИТОГ</h3><p style={theoryText}>После завершения шага вы получите необходимые навыки для работы.</p></div>
                      </div>
                      <button onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn}>Я ИЗУЧИЛ ЭТОТ ШАГ</button>
                  </div>
@@ -866,7 +860,7 @@ function ShiftContent() {
 
         {showErrorModal && (
             <div style={{...errorOverlayStyle, zIndex: 60000}}>
-                <div style={errorModalContent}>
+                <div className="tasks-modal" style={errorModalContent}>
                     <div style={{ fontSize: '60px', marginBottom: '20px' }}>❌</div>
                     <h2 style={{ fontSize: '32px', color: '#ff4d4d', marginBottom: '35px', fontWeight: '900' }}>НЕВЕРНЫЙ ОТВЕТ</h2>
                     <button onClick={() => setShowErrorModal(false)} style={{...errorBtnStyle, marginTop: 0}}>ПОПРОБОВАТЬ СНОВА</button>
@@ -881,6 +875,42 @@ function ShiftContent() {
         ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
         ::-webkit-scrollbar-track { background: transparent; }
         body { overflow-x: hidden; width: 100vw; }
+
+        /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
+        @media (max-width: 768px) {
+            .tasks-main { padding: 90px 15px 50px 15px !important; }
+            .tasks-title { font-size: 26px !important; margin-bottom: 25px !important; line-height: 1.2 !important; }
+            .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
+            .tasks-stat-card { padding: 25px 20px !important; border-radius: 25px !important; }
+            
+            /* Делаем сетки карточек в один столбик без горизонтального скролла */
+            .tasks-course-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
+            .tasks-course-card { padding: 20px !important; min-height: auto !important; }
+            
+            /* Уменьшаем шрифты графиков */
+            .tasks-big-val { font-size: 38px !important; }
+            .tasks-chart-container { height: 160px !important; margin-top: 25px !important; }
+
+            /* Модальные окна с теорией */
+            .tasks-modal { 
+                padding: 30px 20px !important; 
+                border-radius: 25px !important; 
+                width: 95% !important; 
+                max-height: 90vh !important; 
+            }
+            .tasks-theory-block { padding: 20px !important; border-radius: 20px !important; }
+            
+            /* Шапка в модальных окнах (переносим крестик и название) */
+            .tasks-modal-header { flex-direction: column; align-items: flex-start !important; gap: 15px; margin-bottom: 25px !important; }
+            .tasks-modal-header h2 { font-size: 20px !important; padding: 0 !important; text-align: left !important; }
+            .desktop-spacer { display: none !important; }
+            
+            /* Строки тем в разделе обучения */
+            .tasks-topic-row { padding: 15px 20px !important; }
+            
+            /* Расстановка кнопок "Добавить" под заголовком, а не справа */
+            .tasks-flex-space { flex-direction: column; align-items: flex-start !important; gap: 15px !important; margin-bottom: 25px !important; }
+        }
       `}</style>
     </div>
   );
