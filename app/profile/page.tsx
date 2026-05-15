@@ -20,12 +20,13 @@ function ProfileContent() {
     const [userRole, setUserRole] = useState('staff');
     const [userId, setUserId] = useState('guest');
     
-    // Состояние профиля
+    // Состояние профиля (ДОБАВЛЕНО ПОЛЕ EMAIL)
     const [profile, setProfile] = useState({
         name: '',
         avatar: '',
         tg: '',
-        phone: ''
+        phone: '',
+        email: ''
     });
 
     // Состояние прогресса (для сотрудника)
@@ -64,6 +65,7 @@ function ProfileContent() {
                         avatar: '',
                         tg: role === 'admin' ? '@admin_tea' : '@username',
                         phone: '',
+                        email: '', // Инициализируем пустое поле для почты
                         firstLogin: dlDate.toISOString()
                     };
                     saveDataToServer(`profile_data_${currentId}`, pData);
@@ -77,11 +79,13 @@ function ProfileContent() {
                     dlDate = new Date(new Date(pData.firstLogin).getTime() + 7 * 24 * 60 * 60 * 1000);
                 }
 
+                // ЗАГРУЖАЕМ ПОЧТУ ИЗ БД В STATE
                 setProfile({
                     name: currentName,
                     avatar: pData.avatar || '',
                     tg: pData.tg || '',
-                    phone: pData.phone || ''
+                    phone: pData.phone || '',
+                    email: pData.email || '' 
                 });
 
                 // 2. Изолированный прогресс сотрудника с сервера
@@ -133,6 +137,7 @@ function ProfileContent() {
             pData.avatar = profile.avatar;
             pData.tg = profile.tg;
             pData.phone = profile.phone;
+            pData.email = profile.email; // СОХРАНЯЕМ ИЗМЕНЕННУЮ ПОЧТУ
             
             // Сохраняем личные данные на сервер
             saveDataToServer(`profile_data_${userId}`, pData);
@@ -220,9 +225,10 @@ function ProfileContent() {
                 <section style={contactCardStyle}>
                     <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                         <div style={contactIconStyle}>💬</div>
-                        <div>
-                            <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff' }}>{profile.tg}</div>
-                            <div style={{ fontSize: '13px', color: '#555', marginTop: '2px' }}>{profile.phone || 'телефон не указан'}</div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{profile.tg || 'telegram не указан'}</div>
+                            <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{profile.email || 'e-mail не указан'}</div>
+                            <div style={{ fontSize: '13px', color: '#555' }}>{profile.phone || 'телефон не указан'}</div>
                         </div>
                     </div>
                 </section>
@@ -236,6 +242,7 @@ function ProfileContent() {
                                 <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} placeholder="Твое имя" style={inputItemStyle} />
                                 <input value={profile.avatar} onChange={e => setProfile({...profile, avatar: e.target.value})} placeholder="Ссылка на фото (URL)" style={inputItemStyle} />
                                 <input value={profile.tg} onChange={e => setProfile({...profile, tg: e.target.value})} placeholder="Telegram (напр. @nik_name)" style={inputItemStyle} />
+                                <input value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} placeholder="E-mail адрес" style={inputItemStyle} />
                                 <input value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} placeholder="Номер телефона" style={inputItemStyle} />
                             </div>
                             <button onClick={handleSaveProfile} style={saveButtonStyle}>СОХРАНИТЬ ИЗМЕНЕНИЯ</button>
