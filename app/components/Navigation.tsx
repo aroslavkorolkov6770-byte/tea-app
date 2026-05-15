@@ -63,6 +63,24 @@ export default function Navigation() {
   // --- СОСТОЯНИЕ ДЛЯ ФИРМЕННОГО УВЕДОМЛЕНИЯ ОБ ОШИБКЕ ---
   const [errorMessage, setErrorMessage] = useState("");
 
+  // --- СОСТОЯНИЯ ДЛЯ ИМИТАЦИИ Google reCAPTCHA ---
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
+  const [isCaptchaLoading, setIsCaptchaLoading] = useState(false);
+
+  // Функция клика по каптче
+  const handleCaptchaClick = () => {
+      if (isCaptchaVerified || isCaptchaLoading) return;
+      
+      setIsCaptchaLoading(true);
+      // Имитируем запрос к серверу каптчи (1.5 секунды)
+      setTimeout(() => {
+          setIsCaptchaLoading(false);
+          setIsCaptchaVerified(true);
+          setErrorMessage(""); // Убираем ошибку, если она была
+      }, 1500);
+  };
+
   useEffect(() => {
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
@@ -100,8 +118,14 @@ export default function Navigation() {
     return () => clearInterval(syncInterval);
   }, []);
 
-  // --- ЛОГИКА АВТОРИЗАЦИИ ---
+  // --- ЛОГИКА АВТОРИЗАЦИИ С УЧЕТОМ КАПТЧИ ---
   const handleLogin = async () => {
+    // Проверка каптчи
+    if (failedAttempts >= 3 && !isCaptchaVerified) {
+        setErrorMessage("Пожалуйста, подтвердите, что вы не робот.");
+        return;
+    }
+
     try {
         const res = await fetch('/api/storage?key=tea_hub_users_v1');
         let users = await res.json().catch(() => []);
@@ -122,6 +146,9 @@ export default function Navigation() {
           localStorage.setItem('current_user_id', foundUser.id);
           localStorage.setItem('current_user_name', foundUser.name);
           
+          setFailedAttempts(0); // Сбрасываем счетчик ошибок при успехе
+          setIsCaptchaVerified(false);
+          
           setIsLoggedIn(true);
           setUserRole(foundUser.role);
           setShowLoginModal(false);
@@ -129,6 +156,12 @@ export default function Navigation() {
           if (foundUser.role === 'admin') router.push('/admin');
           else router.push('/tasks?tab=welcome');
         } else {
+          const newFails = failedAttempts + 1;
+          setFailedAttempts(newFails);
+          
+          // Если ошиблись и каптча уже была пройдена - сбрасываем её
+          if (isCaptchaVerified) setIsCaptchaVerified(false);
+
           setErrorMessage("Неправильно введен логин или пароль!");
         }
     } catch (error) {
@@ -137,10 +170,16 @@ export default function Navigation() {
     }
   };
 
-  // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА ---
+  // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА С УЧЕТОМ КАПТЧИ ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
+          return;
+      }
+
+      // Проверка каптчи
+      if (failedAttempts >= 3 && !isCaptchaVerified) {
+          setErrorMessage("Пожалуйста, подтвердите, что вы не робот.");
           return;
       }
 
@@ -152,6 +191,10 @@ export default function Navigation() {
           const foundUserIndex = users.findIndex((u: any) => u.login === login.trim() && u.pass === pass.trim());
 
           if (foundUserIndex === -1) {
+              const newFails = failedAttempts + 1;
+              setFailedAttempts(newFails);
+              if (isCaptchaVerified) setIsCaptchaVerified(false);
+
               setErrorMessage("Неправильно введен логин или пароль! Убедитесь, что администратор выдал вам доступы.");
               return;
           }
@@ -175,6 +218,9 @@ export default function Navigation() {
           localStorage.setItem('current_user_id', existingUser.id);
           localStorage.setItem('current_user_name', regName.trim());
 
+          setFailedAttempts(0); // Сбрасываем счетчик
+          setIsCaptchaVerified(false);
+          
           setIsLoggedIn(true);
           setUserRole(existingUser.role);
           setShowLoginModal(false);
@@ -421,6 +467,29 @@ export default function Navigation() {
                     <input type="text" placeholder="Номер телефона" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)} style={inputS} />
                 </>
             )}
+
+            {/* --- ВИТРИНА Google reCAPTCHA (Визуальный клон) --- */}
+            {failedAttempts >= 3 && (
+                <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '15px', marginTop: '5px' }}>
+                    <div style={recaptchaContainerStyle as any}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {/* Чекбокс Каптчи */}
+                            <div onClick={handleCaptchaClick} style={recaptchaCheckboxStyle(isCaptchaVerified) as any}>
+                                {isCaptchaLoading && <div className="captcha-spinner"></div>}
+                                {isCaptchaVerified && <span style={{ color: '#0f9d58', fontSize: '22px', fontWeight: 'bold' }}>✓</span>}
+                            </div>
+                            <span style={{ color: '#fff', fontSize: '14px', fontFamily: 'Roboto, sans-serif' }}>Я не робот</span>
+                        </div>
+                        
+                        {/* Правый логотип reCAPTCHA */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <img src="https://www.gstatic.com/recaptcha/api2/logo_48.png" alt="reCAPTCHA" style={{ width: '32px' }} />
+                            <div style={{ color: '#999', fontSize: '10px', marginTop: '4px' }}>reCAPTCHA</div>
+                            <div style={{ color: '#999', fontSize: '8px', marginTop: '2px' }}>Конфиденциальность - Условия</div>
+                        </div>
+                    </div>
+                </div>
+            )}
             
             {isLoginMode ? (
                 <div onClick={handleLogin} style={modalLoginBtn}>ВОЙТИ</div>
@@ -429,13 +498,13 @@ export default function Navigation() {
             )}
             
             <div 
-                onClick={() => setIsLoginMode(!isLoginMode)} 
+                onClick={() => { setIsLoginMode(!isLoginMode); setFailedAttempts(0); setIsCaptchaVerified(false); setIsCaptchaLoading(false); }} 
                 style={{...closeText, color: '#0abab5', marginTop: '15px', textDecoration: 'underline'}}
             >
                 {isLoginMode ? 'Регистрация' : 'Вход'}
             </div>
 
-            <div onClick={()=> { setShowLoginModal(false); setIsLoginMode(true); }} style={closeText}>ОТМЕНА</div>
+            <div onClick={()=> { setShowLoginModal(false); setIsLoginMode(true); setFailedAttempts(0); setIsCaptchaVerified(false); setIsCaptchaLoading(false); }} style={closeText}>ОТМЕНА</div>
           </div>
         </div>
       )}
@@ -445,6 +514,20 @@ export default function Navigation() {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
         }
+        
+        /* Анимация крутилки для Каптчи */
+        @keyframes captchaSpin {
+          100% { transform: rotate(360deg); }
+        }
+        .captcha-spinner {
+          width: 18px;
+          height: 18px;
+          border: 3px solid #ccc;
+          border-top-color: #333;
+          border-radius: 50%;
+          animation: captchaSpin 1s linear infinite;
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -508,6 +591,35 @@ const modalContent: any = {
     boxSizing: 'border-box',
     className: 'custom-scroll' 
 };
+
+// --- СТИЛИ ДЛЯ ИМИТАЦИИ Google reCAPTCHA ---
+const recaptchaContainerStyle = {
+    background: '#222',
+    border: '1px solid #525252',
+    borderRadius: '3px',
+    width: '300px',
+    height: '76px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 12px',
+    justifyContent: 'space-between',
+    boxShadow: '0px 0px 4px rgba(0,0,0,0.2)',
+    boxSizing: 'border-box'
+};
+
+const recaptchaCheckboxStyle = (isVerified: boolean) => ({
+    width: '28px',
+    height: '28px',
+    background: isVerified ? 'transparent' : '#fff',
+    border: isVerified ? 'none' : '2px solid #c1c1c1',
+    borderRadius: '2px',
+    cursor: isVerified ? 'default' : 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative' as any,
+    transition: '0.2s'
+});
 
 const inputS: any = { 
     width: '100%', 
