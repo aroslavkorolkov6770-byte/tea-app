@@ -3,17 +3,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-// --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES (ПАРАЛЛЕЛЬНАЯ ЗАПИСЬ) ---
-const setAppCookie = (name: string, value: string, days = 7) => {
-    const date = new Date();
-    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-    document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
-};
-
-const deleteAppCookie = (name: string) => {
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
-};
-
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
@@ -57,10 +46,9 @@ export default function Navigation() {
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
   
-  // Дополнительные поля для регистрации
+  // Дополнительные поля для регистрации (Telegram убран)
   const [regName, setRegName] = useState("");
   const [email, setEmail] = useState("");
-  const [regTg, setRegTg] = useState("");
   const [regPhone, setRegPhone] = useState("");
 
   const [searchDbProducts, setSearchDbProducts] = useState<any[]>([]);
@@ -84,16 +72,14 @@ export default function Navigation() {
       if (isCaptchaVerified || isCaptchaLoading) return;
       
       setIsCaptchaLoading(true);
-      // Имитируем запрос к серверу проверки (1.2 секунды)
       setTimeout(() => {
           setIsCaptchaLoading(false);
           setIsCaptchaVerified(true);
-          setErrorMessage(""); // Убираем ошибку, если она была
+          setErrorMessage(""); 
       }, 1200);
   };
 
   useEffect(() => {
-    // ВОЗВРАЩЕНО: ЧИТАЕМ ИЗ LOCALSTORAGE ЧТОБЫ НЕ ЛОМАТЬ ОСТАЛЬНОЙ САЙТ
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
     if (auth === 'true') {
@@ -130,9 +116,7 @@ export default function Navigation() {
     return () => clearInterval(syncInterval);
   }, []);
 
-  // --- ЛОГИКА АВТОРИЗАЦИИ (ГРАМОТНАЯ СИНХРОНИЗАЦИЯ) ---
   const handleLogin = async () => {
-    // Проверка TeaGuard
     if (failedAttempts >= 3 && !isCaptchaVerified) {
         setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
         return;
@@ -153,17 +137,10 @@ export default function Navigation() {
         const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
         if (foundUser) {
-          // СОХРАНЯЕМ В LOCALSTORAGE ДЛЯ КЛИЕНТА
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userRole', foundUser.role);
           localStorage.setItem('current_user_id', foundUser.id);
           localStorage.setItem('current_user_name', foundUser.name);
-
-          // ПАРАЛЛЕЛЬНО ПИШЕМ В COOKIES ДЛЯ БУДУЩЕГО СЕРВЕРА
-          setAppCookie('isLoggedIn', 'true');
-          setAppCookie('userRole', foundUser.role);
-          setAppCookie('current_user_id', foundUser.id);
-          setAppCookie('current_user_name', foundUser.name);
           
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
@@ -179,7 +156,6 @@ export default function Navigation() {
           setFailedAttempts(newFails);
           
           if (isCaptchaVerified) setIsCaptchaVerified(false);
-
           setErrorMessage("Неправильно введен логин или пароль!");
         }
     } catch (error) {
@@ -188,14 +164,12 @@ export default function Navigation() {
     }
   };
 
-  // --- ЛОГИКА РЕГИСТРАЦИИ (ГРАМОТНАЯ СИНХРОНИЗАЦИЯ) ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
       }
 
-      // Проверка TeaGuard
       if (failedAttempts >= 3 && !isCaptchaVerified) {
           setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
           return;
@@ -222,26 +196,19 @@ export default function Navigation() {
           users[foundUserIndex] = { ...existingUser, name: regName.trim() };
           saveDataToServer('tea_hub_users_v1', users);
 
+          // Telegram убран из initialProfile
           const initialProfile = {
               avatar: '',
-              tg: regTg.trim(),
               phone: regPhone.trim(),
               email: email.trim(),
               firstLogin: new Date().toISOString()
           };
           saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
 
-          // СОХРАНЯЕМ В LOCALSTORAGE
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userRole', existingUser.role);
           localStorage.setItem('current_user_id', existingUser.id);
           localStorage.setItem('current_user_name', regName.trim());
-
-          // ПАРАЛЛЕЛЬНО ПИШЕМ В COOKIES
-          setAppCookie('isLoggedIn', 'true');
-          setAppCookie('userRole', existingUser.role);
-          setAppCookie('current_user_id', existingUser.id);
-          setAppCookie('current_user_name', regName.trim());
 
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
@@ -260,18 +227,10 @@ export default function Navigation() {
   };
 
   const handleLogout = () => {
-    // УДАЛЯЕМ ИЗ LOCALSTORAGE
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userRole');
     localStorage.removeItem('current_user_id');
     localStorage.removeItem('current_user_name');
-
-    // УДАЛЯЕМ ИЗ COOKIES
-    deleteAppCookie('isLoggedIn');
-    deleteAppCookie('userRole');
-    deleteAppCookie('current_user_id');
-    deleteAppCookie('current_user_name');
-    
     setIsLoggedIn(false);
     router.push('/');
   };
@@ -498,7 +457,6 @@ export default function Navigation() {
             {!isLoginMode && (
                 <>
                     <input type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
-                    <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
                     <input type="text" placeholder="Номер телефона" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)} style={inputS} />
                 </>
             )}
