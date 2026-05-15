@@ -46,9 +46,10 @@ export default function Navigation() {
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
   
-  // Дополнительные поля для регистрации (Telegram убран)
+  // Дополнительные поля для регистрации
   const [regName, setRegName] = useState("");
   const [email, setEmail] = useState("");
+  const [regTg, setRegTg] = useState("");
   const [regPhone, setRegPhone] = useState("");
 
   const [searchDbProducts, setSearchDbProducts] = useState<any[]>([]);
@@ -72,10 +73,11 @@ export default function Navigation() {
       if (isCaptchaVerified || isCaptchaLoading) return;
       
       setIsCaptchaLoading(true);
+      // Имитируем запрос к серверу проверки (1.2 секунды)
       setTimeout(() => {
           setIsCaptchaLoading(false);
           setIsCaptchaVerified(true);
-          setErrorMessage(""); 
+          setErrorMessage(""); // Убираем ошибку, если она была
       }, 1200);
   };
 
@@ -116,7 +118,9 @@ export default function Navigation() {
     return () => clearInterval(syncInterval);
   }, []);
 
+  // --- ЛОГИКА АВТОРИЗАЦИИ С УЧЕТОМ КАПТЧИ ---
   const handleLogin = async () => {
+    // Проверка TeaGuard
     if (failedAttempts >= 3 && !isCaptchaVerified) {
         setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
         return;
@@ -156,6 +160,7 @@ export default function Navigation() {
           setFailedAttempts(newFails);
           
           if (isCaptchaVerified) setIsCaptchaVerified(false);
+
           setErrorMessage("Неправильно введен логин или пароль!");
         }
     } catch (error) {
@@ -164,12 +169,14 @@ export default function Navigation() {
     }
   };
 
+  // --- ЛОГИКА АКТИВАЦИИ/РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
       }
 
+      // Проверка TeaGuard
       if (failedAttempts >= 3 && !isCaptchaVerified) {
           setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
           return;
@@ -196,9 +203,9 @@ export default function Navigation() {
           users[foundUserIndex] = { ...existingUser, name: regName.trim() };
           saveDataToServer('tea_hub_users_v1', users);
 
-          // Telegram убран из initialProfile
           const initialProfile = {
               avatar: '',
+              tg: regTg.trim(),
               phone: regPhone.trim(),
               email: email.trim(),
               firstLogin: new Date().toISOString()
@@ -457,6 +464,7 @@ export default function Navigation() {
             {!isLoginMode && (
                 <>
                     <input type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
+                    <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
                     <input type="text" placeholder="Номер телефона" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)} style={inputS} />
                 </>
             )}
