@@ -103,7 +103,6 @@ export default function Navigation() {
         const res = await fetch('/api/storage?key=tea_hub_users_v1');
         let users = await res.json().catch(() => []);
         
-        // Если сервер пустой, создаем первичную базу пользователей
         if (!Array.isArray(users) || users.length === 0) {
             users = [
                 { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' },
@@ -147,7 +146,6 @@ export default function Navigation() {
           let users = await res.json().catch(() => []);
           if (!Array.isArray(users)) users = [];
 
-          // ПРОВЕРКА: Создал ли админ этот логин и пароль в панели?
           const foundUserIndex = users.findIndex((u: any) => u.login === login.trim() && u.pass === pass.trim());
 
           if (foundUserIndex === -1) {
@@ -379,9 +377,9 @@ export default function Navigation() {
 
       {showLoginModal && (
         <div style={modalOverlay}>
-          <div style={{ ...modalContent, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{color:'#fff', textAlign:'center', marginBottom:'30px', fontWeight: '900', letterSpacing: '1px'}}>
-                {isLoginMode ? 'IDENTIFICATION' : 'АКТИВАЦИЯ АККАУНТА'}
+          <div style={modalContent}>
+            <h2 style={{color:'#fff', textAlign:'center', marginBottom:'25px', fontWeight: '900', letterSpacing: '1px'}}>
+                {isLoginMode ? 'ВХОД В СИСТЕМУ' : 'АКТИВАЦИЯ АККАУНТА'}
             </h2>
             
             {!isLoginMode && (
@@ -407,7 +405,7 @@ export default function Navigation() {
             
             <div 
                 onClick={() => setIsLoginMode(!isLoginMode)} 
-                style={{...closeText, color: '#0abab5', marginTop: '20px', textDecoration: 'underline'}}
+                style={{...closeText, color: '#0abab5', marginTop: '15px', textDecoration: 'underline'}}
             >
                 {isLoginMode ? 'Первый вход? Завершить регистрацию' : 'Уже настроили профиль? Войти'}
             </div>
@@ -422,7 +420,6 @@ export default function Navigation() {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
         }
-        /* ГЛОБАЛЬНОЕ ОТКЛЮЧЕНИЕ ГОРИЗОНТАЛЬНОГО СКРОЛЛА И ФИКС ОТСТУПОВ */
         body {
             margin: 0;
             padding: 0;
@@ -430,6 +427,14 @@ export default function Navigation() {
         }
         * {
             box-sizing: border-box;
+        }
+        /* Стилизация скроллбара внутри модального окна */
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 10px;
         }
       `}</style>
     </>
@@ -440,7 +445,6 @@ export default function Navigation() {
 const guestHeader: any = { position: 'fixed', top: '20px', right: '40px', zIndex: 1000 };
 const loginBtn: any = { background: '#0ABAB5', color: '#000', padding: '12px 35px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize:'14px' };
 
-// ИСПРАВЛЕННЫЙ САЙДБАР: добавлен boxSizing и жесткий шрифт, чтобы он перестал быть огромным и баганным
 const sidebarStyle: any = { width: '260px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };
 const logoArea: any = { display: 'flex', alignItems: 'center', gap: '15px', color: '#fff', marginBottom: '50px', paddingLeft: '10px' };
 const logoIcon: any = { fontSize: '24px', cursor: 'pointer' };
@@ -448,7 +452,6 @@ const logoText: any = { fontSize: '20px', fontWeight: '900', letterSpacing: '1px
 const sideNav: any = { display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 };
 const sideLink = (active: boolean): any => ({ display: 'flex', alignItems: 'center', gap: '15px', color: active ? '#fff' : '#555', textDecoration: 'none', padding: '16px', borderRadius: '18px', background: active ? '#111' : 'transparent', fontWeight: '800', fontSize: '15px', transition: '0.3s' });
 
-// ИСПРАВЛЕННАЯ ШАПКА: добавлен boxSizing
 const topBarStyle: any = { position: 'fixed', top: 0, right: 0, height: '90px', background: 'rgba(13, 15, 13, 0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 50px', zIndex: 1000, boxSizing: 'border-box' };
 const searchBox: any = { position: 'relative', background: '#111', padding: '12px 25px', borderRadius: '18px', display: 'flex', alignItems: 'center', gap: '15px', width: '450px', maxWidth: '40vw', border: '1px solid #222', boxSizing: 'border-box' };
 const searchInput: any = { background: 'none', border: 'none', color: '#fff', outline: 'none', width: '100%', fontSize: '14px', fontWeight: '500' };
@@ -463,7 +466,61 @@ const notifOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', h
 const notifSidebarStyle = { width: '350px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.4s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.5)', overflowY: 'auto' };
 const notifItemStyle = { background: '#0d0d0d', padding: '20px', borderRadius: '18px', border: '1px solid #1a1a1a', marginBottom: '10px' };
 const modalOverlay: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)', boxSizing: 'border-box' };
-const modalContent: any = { background: '#000', padding: '60px 40px', borderRadius: '45px', width: '90%', maxWidth: '380px', border: '1px solid #222', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', boxSizing: 'border-box' };
-const inputS: any = { width: '100%', padding: '18px 25px', marginBottom: '15px', borderRadius: '18px', background: '#0d0d0d', border: '1px solid #222', color: '#fff', outline: 'none', fontSize: '16px', textAlign: 'center', boxSizing: 'border-box' };
-const modalLoginBtn: any = { width: '100%', padding: '18px', background: '#0ABAB5', color: '#000', textAlign: 'center', borderRadius: '18px', fontWeight: '900', cursor: 'pointer', fontSize: '16px', textTransform: 'uppercase', marginTop: '10px', boxSizing: 'border-box' };
-const closeText: any = { color: '#444', textAlign: 'center', marginTop: '25px', cursor: 'pointer', fontSize: '13px', fontWeight: '800', textTransform: 'uppercase' };
+
+// ИСПРАВЛЕННЫЕ СТИЛИ ДЛЯ МОДАЛКИ (Сделал шире, отступы меньше)
+const modalContent: any = { 
+    background: '#000', 
+    padding: '40px 35px', 
+    borderRadius: '35px', 
+    width: '90%', 
+    maxWidth: '440px', // Увеличил ширину для пропорций
+    maxHeight: '95vh', // Оставил запас для экранов поменьше
+    overflowY: 'auto',
+    border: '1px solid #222', 
+    display: 'flex', 
+    flexDirection: 'column', 
+    alignItems: 'center', 
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', 
+    boxSizing: 'border-box',
+    className: 'custom-scroll' // Добавил класс для тонкого скроллбара
+};
+
+// ИСПРАВЛЕННЫЕ СТИЛИ ДЛЯ ИНПУТОВ (Меньше высота, меньше скругление)
+const inputS: any = { 
+    width: '100%', 
+    padding: '14px 20px', 
+    marginBottom: '12px', 
+    borderRadius: '14px', 
+    background: '#0d0d0d', 
+    border: '1px solid #222', 
+    color: '#fff', 
+    outline: 'none', 
+    fontSize: '14px', 
+    textAlign: 'center', 
+    boxSizing: 'border-box' 
+};
+
+const modalLoginBtn: any = { 
+    width: '100%', 
+    padding: '14px', 
+    background: '#0ABAB5', 
+    color: '#000', 
+    textAlign: 'center', 
+    borderRadius: '14px', 
+    fontWeight: '900', 
+    cursor: 'pointer', 
+    fontSize: '15px', 
+    textTransform: 'uppercase', 
+    marginTop: '15px', 
+    boxSizing: 'border-box' 
+};
+
+const closeText: any = { 
+    color: '#444', 
+    textAlign: 'center', 
+    marginTop: '20px', 
+    cursor: 'pointer', 
+    fontSize: '12px', 
+    fontWeight: '800', 
+    textTransform: 'uppercase' 
+};
