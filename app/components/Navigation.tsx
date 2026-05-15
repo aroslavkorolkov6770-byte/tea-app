@@ -41,12 +41,17 @@ export default function Navigation() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
-  // Поля авторизации
+  // Состояния для формы входа и регистрации
+  const [isLoginMode, setIsLoginMode] = useState(true);
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
-  const [email, setEmail] = useState(""); // <-- Новое поле для почты
+  
+  // Дополнительные поля для регистрации
+  const [regName, setRegName] = useState("");
+  const [email, setEmail] = useState("");
+  const [regTg, setRegTg] = useState("");
+  const [regPhone, setRegPhone] = useState("");
 
-  // Базы данных для поиска (скачиваются с сервера)
   const [searchDbProducts, setSearchDbProducts] = useState<any[]>([]);
   const [searchDbBasics, setSearchDbBasics] = useState<any[]>(FALLBACK_BASICS);
   const [searchDbRoutes, setSearchDbRoutes] = useState<any[]>(FALLBACK_ROUTE);
@@ -56,7 +61,6 @@ export default function Navigation() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
-    // Сессия остается в браузере
     const auth = localStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole');
     if (auth === 'true') {
@@ -64,19 +68,16 @@ export default function Navigation() {
       setUserRole(role);
     }
 
-    // Фоновая загрузка уведомлений и баз для поиска с сервера
     const loadServerData = async () => {
         try {
             const currentUserId = localStorage.getItem('current_user_id') || 'guest';
             
-            // 1. Загрузка уведомлений
             const notifsRes = await fetch('/api/storage?key=tea_hub_notifications_v1').then(r => r.json()).catch(() => []);
             if (Array.isArray(notifsRes)) {
                 const myNotifs = notifsRes.filter((n: any) => n.target === 'Все' || n.target === currentUserId || !n.target);
                 setNotifications(myNotifs);
             }
 
-            // 2. Загрузка баз для глобального поиска
             const pRes = await fetch('/api/storage?key=tea_master_unified_v1').then(r => r.json()).catch(() => []);
             if (Array.isArray(pRes)) setSearchDbProducts(pRes);
 
@@ -92,19 +93,16 @@ export default function Navigation() {
     };
 
     loadServerData();
-    // Интервал для проверки новых уведомлений (раз в 5 секунд)
     const syncInterval = setInterval(loadServerData, 5000);
-    
     return () => clearInterval(syncInterval);
   }, []);
 
-  // --- АВТОРИЗАЦИЯ ЧЕРЕЗ СЕРВЕР С СОХРАНЕНИЕМ ПОЧТЫ ---
+  // --- ЛОГИКА АВТОРИЗАЦИИ ---
   const handleLogin = async () => {
     try {
         const res = await fetch('/api/storage?key=tea_hub_users_v1');
         let users = await res.json().catch(() => []);
         
-        // Если сервер пустой, создаем первичную базу пользователей
         if (!Array.isArray(users) || users.length === 0) {
             users = [
                 { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' },
@@ -116,39 +114,15 @@ export default function Navigation() {
         const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
         if (foundUser) {
-          // 1. Сессию (токены) оставляем в локальном браузере
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userRole', foundUser.role);
           localStorage.setItem('current_user_id', foundUser.id);
           localStorage.setItem('current_user_name', foundUser.name);
           
-          // 2. Если введена почта — привязываем её к профилю на сервере
-          if (email.trim()) {
-              try {
-                  // Скачиваем профиль сотрудника
-                  let pData = await fetch(`/api/storage?key=profile_data_${foundUser.id}`).then(r => r.json()).catch(() => ({}));
-                  if (Array.isArray(pData)) pData = {}; // Защита от пустых массивов
-                  
-                  // Дописываем почту, не затирая аватарку и телеграм
-                  pData.email = email.trim();
-                  
-                  // Заодно запишем дату первой авторизации, если её еще нет
-                  if (!pData.firstLogin) {
-                      pData.firstLogin = new Date().toISOString();
-                  }
-
-                  // Отправляем обновленный профиль обратно на сервер
-                  saveDataToServer(`profile_data_${foundUser.id}`, pData);
-              } catch (e) {
-                  console.error("Ошибка привязки email к профилю:", e);
-              }
-          }
-
           setIsLoggedIn(true);
           setUserRole(foundUser.role);
           setShowLoginModal(false);
           
-          // Редирект в зависимости от роли
           if (foundUser.role === 'admin') router.push('/admin');
           else router.push('/tasks?tab=welcome');
         } else {
@@ -160,6 +134,65 @@ export default function Navigation() {
     }
   };
 
+  // --- ЛОГИКА РЕГИСТРАЦИИ НОВОГО СОТРУДНИКА ---
+  const handleRegister = async () => {
+      if (!regName.trim() || !login.trim() || !pass.trim()) {
+          alert("Пожалуйста, заполните Имя, Логин и Пароль!");
+          return;
+      }
+
+      try {
+          const res = await fetch('/api/storage?key=tea_hub_users_v1');
+          let users = await res.json().catch(() => []);
+          if (!Array.isArray(users)) users = [];
+
+          if (users.find((u: any) => u.login === login.trim())) {
+              alert("Пользователь с таким логином уже существует! Придумайте другой.");
+              return;
+          }
+
+          const newId = 'u_' + Date.now();
+          const newUser = {
+              id: newId,
+              login: login.trim(),
+              pass: pass.trim(),
+              role: 'staff', // Все зарегистрированные становятся сотрудниками
+              name: regName.trim()
+          };
+
+          // 1. Сохраняем пользователя в общую базу
+          const updatedUsers = [...users, newUser];
+          saveDataToServer('tea_hub_users_v1', updatedUsers);
+
+          // 2. Сразу создаем ему профиль с введенными контактами
+          const initialProfile = {
+              avatar: '',
+              tg: regTg.trim(),
+              phone: regPhone.trim(),
+              email: email.trim(),
+              firstLogin: new Date().toISOString()
+          };
+          saveDataToServer(`profile_data_${newId}`, initialProfile);
+
+          // 3. Автоматически авторизуем
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('userRole', 'staff');
+          localStorage.setItem('current_user_id', newId);
+          localStorage.setItem('current_user_name', regName.trim());
+
+          setIsLoggedIn(true);
+          setUserRole('staff');
+          setShowLoginModal(false);
+          
+          // Редирект внутрь платформы
+          router.push('/tasks?tab=welcome');
+
+      } catch (error) {
+          console.error("Ошибка при регистрации:", error);
+          alert("Не удалось подключиться к базе данных для регистрации.");
+      }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userRole');
@@ -169,7 +202,6 @@ export default function Navigation() {
     router.push('/');
   };
 
-  // --- УДАЛЕНИЕ УВЕДОМЛЕНИЙ НА СЕРВЕРЕ ---
   const removeNotification = async (id: number) => {
     try {
         const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
@@ -188,7 +220,6 @@ export default function Navigation() {
     }
   };
 
-  // --- ТОТАЛЬНЫЙ ПОИСК ПО СЕРВЕРНЫМ БАЗАМ ---
   const handleSearch = (val: string) => {
     setSearchQuery(val);
     if (!val.trim()) {
@@ -200,7 +231,6 @@ export default function Navigation() {
     const q = val.toLowerCase();
     const results: any[] = [];
 
-    // 1. Ищем в ПРОДУКТАХ (база с сервера)
     searchDbProducts.forEach((p: any) => {
       const allText = [
         p.name, p.type, p.category, p.strength,
@@ -214,7 +244,6 @@ export default function Navigation() {
       }
     });
 
-    // 2. Ищем в ОБУЧЕНИИ (База знаний с сервера)
     searchDbBasics.forEach((sec: any) => {
       const secText = [sec.title, sec.desc].filter(Boolean).join(" ").toLowerCase();
       if (secText.includes(q)) {
@@ -229,7 +258,6 @@ export default function Navigation() {
       });
     });
 
-    // 3. Ищем в ПЛАНАХ НА НЕДЕЛЮ (база с сервера)
     searchDbRoutes.forEach((route: any) => {
       const rText = [route.title, route.content].filter(Boolean).join(" ").toLowerCase();
       if (rText.includes(q)) {
@@ -357,16 +385,45 @@ export default function Navigation() {
 
       {showLoginModal && (
         <div style={modalOverlay}>
-          <div style={modalContent}>
-            <h2 style={{color:'#fff', textAlign:'center', marginBottom:'30px', fontWeight: '900', letterSpacing: '1px'}}>IDENTIFICATION</h2>
+          <div style={{ ...modalContent, maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{color:'#fff', textAlign:'center', marginBottom:'30px', fontWeight: '900', letterSpacing: '1px'}}>
+                {isLoginMode ? 'IDENTIFICATION' : 'РЕГИСТРАЦИЯ'}
+            </h2>
             
-            {/* ДОБАВЛЕНО ТРЕТЬЕ ПОЛЕ ДЛЯ ПОЧТЫ */}
+            {/* ЕСЛИ РЕЖИМ РЕГИСТРАЦИИ - ПОКАЗЫВАЕМ ПОЛЕ ИМЕНИ */}
+            {!isLoginMode && (
+                <input type="text" placeholder="Ваше Имя (для профиля)" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
+            )}
+            
+            {/* БАЗОВЫЕ ПОЛЯ */}
             <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
-            <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} />
-            <input type="email" placeholder="E-mail (для привязки)" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+            <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
             
-            <div onClick={handleLogin} style={modalLoginBtn}>ВОЙТИ</div>
-            <div onClick={()=>setShowLoginModal(false)} style={closeText}>ОТМЕНА</div>
+            {/* ДОПОЛНИТЕЛЬНЫЕ ПОЛЯ ДЛЯ ПРОФИЛЯ ПРИ РЕГИСТРАЦИИ */}
+            {!isLoginMode && (
+                <>
+                    <input type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
+                    <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
+                    <input type="text" placeholder="Номер телефона" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)} style={inputS} />
+                </>
+            )}
+            
+            {/* КНОПКА ОТПРАВКИ */}
+            {isLoginMode ? (
+                <div onClick={handleLogin} style={modalLoginBtn}>ВОЙТИ</div>
+            ) : (
+                <div onClick={handleRegister} style={modalLoginBtn}>ЗАРЕГИСТРИРОВАТЬСЯ</div>
+            )}
+            
+            {/* ПЕРЕКЛЮЧАТЕЛЬ МЕЖДУ ВХОДОМ И РЕГИСТРАЦИЕЙ */}
+            <div 
+                onClick={() => setIsLoginMode(!isLoginMode)} 
+                style={{...closeText, color: '#0abab5', marginTop: '20px', textDecoration: 'underline'}}
+            >
+                {isLoginMode ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Войти'}
+            </div>
+
+            <div onClick={()=> { setShowLoginModal(false); setIsLoginMode(true); }} style={closeText}>ОТМЕНА</div>
           </div>
         </div>
       )}
