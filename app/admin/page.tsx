@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [showUserForm, setShowUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
+  const [userSearchQuery, setUserSearchQuery] = useState(""); // <-- СОСТОЯНИЕ ДЛЯ ПОИСКА
 
   // --- СОСТОЯНИЯ ДЛЯ ОТПРАВКИ УВЕДОМЛЕНИЙ ---
   const [notifText, setNotifText] = useState("");
@@ -349,6 +350,12 @@ export default function AdminDashboard() {
     .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
     .slice(0, 3);
 
+  // --- ЛОГИКА ФИЛЬТРАЦИИ ПОЛЬЗОВАТЕЛЕЙ ПО ПОИСКУ ---
+  const filteredUsers = users.filter(u => 
+      u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+      u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
+  );
+
   if (!isMounted) {
     return (
       <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', display: 'flex' }}>
@@ -433,39 +440,58 @@ export default function AdminDashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px', marginBottom: '30px', marginTop: '40px' }}>
               <section>
                 
-                {/* --- УПРАВЛЕНИЕ ПЕРСОНАЛОМ --- */}
+                {/* --- УПРАВЛЕНИЕ ПЕРСОНАЛОМ (С ПОИСКОМ И СКРОЛЛОМ) --- */}
                 <div style={flexSpace}>
                   <h2 style={sectionTitle}>Управление персоналом</h2>
                   <span onClick={() => setShowUserForm(true)} style={actionBtn}>+ Новый сотрудник</span>
                 </div>
+
+                {/* Строка поиска сотрудников */}
+                <div style={{ marginBottom: '20px', position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5, fontSize: '14px' }}>🔍</span>
+                    <input 
+                        type="text"
+                        placeholder="Поиск по имени или логину..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' } as any}
+                    />
+                </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-                  {users.map(u => (
-                    <div key={u.id} style={userCardStyle as any}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-                            <div>
-                                <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
-                                <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>
-                                    {u.role === 'admin' ? 'Администратор' : 'Сотрудник'}
+                {/* Внутренний скролл для карточек */}
+                <div className="custom-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '10px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+                      {filteredUsers.length === 0 ? (
+                          <div style={{ color: '#555', padding: '20px 0', fontSize: '14px', fontWeight: 'bold', gridColumn: '1 / -1', textAlign: 'center' }}>Сотрудники не найдены</div>
+                      ) : (
+                          filteredUsers.map(u => (
+                            <div key={u.id} style={userCardStyle as any}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
+                                        <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>
+                                            {u.role === 'admin' ? 'Администратор' : 'Сотрудник'}
+                                        </div>
+                                    </div>
+                                    {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
+                                        <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>✕</div>
+                                    )}
+                                </div>
+                                
+                                <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
+                                        <span style={{ color: '#666' }}>Логин:</span>
+                                        <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                        <span style={{ color: '#666' }}>Пароль:</span>
+                                        <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
+                                    </div>
                                 </div>
                             </div>
-                            {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
-                                <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>✕</div>
-                            )}
-                        </div>
-                        
-                        <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
-                                <span style={{ color: '#666' }}>Логин:</span>
-                                <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                <span style={{ color: '#666' }}>Пароль:</span>
-                                <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
-                            </div>
-                        </div>
+                          ))
+                      )}
                     </div>
-                  ))}
                 </div>
 
                 {/* --- КНОПКА ОТКРЫТИЯ РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ --- */}
