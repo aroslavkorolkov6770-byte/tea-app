@@ -1,17 +1,34 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
+import { useRouter } from 'next/navigation'; // <-- Добавили роутер для перенаправления
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
+  const router = useRouter();
   
   // Состояние для открытия нужного документа: 'privacy' | 'terms' | 'cookies' | null
   const [activeDoc, setActiveDoc] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    // 1. Проверяем статус входа ДО отрисовки страницы
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const role = localStorage.getItem('userRole');
 
+    if (isLoggedIn === 'true') {
+        // 2. Если уже авторизован, моментально перекидываем в нужную панель
+        if (role === 'admin') {
+            router.push('/admin');
+        } else {
+            router.push('/tasks?tab=welcome');
+        }
+    } else {
+        // 3. Если не авторизован - разрешаем показать красивый стартовый экран
+        setIsMounted(true);
+    }
+  }, [router]);
+
+  // Пока идет проверка авторизации или редирект — ничего не рисуем (убирает баг с наложением)
   if (!isMounted) return null;
 
   return (
