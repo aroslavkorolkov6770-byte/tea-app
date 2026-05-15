@@ -1,19 +1,55 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
+import { useRouter } from 'next/navigation';
+
+// --- ХЕЛПЕР ДЛЯ ЧТЕНИЯ COOKIES ---
+const getAppCookie = (name: string) => {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        const raw = parts.pop()?.split(';').shift();
+        return raw ? decodeURIComponent(raw) : null;
+    }
+    return null;
+};
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true); // Новое состояние: "думаем" при загрузке
   const [activeDoc, setActiveDoc] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    // Убрали агрессивный редирект. Теперь красивая главная страница 
-    // будет показываться всегда, а компонент Navigation сам решит, 
-    // показать кнопку "ВХОД" (если гость) или боковое меню (если вошел).
-    setIsMounted(true);
-  }, []);
+    // 1. ПРОВЕРКА: Смотрим и в куки, и в LocalStorage
+    const cookieAuth = getAppCookie('isLoggedIn');
+    const localAuth = localStorage.getItem('isLoggedIn');
+    const isLoggedIn = cookieAuth === 'true' || localAuth === 'true';
 
-  if (!isMounted) return null;
+    const cookieRole = getAppCookie('userRole');
+    const localRole = localStorage.getItem('userRole');
+    const role = cookieRole || localRole;
+
+    if (isLoggedIn) {
+        // Если залогинен - делаем редирект БЕЗ отрисовки "бутерброда"
+        if (role === 'admin') {
+            router.push('/admin');
+        } else {
+            router.push('/tasks?tab=welcome');
+        }
+    } else {
+        // Если не залогинен - показываем красивый главный экран
+        setIsCheckingAuth(false);
+        setIsMounted(true);
+    }
+  }, [router]);
+
+  // Пока проверяем, кто зашел на сайт (или пока перенаправляем), 
+  // показываем просто черный фон, чтобы интерфейсы не ломались и не моргали
+  if (isCheckingAuth || !isMounted) {
+      return <div style={{ minHeight: '100vh', backgroundColor: '#000' }} />;
+  }
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative', color: '#fff', fontFamily: 'Inter, sans-serif', overflowX: 'hidden' }}>
