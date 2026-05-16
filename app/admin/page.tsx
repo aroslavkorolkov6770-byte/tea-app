@@ -366,7 +366,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
+    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s' }}>
       <Navigation />
       
       {/* Прячем распорку на телефонах */}
@@ -840,7 +840,16 @@ export default function AdminDashboard() {
         @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         
         * { box-sizing: border-box; }
-        html, body { overflow-x: hidden; width: 100vw; margin: 0; padding: 0; background: #0d0f0d; }
+        
+        /* ⚠️ ИСПРАВЛЕНИЕ: ДОБАВЛЕНО overflow-y: auto !important; ДЛЯ ДЕСКТОПНОГО СКРОЛЛА ⚠️ */
+        html, body { 
+            overflow-x: hidden !important; 
+            overflow-y: auto !important; 
+            width: 100vw; 
+            margin: 0; 
+            padding: 0; 
+            background: #0d0f0d; 
+        }
 
         .cal-day { position: relative; font-size: 13px; padding: 10px 0; border-radius: 12px; font-weight: 800; color: #fff; cursor: pointer; transition: 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 38px; }
         .cal-day:hover { background: #0abab5; color: #000; }
