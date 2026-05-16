@@ -79,7 +79,6 @@ export default function Navigation() {
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [isCaptchaLoading, setIsCaptchaLoading] = useState(false);
 
-  // Функция клика по каптче TeaGuard
   const handleCaptchaClick = () => {
       if (isCaptchaVerified || isCaptchaLoading) return;
       
@@ -133,7 +132,6 @@ export default function Navigation() {
     return () => clearInterval(syncInterval);
   }, []);
 
-  // --- ЛОГИКА АВТОРИЗАЦИИ ---
   const handleLogin = async () => {
     if (failedAttempts >= 3 && !isCaptchaVerified) {
         setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
@@ -186,7 +184,6 @@ export default function Navigation() {
     }
   };
 
-  // --- ЛОГИКА РЕГИСТРАЦИИ ---
   const handleRegister = async () => {
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
@@ -339,7 +336,6 @@ export default function Navigation() {
     setIsSearchOpen(false);
     setSearchQuery('');
     
-    // При переходе на мобилках сразу прячем меню
     if (window.innerWidth <= 768) {
         setIsSidebarOpen(false);
     }
@@ -361,32 +357,33 @@ export default function Navigation() {
         </header>
       ) : (
         <>
-          {/* Мобильное затемнение фона при открытом меню */}
           {isSidebarOpen && <div className="sidebar-mobile-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
 
           <aside style={{ ...sidebarStyle, left: isSidebarOpen ? 0 : '-260px', transition: '0.3s ease' }} className="nav-sidebar">
             <div style={logoArea}>
-                {/* Гамбургер на десктопе */}
                 <div onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="desktop-hamburger" style={logoIcon}>≡</div>
-                <span style={logoText}>Dash Board</span>
-                {/* Кнопка закрытия на мобилках */}
+                {/* ⚠️ ИЗМЕНЕН ЗАГОЛОВОК НА "Меню" ⚠️ */}
+                <span style={logoText}>Меню</span>
                 <div onClick={() => setIsSidebarOpen(false)} className="mobile-close-btn" style={{ marginLeft: 'auto', fontSize: '24px', cursor: 'pointer', color: '#ff4d4d' }}>✕</div>
              </div>
+             
+             {/* ⚠️ НОВЫЙ БЛОК НАВИГАЦИИ С КЛАССАМИ ДЛЯ АНИМАЦИЙ ⚠️ */}
              <nav style={sideNav}>
-                {sideItems.map(item => (
-                    <Link key={item.id} href={item.id} style={sideLink((pathname + (typeof window !== 'undefined' ? window.location.search : '')) === item.id)}>
-                        <span>{item.label}</span>
-                    </Link>
-                ))}
+                {sideItems.map(item => {
+                    const isActive = (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === item.id;
+                    return (
+                        <Link key={item.id} href={item.id} className={`nav-item ${isActive ? 'active' : ''}`}>
+                            <span>{item.label}</span>
+                        </Link>
+                    );
+                })}
              </nav>
           </aside>
 
           <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '0', transition: '0.3s ease' }} className="nav-topbar">
              <div style={searchBox} className="search-box-container">
-                {/* Гамбургер для десктопа (если меню закрыто) */}
                 {!isSidebarOpen && <div onClick={() => setIsSidebarOpen(true)} className="desktop-hamburger" style={{ cursor: 'pointer', fontSize: '20px', marginRight: '10px' }}>☰</div>}
                 
-                {/* Гамбургер для мобилок (всегда виден) */}
                 <div onClick={() => setIsSidebarOpen(true)} className="mobile-hamburger" style={{ cursor: 'pointer', fontSize: '24px' }}>☰</div>
                 
                 <span style={{opacity: 0.5}}>🔍</span>
@@ -404,7 +401,7 @@ export default function Navigation() {
                   <div style={searchDropdownStyle as any}>
                     {searchResults.length > 0 ? (
                       searchResults.map(res => (
-                        <div key={res.id} onMouseDown={() => handleResultClick(res.link)} style={searchResultItem as any}>
+                        <div key={res.id} onMouseDown={() => handleResultClick(res.link)} className="search-result-item" style={searchResultItem as any}>
                           <div style={{ fontSize: '14px', fontWeight: '800', color: '#fff' }}>{res.title}</div>
                           <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginTop: '5px' }}>{res.subtitle}</div>
                         </div>
@@ -417,7 +414,7 @@ export default function Navigation() {
               </div>
              
              <div style={topActions} className="top-actions">
-                <div onClick={() => setIsNotifOpen(true)} style={topIcon}>
+                <div onClick={() => setIsNotifOpen(true)} className="top-icon-btn" style={topIcon}>
                   🔔
                   {notifications.length > 0 && (
                     <div style={{ position: 'absolute', top: '-2px', right: '-2px', width: '10px', height: '10px', background: '#ff4d4d', borderRadius: '50%' }}></div>
@@ -428,8 +425,9 @@ export default function Navigation() {
                    👤
                    {isProfileOpen && (
                      <div style={profileDropdown}>
-                        <Link href="/profile" style={dropLink}>👤 Мой Профиль</Link>
-                        <div onClick={handleLogout} style={{...dropLink, color: '#ff4d4d', borderBottom: 'none'}}>Выйти</div>
+                        {/* ⚠️ АНИМАЦИИ ДЛЯ МЕНЮ ПРОФИЛЯ ⚠️ */}
+                        <Link href="/profile" className="drop-item">👤 Мой Профиль</Link>
+                        <div onClick={handleLogout} className="drop-item logout-item" style={{ borderBottom: 'none' }}>Выйти</div>
                      </div>
                    )}
                 </div>
@@ -511,7 +509,6 @@ export default function Navigation() {
                 </>
             )}
 
-            {/* --- ВИТРИНА TeaGuard (Кастомная Каптча) --- */}
             {failedAttempts >= 3 && (
                 <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '15px', marginTop: '5px' }}>
                     <div style={teaGuardContainerStyle as any}>
@@ -593,6 +590,79 @@ export default function Navigation() {
             border-radius: 10px;
         }
 
+        /* =================================================================
+           АНИМАЦИИ НАВЕДЕНИЯ И КЛИКА ДЛЯ БОКОВОГО МЕНЮ (NAVIGATION)
+        ================================================================= */
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #555;
+            text-decoration: none;
+            padding: 16px;
+            border-radius: 18px;
+            background: transparent;
+            font-weight: 800;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        /* Активный пункт меню */
+        .nav-item.active {
+            color: #fff;
+            background: #111;
+        }
+
+        /* Эффект наведения (сдвиг вправо + легкая подсветка) */
+        .nav-item:hover {
+            color: #0abab5;
+            background: rgba(10, 186, 181, 0.05);
+            transform: translateX(6px);
+        }
+
+        /* Эффект нажатия (вдавливание) */
+        .nav-item:active {
+            transform: scale(0.96) translateX(0);
+            background: rgba(10, 186, 181, 0.15);
+        }
+
+        /* =================================================================
+           АНИМАЦИИ ДЛЯ ВЫПАДАЮЩЕГО МЕНЮ ПРОФИЛЯ
+        ================================================================= */
+        .drop-item {
+            display: block;
+            padding: 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 700;
+            border-bottom: 1px solid #1a1a1a;
+            transition: 0.2s ease;
+            cursor: pointer;
+        }
+
+        .drop-item:hover {
+            background: #1a1a1a;
+            color: #0abab5;
+            padding-left: 28px; /* Сдвигаем текст */
+        }
+
+        /* Кнопка "Выйти" - красная при наведении */
+        .logout-item:hover {
+            color: #ff4d4d !important;
+            background: rgba(255, 77, 77, 0.1) !important;
+        }
+        
+        .search-result-item:hover {
+            background: rgba(10, 186, 181, 0.1);
+        }
+
+        .top-icon-btn:hover {
+            opacity: 1 !important;
+            transform: scale(1.1);
+        }
+
         /* КЛАССЫ СКРЫТЫЕ НА ДЕСКТОПЕ ПО УМОЛЧАНИЮ */
         .sidebar-mobile-overlay { display: none; }
         .mobile-hamburger { display: none; }
@@ -665,7 +735,6 @@ const logoArea: any = { display: 'flex', alignItems: 'center', gap: '15px', colo
 const logoIcon: any = { fontSize: '24px', cursor: 'pointer' };
 const logoText: any = { fontSize: '20px', fontWeight: '900', letterSpacing: '1px', color: '#fff' };
 const sideNav: any = { display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 };
-const sideLink = (active: boolean): any => ({ display: 'flex', alignItems: 'center', gap: '15px', color: active ? '#fff' : '#555', textDecoration: 'none', padding: '16px', borderRadius: '18px', background: active ? '#111' : 'transparent', fontWeight: '800', fontSize: '15px', transition: '0.3s' });
 
 const topBarStyle: any = { position: 'fixed', top: 0, right: 0, height: '90px', background: 'rgba(13, 15, 13, 0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 50px', zIndex: 1000, boxSizing: 'border-box' };
 const searchBox: any = { position: 'relative', background: '#111', padding: '12px 25px', borderRadius: '18px', display: 'flex', alignItems: 'center', gap: '15px', width: '450px', maxWidth: '40vw', border: '1px solid #222', boxSizing: 'border-box' };
@@ -676,7 +745,6 @@ const topActions: any = { display: 'flex', alignItems: 'center', gap: '30px' };
 const topIcon: any = { position: 'relative', fontSize: '22px', color: '#fff', cursor: 'pointer', opacity: 0.5, transition: '0.3s' };
 const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', cursor: 'pointer', position: 'relative' };
 const profileDropdown: any = { position: 'absolute', top: '65px', right: 0, background: '#111', border: '1px solid #222', borderRadius: '20px', width: '220px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', zIndex: 10003 };
-const dropLink: any = { display: 'block', padding: '20px', color: '#fff', textDecoration: 'none', fontSize: '14px', fontWeight: '700', borderBottom: '1px solid #1a1a1a' };
 const notifOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.4)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };
 const notifSidebarStyle = { width: '350px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.4s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.5)', overflowY: 'auto' };
 const notifItemStyle = { background: '#0d0d0d', padding: '20px', borderRadius: '18px', border: '1px solid #1a1a1a', marginBottom: '10px' };
