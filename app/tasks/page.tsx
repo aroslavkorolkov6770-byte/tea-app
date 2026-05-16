@@ -122,9 +122,9 @@ const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height:
 const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#000', borderRadius: '5px', transition: '0.3s' });
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };
 
-const pBarBg: React.CSSProperties = { height: '8px', background: '#000', borderRadius: '10px', marginTop: '25px', marginBottom: '15px' };
+const pBarBg: React.CSSProperties = { height: '6px', background: '#000', borderRadius: '10px', marginTop: '15px', marginBottom: '10px' };
 const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1s' });
-const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', fontWeight: '800', color: '#666' };
+const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '800', color: '#666' };
 
 const backLink: React.CSSProperties = { color: '#0abab5', fontWeight: '900', marginBottom: '30px', cursor: 'pointer', display: 'inline-block', fontSize: '15px' };
 const topicRow: React.CSSProperties = { display: 'flex', alignItems: 'center', padding: '25px 30px', background: '#161816', borderRadius: '25px', border: '1px solid #222', cursor: 'pointer', transition: '0.2s', marginBottom: '10px', position: 'relative', width: '100%', boxSizing: 'border-box' };
@@ -538,14 +538,14 @@ function ShiftContent() {
                       {urgentFiles.length > 0 ? (
                           <div className="premium-cards-container"> 
                               {urgentFiles.map((file) => (
-                                  <div key={file.id} className="premium-card" style={{ padding: '25px', display: 'flex', flexDirection: 'column', minHeight: '160px' }}>
-                                      <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginBottom: '10px', opacity: 0.8 }}>{file.date}</div>
-                                      <h4 style={{ margin: '0 0 10px 0', fontSize: '17px', fontWeight: '900', wordBreak: 'break-word', color: '#fff', flex: 1 }}>📄 {file.name}</h4>
+                                  <div key={file.id} className="premium-card">
+                                      <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginBottom: '8px', opacity: 0.8 }}>{file.date}</div>
+                                      <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', wordBreak: 'break-word', color: '#fff' }}>📄 {file.name}</h4>
                                       <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px' }}>{file.size}</div>
                                       
-                                      <div style={{ display: 'flex', gap: '20px' }}>
-                                          <div onClick={() => setPreviewFile(file)} style={{ color: '#0abab5', fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>ОТКРЫТЬ</div>
-                                          <div onClick={() => handleDownloadFile(file)} style={{ color: '#0abab5', fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>СКАЧАТЬ ↓</div>
+                                      <div style={{ display: 'flex', gap: '15px', marginTop: 'auto' }}>
+                                          <div onClick={() => setPreviewFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>ОТКРЫТЬ</div>
+                                          <div onClick={() => handleDownloadFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>СКАЧАТЬ ↓</div>
                                       </div>
                                   </div>
                               ))}
@@ -574,15 +574,12 @@ function ShiftContent() {
                                       <div onClick={(e) => { e.stopPropagation(); setRouteToDelete(step.id); }} style={delIconStyle}>✕</div>
                                   </div>
                               )}
-                              <div className="premium-card-header" />
-                              <div className="premium-card-body">
-                                 <span style={{fontSize:'13px', color:'#0abab5', fontWeight:'800'}}>Шаг 0{idx+1}</span>
-                                 <h4 style={{fontSize:'18px', margin:'10px 0 0 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{stripEmoji(step.title)}</h4>
-                                 
-                                 <div style={{ marginTop: 'auto' }}>
-                                     <div style={pBarBg}><div style={pBarFill(isDone ? 100 : 0)} /></div>
-                                     <div style={cardFooter}><span>{isDone ? 'Выполнено' : 'Начать'}</span><span>{step.time}</span></div>
-                                 </div>
+                              <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px'}}>Шаг 0{idx+1}</span>
+                              <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(step.title)}</h4>
+                              
+                              <div style={{ marginTop: 'auto' }}>
+                                  <div style={pBarBg}><div style={pBarFill(isDone ? 100 : 0)} /></div>
+                                  <div style={cardFooter}><span>{isDone ? 'Выполнено' : 'Начать'}</span><span>{step.time}</span></div>
                               </div>
                            </div>
                         );
@@ -607,15 +604,12 @@ function ShiftContent() {
                                       <div onClick={(e) => { e.stopPropagation(); setSectionToDelete(sec.id); }} style={delIconStyle}>✕</div>
                                   </div>
                               )}
-                             <div className="premium-card-header" />
-                             <div className="premium-card-body">
-                                <span style={{fontSize:'13px', color:'#0abab5', fontWeight:'800'}}>Раздел 0{idx+1}</span>
-                                <h4 style={{fontSize:'18px', margin:'10px 0 0 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{stripEmoji(sec.title)}</h4>
-                                
-                                <div style={{ marginTop: 'auto' }}>
-                                    <div style={pBarBg}><div style={pBarFill(progress)} /></div>
-                                    <div style={cardFooter}><span>{sec.modules?.length || 0} Тем</span><span>{progress}%</span></div>
-                                </div>
+                             <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px'}}>Раздел 0{idx+1}</span>
+                             <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(sec.title)}</h4>
+                             
+                             <div style={{ marginTop: 'auto' }}>
+                                 <div style={pBarBg}><div style={pBarFill(progress)} /></div>
+                                 <div style={cardFooter}><span>{sec.modules?.length || 0} Тем</span><span>{progress}%</span></div>
                              </div>
                           </div>
                         );
@@ -878,62 +872,42 @@ function ShiftContent() {
         body { overflow-x: hidden; width: 100vw; }
 
         /* =========================================================
-           НОВЫЙ ПРЕМИАЛЬНЫЙ ДИЗАЙН КАРТОЧЕК С ЭФФЕКТАМИ
+           ПЛОСКИЙ ПРЕМИАЛЬНЫЙ ДИЗАЙН КАРТОЧЕК
         ========================================================= */
         .premium-cards-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 25px;
+            gap: 20px;
             width: 100%;
         }
 
         .premium-card {
             background: #111;
-            border-radius: 18px; /* Аккуратный прямоугольник */
+            border-radius: 14px; /* Меньшее скругление для строгого прямоугольника */
             border: 1px solid #222;
             transition: all 0.3s ease;
             position: relative;
-            overflow: hidden;
             cursor: pointer;
             display: flex;
             flex-direction: column;
             width: 100%;
-            max-width: 320px;
+            max-width: 280px; /* Сделали уже и компактнее */
+            min-height: 140px; /* Убрали лишнюю высоту */
+            padding: 20px; /* Единый отступ для всего содержимого */
         }
 
         /* 1. ЭФФЕКТ ПРИ НАВЕДЕНИИ КУРСОРА (HOVER) */
         .premium-card:hover {
             border-color: #0abab5;
-            box-shadow: 0 12px 30px rgba(10, 186, 181, 0.15);
-            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(10, 186, 181, 0.15);
+            transform: translateY(-3px);
         }
 
         /* 2. ЭФФЕКТ ПРИ НАЖАТИИ (ACTIVE) */
         .premium-card:active {
             background: rgba(10, 186, 181, 0.05); /* Заливка фирменным цветом */
             border-color: #0abab5;
-            transform: scale(0.97); /* Эффект вдавливания */
-        }
-
-        .premium-card-header {
-            height: 120px;
-            background: #161616;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-bottom: 1px solid #1a1a1a;
-            transition: 0.3s ease;
-        }
-
-        .premium-card:hover .premium-card-header {
-            background: #1a1a1a; /* Слегка осветляем верхнюю заглушку при наведении */
-        }
-
-        .premium-card-body {
-            padding: 25px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
+            transform: scale(0.98); /* Легкое вдавливание */
         }
         /* ========================================================= */
 
@@ -949,7 +923,7 @@ function ShiftContent() {
             /* Выстраиваем карточки по центру на телефоне */
             .premium-cards-container { 
                 justify-content: center !important; 
-                gap: 20px !important; 
+                gap: 15px !important; 
             }
             .premium-card {
                 margin: 0 auto;
