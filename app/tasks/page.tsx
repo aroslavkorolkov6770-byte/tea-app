@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import { useSearchParams } from 'next/navigation';
 
-// --- КЛЮЧИ ПАМЯТИ ---
+// --- КЛЮЧИ ПАМЯТИ СЕРВЕРА ---
 const STORAGE_KEYS = {
     ONBOARD_ROUTE: 'tea_hub_onboard_route_v1',
     BASICS_PROGRESS: 'tea_hub_basics_progress_v1',
@@ -11,6 +11,13 @@ const STORAGE_KEYS = {
     DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v1',
     DYNAMIC_STANDARDS: 'tea_hub_dynamic_standards_v1',
     URGENT_FILES: 'tea_hub_urgent_files_v1'
+};
+
+// --- КЛЮЧИ ЛОКАЛЬНОГО КЭША (ДЛЯ МГНОВЕННОЙ ЗАГРУЗКИ) ---
+const CACHE_KEYS = {
+    URGENT_FILES: 'th_cache_files',
+    DYNAMIC_ROUTE: 'th_cache_route',
+    DYNAMIC_BASICS: 'th_cache_basics',
 };
 
 const saveDataToServer = (key: string, data: any) => {
@@ -21,15 +28,17 @@ const saveDataToServer = (key: string, data: any) => {
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
+const saveToCache = (key: string, data: any) => {
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(data));
+    }
+};
+
 const stripEmoji = (str: string) => {
     if (!str) return '';
     return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 };
 
-// ============================================================================
-// 📚 БЛОК 1: БАЗА ЗНАНИЙ (ОСНОВЫ И КУРСЫ)
-// Сюда прописывать новые разделы, теорию и вопросы для тестов.
-// ============================================================================
 const INITIAL_BASICS = [
   { 
     id: "sec_1", title: "01. История и Бренд", 
@@ -106,10 +115,6 @@ const INITIAL_BASICS = [
   ]},
 ];
 
-// ============================================================================
-// 📍 БЛОК 2: ПЛАН НА НЕДЕЛЮ (ШАГИ ОБУЧЕНИЯ)
-// Сюда вписывать задачи для еженедельного маршрута развития сотрудника.
-// ============================================================================
 const INITIAL_ROUTE = [
   { id: "route_1", title: "О компании и бренде", time: "3 мин", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной." },
   { id: "route_2", title: "Работа с кассой", time: "5 мин", content: "Открытие смены в 09:50. Работа в системе учета." },
@@ -878,7 +883,6 @@ function ShiftContent() {
         ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
         ::-webkit-scrollbar-track { background: transparent; }
         
-        /* ДОБАВЛЕН BOX-SIZING ДЛЯ ВСЕХ ЭЛЕМЕНТОВ */
         * { box-sizing: border-box; }
         body { overflow-x: hidden; width: 100vw; margin: 0; padding: 0; }
 
@@ -904,7 +908,7 @@ function ShiftContent() {
             width: 100%;
             min-height: 140px; 
             padding: 20px; 
-            box-sizing: border-box; /* ⚠️ ГЛАВНЫЙ ФИКС ШИРИНЫ ⚠️ */
+            box-sizing: border-box; 
         }
 
         /* 1. ЭФФЕКТ ПРИ НАВЕДЕНИИ КУРСОРА (HOVER) */
@@ -935,13 +939,13 @@ function ShiftContent() {
             .premium-cards-container { 
                 display: flex !important;
                 flex-direction: column !important;
-                align-items: center !important; /* Идеальное центрирование */
+                align-items: center !important; 
                 gap: 15px !important; 
                 width: 100% !important;
             }
             .premium-card {
                 width: 100% !important;
-                max-width: 320px !important; /* На телефоне будут аккуратными блоками по центру */
+                max-width: 320px !important; 
             }
             
             .tasks-dashboard-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
