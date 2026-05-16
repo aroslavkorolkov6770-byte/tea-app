@@ -28,7 +28,10 @@ const stripEmoji = (str: string) => {
     return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 };
 
-// --- МАСШТАБНАЯ БАЗА ОБУЧЕНИЯ ---
+// ============================================================================
+// 📚 БЛОК 1: БАЗА ЗНАНИЙ (ОСНОВЫ И КУРСЫ)
+// Сюда прописывать новые разделы, теорию и вопросы для тестов.
+// ============================================================================
 const INITIAL_BASICS = [
   { 
     id: "sec_1", title: "01. История и Бренд", 
@@ -105,6 +108,10 @@ const INITIAL_BASICS = [
   ]},
 ];
 
+// ============================================================================
+// 📍 БЛОК 2: ПЛАН НА НЕДЕЛЮ (ШАГИ ОБУЧЕНИЯ)
+// Сюда вписывать задачи для еженедельного маршрута развития сотрудника.
+// ============================================================================
 const INITIAL_ROUTE = [
   { id: "route_1", title: "О компании и бренде", time: "3 мин", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной." },
   { id: "route_2", title: "Работа с кассой", time: "5 мин", content: "Открытие смены в 09:50. Работа в системе учета." },
@@ -113,7 +120,7 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// --- СТИЛИ ---
+// --- СТИЛИ ГРАФИКОВ ---
 const wideChartCard: React.CSSProperties = { background: '#161816', padding: '45px', borderRadius: '40px', border: '1px solid #222', marginBottom: '40px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
 const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
 const dashboardGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px', width: '100%' };
@@ -125,13 +132,47 @@ const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height:
 const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#000', borderRadius: '5px', transition: '0.3s' });
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };
 
-const courseGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '30px', width: '100%', boxSizing: 'border-box' };
+// --- НОВЫЙ ДИЗАЙН КАРТОЧЕК (АККУРАТНЫЕ ПРЯМОУГОЛЬНИКИ) ---
+const courseGrid: React.CSSProperties = { 
+    display: 'flex', 
+    flexWrap: 'wrap', 
+    gap: '20px', 
+    width: '100%', 
+    boxSizing: 'border-box' 
+};
 
-const courseCard: React.CSSProperties = { background: '#161816', borderRadius: '35px', overflow: 'hidden', cursor: 'pointer', border: '1px solid #222', transition: '0.3s', position:'relative', minWidth: '0' }; 
-const cardImgMock: React.CSSProperties = { height: '80px', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const pBarBg: React.CSSProperties = { height: '10px', background: '#000', borderRadius: '20px', marginTop: '20px' };
-const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '20px', transition: '1s' });
-const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', marginTop: '15px', fontSize: '14px', fontWeight: '800', opacity: 0.4 };
+// Сама карточка (фиксированная ширина для элегантности)
+const courseCard: React.CSSProperties = { 
+    background: '#131313', 
+    borderRadius: '25px', 
+    overflow: 'hidden', 
+    cursor: 'pointer', 
+    border: '1px solid #222', 
+    transition: '0.3s', 
+    position:'relative', 
+    width: '100%', 
+    maxWidth: '320px', // Ограничиваем ширину!
+    display: 'flex',
+    flexDirection: 'column'
+}; 
+
+// Верхняя часть (темно-матовая заглушка, как на скриншоте)
+const cardImgMock: React.CSSProperties = { 
+    height: '110px', 
+    background: '#1a1a1a', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+};
+
+// Прогресс бар внутри карточки
+const pBarBg: React.CSSProperties = { height: '10px', background: '#000', borderRadius: '10px', marginTop: '25px', marginBottom: '15px' };
+const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1s' });
+
+// Подвал карточки
+const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', fontWeight: '800', color: '#666' };
+
+
 const backLink: React.CSSProperties = { color: '#0abab5', fontWeight: '900', marginBottom: '30px', cursor: 'pointer', display: 'inline-block', fontSize: '15px' };
 const topicRow: React.CSSProperties = { display: 'flex', alignItems: 'center', padding: '25px 30px', background: '#161816', borderRadius: '25px', border: '1px solid #222', cursor: 'pointer', transition: '0.2s', marginBottom: '10px', position: 'relative', width: '100%', boxSizing: 'border-box' };
 const checkIcon = (done: boolean): React.CSSProperties => ({ width: '28px', height: '28px', border: '2px solid #0abab5', borderRadius: '50%', marginRight: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0abab5', fontWeight: '900', background: done ? 'rgba(10,186,181,0.1)' : 'transparent', flexShrink: 0 });
@@ -198,7 +239,7 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
-  // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА (БЕЗ ОЧЕРЕДИ) ---
+  // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА ---
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
       try {
           const [sFiles, cRoute, cBasics, sBasicsData, sRouteData] = await Promise.all([
@@ -472,7 +513,6 @@ function ShiftContent() {
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
       <Navigation />
       
-      {/* ⚠️ ИСПРАВЛЕНО ТУТ: ДОБАВЛЕН КЛАСС desktop-sidebar-spacer ⚠️ */}
       <div className="desktop-sidebar-spacer" style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
@@ -515,7 +555,7 @@ function ShiftContent() {
                     </div>
                 </section>
 
-                <div className="tasks-course-grid" style={dashboardGrid}>
+                <div className="tasks-dashboard-grid" style={dashboardGrid}>
                       <div className="tasks-stat-card" style={statCardMain}>
                          <div style={cardHeaderLabel}>ПЛАН НА НЕДЕЛЮ</div>
                          <div className="tasks-big-val" style={bigStatVal}>{completedRoute.length} <span style={{fontSize:'20px', opacity:0.4}}>/ {dynamicRoute.length}</span></div>
@@ -537,6 +577,7 @@ function ShiftContent() {
           <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
              {!selectedSection ? (
                <>
+                  {/* --- ЗОНА: СРОЧНО К ПРОХОЖДЕНИЮ --- */}
                   <div style={{ marginBottom: '60px', width: '100%', boxSizing: 'border-box' }}>
                       <div className="tasks-flex-space" style={flexSpace}>
                           <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>⚠️ Срочно к прохождению</h2>
@@ -582,11 +623,14 @@ function ShiftContent() {
                                   </div>
                               )}
                               <div style={cardImgMock} />
-                              <div style={{padding:'25px'}}>
-                                 <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900'}}>Шаг 0{idx+1}</span>
-                                 <h4 style={{fontSize:'18px', margin:'12px 0', fontWeight:'800', wordBreak: 'break-word'}}>{stripEmoji(step.title)}</h4>
-                                 <div style={pBarBg}><div style={pBarFill(isDone ? 100 : 0)} /></div>
-                                 <div style={cardFooter}><span>{isDone ? 'Выполнено' : 'Начать'}</span><span>{step.time}</span></div>
+                              <div style={{ padding:'20px 25px 25px 25px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                 <span style={{fontSize:'13px', color:'#0abab5', fontWeight:'800'}}>Шаг 0{idx+1}</span>
+                                 <h4 style={{fontSize:'18px', margin:'10px 0 0 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{stripEmoji(step.title)}</h4>
+                                 
+                                 <div style={{ marginTop: 'auto' }}>
+                                     <div style={pBarBg}><div style={pBarFill(isDone ? 100 : 0)} /></div>
+                                     <div style={cardFooter}><span>{isDone ? 'Выполнено' : 'Начать'}</span><span>{step.time}</span></div>
+                                 </div>
                               </div>
                            </div>
                         );
@@ -600,7 +644,7 @@ function ShiftContent() {
                   </div>
                   
                   <div className="tasks-course-grid" style={courseGrid}>
-                     {dynamicBasics.map((sec) => {
+                     {dynamicBasics.map((sec, idx) => {
                         const doneCount = sec.modules?.filter((m:any) => completedBasics.includes(m.id)).length || 0;
                         const progress = sec.modules?.length ? Math.round((doneCount / sec.modules.length) * 100) : 0;
                         return (
@@ -612,11 +656,14 @@ function ShiftContent() {
                                   </div>
                               )}
                              <div style={cardImgMock} />
-                             <div style={{padding:'25px'}}>
-                                <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900'}}>Раздел</span>
-                                <h4 style={{fontSize:'18px', margin:'12px 0', fontWeight:'800', wordBreak: 'break-word'}}>{stripEmoji(sec.title)}</h4>
-                                <div style={pBarBg}><div style={pBarFill(progress)} /></div>
-                                <div style={cardFooter}><span>{sec.modules?.length || 0} Тем</span><span style={{color: '#0abab5'}}>{progress}%</span></div>
+                             <div style={{ padding:'20px 25px 25px 25px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                <span style={{fontSize:'13px', color:'#0abab5', fontWeight:'800'}}>Раздел 0{idx+1}</span>
+                                <h4 style={{fontSize:'18px', margin:'10px 0 0 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{stripEmoji(sec.title)}</h4>
+                                
+                                <div style={{ marginTop: 'auto' }}>
+                                    <div style={pBarBg}><div style={pBarFill(progress)} /></div>
+                                    <div style={cardFooter}><span>{sec.modules?.length || 0} Тем</span><span>{progress}%</span></div>
+                                </div>
                              </div>
                           </div>
                         );
@@ -771,7 +818,7 @@ function ShiftContent() {
                             <div key={qIdx} style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
                                 {moduleFormData.quiz.length > 1 && <div onClick={() => removeQuizQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'}}>✕</div>}
                                 <input style={adminIn} placeholder="Текст вопроса..." value={q.q} onChange={e => updateQuizQuestion(qIdx, 'q', e.target.value)} />
-                                <div className="tasks-course-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px'}}>
+                                <div className="tasks-quiz-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px'}}>
                                     {[0,1,2].map(i => (
                                         <div key={i} style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                             <label style={{display:'flex', gap:'5px', cursor:'pointer', color: q.c === i ? '#0abab5' : '#fff'}}><input type="radio" checked={q.c === i} onChange={() => updateQuizQuestion(qIdx, 'c', i)} /> Вариант {i+1}</label>
@@ -813,7 +860,7 @@ function ShiftContent() {
 
                  {moduleView === 'content' ? (
                     <div style={{animation: 'fadeInUp 0.3s ease'}}>
-                        <div className="tasks-course-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'20px', marginBottom:'50px'}}>
+                        <div className="tasks-theory-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'20px', marginBottom:'50px'}}>
                             {[selectedModule.t1, selectedModule.t2, selectedModule.t3].map((t, i) => (
                                 <div key={i} className="tasks-theory-block" style={theoryBlock}>
                                     <h3 style={theoryLabel}>ТЕОРИЯ {i+1}</h3>
@@ -849,7 +896,7 @@ function ShiftContent() {
                     <div className="desktop-spacer" style={{width:'80px'}} />
                  </div>
                  <div style={{animation: 'fadeInUp 0.3s ease'}}>
-                     <div className="tasks-course-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'20px', marginBottom:'50px'}}>
+                     <div className="tasks-theory-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'20px', marginBottom:'50px'}}>
                          <div className="tasks-theory-block" style={theoryBlock}><h3 style={theoryLabel}>ЗАДАЧА</h3><p style={theoryText}>{selectedRouteStep.content}</p></div>
                          <div className="tasks-theory-block" style={theoryBlock}><h3 style={theoryLabel}>ИНСТРУКЦИЯ</h3><p style={theoryText}>Соблюдайте регламенты и правила при выполнении данного шага.</p></div>
                          <div className="tasks-theory-block" style={theoryBlock}><h3 style={theoryLabel}>ИТОГ</h3><p style={theoryText}>После завершения шага вы получите необходимые навыки для работы.</p></div>
@@ -880,7 +927,6 @@ function ShiftContent() {
 
         /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
         @media (max-width: 768px) {
-            /* УБИВАЕМ БОКОВУЮ ПУСТОТУ НА МОБИЛКАХ */
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
             
             .tasks-main { padding: 90px 15px 50px 15px !important; }
@@ -888,15 +934,27 @@ function ShiftContent() {
             .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
             .tasks-stat-card { padding: 25px 20px !important; border-radius: 25px !important; }
             
-            /* Делаем сетки карточек в один столбик без горизонтального скролла */
-            .tasks-course-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
-            .tasks-course-card { padding: 20px !important; min-height: auto !important; }
+            /* ИДЕАЛЬНОЕ ВЫРАВНИВАНИЕ КАРТОЧЕК НА ТЕЛЕФОНЕ БЕЗ РАСТЯГИВАНИЯ */
+            .tasks-course-grid { 
+                display: flex !important; 
+                flex-direction: row !important; 
+                flex-wrap: wrap !important; 
+                justify-content: center !important; 
+                gap: 20px !important; 
+            }
+            .tasks-course-card { 
+                width: 100% !important; 
+                max-width: 320px !important; 
+                margin: 0 auto; 
+                min-height: auto !important;
+            }
+            .tasks-dashboard-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
+            .tasks-theory-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
+            .tasks-quiz-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
             
-            /* Уменьшаем шрифты графиков */
             .tasks-big-val { font-size: 38px !important; flex-wrap: wrap; }
             .tasks-chart-container { height: 160px !important; margin-top: 25px !important; }
 
-            /* Модальные окна с теорией */
             .tasks-modal { 
                 padding: 30px 20px !important; 
                 border-radius: 25px !important; 
@@ -905,15 +963,12 @@ function ShiftContent() {
             }
             .tasks-theory-block { padding: 20px !important; border-radius: 20px !important; }
             
-            /* Шапка в модальных окнах (переносим крестик и название) */
             .tasks-modal-header { flex-direction: column; align-items: flex-start !important; gap: 15px; margin-bottom: 25px !important; }
             .tasks-modal-header h2 { font-size: 20px !important; padding: 0 !important; text-align: left !important; }
             .desktop-spacer { display: none !important; }
             
-            /* Строки тем в разделе обучения */
             .tasks-topic-row { padding: 15px 20px !important; }
             
-            /* Расстановка кнопок "Добавить" под заголовком, а не справа */
             .tasks-flex-space { flex-direction: column; align-items: flex-start !important; gap: 15px !important; margin-bottom: 25px !important; }
         }
       `}</style>
