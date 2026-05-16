@@ -110,14 +110,20 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// --- СТИЛИ БЛОКОВ И КАРТОЧК ---
-const wideChartCard: React.CSSProperties = { background: '#161816', padding: '45px', borderRadius: '40px', border: '1px solid #222', marginBottom: '40px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
+// --- ИСПРАВЛЕННЫЕ И УМЕНЬШЕННЫЕ СТИЛИ ГРАФИКОВ И КАРТОЧЕК ---
+const wideChartCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', marginBottom: '30px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
 const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
 const dashboardGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px', width: '100%' };
 const statCardMain: React.CSSProperties = { background: '#161816', padding: '35px', borderRadius: '35px', border: '1px solid #222', boxSizing: 'border-box' };
 const cardHeaderLabel: React.CSSProperties = { fontSize: '11px', fontWeight: '900', opacity: 0.4, letterSpacing: '1.5px', marginBottom: '15px' };
 const bigStatVal: React.CSSProperties = { fontSize: '48px', fontWeight: '900', color: '#fff' };
 const cardSubText: React.CSSProperties = { fontSize: '14px', opacity: 0.5, marginBottom: '25px' };
+
+// --- ВОЗВРАТ К КЛАССИЧЕСКИМ ПРОГРЕСС-БАРАМ (БЕЗ НЕОНА) ---
+const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height: '8px', marginTop: '10px', width: '100%' };
+const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#222', borderRadius: '4px', transition: '0.3s' });
+const pBarBg: React.CSSProperties = { height: '8px', background: '#222', borderRadius: '4px', marginTop: '15px', marginBottom: '10px' };
+const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '4px', transition: '1s' });
 
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };
 const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '800', color: '#666' };
@@ -605,7 +611,7 @@ function ShiftContent() {
                 <h1 className="tasks-title" style={{fontSize:'36px', fontWeight:'900', marginBottom:'40px'}}>Центр управления мастером</h1>
                 
                 <section className="tasks-chart-card" style={wideChartCard}>
-                    <div className="tasks-flex-space" style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'40px', flexWrap: 'wrap', gap:'20px'}}>
+                    <div className="tasks-flex-space" style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'20px', flexWrap: 'wrap', gap:'20px'}}>
                         <div>
                             <div style={{fontSize:'11px', fontWeight:'900', color:'#0abab5', letterSpacing:'2px', marginBottom:'8px', textTransform:'uppercase'}}>ОБЩАЯ ДИНАМИКА РАЗВИТИЯ</div>
                             <div className="tasks-big-val" style={{fontSize:'48px', fontWeight:'900', color:'#fff', display:'flex', alignItems:'baseline', gap:'12px'}}>
@@ -615,55 +621,47 @@ function ShiftContent() {
                         <div style={rankBadge}>{totalHubPercent < 40 ? '🌱 НОВИЧОК' : totalHubPercent < 80 ? '⚖️ ЭРУДИТ' : '🏮 МАСТЕР'}</div>
                     </div>
 
-                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '220px', marginTop: '40px', marginBottom: '20px' }}>
+                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '160px', marginTop: '30px', marginBottom: '10px' }}>
                         {[0, 20, 40, 60, 80, 100].map(v => (
                             <div key={v} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', borderBottom: '1px dashed rgba(255,255,255,0.05)', zIndex: 1 }} />
                         ))}
                         <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, overflow: 'visible' }}>
                             <defs>
-                                <linearGradient id="glowGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#0abab5" stopOpacity="0.25" />
+                                <linearGradient id="flatGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#0abab5" stopOpacity="0.15" />
                                     <stop offset="100%" stopColor="#0abab5" stopOpacity="0" />
                                 </linearGradient>
-                                {/* ⚠️ НОВЫЙ ГРАДИЕНТ ДЛЯ ТОНКОЙ НЕОНОВОЙ ЛИНИИ */}
-                                <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-                                    <stop offset="0%" stopColor="#065F5C" />
-                                    <stop offset="100%" stopColor="#0abab5" />
-                                </linearGradient>
                             </defs>
-                            <path d={`M 0 100 ${chartPoints.map((p, i) => `L ${i * (100 / chartStepsCount)} ${100 - p}`).join(' ')} L 100 100 Z`} fill="url(#glowGrad)" style={{ transition: '1s ease' }} />
+                            <path d={`M 0 100 ${chartPoints.map((p, i) => `L ${i * (100 / chartStepsCount)} ${100 - p}`).join(' ')} L 100 100 Z`} fill="url(#flatGrad)" style={{ transition: '1s ease' }} />
                             
-                            {/* ⚠️ ИСПРАВЛЕННАЯ ТОНКАЯ ЛИНИЯ ГРАФИКА */}
                             <path 
                                 d={`M ${chartPoints.map((p, i) => `${i * (100 / chartStepsCount)} ${100 - p}`).join(' L ')}`} 
                                 fill="none" 
-                                stroke="url(#lineGrad)" 
-                                strokeWidth="1.5" 
+                                stroke="#0abab5" 
+                                strokeWidth="2" 
                                 vectorEffect="non-scaling-stroke" 
                                 strokeLinecap="round" 
                                 strokeLinejoin="round" 
-                                style={{ transition: '1s ease', filter: 'drop-shadow(0px 0px 6px rgba(10,186,181,0.8))' }} 
+                                style={{ transition: '1s ease' }} 
                             />
                         </svg>
-                        {/* ⚠️ ИСПРАВЛЕННЫЕ ТОЧКИ НА ГРАФИКЕ (АККУРАТНЫЕ) */}
                         {chartPoints.map((p, i) => (
                             <div key={`dot-${i}`} style={{ 
                                 position: 'absolute', 
                                 left: `${i * (100 / chartStepsCount)}%`, 
                                 bottom: `${p}%`, 
                                 transform: 'translate(-50%, 50%)', 
-                                width: '10px', 
-                                height: '10px', 
+                                width: '8px', 
+                                height: '8px', 
                                 borderRadius: '50%', 
-                                background: '#000', 
+                                background: '#161816', 
                                 border: '2px solid #0abab5', 
                                 zIndex: 3, 
-                                transition: '1s ease', 
-                                boxShadow: '0 0 10px rgba(10,186,181,0.8), inset 0 0 4px rgba(10,186,181,0.5)' 
+                                transition: '1s ease' 
                             }} />
                         ))}
                         {['Старт', ...dynamicBasics.map((_, i) => (i + 1).toString().padStart(2, '0'))].map((lbl, i) => (
-                            <div key={`lbl-${i}`} style={{ position: 'absolute', left: `${i * (100 / Math.max(dynamicBasics.length, 1))}%`, bottom: '-35px', transform: 'translateX(-50%)', fontSize: '11px', color: '#666', fontWeight: '800' }}>{lbl}</div>
+                            <div key={`lbl-${i}`} style={{ position: 'absolute', left: `${i * (100 / Math.max(dynamicBasics.length, 1))}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '11px', color: '#666', fontWeight: '800' }}>{lbl}</div>
                         ))}
                     </div>
                 </section>
@@ -673,9 +671,9 @@ function ShiftContent() {
                          <div style={cardHeaderLabel}>ПЛАН НА НЕДЕЛЮ</div>
                          <div className="tasks-big-val" style={bigStatVal}>{completedRoute.length} <span style={{fontSize:'20px', opacity:0.4}}>/ {dynamicRoute.length}</span></div>
                          <p style={cardSubText}>шагов пройдено</p>
-                          <div className="neon-segments-container">
+                          <div style={segmentedBar}>
                               {dynamicRoute.map((step, i) => (
-                                  <div key={i} className={`neon-segment ${completedRoute.includes(step.id) ? 'active' : 'inactive'}`} />
+                                  <div key={i} style={segment(completedRoute.includes(step.id))} />
                               ))}
                           </div>
                       </div>
@@ -684,8 +682,8 @@ function ShiftContent() {
                          <div style={cardHeaderLabel}>БАЗА ЗНАНИЙ</div>
                          <div className="tasks-big-val" style={bigStatVal}>{basicsPercent}%</div>
                          <p style={cardSubText}>пройдено тем обучения</p>
-                         <div className="neon-progress-bg">
-                             <div className="neon-progress-fill" style={{ width: `${basicsPercent}%` }} />
+                         <div style={pBarBg}>
+                             <div style={pBarFill(basicsPercent)} />
                          </div>
                       </div>
                 </div>
@@ -753,8 +751,8 @@ function ShiftContent() {
                               <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(step.title)}</h4>
                               
                               <div style={{ marginTop: 'auto' }}>
-                                  <div className="neon-progress-bg">
-                                      <div className="neon-progress-fill" style={{ width: `${isDone ? 100 : 0}%` }} />
+                                  <div style={pBarBg}>
+                                      <div style={pBarFill(isDone ? 100 : 0)} />
                                   </div>
                                   <div style={cardFooter}><span>{isDone ? 'Выполнено' : 'Начать'}</span><span>{step.time}</span></div>
                               </div>
@@ -784,8 +782,8 @@ function ShiftContent() {
                              <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(sec.title)}</h4>
                              
                              <div style={{ marginTop: 'auto' }}>
-                                 <div className="neon-progress-bg">
-                                     <div className="neon-progress-fill" style={{ width: `${progress}%` }} />
+                                 <div style={pBarBg}>
+                                     <div style={pBarFill(progress)} />
                                  </div>
                                  <div style={cardFooter}><span>{sec.modules?.length || 0} Тем</span><span>{progress}%</span></div>
                              </div>
@@ -853,11 +851,13 @@ function ShiftContent() {
                  <div 
                     style={{
                         animation: 'fadeInUp 0.3s ease',
+                        /* CSS ЗАЩИТА ОТ ВЫДЕЛЕНИЯ ТЕКСТА */
                         userSelect: 'none', 
                         WebkitUserSelect: 'none', 
                         MozUserSelect: 'none', 
                         msUserSelect: 'none'
                     }}
+                    /* JS ЗАЩИТА ОТ КОПИРОВАНИЯ И КОНТЕКСТНОГО МЕНЮ */
                     onContextMenu={(e) => e.preventDefault()}
                     onCopy={(e) => e.preventDefault()}
                     onCut={(e) => e.preventDefault()}
@@ -1115,7 +1115,7 @@ function ShiftContent() {
         )}
       </main>
 
-      {/* --- ГЛОБАЛЬНЫЕ СТИЛИ (ТЕПЕРЬ НЕОН-БАРЫ ЗДЕСЬ) --- */}
+      {/* --- ГЛОБАЛЬНЫЕ СТИЛИ (БЕЗ НЕОНА) --- */}
       <style jsx global>{` 
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -1125,11 +1125,13 @@ function ShiftContent() {
         * { box-sizing: border-box; }
         body { overflow-x: hidden; width: 100vw; margin: 0; padding: 0; }
 
-        .premium-cards-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
-            gap: 20px;
-            width: 100%;
+        @media (min-width: 769px) {
+            .premium-cards-container {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
+                gap: 20px;
+                width: 100%;
+            }
         }
 
         .premium-card {
@@ -1159,47 +1161,6 @@ function ShiftContent() {
             transform: scale(0.98); 
         }
 
-        /* УЛЬТРАТОНКИЙ НЕОН - ПРОГРЕСС БАРЫ (FORCED CSS) */
-        .neon-progress-bg {
-            height: 3px !important;
-            background: rgba(255, 255, 255, 0.05) !important;
-            border-radius: 10px !important;
-            margin: 15px 0 10px 0 !important;
-            position: relative !important;
-            overflow: visible !important;
-            width: 100% !important;
-        }
-        .neon-progress-fill {
-            height: 100% !important;
-            background: linear-gradient(90deg, #065F5C 0%, #0abab5 100%) !important;
-            border-radius: 10px !important;
-            transition: width 1.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
-            box-shadow: 0 0 10px rgba(10, 186, 181, 0.8) !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-        }
-        .neon-segments-container {
-            display: flex !important;
-            gap: 6px !important;
-            height: 3px !important;
-            margin: 15px 0 10px 0 !important;
-            width: 100% !important;
-        }
-        .neon-segment {
-            flex: 1 !important;
-            border-radius: 5px !important;
-            transition: background 0.5s ease, box-shadow 0.5s ease !important;
-        }
-        .neon-segment.active {
-            background: #0abab5 !important;
-            box-shadow: 0 0 10px rgba(10, 186, 181, 0.8) !important;
-        }
-        .neon-segment.inactive {
-            background: rgba(255, 255, 255, 0.05) !important;
-            box-shadow: none !important;
-        }
-
         @media (max-width: 768px) {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
             
@@ -1208,17 +1169,20 @@ function ShiftContent() {
             .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
             .tasks-stat-card { padding: 25px 20px !important; border-radius: 25px !important; }
             
+            /* СТРОГО: Плоские маленькие прямоугольники для мобильных */
             .premium-cards-container { 
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: center !important; 
-                gap: 15px !important; 
-                width: 100% !important;
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px !important; 
             }
             .premium-card {
                 width: 100% !important;
-                max-width: 320px !important; 
+                max-width: none !important; 
+                padding: 15px !important;
+                min-height: 120px !important;
             }
+            .premium-card h4 { font-size: 13px !important; margin-bottom: 10px !important; }
+            .premium-card span { font-size: 10px !important; }
             
             .tasks-dashboard-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
             .tasks-theory-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
