@@ -110,7 +110,7 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// --- ИСПРАВЛЕННЫЕ И УМЕНЬШЕННЫЕ СТИЛИ ГРАФИКОВ И КАРТОЧЕК ---
+// --- СТИЛИ БЛОКОВ И КАРТОЧЕК ---
 const wideChartCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', marginBottom: '30px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
 const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
 const dashboardGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px', width: '100%' };
@@ -621,7 +621,8 @@ function ShiftContent() {
                         <div style={rankBadge}>{totalHubPercent < 40 ? '🌱 НОВИЧОК' : totalHubPercent < 80 ? '⚖️ ЭРУДИТ' : '🏮 МАСТЕР'}</div>
                     </div>
 
-                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '160px', marginTop: '30px', marginBottom: '10px' }}>
+                    {/* ⚠️ ИСПРАВЛЕННЫЙ ГРАФИК: УМЕНЬШЕНА ВЫСОТА, ПЛОСКИЙ СТИЛЬ, ПРОЦЕНТЫ ВНИЗУ */}
+                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '30px', marginBottom: '10px' }}>
                         {[0, 20, 40, 60, 80, 100].map(v => (
                             <div key={v} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', borderBottom: '1px dashed rgba(255,255,255,0.05)', zIndex: 1 }} />
                         ))}
@@ -660,9 +661,15 @@ function ShiftContent() {
                                 transition: '1s ease' 
                             }} />
                         ))}
-                        {['Старт', ...dynamicBasics.map((_, i) => (i + 1).toString().padStart(2, '0'))].map((lbl, i) => (
-                            <div key={`lbl-${i}`} style={{ position: 'absolute', left: `${i * (100 / Math.max(dynamicBasics.length, 1))}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '11px', color: '#666', fontWeight: '800' }}>{lbl}</div>
-                        ))}
+                        
+                        {/* ⚠️ ПРОЦЕНТЫ ВМЕСТО НОМЕРОВ ШАГОВ */}
+                        {[...Array(chartStepsCount + 1)].map((_, i) => {
+                            const pct = Math.round((i / chartStepsCount) * 100);
+                            const lbl = i === 0 ? 'Старт' : `${pct}%`;
+                            return (
+                                <div key={`lbl-${i}`} style={{ position: 'absolute', left: `${i * (100 / chartStepsCount)}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '11px', color: '#666', fontWeight: '800' }}>{lbl}</div>
+                            );
+                        })}
                     </div>
                 </section>
 
@@ -851,13 +858,11 @@ function ShiftContent() {
                  <div 
                     style={{
                         animation: 'fadeInUp 0.3s ease',
-                        /* CSS ЗАЩИТА ОТ ВЫДЕЛЕНИЯ ТЕКСТА */
                         userSelect: 'none', 
                         WebkitUserSelect: 'none', 
                         MozUserSelect: 'none', 
                         msUserSelect: 'none'
                     }}
-                    /* JS ЗАЩИТА ОТ КОПИРОВАНИЯ И КОНТЕКСТНОГО МЕНЮ */
                     onContextMenu={(e) => e.preventDefault()}
                     onCopy={(e) => e.preventDefault()}
                     onCut={(e) => e.preventDefault()}
@@ -1115,7 +1120,7 @@ function ShiftContent() {
         )}
       </main>
 
-      {/* --- ГЛОБАЛЬНЫЕ СТИЛИ (БЕЗ НЕОНА) --- */}
+      {/* --- ГЛОБАЛЬНЫЕ СТИЛИ (КЛАССИЧЕСКИЕ ПЛОСКИЕ) --- */}
       <style jsx global>{` 
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
