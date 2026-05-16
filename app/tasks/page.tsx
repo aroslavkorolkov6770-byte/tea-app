@@ -3,14 +3,14 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import { useSearchParams } from 'next/navigation';
 
-// --- КЛЮЧИ ПАМЯТИ ---
+// --- КЛЮЧИ ПАМЯТИ (ИЗМЕНЕНЫ НА V2 ДЛЯ СБРОСА СЛОМАННОГО КЭША БАЗЫ, НО ПРОГРЕСС СОХРАНЕН) ---
 const STORAGE_KEYS = {
-    ONBOARD_ROUTE: 'tea_hub_onboard_route_v1',
-    BASICS_PROGRESS: 'tea_hub_basics_progress_v1',
-    DYNAMIC_BASICS: 'tea_hub_dynamic_basics_v1',
-    DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v1',
-    DYNAMIC_STANDARDS: 'tea_hub_dynamic_standards_v1',
-    URGENT_FILES: 'tea_hub_urgent_files_v1'
+    ONBOARD_ROUTE: 'tea_hub_onboard_route_v2',
+    BASICS_PROGRESS: 'tea_hub_basics_progress_v1', // Прогресс юзера сохраняем
+    DYNAMIC_BASICS: 'tea_hub_dynamic_basics_v2',   // Обновляем структуру каталога
+    DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v2',     // Обновляем структуру маршрута
+    DYNAMIC_STANDARDS: 'tea_hub_dynamic_standards_v2',
+    URGENT_FILES: 'tea_hub_urgent_files_v1'        // Файлы и тесты сохраняем
 };
 
 const saveDataToServer = (key: string, data: any) => {
@@ -27,16 +27,13 @@ const stripEmoji = (str: string) => {
 };
 
 const INITIAL_BASICS = [
-  { 
-    id: "sec_1", title: "01. История и Бренд", 
-    modules: [
+  { id: "sec_1", title: "01. История и Бренд", modules: [
         { id: "m1_1", title: "Философия Tea Master", t1: "Мастер — это лицо бренда. Мы не просто продаем продукт, мы создаем атмосферу и состояние.", t2: "Важно понимать психологию гостя. Кому-то нужна тишина, кому-то — подробный рассказ.", t3: "Эстетика в деталях: от чистоты полотенца до постановки пиалы.", quiz: [{q: "Кто такой мастер?", o: ["Продавец", "Проводник", "Официант"], c: 1}] },
         { id: "m1_2", title: "История основания", t1: "Бренд зародился из любви к путешествиям по Китаю. Первая точка открылась в 2020 году.", t2: "Основатели лично отбирали каждый сорт в провинциях Юньнань и Фуцзянь.", t3: "Сегодня HUB — это сердце нашего обучения. Мы передаем накопленный опыт.", quiz: [{q: "Год основания?", o: ["2020", "2018", "2024"], c: 0}] },
         { id: "m1_3", title: "Наши ценности", t1: "Честность перед гостем.", t2: "Качество каждого листа.", t3: "Постоянное саморазвитие мастера.", quiz: [{q: "Сколько главных ценностей?", o: ["1", "5", "3"], c: 2}] },
         { id: "m1_4", title: "Миссия компании", t1: "Популяризация культуры.", t2: "Доступность элитных сортов.", t3: "Обучение мастеров.", quiz: [{q: "В чем наша миссия?", o: ["Популяризация", "Быстрая прибыль", "Скорость работы"], c: 0}] },
         { id: "m1_5", title: "Корпоративный этикет", t1: "Взаимовыручка.", t2: "Дисциплина.", t3: "Развитие.", quiz: [{q: "Важна ли вежливость в команде?", o: ["Второстепенна", "Нет", "Да, это основа"], c: 2}] },
-    ]
-  },
+  ]},
   { id: "sec_2", title: "02. Ботаника чая", modules: [
         { id: "m2_1", title: "Camellia Sinensis", t1: "Это вечнозеленый куст.", t2: "Существует два основных подвида.", t3: "Китайская и ассамская разновидности.", quiz: [{q: "Как называется чайный куст?", o: ["Камелия", "Акация", "Фикус"], c: 0}] },
         { id: "m2_2", title: "Терруар и почва", t1: "Минеральный состав почвы.", t2: "Кислотность.", t3: "Дренаж воды.", quiz: [{q: "Влияет ли почва на вкус?", o: ["Никак не влияет", "Формирует вкус", "Только на цвет настоя"], c: 1}] },
@@ -583,20 +580,31 @@ function ShiftContent() {
 
   if (!isMounted) return null;
 
+  // --- ЛОГИКА НОВОГО ГРАФИКА ДИНАМИКИ ---
   const totalBasicsModules = dynamicBasics.reduce((acc, s) => acc + (s.modules?.length || 0), 0);
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const basicsPercent = Math.round((completedBasics.length / (Math.max(totalBasicsModules, 1))) * 100);
   const totalHubPercent = basicsPercent;
 
   let cumulativeModulesDone = 0;
-  const chartPoints = [0]; 
-  dynamicBasics.forEach((sec) => {
+  const rawChartPoints = [0]; 
+  let lastActiveIdx = 0;
+
+  dynamicBasics.forEach((sec, idx) => {
       const doneInSec = sec.modules?.filter((m:any) => completedBasics.includes(m.id)).length || 0;
       cumulativeModulesDone += doneInSec;
-      chartPoints.push((cumulativeModulesDone / (Math.max(totalBasicsModules, 1))) * 100);
+      rawChartPoints.push((cumulativeModulesDone / (Math.max(totalBasicsModules, 1))) * 100);
+      if (doneInSec > 0) {
+          lastActiveIdx = idx + 1;
+      }
   });
 
-  const chartStepsCount = Math.max(chartPoints.length - 1, 1);
+  // ГРАФИК ОБРЕЗАЕТСЯ И РИСУЕТСЯ ТОЛЬКО ДО ТЕКУЩЕГО ПРОГРЕССА
+  const displayPoints = rawChartPoints.slice(0, Math.max(lastActiveIdx + 1, 2));
+  
+  // Формируем линии SVG только для пройденной части
+  const pathArea = `M 0 100 ` + displayPoints.map((p, i) => `L ${i * 10} ${100 - p}`).join(' ') + ` L ${(displayPoints.length - 1) * 10} 100 Z`;
+  const pathLine = `M ` + displayPoints.map((p, i) => `${i * 10} ${100 - p}`).join(' L ');
 
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
@@ -621,55 +629,41 @@ function ShiftContent() {
                         <div style={rankBadge}>{totalHubPercent < 40 ? '🌱 НОВИЧОК' : totalHubPercent < 80 ? '⚖️ ЭРУДИТ' : '🏮 МАСТЕР'}</div>
                     </div>
 
-                    {/* ⚠️ ИСПРАВЛЕННЫЙ ГРАФИК: УМЕНЬШЕНА ВЫСОТА, ПЛОСКИЙ СТИЛЬ, ПРОЦЕНТЫ ВНИЗУ */}
-                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '30px', marginBottom: '10px' }}>
-                        {[0, 20, 40, 60, 80, 100].map(v => (
-                            <div key={v} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', borderBottom: '1px dashed rgba(255,255,255,0.05)', zIndex: 1 }} />
+                    {/* ⚠️ НОВЫЙ СТРОГИЙ ГРАФИК, КОТОРЫЙ ОБРЫВАЕТСЯ НА ТЕКУЩЕМ ПРОГРЕССЕ */}
+                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '20px', marginBottom: '30px' }}>
+                        {/* Горизонтальные фоновые линии */}
+                        {[0, 25, 50, 75, 100].map(v => (
+                            <div key={`h-${v}`} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', borderBottom: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
                         ))}
-                        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, overflow: 'visible' }}>
-                            <defs>
-                                <linearGradient id="flatGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#0abab5" stopOpacity="0.15" />
-                                    <stop offset="100%" stopColor="#0abab5" stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            <path d={`M 0 100 ${chartPoints.map((p, i) => `L ${i * (100 / chartStepsCount)} ${100 - p}`).join(' ')} L 100 100 Z`} fill="url(#flatGrad)" style={{ transition: '1s ease' }} />
-                            
-                            <path 
-                                d={`M ${chartPoints.map((p, i) => `${i * (100 / chartStepsCount)} ${100 - p}`).join(' L ')}`} 
-                                fill="none" 
-                                stroke="#0abab5" 
-                                strokeWidth="2" 
-                                vectorEffect="non-scaling-stroke" 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                style={{ transition: '1s ease' }} 
-                            />
-                        </svg>
-                        {chartPoints.map((p, i) => (
-                            <div key={`dot-${i}`} style={{ 
-                                position: 'absolute', 
-                                left: `${i * (100 / chartStepsCount)}%`, 
-                                bottom: `${p}%`, 
-                                transform: 'translate(-50%, 50%)', 
-                                width: '8px', 
-                                height: '8px', 
-                                borderRadius: '50%', 
-                                background: '#161816', 
-                                border: '2px solid #0abab5', 
-                                zIndex: 3, 
-                                transition: '1s ease' 
-                            }} />
+                        {/* Вертикальные фоновые линии (каждые 10%) */}
+                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(v => (
+                            <div key={`v-${v}`} style={{ position: 'absolute', bottom: 0, left: `${v}%`, height: '100%', borderLeft: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
                         ))}
                         
-                        {/* ⚠️ ПРОЦЕНТЫ ВМЕСТО НОМЕРОВ ШАГОВ */}
-                        {[...Array(chartStepsCount + 1)].map((_, i) => {
-                            const pct = Math.round((i / chartStepsCount) * 100);
-                            const lbl = i === 0 ? 'Старт' : `${pct}%`;
-                            return (
-                                <div key={`lbl-${i}`} style={{ position: 'absolute', left: `${i * (100 / chartStepsCount)}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '11px', color: '#666', fontWeight: '800' }}>{lbl}</div>
-                            );
-                        })}
+                        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, overflow: 'visible' }}>
+                            <path d={pathArea} fill="rgba(10,186,181,0.15)" style={{ transition: '1s ease' }} />
+                            <path d={pathLine} fill="none" stroke="#0abab5" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '1s ease' }} />
+                        </svg>
+                        
+                        {/* Маркер текущей позиции (одна точка на конце графика) */}
+                        <div style={{ 
+                            position: 'absolute', 
+                            left: `${(displayPoints.length - 1) * 10}%`, 
+                            bottom: `${displayPoints[displayPoints.length - 1]}%`, 
+                            transform: 'translate(-50%, 50%)', 
+                            width: '10px', 
+                            height: '10px', 
+                            borderRadius: '50%', 
+                            background: '#0abab5', 
+                            border: '2px solid #111', 
+                            zIndex: 3, 
+                            transition: '1s ease' 
+                        }} />
+
+                        {/* Подписи оси X в процентах */}
+                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(pct => (
+                            <div key={`lbl-${pct}`} style={{ position: 'absolute', left: `${pct}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '10px', color: '#666', fontWeight: 'bold' }}>{pct}%</div>
+                        ))}
                     </div>
                 </section>
 
