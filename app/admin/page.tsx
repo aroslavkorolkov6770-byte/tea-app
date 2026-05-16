@@ -368,9 +368,11 @@ export default function AdminDashboard() {
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
       <Navigation />
-      <div style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
+      
+      {/* Прячем распорку на телефонах */}
+      <div className="desktop-sidebar-spacer" style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
 
-      <main style={{ flex: 1, padding: '110px 40px 40px 40px', transition: '0.3s' }}>
+      <main className="admin-main" style={{ flex: 1, padding: '110px 40px 40px 40px', transition: '0.3s', boxSizing: 'border-box', maxWidth: '100%' }}>
           <div style={{ animation: 'fadeInUp 0.4s ease' }}>
             
             {/* ЗОНА: КОМПАКТНОЕ ПРИКРЕПЛЕНИЕ ФАЙЛОВ */}
@@ -421,11 +423,11 @@ export default function AdminDashboard() {
                        )}
                    </>
                ) : (
-                   <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333' }}>
+                   <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', wordBreak: 'break-word' }}>
                        <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px' }}>
                            📎 {selectedFile.name}
                        </div>
-                       <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                       <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                            <button onClick={handleSaveFile} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' } as any}>
                                ПРИКРЕПИТЬ
                            </button>
@@ -437,12 +439,13 @@ export default function AdminDashboard() {
                )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px', marginBottom: '30px', marginTop: '40px' }}>
-              <section>
+            {/* СЕТКА: КОНТЕНТ + КАЛЕНДАРЬ */}
+            <div className="admin-layout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px', marginBottom: '30px', marginTop: '40px' }}>
+              <section style={{ maxWidth: '100%', overflow: 'hidden' }}>
                 
                 {/* --- УПРАВЛЕНИЕ ПЕРСОНАЛОМ (С ПОИСКОМ И СКРОЛЛОМ) --- */}
-                <div style={flexSpace}>
-                  <h2 style={sectionTitle}>Управление персоналом</h2>
+                <div className="admin-flex-space" style={flexSpace}>
+                  <h2 className="admin-section-title" style={sectionTitle}>Управление персоналом</h2>
                   <span onClick={() => setShowUserForm(true)} style={actionBtn}>+ Новый сотрудник</span>
                 </div>
 
@@ -459,8 +462,8 @@ export default function AdminDashboard() {
                 </div>
                 
                 {/* Внутренний скролл для карточек */}
-                <div className="custom-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '10px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+                <div className="custom-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '5px' }}>
+                    <div className="admin-user-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                       {filteredUsers.length === 0 ? (
                           <div style={{ color: '#555', padding: '20px 0', fontSize: '14px', fontWeight: 'bold', gridColumn: '1 / -1', textAlign: 'center' }}>Сотрудники не найдены</div>
                       ) : (
@@ -495,8 +498,9 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* --- КНОПКА ОТКРЫТИЯ РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ --- */}
-                <div style={{ ...flexSpace, marginTop: '40px' }}>
+                <div className="admin-flex-space" style={{ ...flexSpace, marginTop: '40px' }}>
                   <h2 
+                    className="admin-section-title"
                     style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'underline' }}
                     onClick={() => setShowTestModal(true)}
                   >
@@ -507,8 +511,8 @@ export default function AdminDashboard() {
 
                 {/* ОТПРАВКА УВЕДОМЛЕНИЙ */}
                 <div style={{ ...adminCard, marginTop: '30px', padding: '25px' } as any}>
-                    <h2 style={{ ...sectionTitle, fontSize: '18px', marginBottom: '15px' }}>Отправить уведомление</h2>
-                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                    <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', marginBottom: '15px' }}>Отправить уведомление</h2>
+                    <div className="admin-action-bar" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                         <select 
                             style={{ ...adminIn, width: '180px', marginBottom: 0 } as any}
                             value={selectedStaff}
@@ -533,9 +537,9 @@ export default function AdminDashboard() {
               </section>
 
               {/* ПРАВАЯ КОЛОНКА (Календарь) */}
-              <aside style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+              <aside style={{ display: 'flex', flexDirection: 'column', gap: '30px', maxWidth: '100%' }}>
                 <div style={adminCard}>
-                    <h2 style={{ ...sectionTitle, fontSize: '18px', marginBottom: '20px' }}>Ближайшие события</h2>
+                    <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', marginBottom: '20px' }}>Ближайшие события</h2>
                     {upcomingEvents.length === 0 ? (
                         <div style={{ color: '#555', fontSize: '14px', textAlign: 'center', padding: '20px 0' }}>Нет запланированных задач</div>
                     ) : (
@@ -587,8 +591,8 @@ export default function AdminDashboard() {
             {/* СТАТИСТИКА ВСЕХ ДОБАВЛЕННЫХ СОТРУДНИКОВ */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                <section style={{...adminCard, padding: '35px'} as any}>
-                    <div style={flexSpace}>
-                        <h2 style={sectionTitle}>Статистика обучения</h2>
+                    <div className="admin-flex-space" style={flexSpace}>
+                        <h2 className="admin-section-title" style={sectionTitle}>Статистика обучения</h2>
                         <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Сотрудников в базе: {users.filter(u => u.role === 'staff').length}</span>
                     </div>
                     
@@ -603,18 +607,18 @@ export default function AdminDashboard() {
                         const basicsPercent = Math.round((basicsLen / (totalBasicsModules || 1)) * 100);
 
                         return (
-                            <div key={user.id} style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px' }}>
+                            <div key={user.id} className="admin-user-card" style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}>
+                                <div className="admin-user-avatar-col" style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px' }}>
                                     <div style={{ width: '55px', height: '55px', borderRadius: '18px', background: '#222', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #333' }}>
                                         <span style={{ fontSize: '24px' }}>👤</span>
                                     </div>
-                                    <div>
-                                        <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0 }}>{user.name}</h3>
+                                    <div style={{ overflow: 'hidden' }}>
+                                        <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.name}</h3>
                                         <div style={{ fontSize: '12px', color: '#0abab5', fontWeight: 'bold', marginTop: '3px' }}>@{user.login}</div>
                                     </div>
                                 </div>
 
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
+                                <div className="admin-user-bars-col" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                         <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ПЛАН</div>
                                         <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
@@ -631,7 +635,7 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'flex', gap: '12px', height: '50px', alignItems: 'flex-end', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
+                                <div className="admin-user-actions-col" style={{ display: 'flex', gap: '12px', height: '50px', alignItems: 'flex-end', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
                                     <div style={barStyle(planPercent)} />
                                     <div style={barStyle(basicsPercent)} />
                                 </div>
@@ -646,7 +650,7 @@ export default function AdminDashboard() {
       {/* МЕНЮ С ДОКУМЕНТАМИ В ЦЕНТРЕ ЭКРАНА (АДМИН) */}
       {showFilesList && (
           <div style={modalOverlay as any}>
-              <div style={{ ...modalContentSmall, maxWidth: '550px' } as any}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '550px' } as any}>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center' }}>ЗАГРУЖЕННЫЕ МАТЕРИАЛЫ</h2>
                   
                   <div style={{ maxHeight: '350px', overflowY: 'auto', marginBottom: '25px', paddingRight: '10px' }} className="custom-scroll">
@@ -654,8 +658,8 @@ export default function AdminDashboard() {
                           <p style={{ textAlign: 'center', color: '#666' }}>Список пуст</p>
                       ) : (
                           urgentFiles.map(file => (
-                              <div key={file.id} style={{ background: '#000', border: '1px solid #222', padding: '15px', borderRadius: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <div style={{ overflow: 'hidden', flex: 1, paddingRight: '10px' }}>
+                              <div key={file.id} style={{ background: '#000', border: '1px solid #222', padding: '15px', borderRadius: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                                  <div style={{ overflow: 'hidden', flex: '1 1 150px', paddingRight: '10px' }}>
                                       <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>📄 {file.name}</div>
                                       <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>{file.date} • {file.size}</div>
                                   </div>
@@ -677,9 +681,9 @@ export default function AdminDashboard() {
       {/* --- НОВОЕ МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ --- */}
       {showTestModal && (
           <div style={modalOverlay as any} onClick={() => setShowTestModal(false)}>
-              <div style={{ ...modalContentSmall, maxWidth: '650px', padding: '35px' } as any} onClick={e => e.stopPropagation()}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '650px', padding: '35px' } as any} onClick={e => e.stopPropagation()}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                      <h2 style={{ color: '#0abab5', fontWeight: '900', margin: 0, letterSpacing: '1px' }}>РЕЗУЛЬТАТЫ ТЕСТОВ</h2>
+                      <h2 style={{ color: '#0abab5', fontWeight: '900', margin: 0, letterSpacing: '1px', fontSize: '18px' }}>РЕЗУЛЬТАТЫ ТЕСТОВ</h2>
                       <div onClick={() => setShowTestModal(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', lineHeight: 1, fontWeight: 'bold' }}>✕</div>
                   </div>
 
@@ -702,8 +706,8 @@ export default function AdminDashboard() {
                               const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
 
                               return (
-                                  <div key={res.id} style={{ background: '#000', border: '1px solid #222', padding: '20px', borderRadius: '20px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                      <div style={{ flex: 1 }}>
+                                  <div key={res.id} style={{ background: '#000', border: '1px solid #222', padding: '20px', borderRadius: '20px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px' }}>
+                                      <div style={{ flex: 1, minWidth: '150px' }}>
                                           <div style={{ fontWeight: '900', color: '#fff', fontSize: '16px', marginBottom: '6px' }}>{res.testName}</div>
                                           <div style={{ fontSize: '13px', color: '#888' }}>Сотрудник: <span style={{color: '#ccc', fontWeight: 'bold'}}>{res.userName}</span> • Попыток: {res.attempts}</div>
                                       </div>
@@ -727,7 +731,7 @@ export default function AdminDashboard() {
       {/* 1. ОКНО УСПЕХА */}
       {showSuccessModal.show && (
           <div style={modalOverlay as any} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
-              <div style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>✅</div>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{showSuccessModal.title}</h2>
                   <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.6', marginBottom: '25px' }}>
@@ -744,15 +748,15 @@ export default function AdminDashboard() {
       {/* 2. ОКНО ПОДТВЕРЖДЕНИЯ (УДАЛЕНИЕ) */}
       {confirmModal.show && (
           <div style={modalOverlay as any} onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
-              <div style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
                   <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{confirmModal.title}</h2>
                   <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
                       {confirmModal.text}
                   </p>
-                  <div style={{ display: 'flex', gap: '15px' }}>
-                      <button onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ ...saveBtn, background: '#222', color: '#fff' } as any}>ОТМЕНА</button>
-                      <button onClick={executeConfirmAction} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff' } as any}>УДАЛИТЬ</button>
+                  <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                      <button onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px' } as any}>ОТМЕНА</button>
+                      <button onClick={executeConfirmAction} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px' } as any}>УДАЛИТЬ</button>
                   </div>
               </div>
           </div>
@@ -761,7 +765,7 @@ export default function AdminDashboard() {
       {/* 3. ОКНО ОШИБКИ */}
       {errorModal.show && (
           <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
-              <div style={{ ...modalContentSmall, maxWidth: '380px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '380px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px' }}>⛔</div>
                   <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ОШИБКА</h2>
                   <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{errorModal.text}</p>
@@ -773,7 +777,7 @@ export default function AdminDashboard() {
       {/* 4. ОКНО ПРЕДПРОСМОТРА ФАЙЛА */}
       {previewFile && (
           <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
-              <div style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
                       <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile.name}</h2>
                       <div onClick={() => setPreviewFile(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
@@ -782,7 +786,7 @@ export default function AdminDashboard() {
                       {previewFile.data ? (
                           <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
                       ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '20px' }}>
                               Нет данных для отображения (загружено в старой версии)
                           </div>
                       )}
@@ -794,8 +798,8 @@ export default function AdminDashboard() {
       {/* 5. МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
       {showUserForm && (
         <div style={modalOverlay as any}>
-            <div style={modalContentSmall as any}>
-                <h2 style={{color:'#0abab5', marginBottom:'25px', fontWeight: '900'}}>НОВЫЙ СОТРУДНИК</h2>
+            <div className="admin-modal-content" style={modalContentSmall as any}>
+                <h2 style={{color:'#0abab5', marginBottom:'25px', fontWeight: '900', textAlign: 'center'}}>НОВЫЙ СОТРУДНИК</h2>
                 <input style={adminIn as any} placeholder="Имя (напр. Анна)" value={newUser.name} onChange={e=>setNewUser({...newUser, name: e.target.value})} />
                 <input style={adminIn as any} placeholder="Придумайте Логин" value={newUser.login} onChange={e=>setNewUser({...newUser, login: e.target.value})} />
                 <input style={adminIn as any} placeholder="Придумайте Пароль" value={newUser.pass} onChange={e=>setNewUser({...newUser, pass: e.target.value})} />
@@ -822,9 +826,9 @@ export default function AdminDashboard() {
             </div>
             <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '20px', color: '#ccc' }}>Дата: {formattedSelectedDate()}</p>
             <textarea autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Текст заметки..." style={noteTextarea} />
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                <button onClick={saveNote} style={adminSendBtn as any}>СОХРАНИТЬ</button>
-                {notes[selectedDateKey] && <button onClick={deleteNote} style={noteDeleteBtn as any}>УДАЛИТЬ</button>}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
+                <button onClick={saveNote} style={{...adminSendBtn, flex: 1, minWidth: '100px'} as any}>СОХРАНИТЬ</button>
+                {notes[selectedDateKey] && <button onClick={deleteNote} style={{...noteDeleteBtn, flex: 1, minWidth: '100px'} as any}>УДАЛИТЬ</button>}
             </div>
           </div>
         </div>
@@ -834,6 +838,10 @@ export default function AdminDashboard() {
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        * { box-sizing: border-box; }
+        html, body { overflow-x: hidden; width: 100vw; margin: 0; padding: 0; background: #0d0f0d; }
+
         .cal-day { position: relative; font-size: 13px; padding: 10px 0; border-radius: 12px; font-weight: 800; color: #fff; cursor: pointer; transition: 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 38px; }
         .cal-day:hover { background: #0abab5; color: #000; }
         .cal-day.today { background: #0abab5; color: #000; }
@@ -843,6 +851,55 @@ export default function AdminDashboard() {
         /* Стилизация скроллбара для модальных окон */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+        /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
+        @media (max-width: 768px) {
+            .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
+            .admin-main { padding: 90px 15px 50px 15px !important; }
+            .admin-layout-grid { grid-template-columns: 1fr !important; gap: 20px !important; margin-top: 20px !important; }
+            
+            .admin-section-title { font-size: 20px !important; margin-bottom: 20px !important; }
+            .admin-flex-space { flex-direction: column; align-items: flex-start !important; gap: 15px !important; margin-bottom: 25px !important; }
+            
+            /* Сетка пользователей */
+            .admin-user-grid { grid-template-columns: 1fr !important; }
+            
+            /* Карточка статистики сотрудника (разворачиваем в колонку) */
+            .admin-user-card { 
+                flex-direction: column !important; 
+                align-items: flex-start !important; 
+                gap: 20px !important; 
+                padding: 20px !important;
+            }
+            .admin-user-avatar-col { flex: auto !important; width: 100% !important; margin-bottom: 0 !important; }
+            .admin-user-bars-col { 
+                border-left: none !important; 
+                padding-left: 0 !important; 
+                width: 100% !important; 
+                border-top: 1px solid #222; 
+                padding-top: 20px !important; 
+            }
+            .admin-user-actions-col { 
+                border-left: none !important; 
+                padding-left: 0 !important; 
+                width: 100% !important; 
+                justify-content: flex-end; 
+                height: auto !important; 
+                border-top: 1px solid #222; 
+                padding-top: 20px !important;
+            }
+
+            /* Панель отправки уведомлений */
+            .admin-action-bar { flex-direction: column; align-items: stretch !important; gap: 15px !important; }
+            .admin-action-bar > * { width: 100% !important; }
+
+            /* Модальные окна */
+            .admin-modal-content {
+                padding: 30px 20px !important;
+                width: 95% !important;
+                border-radius: 25px !important;
+            }
+        }
       `}</style>
     </div>
   );
@@ -855,23 +912,19 @@ const sectionTitle: any = { fontSize: '22px', fontWeight: '900', color: '#fff' }
 const actionBtn: any = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const adminCard: any = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
 const userCardStyle: any = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s' };
-const tableContainer: any = { background: '#161816', borderRadius: '30px', border: '1px solid #222', overflow: 'hidden', padding: '10px' };
-const adminTable: any = { width: '100%', borderCollapse: 'collapse', textAlign: 'left' };
-const thStyle: any = { padding: '20px', fontSize: '12px', opacity: 0.3, textTransform: 'uppercase', letterSpacing: '1px' };
-const trStyle: any = { borderBottom: '1px solid #111' };
-const statusBadge = (color: string): any => ({ background: `${color}15`, color: color, padding: '6px 15px', borderRadius: '10px', fontSize: '11px', fontWeight: '900' });
 const scheduleItem: any = { display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '15px', padding: '15px', background: '#0d0d0d', borderRadius: '20px', border: '1px solid #1a1a1a' };
 const dateBox: any = { background: '#0abab5', color: '#000', padding: '10px', borderRadius: '12px', fontSize: '14px', fontWeight: '900', textAlign: 'center', minWidth: '45px' };
 const calNavBtn: any = { cursor: 'pointer', opacity: 0.5, fontSize: '16px' };
 const calendarGrid: any = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center' };
 const calDayHead: any = { fontSize: '11px', opacity: 0.3, fontWeight: '900', marginBottom: '10px' };
+const statusBadge = (color: string): any => ({ background: `${color}15`, color: color, padding: '6px 15px', borderRadius: '10px', fontSize: '11px', fontWeight: '900' });
 const barStyle = (h: number): any => ({ width: '12px', height: `${h}%`, background: 'linear-gradient(to top, #0abab5, #0abab533)', borderRadius: '4px 4px 2px 2px', transition: '1s ease' });
 const adminSendBtn: any = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '18px', fontWeight: '900', cursor: 'pointer' };
-const adminIn = { width: '100%', padding: '16px', background: '#000', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '12px', outline: 'none', fontSize: '15px' };
+const adminIn = { width: '100%', padding: '16px', background: '#000', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '12px', outline: 'none', fontSize: '15px', boxSizing: 'border-box' as any };
 const saveBtn = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer' };
-const modalOverlay: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)' };
-const modalContentSmall: any = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #333' };
+const modalOverlay: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)', padding: '20px', boxSizing: 'border-box' };
+const modalContentSmall: any = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxSizing: 'border-box' };
 const noteOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };
-const noteSidebarStyle = { width: '400px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.3s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.8)' };
-const noteTextarea = { width: '100%', height: '200px', background: '#111', border: '1px solid #222', borderRadius: '20px', padding: '20px', color: '#fff', outline: 'none', fontSize: '15px', resize: 'none' as any, lineHeight: '1.5' };
+const noteSidebarStyle = { width: '100%', maxWidth: '400px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.3s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.8)', boxSizing: 'border-box' as any };
+const noteTextarea = { width: '100%', height: '200px', background: '#111', border: '1px solid #222', borderRadius: '20px', padding: '20px', color: '#fff', outline: 'none', fontSize: '15px', resize: 'none' as any, lineHeight: '1.5', boxSizing: 'border-box' as any };
 const noteDeleteBtn = { width: '100%', padding: '18px', background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', borderRadius: '18px', fontWeight: '900', cursor: 'pointer' };
