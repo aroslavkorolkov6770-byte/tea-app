@@ -110,7 +110,7 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// --- СТИЛИ ГРАФИКОВ ---
+// --- СТИЛИ БЛОКОВ И КАРТОЧК ---
 const wideChartCard: React.CSSProperties = { background: '#161816', padding: '45px', borderRadius: '40px', border: '1px solid #222', marginBottom: '40px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
 const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
 const dashboardGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px', width: '100%' };
@@ -625,12 +625,42 @@ function ShiftContent() {
                                     <stop offset="0%" stopColor="#0abab5" stopOpacity="0.25" />
                                     <stop offset="100%" stopColor="#0abab5" stopOpacity="0" />
                                 </linearGradient>
+                                {/* ⚠️ НОВЫЙ ГРАДИЕНТ ДЛЯ ТОНКОЙ НЕОНОВОЙ ЛИНИИ */}
+                                <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stopColor="#065F5C" />
+                                    <stop offset="100%" stopColor="#0abab5" />
+                                </linearGradient>
                             </defs>
                             <path d={`M 0 100 ${chartPoints.map((p, i) => `L ${i * (100 / chartStepsCount)} ${100 - p}`).join(' ')} L 100 100 Z`} fill="url(#glowGrad)" style={{ transition: '1s ease' }} />
-                            <path d={`M ${chartPoints.map((p, i) => `${i * (100 / chartStepsCount)} ${100 - p}`).join(' L ')}`} fill="none" stroke="#0abab5" strokeWidth="3" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '1s ease' }} />
+                            
+                            {/* ⚠️ ИСПРАВЛЕННАЯ ТОНКАЯ ЛИНИЯ ГРАФИКА */}
+                            <path 
+                                d={`M ${chartPoints.map((p, i) => `${i * (100 / chartStepsCount)} ${100 - p}`).join(' L ')}`} 
+                                fill="none" 
+                                stroke="url(#lineGrad)" 
+                                strokeWidth="1.5" 
+                                vectorEffect="non-scaling-stroke" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                style={{ transition: '1s ease', filter: 'drop-shadow(0px 0px 6px rgba(10,186,181,0.8))' }} 
+                            />
                         </svg>
+                        {/* ⚠️ ИСПРАВЛЕННЫЕ ТОЧКИ НА ГРАФИКЕ (АККУРАТНЫЕ) */}
                         {chartPoints.map((p, i) => (
-                            <div key={`dot-${i}`} style={{ position: 'absolute', left: `${i * (100 / chartStepsCount)}%`, bottom: `${p}%`, transform: 'translate(-50%, 50%)', width: '16px', height: '16px', borderRadius: '50%', background: '#161816', border: '4px solid #0abab5', zIndex: 3, transition: '1s ease', boxShadow: '0 0 10px rgba(10,186,181,0.5)' }} />
+                            <div key={`dot-${i}`} style={{ 
+                                position: 'absolute', 
+                                left: `${i * (100 / chartStepsCount)}%`, 
+                                bottom: `${p}%`, 
+                                transform: 'translate(-50%, 50%)', 
+                                width: '10px', 
+                                height: '10px', 
+                                borderRadius: '50%', 
+                                background: '#000', 
+                                border: '2px solid #0abab5', 
+                                zIndex: 3, 
+                                transition: '1s ease', 
+                                boxShadow: '0 0 10px rgba(10,186,181,0.8), inset 0 0 4px rgba(10,186,181,0.5)' 
+                            }} />
                         ))}
                         {['Старт', ...dynamicBasics.map((_, i) => (i + 1).toString().padStart(2, '0'))].map((lbl, i) => (
                             <div key={`lbl-${i}`} style={{ position: 'absolute', left: `${i * (100 / Math.max(dynamicBasics.length, 1))}%`, bottom: '-35px', transform: 'translateX(-50%)', fontSize: '11px', color: '#666', fontWeight: '800' }}>{lbl}</div>
@@ -1129,7 +1159,7 @@ function ShiftContent() {
             transform: scale(0.98); 
         }
 
-        /* ⚠️ УЛЬТРАТОНКИЙ НЕОН - ПРОГРЕСС БАРЫ (FORCED CSS) */
+        /* УЛЬТРАТОНКИЙ НЕОН - ПРОГРЕСС БАРЫ (FORCED CSS) */
         .neon-progress-bg {
             height: 3px !important;
             background: rgba(255, 255, 255, 0.05) !important;
