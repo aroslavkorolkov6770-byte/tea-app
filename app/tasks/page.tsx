@@ -447,16 +447,16 @@ function ShiftContent() {
       
       // СТРОГОЕ ТРЕБОВАНИЕ: ТОЛЬКО 100% ДЛЯ УСПЕШНОГО ПРОХОЖДЕНИЯ
       const isPassed = score === 100;
+      const currentUserName = localStorage.getItem('current_user_name') || 'Сотрудник';
+      const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
       try {
+          // 1. Сохраняем результат в базу результатов тестов
           const res = await fetch('/api/storage?key=tea_hub_test_results_v1');
           let results = await res.json().catch(() => []);
           if (!Array.isArray(results)) results = [];
 
-          const currentUserName = localStorage.getItem('current_user_name') || 'Сотрудник';
           const previousAttempts = results.filter((r: any) => r.testName === activeUrgentTest.name && r.userName === currentUserName).length;
-          
-          const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
           
           const newResult = {
               id: Date.now(),
@@ -470,7 +470,21 @@ function ShiftContent() {
           const newResults = [newResult, ...results];
           saveDataToServer('tea_hub_test_results_v1', newResults);
 
-          // Если пройден на 100%, записываем в пройденные тесты текущего юзера
+          // 2. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ АДМИНИСТРАТОРУ О ЗАВЕРШЕНИИ ТЕСТА
+          const notifRes = await fetch('/api/storage?key=tea_hub_notifications_v1');
+          let notifs = await notifRes.json().catch(() => []);
+          if (!Array.isArray(notifs)) notifs = [];
+
+          const adminNotif = {
+              id: Date.now() + 1,
+              title: 'Результат аттестации',
+              text: `Сотрудник ${currentUserName} прошел тест "${activeUrgentTest.name}" с результатом ${score}%.`,
+              time: formattedTime,
+              target: 'u_admin' // Отправляем главному админу
+          };
+          saveDataToServer('tea_hub_notifications_v1', [adminNotif, ...notifs]);
+
+          // 3. Обработка прохождения теста сотрудником
           if (isPassed) {
               const newPassed = [...passedTests, activeUrgentTest.id];
               setPassedTests(newPassed);
@@ -726,7 +740,7 @@ function ShiftContent() {
           </section>
         )}
 
-        {/* --- ОКНО ПРОХОЖДЕНИЯ АТТЕСТАЦИИ --- */}
+        {/* --- ОКНО ПРОХОЖДЕНИЯ АТТЕСТАЦИИ (С АНТИ-ЧИТ ЗАЩИТОЙ) --- */}
         {activeUrgentTest && (
            <div style={modalOverlay}>
               <div className="tasks-modal" style={modalContent}>
@@ -736,7 +750,27 @@ function ShiftContent() {
                     <div className="desktop-spacer" style={{width:'80px'}} />
                  </div>
                  
-                 <div style={{animation: 'fadeInUp 0.3s ease'}}>
+                 <div 
+                    style={{
+                        animation: 'fadeInUp 0.3s ease',
+                        /* CSS ЗАЩИТА ОТ ВЫДЕЛЕНИЯ ТЕКСТА */
+                        userSelect: 'none', 
+                        WebkitUserSelect: 'none', 
+                        MozUserSelect: 'none', 
+                        msUserSelect: 'none'
+                    }}
+                    /* JS ЗАЩИТА ОТ КОПИРОВАНИЯ И КОНТЕКСТНОГО МЕНЮ */
+                    onContextMenu={(e) => e.preventDefault()}
+                    onCopy={(e) => e.preventDefault()}
+                    onCut={(e) => e.preventDefault()}
+                    onKeyDown={(e) => {
+                        if (e.ctrlKey || e.metaKey) {
+                            if (e.key === 'c' || e.key === 'x' || e.key === 'p') {
+                                e.preventDefault();
+                            }
+                        }
+                    }}
+                 >
                     <div style={quizBox}>
                         <h4 style={{color:'#0abab5', marginBottom:'20px', fontWeight:'900'}}>ВОПРОС {urgentTestStep + 1} / {activeUrgentTest.quiz?.length || 1}</h4>
                         <p style={{fontSize:'22px', fontWeight:'800', marginBottom:'30px'}}>{activeUrgentTest.quiz?.[urgentTestStep]?.q}</p>
