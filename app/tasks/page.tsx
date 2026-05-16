@@ -119,40 +119,8 @@ const cardHeaderLabel: React.CSSProperties = { fontSize: '11px', fontWeight: '90
 const bigStatVal: React.CSSProperties = { fontSize: '48px', fontWeight: '900', color: '#fff' };
 const cardSubText: React.CSSProperties = { fontSize: '14px', opacity: 0.5, marginBottom: '25px' };
 
-// ⚠️ ОБНОВЛЕННЫЕ СТИЛИ ПРОГРЕСС-БАРОВ (УЛЬТРАТОНКИЙ НЕОН)
-const segmentedBar: React.CSSProperties = { display: 'flex', gap: '6px', height: '3px', marginTop: '15px', marginBottom: '10px', width: '100%' };
-const segment = (active: boolean): React.CSSProperties => ({ 
-    flex: 1, 
-    background: active ? '#0abab5' : 'rgba(255, 255, 255, 0.05)', 
-    borderRadius: '5px', 
-    transition: 'background 0.5s ease, box-shadow 0.5s ease', 
-    boxShadow: active ? '0 0 8px rgba(10, 186, 181, 0.6)' : 'none' 
-});
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };
-
-const pBarBg: React.CSSProperties = { 
-    height: '3px', 
-    background: 'rgba(255, 255, 255, 0.05)', 
-    borderRadius: '10px', 
-    marginTop: '15px', 
-    marginBottom: '10px', 
-    position: 'relative', 
-    overflow: 'visible' 
-};
-const pBarFill = (w: number): React.CSSProperties => ({ 
-    width: `${w}%`, 
-    height: '100%', 
-    background: 'linear-gradient(90deg, #065F5C 0%, #0abab5 100%)', 
-    borderRadius: '10px', 
-    transition: 'width 1.2s cubic-bezier(0.25, 1, 0.5, 1)', 
-    boxShadow: w > 0 ? '0 0 8px rgba(10, 186, 181, 0.6)' : 'none', 
-    position: 'absolute', 
-    top: 0, 
-    left: 0 
-});
-
 const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '800', color: '#666' };
-
 const backLink: React.CSSProperties = { color: '#0abab5', fontWeight: '900', marginBottom: '30px', cursor: 'pointer', display: 'inline-block', fontSize: '15px' };
 const topicRow: React.CSSProperties = { display: 'flex', alignItems: 'center', padding: '25px 30px', background: '#161816', borderRadius: '25px', border: '1px solid #222', cursor: 'pointer', transition: '0.2s', marginBottom: '10px', position: 'relative', width: '100%', boxSizing: 'border-box' };
 const checkIcon = (done: boolean): React.CSSProperties => ({ width: '28px', height: '28px', border: '2px solid #0abab5', borderRadius: '50%', marginRight: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0abab5', fontWeight: '900', background: done ? 'rgba(10,186,181,0.1)' : 'transparent', flexShrink: 0 });
@@ -165,13 +133,10 @@ const theoryText: React.CSSProperties = { fontSize: '15px', color: '#ccc', lineH
 const checkKnowledgeBtn: React.CSSProperties = { width: '100%', padding: '25px', background: 'transparent', border: '2px solid #0abab5', color: '#0abab5', borderRadius: '20px', fontWeight: '900', fontSize: '18px', cursor: 'pointer', transition: '0.3s' };
 const quizBox: React.CSSProperties = { borderTop: '1px solid #222', paddingTop: '40px', marginTop: '10px' };
 const flexSpace: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px', flexWrap: 'wrap', gap: '20px' };
-
 const ansBtn = (active: boolean, isCorrect: boolean): React.CSSProperties => ({ padding: '20px 30px', background: active ? (isCorrect ? '#0abab5' : '#ff4d4d') : '#111', color: active ? (isCorrect ? '#000' : '#fff') : '#fff', borderRadius: '18px', cursor: 'pointer', border: '1px solid #222', fontWeight: '800', marginBottom: '12px', transition: '0.2s' });
-
 const errorOverlayStyle: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', zIndex: 40000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(12px)' };
 const errorModalContent: React.CSSProperties = { background: '#111', padding: '50px', borderRadius: '40px', border: '2px solid #222', textAlign: 'center', maxWidth: '450px', boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)' };
 const errorBtnStyle: React.CSSProperties = { border: 'none', padding: '18px 40px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '15px', letterSpacing: '1px', marginTop: '15px', width: '100%' };
-
 const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#111', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '15px', outline: 'none', fontSize: '15px' };
 const saveBtn: React.CSSProperties = { width: '100%', padding: '20px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '10px', fontSize: '16px' };
 const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
@@ -226,7 +191,6 @@ function ShiftContent() {
   const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
   const [testResultModal, setTestResultModal] = useState<{show: boolean, score: number, isPassed: boolean, title: string}>({show: false, score: 0, isPassed: false, title: ''});
 
-  // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА ---
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
       if (typeof window !== 'undefined') {
           const cachedFiles = localStorage.getItem('th_cache_files');
@@ -679,14 +643,20 @@ function ShiftContent() {
                          <div style={cardHeaderLabel}>ПЛАН НА НЕДЕЛЮ</div>
                          <div className="tasks-big-val" style={bigStatVal}>{completedRoute.length} <span style={{fontSize:'20px', opacity:0.4}}>/ {dynamicRoute.length}</span></div>
                          <p style={cardSubText}>шагов пройдено</p>
-                          <div style={segmentedBar}>{dynamicRoute.map((step, i) => (<div key={i} style={segment(completedRoute.includes(step.id))} />))}</div>
+                          <div className="neon-segments-container">
+                              {dynamicRoute.map((step, i) => (
+                                  <div key={i} className={`neon-segment ${completedRoute.includes(step.id) ? 'active' : 'inactive'}`} />
+                              ))}
+                          </div>
                       </div>
                       
                       <div className="tasks-stat-card" style={statCardMain}>
                          <div style={cardHeaderLabel}>БАЗА ЗНАНИЙ</div>
                          <div className="tasks-big-val" style={bigStatVal}>{basicsPercent}%</div>
                          <p style={cardSubText}>пройдено тем обучения</p>
-                         <div style={pBarBg}><div style={pBarFill(basicsPercent)} /></div>
+                         <div className="neon-progress-bg">
+                             <div className="neon-progress-fill" style={{ width: `${basicsPercent}%` }} />
+                         </div>
                       </div>
                 </div>
             </div>
@@ -753,7 +723,9 @@ function ShiftContent() {
                               <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(step.title)}</h4>
                               
                               <div style={{ marginTop: 'auto' }}>
-                                  <div style={pBarBg}><div style={pBarFill(isDone ? 100 : 0)} /></div>
+                                  <div className="neon-progress-bg">
+                                      <div className="neon-progress-fill" style={{ width: `${isDone ? 100 : 0}%` }} />
+                                  </div>
                                   <div style={cardFooter}><span>{isDone ? 'Выполнено' : 'Начать'}</span><span>{step.time}</span></div>
                               </div>
                            </div>
@@ -782,7 +754,9 @@ function ShiftContent() {
                              <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(sec.title)}</h4>
                              
                              <div style={{ marginTop: 'auto' }}>
-                                 <div style={pBarBg}><div style={pBarFill(progress)} /></div>
+                                 <div className="neon-progress-bg">
+                                     <div className="neon-progress-fill" style={{ width: `${progress}%` }} />
+                                 </div>
                                  <div style={cardFooter}><span>{sec.modules?.length || 0} Тем</span><span>{progress}%</span></div>
                              </div>
                           </div>
@@ -849,13 +823,11 @@ function ShiftContent() {
                  <div 
                     style={{
                         animation: 'fadeInUp 0.3s ease',
-                        /* CSS ЗАЩИТА ОТ ВЫДЕЛЕНИЯ ТЕКСТА */
                         userSelect: 'none', 
                         WebkitUserSelect: 'none', 
                         MozUserSelect: 'none', 
                         msUserSelect: 'none'
                     }}
-                    /* JS ЗАЩИТА ОТ КОПИРОВАНИЯ И КОНТЕКСТНОГО МЕНЮ */
                     onContextMenu={(e) => e.preventDefault()}
                     onCopy={(e) => e.preventDefault()}
                     onCut={(e) => e.preventDefault()}
@@ -1113,6 +1085,7 @@ function ShiftContent() {
         )}
       </main>
 
+      {/* --- ГЛОБАЛЬНЫЕ СТИЛИ (ТЕПЕРЬ НЕОН-БАРЫ ЗДЕСЬ) --- */}
       <style jsx global>{` 
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -1154,6 +1127,47 @@ function ShiftContent() {
             background: rgba(10, 186, 181, 0.05); 
             border-color: #0abab5;
             transform: scale(0.98); 
+        }
+
+        /* ⚠️ УЛЬТРАТОНКИЙ НЕОН - ПРОГРЕСС БАРЫ (FORCED CSS) */
+        .neon-progress-bg {
+            height: 3px !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            border-radius: 10px !important;
+            margin: 15px 0 10px 0 !important;
+            position: relative !important;
+            overflow: visible !important;
+            width: 100% !important;
+        }
+        .neon-progress-fill {
+            height: 100% !important;
+            background: linear-gradient(90deg, #065F5C 0%, #0abab5 100%) !important;
+            border-radius: 10px !important;
+            transition: width 1.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
+            box-shadow: 0 0 10px rgba(10, 186, 181, 0.8) !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+        }
+        .neon-segments-container {
+            display: flex !important;
+            gap: 6px !important;
+            height: 3px !important;
+            margin: 15px 0 10px 0 !important;
+            width: 100% !important;
+        }
+        .neon-segment {
+            flex: 1 !important;
+            border-radius: 5px !important;
+            transition: background 0.5s ease, box-shadow 0.5s ease !important;
+        }
+        .neon-segment.active {
+            background: #0abab5 !important;
+            box-shadow: 0 0 10px rgba(10, 186, 181, 0.8) !important;
+        }
+        .neon-segment.inactive {
+            background: rgba(255, 255, 255, 0.05) !important;
+            box-shadow: none !important;
         }
 
         @media (max-width: 768px) {
