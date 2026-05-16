@@ -26,7 +26,6 @@ const stripEmoji = (str: string) => {
     return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 };
 
-// ВОССТАНОВЛЕННАЯ ПОЛНАЯ БАЗА ЗНАНИЙ (10 РАЗДЕЛОВ)
 const INITIAL_BASICS = [
   { 
     id: "sec_1", title: "01. История и Бренд", 
@@ -103,7 +102,6 @@ const INITIAL_BASICS = [
   ]},
 ];
 
-// ВОССТАНОВЛЕННЫЙ МАРШРУТ
 const INITIAL_ROUTE = [
   { id: "route_1", title: "О компании и бренде", time: "3 мин", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной." },
   { id: "route_2", title: "Работа с кассой", time: "5 мин", content: "Открытие смены в 09:50. Работа в системе учета." },
@@ -201,7 +199,7 @@ function ShiftContent() {
   const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
   const [testResultModal, setTestResultModal] = useState<{show: boolean, score: number, isPassed: boolean, title: string}>({show: false, score: 0, isPassed: false, title: ''});
 
-  // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА (КЭШ + ФОНОВОЕ ОБНОВЛЕНИЕ) ---
+  // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА ---
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
       if (typeof window !== 'undefined') {
           const cachedFiles = localStorage.getItem('th_cache_files');
@@ -250,7 +248,8 @@ function ShiftContent() {
           }
 
           let finalBasics = sBasicsData;
-          if (!Array.isArray(finalBasics) || finalBasics.length === 0) {
+          // ⚠️ ИСПРАВЛЕНИЕ: ЖЕСТКАЯ ПРОВЕРКА НА БИТУЮ БАЗУ (ЕСЛИ МЕНЬШЕ 5 РАЗДЕЛОВ - ПЕРЕЗАЛИВАЕМ ПОЛНУЮ)
+          if (!Array.isArray(finalBasics) || finalBasics.length < 5) {
               finalBasics = INITIAL_BASICS;
               saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, finalBasics);
           }
@@ -258,7 +257,7 @@ function ShiftContent() {
           localStorage.setItem('th_cache_basics', JSON.stringify(finalBasics));
 
           let finalRoute = sRouteData;
-          if (!Array.isArray(finalRoute) || finalRoute.length === 0) {
+          if (!Array.isArray(finalRoute) || finalRoute.length < 3) {
               finalRoute = INITIAL_ROUTE;
               saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, finalRoute);
           }
@@ -518,7 +517,6 @@ function ShiftContent() {
       });
       const score = Math.round((correct / activeUrgentTest.quiz.length) * 100);
       
-      // СТРОГОЕ ТРЕБОВАНИЕ: ТОЛЬКО 100% ДЛЯ УСПЕШНОГО ПРОХОЖДЕНИЯ
       const isPassed = score === 100;
       const currentUserName = localStorage.getItem('current_user_name') || 'Сотрудник';
       const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
@@ -528,13 +526,13 @@ function ShiftContent() {
           let results = await res.json().catch(() => []);
           if (!Array.isArray(results)) results = [];
 
-          // ⚠️ ИСПРАВЛЕНИЕ: Фильтруем попытки по уникальному ID конкретной отправленной карточки (activeUrgentTest.id)
+          // ФИЛЬТРУЕМ ПО УНИКАЛЬНОМУ ID ТЕСТА (ЗАЩИТА ОТ БАГА С ПОПЫТКАМИ)
           const previousAttempts = results.filter((r: any) => r.testId === activeUrgentTest.id && r.userName === currentUserName).length;
           const currentAttemptCount = previousAttempts + 1;
           
           const newResult = {
               id: Date.now(),
-              testId: activeUrgentTest.id, // Сохраняем ID карточки, чтобы попытки не смешивались
+              testId: activeUrgentTest.id, 
               userName: currentUserName,
               testName: activeUrgentTest.name,
               score: score,
@@ -545,7 +543,6 @@ function ShiftContent() {
           const newResults = [newResult, ...results];
           saveDataToServer('tea_hub_test_results_v1', newResults);
 
-          // ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ АДМИНИСТРАТОРУ С УКАЗАНИЕМ КОЛИЧЕСТВА ПОПЫТОК
           const notifRes = await fetch('/api/storage?key=tea_hub_notifications_v1');
           let notifs = await notifRes.json().catch(() => []);
           if (!Array.isArray(notifs)) notifs = [];
@@ -555,11 +552,10 @@ function ShiftContent() {
               title: 'Результат аттестации',
               text: `Сотрудник ${currentUserName} завершил тест "${activeUrgentTest.name}" с результатом ${score}%. Потребовалось попыток: ${currentAttemptCount}.`,
               time: formattedTime,
-              target: 'u_admin' // Отправляем главному админу
+              target: 'u_admin'
           };
           saveDataToServer('tea_hub_notifications_v1', [adminNotif, ...notifs]);
 
-          // Обработка прохождения теста сотрудником
           if (isPassed) {
               const newPassed = [...passedTests, activeUrgentTest.id];
               setPassedTests(newPassed);
@@ -596,8 +592,8 @@ function ShiftContent() {
 
   // Безопасный подсчет для исключения деления на 0 при пустой базе
   const totalBasicsModules = dynamicBasics.reduce((acc, s) => acc + (s.modules?.length || 0), 0);
-  const routePercent = Math.round((completedRoute.length / (dynamicRoute.length || 1)) * 100);
-  const basicsPercent = Math.round((completedBasics.length / (totalBasicsModules || 1)) * 100);
+  const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
+  const basicsPercent = Math.round((completedBasics.length / (Math.max(totalBasicsModules, 1))) * 100);
   const totalHubPercent = basicsPercent;
 
   let cumulativeModulesDone = 0;
@@ -605,8 +601,11 @@ function ShiftContent() {
   dynamicBasics.forEach((sec) => {
       const doneInSec = sec.modules?.filter((m:any) => completedBasics.includes(m.id)).length || 0;
       cumulativeModulesDone += doneInSec;
-      chartPoints.push((cumulativeModulesDone / (totalBasicsModules || 1)) * 100);
+      chartPoints.push((cumulativeModulesDone / (Math.max(totalBasicsModules, 1))) * 100);
   });
+
+  // ⚠️ ИСПРАВЛЕНИЕ: Бронебойный рендер графика, который не сломается при любом количестве уроков
+  const chartStepsCount = Math.max(chartPoints.length - 1, 1);
 
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
@@ -642,14 +641,14 @@ function ShiftContent() {
                                     <stop offset="100%" stopColor="#0abab5" stopOpacity="0" />
                                 </linearGradient>
                             </defs>
-                            <path d={`M 0 100 ${chartPoints.map((p, i) => `L ${i * 10} ${100 - p}`).join(' ')} L 100 100 Z`} fill="url(#glowGrad)" style={{ transition: '1s ease' }} />
-                            <path d={`M ${chartPoints.map((p, i) => `${i * 10} ${100 - p}`).join(' L ')}`} fill="none" stroke="#0abab5" strokeWidth="3" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '1s ease' }} />
+                            <path d={`M 0 100 ${chartPoints.map((p, i) => `L ${i * (100 / chartStepsCount)} ${100 - p}`).join(' ')} L 100 100 Z`} fill="url(#glowGrad)" style={{ transition: '1s ease' }} />
+                            <path d={`M ${chartPoints.map((p, i) => `${i * (100 / chartStepsCount)} ${100 - p}`).join(' L ')}`} fill="none" stroke="#0abab5" strokeWidth="3" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '1s ease' }} />
                         </svg>
                         {chartPoints.map((p, i) => (
-                            <div key={`dot-${i}`} style={{ position: 'absolute', left: `${i * 10}%`, bottom: `${p}%`, transform: 'translate(-50%, 50%)', width: '16px', height: '16px', borderRadius: '50%', background: '#161816', border: '4px solid #0abab5', zIndex: 3, transition: '1s ease', boxShadow: '0 0 10px rgba(10,186,181,0.5)' }} />
+                            <div key={`dot-${i}`} style={{ position: 'absolute', left: `${i * (100 / chartStepsCount)}%`, bottom: `${p}%`, transform: 'translate(-50%, 50%)', width: '16px', height: '16px', borderRadius: '50%', background: '#161816', border: '4px solid #0abab5', zIndex: 3, transition: '1s ease', boxShadow: '0 0 10px rgba(10,186,181,0.5)' }} />
                         ))}
-                        {['Старт', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10'].map((lbl, i) => (
-                            <div key={`lbl-${i}`} style={{ position: 'absolute', left: `${i * 10}%`, bottom: '-35px', transform: 'translateX(-50%)', fontSize: '11px', color: '#666', fontWeight: '800' }}>{lbl}</div>
+                        {['Старт', ...dynamicBasics.map((_, i) => (i + 1).toString().padStart(2, '0'))].map((lbl, i) => (
+                            <div key={`lbl-${i}`} style={{ position: 'absolute', left: `${i * (100 / Math.max(dynamicBasics.length, 1))}%`, bottom: '-35px', transform: 'translateX(-50%)', fontSize: '11px', color: '#666', fontWeight: '800' }}>{lbl}</div>
                         ))}
                     </div>
                 </section>
