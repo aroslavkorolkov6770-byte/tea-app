@@ -13,7 +13,6 @@ const STORAGE_KEYS = {
     URGENT_FILES: 'tea_hub_urgent_files_v1'
 };
 
-// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
         method: 'POST',
@@ -22,16 +21,11 @@ const saveDataToServer = (key: string, data: any) => {
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
-// Функция для удаления эмодзи из строк
 const stripEmoji = (str: string) => {
     if (!str) return '';
     return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 };
 
-// ============================================================================
-// 📚 БЛОК 1: БАЗА ЗНАНИЙ (ОСНОВЫ И КУРСЫ)
-// Сюда прописывать новые разделы, теорию и вопросы для тестов.
-// ============================================================================
 const INITIAL_BASICS = [
   { 
     id: "sec_1", title: "01. История и Бренд", 
@@ -108,10 +102,6 @@ const INITIAL_BASICS = [
   ]},
 ];
 
-// ============================================================================
-// 📍 БЛОК 2: ПЛАН НА НЕДЕЛЮ (ШАГИ ОБУЧЕНИЯ)
-// Сюда вписывать задачи для еженедельного маршрута развития сотрудника.
-// ============================================================================
 const INITIAL_ROUTE = [
   { id: "route_1", title: "О компании и бренде", time: "3 мин", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной." },
   { id: "route_2", title: "Работа с кассой", time: "5 мин", content: "Открытие смены в 09:50. Работа в системе учета." },
@@ -120,7 +110,7 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// --- СТИЛИ ГРАФИКОВ ---
+// --- СТИЛИ ---
 const wideChartCard: React.CSSProperties = { background: '#161816', padding: '45px', borderRadius: '40px', border: '1px solid #222', marginBottom: '40px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
 const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
 const dashboardGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px', width: '100%' };
@@ -132,46 +122,9 @@ const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height:
 const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#000', borderRadius: '5px', transition: '0.3s' });
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };
 
-// --- НОВЫЙ ДИЗАЙН КАРТОЧЕК (АККУРАТНЫЕ ПРЯМОУГОЛЬНИКИ) ---
-const courseGrid: React.CSSProperties = { 
-    display: 'flex', 
-    flexWrap: 'wrap', 
-    gap: '20px', 
-    width: '100%', 
-    boxSizing: 'border-box' 
-};
-
-// Сама карточка (фиксированная ширина для элегантности)
-const courseCard: React.CSSProperties = { 
-    background: '#131313', 
-    borderRadius: '25px', 
-    overflow: 'hidden', 
-    cursor: 'pointer', 
-    border: '1px solid #222', 
-    transition: '0.3s', 
-    position:'relative', 
-    width: '100%', 
-    maxWidth: '320px', // Ограничиваем ширину!
-    display: 'flex',
-    flexDirection: 'column'
-}; 
-
-// Верхняя часть (темно-матовая заглушка, как на скриншоте)
-const cardImgMock: React.CSSProperties = { 
-    height: '110px', 
-    background: '#1a1a1a', 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center' 
-};
-
-// Прогресс бар внутри карточки
-const pBarBg: React.CSSProperties = { height: '10px', background: '#000', borderRadius: '10px', marginTop: '25px', marginBottom: '15px' };
+const pBarBg: React.CSSProperties = { height: '8px', background: '#000', borderRadius: '10px', marginTop: '25px', marginBottom: '15px' };
 const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1s' });
-
-// Подвал карточки
 const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', fontWeight: '800', color: '#666' };
-
 
 const backLink: React.CSSProperties = { color: '#0abab5', fontWeight: '900', marginBottom: '30px', cursor: 'pointer', display: 'inline-block', fontSize: '15px' };
 const topicRow: React.CSSProperties = { display: 'flex', alignItems: 'center', padding: '25px 30px', background: '#161816', borderRadius: '25px', border: '1px solid #222', cursor: 'pointer', transition: '0.2s', marginBottom: '10px', position: 'relative', width: '100%', boxSizing: 'border-box' };
@@ -583,10 +536,9 @@ function ShiftContent() {
                           <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>⚠️ Срочно к прохождению</h2>
                       </div>
                       {urgentFiles.length > 0 ? (
-                          <div className="tasks-course-grid" style={courseGrid}> 
+                          <div className="premium-cards-container"> 
                               {urgentFiles.map((file) => (
-                                  <div key={file.id} className="tasks-course-card" style={{ ...courseCard, background: '#161816', border: '1px solid #0abab5', padding: '25px', display: 'flex', flexDirection: 'column', minHeight: '160px' }}>
-                                      <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#0abab5' }} />
+                                  <div key={file.id} className="premium-card" style={{ padding: '25px', display: 'flex', flexDirection: 'column', minHeight: '160px' }}>
                                       <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginBottom: '10px', opacity: 0.8 }}>{file.date}</div>
                                       <h4 style={{ margin: '0 0 10px 0', fontSize: '17px', fontWeight: '900', wordBreak: 'break-word', color: '#fff', flex: 1 }}>📄 {file.name}</h4>
                                       <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px' }}>{file.size}</div>
@@ -611,19 +563,19 @@ function ShiftContent() {
                      {isAdmin && <button onClick={() => { setRouteFormData({ id: '', title: '', time: '', content: '' }); setShowRouteForm(true); }} style={adminActionBtn}>+ НОВЫЙ ШАГ</button>}
                   </div>
                   
-                  <div className="tasks-course-grid" style={{ ...courseGrid, marginBottom: '60px' }}>
+                  <div className="premium-cards-container" style={{ marginBottom: '60px' }}>
                      {dynamicRoute.map((step, idx) => {
                         const isDone = completedRoute.includes(step.id);
                         return (
-                           <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="tasks-course-card" style={courseCard}>
+                           <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="premium-card">
                               {isAdmin && (
                                   <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
                                       <div onClick={(e) => { e.stopPropagation(); setRouteFormData(step); setShowRouteForm(true); }} style={editIconStyle}>✎</div>
                                       <div onClick={(e) => { e.stopPropagation(); setRouteToDelete(step.id); }} style={delIconStyle}>✕</div>
                                   </div>
                               )}
-                              <div style={cardImgMock} />
-                              <div style={{ padding:'20px 25px 25px 25px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                              <div className="premium-card-header" />
+                              <div className="premium-card-body">
                                  <span style={{fontSize:'13px', color:'#0abab5', fontWeight:'800'}}>Шаг 0{idx+1}</span>
                                  <h4 style={{fontSize:'18px', margin:'10px 0 0 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{stripEmoji(step.title)}</h4>
                                  
@@ -643,20 +595,20 @@ function ShiftContent() {
                       {isAdmin && <button onClick={() => { setSectionFormData({ id: '', title: '' }); setShowSectionForm(true); }} style={adminActionBtn}>+ НОВЫЙ РАЗДЕЛ</button>}
                   </div>
                   
-                  <div className="tasks-course-grid" style={courseGrid}>
+                  <div className="premium-cards-container">
                      {dynamicBasics.map((sec, idx) => {
                         const doneCount = sec.modules?.filter((m:any) => completedBasics.includes(m.id)).length || 0;
                         const progress = sec.modules?.length ? Math.round((doneCount / sec.modules.length) * 100) : 0;
                         return (
-                          <div key={sec.id} onClick={() => setSelectedSection(sec)} className="tasks-course-card" style={courseCard}>
+                          <div key={sec.id} onClick={() => setSelectedSection(sec)} className="premium-card">
                              {isAdmin && (
                                   <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
                                       <div onClick={(e) => { e.stopPropagation(); setSectionFormData({id: sec.id, title: sec.title}); setShowSectionForm(true); }} style={editIconStyle}>✎</div>
                                       <div onClick={(e) => { e.stopPropagation(); setSectionToDelete(sec.id); }} style={delIconStyle}>✕</div>
                                   </div>
                               )}
-                             <div style={cardImgMock} />
-                             <div style={{ padding:'20px 25px 25px 25px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                             <div className="premium-card-header" />
+                             <div className="premium-card-body">
                                 <span style={{fontSize:'13px', color:'#0abab5', fontWeight:'800'}}>Раздел 0{idx+1}</span>
                                 <h4 style={{fontSize:'18px', margin:'10px 0 0 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{stripEmoji(sec.title)}</h4>
                                 
@@ -806,7 +758,7 @@ function ShiftContent() {
                     <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{moduleFormData.id ? 'РЕДАКТОР УРОКА' : 'НОВЫЙ УРОК'}</h2>
                     <input style={adminIn} placeholder="Введите название..." value={moduleFormData.title} onChange={e => setModuleFormData({...moduleFormData, title: e.target.value})} />
                     
-                    <div className="tasks-course-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', margin: '20px 0'}}>
+                    <div className="tasks-theory-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', margin: '20px 0'}}>
                         <textarea style={{...adminIn, height: '120px'}} placeholder="Теория 1" value={moduleFormData.t1} onChange={e => setModuleFormData({...moduleFormData, t1: e.target.value})} />
                         <textarea style={{...adminIn, height: '120px'}} placeholder="Теория 2" value={moduleFormData.t2} onChange={e => setModuleFormData({...moduleFormData, t2: e.target.value})} />
                         <textarea style={{...adminIn, height: '120px'}} placeholder="Теория 3" value={moduleFormData.t3} onChange={e => setModuleFormData({...moduleFormData, t3: e.target.value})} />
@@ -925,6 +877,66 @@ function ShiftContent() {
         ::-webkit-scrollbar-track { background: transparent; }
         body { overflow-x: hidden; width: 100vw; }
 
+        /* =========================================================
+           НОВЫЙ ПРЕМИАЛЬНЫЙ ДИЗАЙН КАРТОЧЕК С ЭФФЕКТАМИ
+        ========================================================= */
+        .premium-cards-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            width: 100%;
+        }
+
+        .premium-card {
+            background: #111;
+            border-radius: 18px; /* Аккуратный прямоугольник */
+            border: 1px solid #222;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        /* 1. ЭФФЕКТ ПРИ НАВЕДЕНИИ КУРСОРА (HOVER) */
+        .premium-card:hover {
+            border-color: #0abab5;
+            box-shadow: 0 12px 30px rgba(10, 186, 181, 0.15);
+            transform: translateY(-5px);
+        }
+
+        /* 2. ЭФФЕКТ ПРИ НАЖАТИИ (ACTIVE) */
+        .premium-card:active {
+            background: rgba(10, 186, 181, 0.05); /* Заливка фирменным цветом */
+            border-color: #0abab5;
+            transform: scale(0.97); /* Эффект вдавливания */
+        }
+
+        .premium-card-header {
+            height: 120px;
+            background: #161616;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid #1a1a1a;
+            transition: 0.3s ease;
+        }
+
+        .premium-card:hover .premium-card-header {
+            background: #1a1a1a; /* Слегка осветляем верхнюю заглушку при наведении */
+        }
+
+        .premium-card-body {
+            padding: 25px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        /* ========================================================= */
+
         /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
         @media (max-width: 768px) {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
@@ -934,20 +946,15 @@ function ShiftContent() {
             .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
             .tasks-stat-card { padding: 25px 20px !important; border-radius: 25px !important; }
             
-            /* ИДЕАЛЬНОЕ ВЫРАВНИВАНИЕ КАРТОЧЕК НА ТЕЛЕФОНЕ БЕЗ РАСТЯГИВАНИЯ */
-            .tasks-course-grid { 
-                display: flex !important; 
-                flex-direction: row !important; 
-                flex-wrap: wrap !important; 
+            /* Выстраиваем карточки по центру на телефоне */
+            .premium-cards-container { 
                 justify-content: center !important; 
                 gap: 20px !important; 
             }
-            .tasks-course-card { 
-                width: 100% !important; 
-                max-width: 320px !important; 
-                margin: 0 auto; 
-                min-height: auto !important;
+            .premium-card {
+                margin: 0 auto;
             }
+            
             .tasks-dashboard-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
             .tasks-theory-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
             .tasks-quiz-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
