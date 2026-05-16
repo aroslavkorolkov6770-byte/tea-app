@@ -311,16 +311,39 @@ export default function AdminDashboard() {
   };
 
   // --- ЛОГИКА ОТПРАВКИ АТТЕСТАЦИОННЫХ ТЕСТОВ ---
+  const getBaseQuizTemplate = () => [
+      { q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C'], c: 1 },
+      { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос'], c: 1 },
+      { q: 'Какая скрутка у Те Гуань Инь?', o: ['Продольная', 'Сферическая', 'Прессованная'], c: 1 }
+  ];
+
   const handleOpenTestEditor = () => {
       setTestFormData({
           title: testType === 'final' ? 'Итоговая аттестация' : 'Переаттестация',
-          quiz: [
-              { q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C'], c: 1 },
-              { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос'], c: 1 },
-              { q: 'Какая скрутка у Те Гуань Инь?', o: ['Продольная', 'Сферическая', 'Прессованная'], c: 1 }
-          ]
+          quiz: getBaseQuizTemplate()
       });
       setShowTestEditor(true);
+  };
+
+  const handleQuickSendTest = () => {
+      const title = testType === 'final' ? 'Итоговая аттестация' : 'Переаттестация';
+      const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+      
+      const newTestTask = {
+          id: 'test_' + Date.now(),
+          name: title,
+          size: 'Интерактивный тест',
+          date: formattedTime,
+          isTest: true,
+          target: selectedStaff,
+          quiz: getBaseQuizTemplate()
+      };
+
+      const updatedFiles = [newTestTask, ...urgentFiles];
+      setUrgentFiles(updatedFiles);
+      saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+      
+      setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${title}" успешно отправлен.` });
   };
 
   const updateTestQuestion = (index: number, field: string, value: any) => {
@@ -528,7 +551,8 @@ export default function AdminDashboard() {
                                     <option value="final">🎓 Итоговый тест (Аттестация)</option>
                                     <option value="re-attestation">🔄 Переаттестация</option>
                                 </select>
-                                <button onClick={handleOpenTestEditor} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px' }}>ОТКРЫТЬ РЕДАКТОР</button>
+                                <button onClick={handleOpenTestEditor} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px' }}>РЕДАКТОР</button>
+                                <button onClick={handleQuickSendTest} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', borderRadius: '15px' }}>ОТПРАВИТЬ</button>
                             </div>
                         )}
                     </div>
