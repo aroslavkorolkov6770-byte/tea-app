@@ -17,12 +17,11 @@ const getAppCookie = (name: string) => {
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true); // Новое состояние: "думаем" при загрузке
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [activeDoc, setActiveDoc] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    // 1. ПРОВЕРКА: Смотрим и в куки, и в LocalStorage
     const cookieAuth = getAppCookie('isLoggedIn');
     const localAuth = localStorage.getItem('isLoggedIn');
     const isLoggedIn = cookieAuth === 'true' || localAuth === 'true';
@@ -32,21 +31,17 @@ export default function Home() {
     const role = cookieRole || localRole;
 
     if (isLoggedIn) {
-        // Если залогинен - делаем редирект БЕЗ отрисовки "бутерброда"
         if (role === 'admin') {
             router.push('/admin');
         } else {
             router.push('/tasks?tab=welcome');
         }
     } else {
-        // Если не залогинен - показываем красивый главный экран
         setIsCheckingAuth(false);
         setIsMounted(true);
     }
   }, [router]);
 
-  // Пока проверяем, кто зашел на сайт (или пока перенаправляем), 
-  // показываем просто черный фон, чтобы интерфейсы не ломались и не моргали
   if (isCheckingAuth || !isMounted) {
       return <div style={{ minHeight: '100vh', backgroundColor: '#000' }} />;
   }
@@ -104,41 +99,87 @@ export default function Home() {
         </footer>
       </div>
 
+      {/* МОДАЛЬНЫЕ ОКНА ПОЛИТИК (В ЕДИНОМ СТИЛЕ С БАННЕРОМ) */}
       {activeDoc && (
-        <div style={modalOverlay as any}>
-          <div style={modalContent as any}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
-               <button onClick={() => setActiveDoc(null)} style={closeBtnStyle}>✕ ЗАКРЫТЬ</button>
-            </div>
-            <div style={{ color: '#ccc', lineHeight: '1.8', fontSize: '15px' }}>
-               {activeDoc === 'privacy' && (
-                 <div>
-                    <h2 style={{ color: '#0abab5', fontSize: '28px', marginBottom: '25px', fontWeight: '900' }}>Политика конфиденциальности</h2>
-                    <p>Настоящая Политика конфиденциальности описывает, как мы собираем, используем и храним вашу личную информацию при использовании платформы TEA HUB.</p>
-                    <p>1. Мы собираем только те данные, которые необходимы для организации учебного процесса.</p>
-                 </div>
-               )}
-               {activeDoc === 'terms' && (
-                 <div>
-                    <h2 style={{ color: '#0abab5', fontSize: '28px', marginBottom: '25px', fontWeight: '900' }}>Пользовательское соглашение</h2>
-                    <p>Используя платформу TEA HUB, вы соглашаетесь с настоящими правилами и условиями.</p>
-                 </div>
-               )}
-               {activeDoc === 'cookies' && (
-                 <div>
-                    <h2 style={{ color: '#0abab5', fontSize: '28px', marginBottom: '25px', fontWeight: '900' }}>Соглашение с файлами cookie</h2>
-                    <p>Файлы cookie сохраняются на вашем устройстве для обеспечения корректной работы платформы.</p>
-                 </div>
-               )}
-            </div>
+        <div style={modalOverlayStyle as any} onClick={() => setActiveDoc(null)}>
+          <div style={modalContentStyle as any} onClick={e => e.stopPropagation()}>
+            
+            {activeDoc === 'privacy' && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ margin: 0, color: '#0abab5', fontSize: '20px', fontWeight: '900' }}>Политика конфиденциальности</h2>
+                  <div onClick={() => setActiveDoc(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
+                </div>
+                
+                <div className="custom-scroll" style={modalScrollArea as any}>
+                  <h4 style={{ color: '#fff', marginBottom: '10px' }}>1. Общие положения</h4>
+                  <p>Настоящая политика конфиденциальности устанавливает порядок получения, хранения, обработки, использования и защиты персональных данных пользователей платформы Tea Hub.</p>
+                  
+                  <h4 style={{ color: '#fff', marginTop: '20px', marginBottom: '10px' }}>2. Сбор данных</h4>
+                  <p>Мы собираем только те данные, которые необходимы для обеспечения корректной работы образовательной платформы: ваше имя, контактные данные, логин и информацию о прогрессе обучения.</p>
+                  
+                  <h4 style={{ color: '#fff', marginTop: '20px', marginBottom: '10px' }}>3. Использование информации</h4>
+                  <p>Ваши данные используются исключительно для персонализации учебного процесса, ведения статистики успеваемости и обеспечения безопасности вашего аккаунта. Мы не передаем данные третьим лицам.</p>
+
+                  <h4 style={{ color: '#fff', marginTop: '20px', marginBottom: '10px' }}>4. Защита информации</h4>
+                  <p>Мы применяем современные методы шифрования и системы защиты (включая TeaGuard) для обеспечения безопасности ваших учетных записей от несанкционированного доступа.</p>
+                </div>
+              </>
+            )}
+
+            {activeDoc === 'terms' && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ margin: 0, color: '#0abab5', fontSize: '20px', fontWeight: '900' }}>Пользовательское соглашение</h2>
+                  <div onClick={() => setActiveDoc(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
+                </div>
+                
+                <div className="custom-scroll" style={modalScrollArea as any}>
+                  <h4 style={{ color: '#fff', marginBottom: '10px' }}>1. Предмет соглашения</h4>
+                  <p>Используя образовательную платформу TEA HUB, вы соглашаетесь с настоящими правилами и условиями. Платформа предоставляется для внутреннего использования сотрудниками компании.</p>
+                  
+                  <h4 style={{ color: '#fff', marginTop: '20px', marginBottom: '10px' }}>2. Права и обязанности</h4>
+                  <p>Пользователь обязуется не передавать свои учетные данные третьим лицам и не копировать учебные материалы (тексты, тесты, документы) в коммерческих или иных целях вне рамок рабочего процесса.</p>
+                  
+                  <h4 style={{ color: '#fff', marginTop: '20px', marginBottom: '10px' }}>3. Интеллектуальная собственность</h4>
+                  <p>Все материалы, размещенные на платформе TEA HUB, включая уроки по ботанике, истории брендов, методы заваривания и регламенты, являются интеллектуальной собственностью компании.</p>
+                  
+                  <h4 style={{ color: '#fff', marginTop: '20px', marginBottom: '10px' }}>4. Аттестация и контроль</h4>
+                  <p>Администрация оставляет за собой право использовать результаты тестирования и прохождения модулей для оценки профессиональных компетенций сотрудников.</p>
+                </div>
+              </>
+            )}
+
+            {activeDoc === 'cookies' && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ margin: 0, color: '#0abab5', fontSize: '20px', fontWeight: '900' }}>Соглашение о Cookie</h2>
+                  <div onClick={() => setActiveDoc(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
+                </div>
+                
+                <div className="custom-scroll" style={modalScrollArea as any}>
+                  <h4 style={{ color: '#fff', marginBottom: '10px' }}>1. Что такое файлы Cookie?</h4>
+                  <p>Файлы cookie — это небольшие текстовые файлы, которые сохраняются на вашем устройстве при посещении веб-сайта. Они помогают платформе «запоминать» вас и ваши настройки.</p>
+                  
+                  <h4 style={{ color: '#fff', marginTop: '20px', marginBottom: '10px' }}>2. Как мы используем Cookie</h4>
+                  <p>В Tea Hub файлы cookie используются строго в технических целях: для поддержания вашей сессии активной (чтобы вам не приходилось постоянно вводить пароль) и для локального кэширования учебных материалов (для мгновенной загрузки контента).</p>
+                  
+                  <h4 style={{ color: '#fff', marginTop: '20px', marginBottom: '10px' }}>3. Управление Cookie</h4>
+                  <p>Вы имеете право отказаться от использования файлов cookie на длительный срок. В этом случае данные авторизации будут удалены сразу после закрытия вкладки браузера, и вам придется вводить логин заново при следующем посещении.</p>
+                </div>
+              </>
+            )}
+
+            <button onClick={() => setActiveDoc(null)} style={closeModalBtnStyle as any}>ЗАКРЫТЬ</button>
           </div>
         </div>
       )}
 
       <style jsx global>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInOverlay { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleInModal { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         
-        /* ИСПРАВЛЕНА БЛОКИРОВКА СКРОЛЛА: Разрешаем скроллить вниз (overflow-y: auto) */
         body { 
             margin: 0; 
             padding: 0; 
@@ -149,24 +190,15 @@ export default function Home() {
 
         .doc-link:hover { color: #0abab5 !important; }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
-        /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
         @media (max-width: 768px) {
-            .home-main {
-                padding: 120px 15px 50px 15px !important;
-            }
-            .home-features {
-                grid-template-columns: 1fr !important; /* Карточки выстраиваются в 1 колонку */
-                gap: 15px !important;
-            }
-            .home-badge {
-                white-space: normal !important;
-                height: auto !important;
-                line-height: 1.5 !important;
-            }
+            .home-main { padding: 120px 15px 50px 15px !important; }
+            .home-features { grid-template-columns: 1fr !important; gap: 15px !important; }
+            .home-badge { white-space: normal !important; height: auto !important; line-height: 1.5 !important; }
         }
       `}</style>
     </div>
@@ -181,6 +213,27 @@ const infoBoxStyle = { background: 'rgba(20,20,20,0.6)', padding: '50px 40px', b
 const footerStyle = { textAlign: 'center', padding: '80px 20px', background: 'linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' };
 const docsContainer = { display: 'flex', gap: '20px', flexWrap: 'wrap' as any, justifyContent: 'center', alignItems: 'center' };
 const docLinkStyle = { background: 'none', border: 'none', color: '#aaa', fontSize: '14px', cursor: 'pointer', padding: '5px 10px', fontWeight: '600', transition: '0.2s', outline: 'none' };
-const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)', padding: '20px' };
-const modalContent = { background: '#0d0f0d', padding: '50px', borderRadius: '35px', width: '100%', maxWidth: '800px', maxHeight: '85vh', overflowY: 'auto', border: '1px solid #222', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' };
-const closeBtnStyle = { background: 'rgba(255,255,255,0.05)', border: '1px solid #222', color: '#fff', padding: '10px 20px', borderRadius: '15px', fontSize: '12px', fontWeight: '900', cursor: 'pointer', transition: '0.2s' };
+
+const modalOverlayStyle = {
+  position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+  background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)',
+  zIndex: 60000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  padding: '20px', boxSizing: 'border-box', animation: 'fadeInOverlay 0.3s ease'
+};
+
+const modalContentStyle = {
+  background: '#111', padding: '35px', borderRadius: '25px', border: '1px solid #333',
+  maxWidth: '550px', width: '100%', display: 'flex', flexDirection: 'column',
+  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)', animation: 'scaleInModal 0.3s ease'
+};
+
+const modalScrollArea = {
+  maxHeight: '60vh', overflowY: 'auto', color: '#ccc', fontSize: '14px',
+  lineHeight: '1.6', paddingRight: '15px', marginBottom: '20px'
+};
+
+const closeModalBtnStyle = {
+  width: '100%', padding: '16px', background: '#222', color: '#fff',
+  border: '1px solid #333', borderRadius: '15px', fontWeight: '900',
+  cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s'
+};
