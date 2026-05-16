@@ -457,20 +457,21 @@ function ShiftContent() {
           if (!Array.isArray(results)) results = [];
 
           const previousAttempts = results.filter((r: any) => r.testName === activeUrgentTest.name && r.userName === currentUserName).length;
+          const currentAttemptCount = previousAttempts + 1;
           
           const newResult = {
               id: Date.now(),
               userName: currentUserName,
               testName: activeUrgentTest.name,
               score: score,
-              attempts: previousAttempts + 1,
+              attempts: currentAttemptCount,
               date: formattedTime
           };
           
           const newResults = [newResult, ...results];
           saveDataToServer('tea_hub_test_results_v1', newResults);
 
-          // 2. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ АДМИНИСТРАТОРУ О ЗАВЕРШЕНИИ ТЕСТА
+          // 2. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ АДМИНИСТРАТОРУ С УКАЗАНИЕМ КОЛИЧЕСТВА ПОПЫТОК
           const notifRes = await fetch('/api/storage?key=tea_hub_notifications_v1');
           let notifs = await notifRes.json().catch(() => []);
           if (!Array.isArray(notifs)) notifs = [];
@@ -478,7 +479,7 @@ function ShiftContent() {
           const adminNotif = {
               id: Date.now() + 1,
               title: 'Результат аттестации',
-              text: `Сотрудник ${currentUserName} прошел тест "${activeUrgentTest.name}" с результатом ${score}%.`,
+              text: `Сотрудник ${currentUserName} завершил тест "${activeUrgentTest.name}" с результатом ${score}%. Потребовалось попыток: ${currentAttemptCount}.`,
               time: formattedTime,
               target: 'u_admin' // Отправляем главному админу
           };
