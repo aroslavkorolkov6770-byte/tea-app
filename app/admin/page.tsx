@@ -6,8 +6,9 @@ const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель
 const DAYS_OF_WEEK = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
+// ДОБАВЛЕН return ДЛЯ КОРРЕКТНОГО ОЖИДАНИЯ (async/await)
 const saveDataToServer = (key: string, data: any) => {
-    fetch('/api/storage', {
+    return fetch('/api/storage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, data })
@@ -47,6 +48,9 @@ const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d'
 export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // --- ЖЕСТКИЙ ПРЕДОХРАНИТЕЛЬ ОТ ДВОЙНЫХ КЛИКОВ ---
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // --- СОСТОЯНИЯ КАЛЕНДАРЯ И ЗАМЕТОК ---
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -200,22 +204,35 @@ export default function AdminDashboard() {
   };
 
   const handleSaveFile = () => {
-      if (!selectedFile) return;
+      if (!selectedFile || isProcessing) return;
+      setIsProcessing(true);
+      
       const reader = new FileReader();
-      reader.onload = (e) => {
-          const fileData = e.target?.result;
-          const newFile = {
-              id: 'file_' + Date.now(),
-              name: selectedFile.name,
-              size: (selectedFile.size / 1024 / 1024).toFixed(2) + ' MB',
-              date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
-              data: fileData 
-          };
-          const updatedFiles = [newFile, ...urgentFiles];
-          setUrgentFiles(updatedFiles);
-          saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-          setShowSuccessModal({ show: true, title: 'МАТЕРИАЛ ОТПРАВЛЕН', text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников в разделе обучения.` });
-          setSelectedFile(null);
+      reader.onload = async (e) => {
+          try {
+              const fileData = e.target?.result;
+              const newFile = {
+                  id: 'file_' + Date.now(),
+                  name: selectedFile.name,
+                  size: (selectedFile.size / 1024 / 1024).toFixed(2) + ' MB',
+                  date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
+                  data: fileData 
+              };
+              
+              // Запрашиваем актуальную базу перед сохранением
+              const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+              let currentFiles = await res.json().catch(() => []);
+              if (!Array.isArray(currentFiles)) currentFiles = [];
+
+              const updatedFiles = [newFile, ...currentFiles];
+              setUrgentFiles(updatedFiles);
+              await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+              
+              setShowSuccessModal({ show: true, title: 'МАТЕРИАЛ ОТПРАВЛЕН', text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников в разделе обучения.` });
+              setSelectedFile(null);
+          } finally {
+              setIsProcessing(false);
+          }
       };
       reader.readAsDataURL(selectedFile);
   };
@@ -298,19 +315,32 @@ export default function AdminDashboard() {
   };
 
   const handleSendNotification = async () => {
-    if (!notifText.trim()) return;
-    const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
-    const currentNotifs = await res.json().catch(() => []);
-    const arr = Array.isArray(currentNotifs) ? currentNotifs : [];
-    const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-    const newNotif = { id: Date.now(), title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение', text: notifText.trim(), time: formattedTime, target: selectedStaff };
+    if (!notifText.trim() || isProcessing) return;
+    setIsProcessing(true);
+    
+    try {
+        const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
+        const currentNotifs = await res.json().catch(() => []);
+        const arr = Array.isArray(currentNotifs) ? currentNotifs : [];
+        const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+        
+        const newNotif = { 
+            id: Date.now(), 
+            title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение', 
+            text: notifText.trim(), 
+            time: formattedTime, 
+            target: selectedStaff 
+        };
 
-    saveDataToServer('tea_hub_notifications_v1', [newNotif, ...arr]);
-    setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Ваше уведомление мгновенно доставлено в панели сотрудников.' });
-    setNotifText("");
+        await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...arr]);
+        setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Ваше уведомление мгновенно доставлено в панели сотрудников.' });
+        setNotifText("");
+    } finally {
+        setIsProcessing(false);
+    }
   };
 
-  // --- ЛОГИКА ОТПРАВКИ АТТЕСТАЦИОННЫХ ТЕСТОВ ---
+  // --- ЛОГИКА ОТПРАВКИ АТТЕСТАЦИОННЫХ ТЕСТОВ С ПРЕДОХРАНИТЕЛЕМ ---
   const getBaseQuizTemplate = () => [
       { q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C'], c: 1 },
       { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос'], c: 1 },
@@ -325,25 +355,39 @@ export default function AdminDashboard() {
       setShowTestEditor(true);
   };
 
-  const handleQuickSendTest = () => {
-      const title = testType === 'final' ? 'Итоговая аттестация' : 'Переаттестация';
-      const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-      
-      const newTestTask = {
-          id: 'test_' + Date.now(),
-          name: title,
-          size: 'Интерактивный тест',
-          date: formattedTime,
-          isTest: true,
-          target: selectedStaff,
-          quiz: getBaseQuizTemplate()
-      };
+  const handleQuickSendTest = async () => {
+      if (isProcessing) return;
+      setIsProcessing(true);
 
-      const updatedFiles = [newTestTask, ...urgentFiles];
-      setUrgentFiles(updatedFiles);
-      saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-      
-      setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${title}" успешно отправлен.` });
+      try {
+          const title = testType === 'final' ? 'Итоговая аттестация' : 'Переаттестация';
+          const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+          
+          const newTestTask = {
+              id: 'test_' + Date.now(),
+              name: title,
+              size: 'Интерактивный тест',
+              date: formattedTime,
+              isTest: true,
+              target: selectedStaff,
+              quiz: getBaseQuizTemplate()
+          };
+
+          // Запрашиваем самую свежую базу перед добавлением (защита от дублей)
+          const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+          let currentFiles = await res.json().catch(() => []);
+          if (!Array.isArray(currentFiles)) currentFiles = [];
+
+          const updatedFiles = [newTestTask, ...currentFiles];
+          setUrgentFiles(updatedFiles);
+          await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+          
+          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${title}" успешно отправлен.` });
+      } catch (e) {
+          console.error("Ошибка при отправке теста", e);
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const updateTestQuestion = (index: number, field: string, value: any) => {
@@ -366,29 +410,42 @@ export default function AdminDashboard() {
       setTestFormData({...testFormData, quiz: newQuiz});
   };
 
-  const handleSendTest = () => {
+  const handleSendTest = async () => {
       if (testFormData.quiz.some(q => !q.q.trim() || q.o.some(opt => !opt.trim()))) {
           setErrorModal({ show: true, text: 'Все вопросы и варианты ответов должны быть заполнены!' });
           return;
       }
       
-      const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-      const newTestTask = {
-          id: 'test_' + Date.now(),
-          name: testFormData.title,
-          size: 'Интерактивный тест',
-          date: formattedTime,
-          isTest: true, // Флаг для распознавания на стороне сотрудника
-          target: selectedStaff,
-          quiz: testFormData.quiz
-      };
+      if (isProcessing) return;
+      setIsProcessing(true);
 
-      const updatedFiles = [newTestTask, ...urgentFiles];
-      setUrgentFiles(updatedFiles);
-      saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-      
-      setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" успешно отправлен.` });
-      setShowTestEditor(false);
+      try {
+          const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+          const newTestTask = {
+              id: 'test_' + Date.now(),
+              name: testFormData.title,
+              size: 'Интерактивный тест',
+              date: formattedTime,
+              isTest: true,
+              target: selectedStaff,
+              quiz: testFormData.quiz
+          };
+
+          const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+          let currentFiles = await res.json().catch(() => []);
+          if (!Array.isArray(currentFiles)) currentFiles = [];
+
+          const updatedFiles = [newTestTask, ...currentFiles];
+          setUrgentFiles(updatedFiles);
+          await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+          
+          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" успешно отправлен.` });
+          setShowTestEditor(false);
+      } catch (e) {
+          console.error("Ошибка при отправке теста", e);
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const upcomingEvents = Object.entries(notes)
@@ -425,7 +482,7 @@ export default function AdminDashboard() {
           <div style={{ animation: 'fadeInUp 0.4s ease' }}>
             
             <div 
-              style={{ ...uploadZoneStyle, borderColor: isDragging ? '#0abab5' : '#333' }}
+              style={{ ...uploadZoneStyle, borderColor: isDragging ? '#0abab5' : '#333', opacity: isProcessing ? 0.5 : 1 }}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={(e) => { 
@@ -445,10 +502,10 @@ export default function AdminDashboard() {
                          Перетащите сюда документ (PDF, DOCX, TXT) или нажмите кнопку ниже.
                        </p>
                        <input 
-                          type="file" id="file-upload-admin" style={{ display: 'none' }} 
+                          type="file" id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing}
                           onChange={(e) => { if (e.target.files && e.target.files.length > 0) setSelectedFile(e.target.files[0]); }} 
                        />
-                       <button onClick={() => document.getElementById('file-upload-admin')?.click()} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px', fontSize: '13px' }}>
+                       <button onClick={() => document.getElementById('file-upload-admin')?.click()} disabled={isProcessing} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
                          ВЫБРАТЬ ФАЙЛ
                        </button>
 
@@ -462,8 +519,8 @@ export default function AdminDashboard() {
                    <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', wordBreak: 'break-word' }}>
                        <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px' }}>📎 {selectedFile.name}</div>
                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                           <button onClick={handleSaveFile} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' }}>ПРИКРЕПИТЬ</button>
-                           <button onClick={() => setSelectedFile(null)} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' }}>ОТМЕНИТЬ</button>
+                           <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>{isProcessing ? 'ОТПРАВКА...' : 'ПРИКРЕПИТЬ'}</button>
+                           <button onClick={() => setSelectedFile(null)} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>ОТМЕНИТЬ</button>
                        </div>
                    </div>
                )}
@@ -541,18 +598,18 @@ export default function AdminDashboard() {
                         {interactionTab === 'notif' ? (
                             <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                 <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Текст:</div>
-                                <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите текст сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} />
-                                <button onClick={handleSendNotification} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px' }}>ОТПРАВИТЬ</button>
+                                <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите текст сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} disabled={isProcessing} />
+                                <button onClick={handleSendNotification} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1 }}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
                             </div>
                         ) : (
                             <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                 <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Тип теста:</div>
                                 <select style={{ ...adminIn, flex: 1, marginBottom: 0 }} value={testType} onChange={(e) => setTestType(e.target.value)}>
-                                    <option value="final">🎓 Итоговый тест</option>
+                                    <option value="final">🎓 Итоговый тест (Аттестация)</option>
                                     <option value="re-attestation">🔄 Переаттестация</option>
                                 </select>
-                                <button onClick={handleOpenTestEditor} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px' }}>РЕДАКТОР</button>
-                                <button onClick={handleQuickSendTest} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', borderRadius: '15px' }}>ОТПРАВИТЬ</button>
+                                <button onClick={handleOpenTestEditor} disabled={isProcessing} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px' }}>РЕДАКТОР</button>
+                                <button onClick={handleQuickSendTest} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', borderRadius: '15px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1 }}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
                             </div>
                         )}
                     </div>
@@ -692,9 +749,9 @@ export default function AdminDashboard() {
                             </div>
                         </div>
                     ))}
-                    <button onClick={addTestQuestion} style={{...adminActionBtn, width: '100%', padding: '15px', background: 'transparent'}}>+ ДОБАВИТЬ ВОПРОС</button>
+                    <button onClick={addTestQuestion} disabled={isProcessing} style={{...adminActionBtn, width: '100%', padding: '15px', background: 'transparent'}}>+ ДОБАВИТЬ ВОПРОС</button>
                 </div>
-                <button onClick={handleSendTest} style={{...saveBtn, marginTop: '30px'}}>ОТПРАВИТЬ СОТРУДНИКУ</button>
+                <button onClick={handleSendTest} disabled={isProcessing} style={{...saveBtn, marginTop: '30px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1}}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ СОТРУДНИКУ'}</button>
                 <div onClick={() => setShowTestEditor(false)} style={{ textAlign: 'center', marginTop: '25px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ОТМЕНА</div>
             </div>
         </div>
@@ -755,7 +812,7 @@ export default function AdminDashboard() {
                       {testResults
                           .filter(res => selectedTestUser === 'Все' || res.userName === selectedTestUser)
                           .map((res: any) => {
-                              const isPassed = res.score >= 80;
+                              const isPassed = res.score === 100;
                               const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
 
                               return (
