@@ -118,12 +118,39 @@ const statCardMain: React.CSSProperties = { background: '#161816', padding: '35p
 const cardHeaderLabel: React.CSSProperties = { fontSize: '11px', fontWeight: '900', opacity: 0.4, letterSpacing: '1.5px', marginBottom: '15px' };
 const bigStatVal: React.CSSProperties = { fontSize: '48px', fontWeight: '900', color: '#fff' };
 const cardSubText: React.CSSProperties = { fontSize: '14px', opacity: 0.5, marginBottom: '25px' };
-const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height: '10px', marginTop: '10px', width: '100%' };
-const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#000', borderRadius: '5px', transition: '0.3s' });
+
+// ⚠️ ОБНОВЛЕННЫЕ СТИЛИ ПРОГРЕСС-БАРОВ (УЛЬТРАТОНКИЙ НЕОН)
+const segmentedBar: React.CSSProperties = { display: 'flex', gap: '6px', height: '3px', marginTop: '15px', marginBottom: '10px', width: '100%' };
+const segment = (active: boolean): React.CSSProperties => ({ 
+    flex: 1, 
+    background: active ? '#0abab5' : 'rgba(255, 255, 255, 0.05)', 
+    borderRadius: '5px', 
+    transition: 'background 0.5s ease, box-shadow 0.5s ease', 
+    boxShadow: active ? '0 0 8px rgba(10, 186, 181, 0.6)' : 'none' 
+});
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };
 
-const pBarBg: React.CSSProperties = { height: '6px', background: '#000', borderRadius: '10px', marginTop: '15px', marginBottom: '10px' };
-const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1s' });
+const pBarBg: React.CSSProperties = { 
+    height: '3px', 
+    background: 'rgba(255, 255, 255, 0.05)', 
+    borderRadius: '10px', 
+    marginTop: '15px', 
+    marginBottom: '10px', 
+    position: 'relative', 
+    overflow: 'visible' 
+};
+const pBarFill = (w: number): React.CSSProperties => ({ 
+    width: `${w}%`, 
+    height: '100%', 
+    background: 'linear-gradient(90deg, #065F5C 0%, #0abab5 100%)', 
+    borderRadius: '10px', 
+    transition: 'width 1.2s cubic-bezier(0.25, 1, 0.5, 1)', 
+    boxShadow: w > 0 ? '0 0 8px rgba(10, 186, 181, 0.6)' : 'none', 
+    position: 'absolute', 
+    top: 0, 
+    left: 0 
+});
+
 const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '800', color: '#666' };
 
 const backLink: React.CSSProperties = { color: '#0abab5', fontWeight: '900', marginBottom: '30px', cursor: 'pointer', display: 'inline-block', fontSize: '15px' };
@@ -248,7 +275,6 @@ function ShiftContent() {
           }
 
           let finalBasics = sBasicsData;
-          // ⚠️ ИСПРАВЛЕНИЕ: ЖЕСТКАЯ ПРОВЕРКА НА БИТУЮ БАЗУ (ЕСЛИ МЕНЬШЕ 5 РАЗДЕЛОВ - ПЕРЕЗАЛИВАЕМ ПОЛНУЮ)
           if (!Array.isArray(finalBasics) || finalBasics.length < 5) {
               finalBasics = INITIAL_BASICS;
               saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, finalBasics);
@@ -322,7 +348,6 @@ function ShiftContent() {
     };
   }, [searchParams]);
 
-  // --- ФИЛЬТРАЦИЯ СРОЧНЫХ ЗАДАНИЙ ДЛЯ ТЕКУЩЕГО ЮЗЕРА ---
   const visibleUrgentFiles = urgentFiles.filter(f => {
       const isForMe = !f.target || f.target === 'Все' || f.target === userId;
       const isPassed = f.isTest && passedTests.includes(f.id);
@@ -492,7 +517,6 @@ function ShiftContent() {
     }
   };
 
-  // --- ЛОГИКА АТТЕСТАЦИИ ---
   const handleUrgentTestAnswer = (idx: number) => {
       if (activeAnswer !== null) return; 
       setActiveAnswer(idx);
@@ -526,7 +550,6 @@ function ShiftContent() {
           let results = await res.json().catch(() => []);
           if (!Array.isArray(results)) results = [];
 
-          // ФИЛЬТРУЕМ ПО УНИКАЛЬНОМУ ID ТЕСТА (ЗАЩИТА ОТ БАГА С ПОПЫТКАМИ)
           const previousAttempts = results.filter((r: any) => r.testId === activeUrgentTest.id && r.userName === currentUserName).length;
           const currentAttemptCount = previousAttempts + 1;
           
@@ -590,7 +613,6 @@ function ShiftContent() {
 
   if (!isMounted) return null;
 
-  // Безопасный подсчет для исключения деления на 0 при пустой базе
   const totalBasicsModules = dynamicBasics.reduce((acc, s) => acc + (s.modules?.length || 0), 0);
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const basicsPercent = Math.round((completedBasics.length / (Math.max(totalBasicsModules, 1))) * 100);
@@ -604,7 +626,6 @@ function ShiftContent() {
       chartPoints.push((cumulativeModulesDone / (Math.max(totalBasicsModules, 1))) * 100);
   });
 
-  // ⚠️ ИСПРАВЛЕНИЕ: Бронебойный рендер графика, который не сломается при любом количестве уроков
   const chartStepsCount = Math.max(chartPoints.length - 1, 1);
 
   return (
