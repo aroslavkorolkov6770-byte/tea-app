@@ -227,7 +227,6 @@ export default function AdminDashboard() {
       });
   };
 
-  // Выполнение подтвержденного удаления
   const executeConfirmAction = () => {
       if (confirmModal.type === 'user') {
           const updatedUsers = users.filter(u => u.id !== confirmModal.id);
@@ -254,7 +253,6 @@ export default function AdminDashboard() {
       document.body.removeChild(link);
   };
 
-  // --- ФУНКЦИИ КАЛЕНДАРЯ ---
   const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
@@ -266,7 +264,6 @@ export default function AdminDashboard() {
   today.setHours(0, 0, 0, 0);
   const isToday = (d: number) => today.getDate() === d && today.getMonth() === currentDate.getMonth() && today.getFullYear() === currentDate.getFullYear();
 
-  // --- ФУНКЦИИ ЗАМЕТОК ---
   const openNotePanel = (day: number) => {
       const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`;
       setSelectedDateKey(key);
@@ -306,7 +303,6 @@ export default function AdminDashboard() {
       return `${d} ${MONTH_NAMES[parseInt(m)]} ${y}`;
   };
 
-  // --- ФУНКЦИЯ ОТПРАВКИ УВЕДОМЛЕНИЯ С ТОЧНЫМ ВРЕМЕНЕМ ---
   const handleSendNotification = async () => {
     if (!notifText.trim()) return;
     
@@ -350,7 +346,6 @@ export default function AdminDashboard() {
     .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
     .slice(0, 3);
 
-  // --- ЛОГИКА ФИЛЬТРАЦИИ ПОЛЬЗОВАТЕЛЕЙ ПО ПОИСКУ ---
   const filteredUsers = users.filter(u => 
       u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
       u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
@@ -369,13 +364,11 @@ export default function AdminDashboard() {
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s' }}>
       <Navigation />
       
-      {/* Прячем распорку на телефонах */}
       <div className="desktop-sidebar-spacer" style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
 
       <main className="admin-main" style={{ flex: 1, padding: '110px 40px 40px 40px', transition: '0.3s', boxSizing: 'border-box', maxWidth: '100%' }}>
           <div style={{ animation: 'fadeInUp 0.4s ease' }}>
             
-            {/* ЗОНА: КОМПАКТНОЕ ПРИКРЕПЛЕНИЕ ФАЙЛОВ */}
             <div 
               style={{ ...uploadZoneStyle, borderColor: isDragging ? '#0abab5' : '#333' } as any}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -412,7 +405,6 @@ export default function AdminDashboard() {
                          ВЫБРАТЬ ФАЙЛ
                        </button>
 
-                       {/* НАДПИСЬ */}
                        {urgentFiles.length > 0 && (
                            <div 
                             onClick={() => setShowFilesList(true)}
@@ -439,17 +431,14 @@ export default function AdminDashboard() {
                )}
             </div>
 
-            {/* СЕТКА: КОНТЕНТ + КАЛЕНДАРЬ */}
             <div className="admin-layout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px', marginBottom: '30px', marginTop: '40px' }}>
-              <section style={{ maxWidth: '100%', overflow: 'hidden' }}>
+              <section style={{ minWidth: 0 }}>
                 
-                {/* --- УПРАВЛЕНИЕ ПЕРСОНАЛОМ (С ПОИСКОМ И СКРОЛЛОМ) --- */}
                 <div className="admin-flex-space" style={flexSpace}>
                   <h2 className="admin-section-title" style={sectionTitle}>Управление персоналом</h2>
                   <span onClick={() => setShowUserForm(true)} style={actionBtn}>+ Новый сотрудник</span>
                 </div>
 
-                {/* Строка поиска сотрудников */}
                 <div style={{ marginBottom: '20px', position: 'relative' }}>
                     <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5, fontSize: '14px' }}>🔍</span>
                     <input 
@@ -461,7 +450,6 @@ export default function AdminDashboard() {
                     />
                 </div>
                 
-                {/* Внутренний скролл для карточек */}
                 <div className="custom-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '5px' }}>
                     <div className="admin-user-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                       {filteredUsers.length === 0 ? (
@@ -497,7 +485,6 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* --- КНОПКА ОТКРЫТИЯ РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ --- */}
                 <div className="admin-flex-space" style={{ ...flexSpace, marginTop: '40px' }}>
                   <h2 
                     className="admin-section-title"
@@ -509,7 +496,6 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Всего записей: {testResults.length}</span>
                 </div>
 
-                {/* ОТПРАВКА УВЕДОМЛЕНИЙ */}
                 <div style={{ ...adminCard, marginTop: '30px', padding: '25px' } as any}>
                     <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', marginBottom: '15px' }}>Отправить уведомление</h2>
                     <div className="admin-action-bar" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
@@ -536,8 +522,7 @@ export default function AdminDashboard() {
                 </div>
               </section>
 
-              {/* ПРАВАЯ КОЛОНКА (Календарь) */}
-              <aside style={{ display: 'flex', flexDirection: 'column', gap: '30px', maxWidth: '100%' }}>
+              <aside style={{ display: 'flex', flexDirection: 'column', gap: '30px', minWidth: 0 }}>
                 <div style={adminCard}>
                     <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', marginBottom: '20px' }}>Ближайшие события</h2>
                     {upcomingEvents.length === 0 ? (
@@ -588,7 +573,6 @@ export default function AdminDashboard() {
               </aside>
             </div>
 
-            {/* СТАТИСТИКА ВСЕХ ДОБАВЛЕННЫХ СОТРУДНИКОВ */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                <section style={{...adminCard, padding: '35px'} as any}>
                     <div className="admin-flex-space" style={flexSpace}>
@@ -647,7 +631,6 @@ export default function AdminDashboard() {
           </div>
       </main>
 
-      {/* МЕНЮ С ДОКУМЕНТАМИ В ЦЕНТРЕ ЭКРАНА (АДМИН) */}
       {showFilesList && (
           <div style={modalOverlay as any}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '550px' } as any}>
@@ -678,7 +661,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* --- НОВОЕ МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТОВ ТЕСТИРОВАНИЯ --- */}
       {showTestModal && (
           <div style={modalOverlay as any} onClick={() => setShowTestModal(false)}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '650px', padding: '35px' } as any} onClick={e => e.stopPropagation()}>
@@ -726,9 +708,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* --- ФИРМЕННЫЕ МОДАЛЬНЫЕ ОКНА (УВЕДОМЛЕНИЯ) --- */}
-
-      {/* 1. ОКНО УСПЕХА */}
       {showSuccessModal.show && (
           <div style={modalOverlay as any} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
@@ -745,7 +724,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* 2. ОКНО ПОДТВЕРЖДЕНИЯ (УДАЛЕНИЕ) */}
       {confirmModal.show && (
           <div style={modalOverlay as any} onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
@@ -762,7 +740,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* 3. ОКНО ОШИБКИ */}
       {errorModal.show && (
           <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '380px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
@@ -774,7 +751,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* 4. ОКНО ПРЕДПРОСМОТРА ФАЙЛА */}
       {previewFile && (
           <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
@@ -795,7 +771,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* 5. МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
       {showUserForm && (
         <div style={modalOverlay as any}>
             <div className="admin-modal-content" style={modalContentSmall as any}>
@@ -816,7 +791,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 6. ПАНЕЛЬ ЗАМЕТОК (САЙДБАР) */}
       {selectedDateKey && (
         <div style={noteOverlayStyle as any} onClick={closeNotePanel}>
           <div style={noteSidebarStyle as any} onClick={e => e.stopPropagation()}>
@@ -841,10 +815,11 @@ export default function AdminDashboard() {
         
         * { box-sizing: border-box; }
         
-        /* ⚠️ ИСПРАВЛЕНИЕ: ДОБАВЛЕНО width: 100% ВМЕСТО 100vw И УБРАНЫ ЖЕСТКИЕ БЛОКИРОВКИ ⚠️ */
-        html, body { 
-            overflow-x: hidden !important; 
-            width: 100%; 
+        /* ⚠️ ГЛАВНЫЙ ФИКС ДЛЯ WINDOWS СКРОЛЛА: 
+           Убираем жесткие ограничения с html и разрешаем body скроллиться естественно.
+        */
+        body { 
+            overflow-x: hidden; /* Скрываем горизонтальный мусор */
             margin: 0; 
             padding: 0; 
             background: #0d0f0d; 
