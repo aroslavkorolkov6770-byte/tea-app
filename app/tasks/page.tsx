@@ -26,6 +26,10 @@ const stripEmoji = (str: string) => {
     return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 };
 
+// ============================================================================
+// 📚 БЛОК 1: БАЗА ЗНАНИЙ (ОСНОВЫ И КУРСЫ)
+// Сюда прописывать новые разделы, теорию и вопросы для тестов.
+// ============================================================================
 const INITIAL_BASICS = [
   { 
     id: "sec_1", title: "01. История и Бренд", 
@@ -102,6 +106,10 @@ const INITIAL_BASICS = [
   ]},
 ];
 
+// ============================================================================
+// 📍 БЛОК 2: ПЛАН НА НЕДЕЛЮ (ШАГИ ОБУЧЕНИЯ)
+// Сюда вписывать задачи для еженедельного маршрута развития сотрудника.
+// ============================================================================
 const INITIAL_ROUTE = [
   { id: "route_1", title: "О компании и бренде", time: "3 мин", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной." },
   { id: "route_2", title: "Работа с кассой", time: "5 мин", content: "Открытие смены в 09:50. Работа в системе учета." },
@@ -110,7 +118,7 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// --- СТИЛИ ---
+// --- СТИЛИ ГРАФИКОВ ---
 const wideChartCard: React.CSSProperties = { background: '#161816', padding: '45px', borderRadius: '40px', border: '1px solid #222', marginBottom: '40px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
 const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
 const dashboardGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px', width: '100%' };
@@ -569,7 +577,7 @@ function ShiftContent() {
                         return (
                            <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="premium-card">
                               {isAdmin && (
-                                  <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
+                                  <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
                                       <div onClick={(e) => { e.stopPropagation(); setRouteFormData(step); setShowRouteForm(true); }} style={editIconStyle}>✎</div>
                                       <div onClick={(e) => { e.stopPropagation(); setRouteToDelete(step.id); }} style={delIconStyle}>✕</div>
                                   </div>
@@ -599,7 +607,7 @@ function ShiftContent() {
                         return (
                           <div key={sec.id} onClick={() => setSelectedSection(sec)} className="premium-card">
                              {isAdmin && (
-                                  <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
+                                  <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
                                       <div onClick={(e) => { e.stopPropagation(); setSectionFormData({id: sec.id, title: sec.title}); setShowSectionForm(true); }} style={editIconStyle}>✎</div>
                                       <div onClick={(e) => { e.stopPropagation(); setSectionToDelete(sec.id); }} style={delIconStyle}>✕</div>
                                   </div>
@@ -869,31 +877,34 @@ function ShiftContent() {
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        body { overflow-x: hidden; width: 100vw; }
+        
+        /* ДОБАВЛЕН BOX-SIZING ДЛЯ ВСЕХ ЭЛЕМЕНТОВ */
+        * { box-sizing: border-box; }
+        body { overflow-x: hidden; width: 100vw; margin: 0; padding: 0; }
 
         /* =========================================================
            ПЛОСКИЙ ПРЕМИАЛЬНЫЙ ДИЗАЙН КАРТОЧЕК
         ========================================================= */
         .premium-cards-container {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* Умная сетка для ПК */
             gap: 20px;
             width: 100%;
         }
 
         .premium-card {
             background: #111;
-            border-radius: 14px; /* Меньшее скругление для строгого прямоугольника */
+            border-radius: 14px; 
             border: 1px solid #222;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             position: relative;
             cursor: pointer;
             display: flex;
             flex-direction: column;
             width: 100%;
-            max-width: 280px; /* Сделали уже и компактнее */
-            min-height: 140px; /* Убрали лишнюю высоту */
-            padding: 20px; /* Единый отступ для всего содержимого */
+            min-height: 140px; 
+            padding: 20px; 
+            box-sizing: border-box; /* ⚠️ ГЛАВНЫЙ ФИКС ШИРИНЫ ⚠️ */
         }
 
         /* 1. ЭФФЕКТ ПРИ НАВЕДЕНИИ КУРСОРА (HOVER) */
@@ -920,13 +931,17 @@ function ShiftContent() {
             .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
             .tasks-stat-card { padding: 25px 20px !important; border-radius: 25px !important; }
             
-            /* Выстраиваем карточки по центру на телефоне */
+            /* Выстраиваем карточки по центру на телефоне, фиксируя размер */
             .premium-cards-container { 
-                justify-content: center !important; 
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important; /* Идеальное центрирование */
                 gap: 15px !important; 
+                width: 100% !important;
             }
             .premium-card {
-                margin: 0 auto;
+                width: 100% !important;
+                max-width: 320px !important; /* На телефоне будут аккуратными блоками по центру */
             }
             
             .tasks-dashboard-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
