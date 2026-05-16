@@ -14,6 +14,36 @@ const saveDataToServer = (key: string, data: any) => {
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
+// ============================================================================
+// СТИЛИ (ПОДНЯТЫ ВВЕРХ ДЛЯ ИСКЛЮЧЕНИЯ ОШИБОК TYPESCRIPT)
+// ============================================================================
+const uploadZoneStyle: React.CSSProperties = { background: '#111', border: '2px dashed', borderRadius: '35px', padding: '25px 20px', textAlign: 'center', transition: '0.3s ease', cursor: 'pointer' };
+const flexSpace: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' };
+const sectionTitle: React.CSSProperties = { fontSize: '22px', fontWeight: '900', color: '#fff' };
+const actionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
+const adminCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
+const userCardStyle: React.CSSProperties = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s' };
+const scheduleItem: React.CSSProperties = { display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '15px', padding: '15px', background: '#0d0d0d', borderRadius: '20px', border: '1px solid #1a1a1a' };
+const dateBox: React.CSSProperties = { background: '#0abab5', color: '#000', padding: '10px', borderRadius: '12px', fontSize: '14px', fontWeight: '900', textAlign: 'center', minWidth: '45px' };
+const calNavBtn: React.CSSProperties = { cursor: 'pointer', opacity: 0.5, fontSize: '16px' };
+const calendarGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center' };
+const calDayHead: React.CSSProperties = { fontSize: '11px', opacity: 0.3, fontWeight: '900', marginBottom: '10px' };
+const statusBadge = (color: string): React.CSSProperties => ({ background: `${color}15`, color: color, padding: '6px 15px', borderRadius: '10px', fontSize: '11px', fontWeight: '900' });
+const barStyle = (h: number): React.CSSProperties => ({ width: '12px', height: `${h}%`, background: 'linear-gradient(to top, #0abab5, #0abab533)', borderRadius: '4px 4px 2px 2px', transition: '1s ease' });
+const adminSendBtn: React.CSSProperties = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '18px', fontWeight: '900', cursor: 'pointer' };
+const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#000', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '12px', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
+const saveBtn: React.CSSProperties = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer' };
+const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)', padding: '20px', boxSizing: 'border-box' };
+const modalContentSmall: React.CSSProperties = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxSizing: 'border-box' };
+const noteOverlayStyle: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };
+const noteSidebarStyle: React.CSSProperties = { width: '100%', maxWidth: '400px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.3s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.8)', boxSizing: 'border-box' };
+const noteTextarea: React.CSSProperties = { width: '100%', height: '200px', background: '#111', border: '1px solid #222', borderRadius: '20px', padding: '20px', color: '#fff', outline: 'none', fontSize: '15px', resize: 'none', lineHeight: '1.5', boxSizing: 'border-box' };
+const noteDeleteBtn: React.CSSProperties = { width: '100%', padding: '18px', background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', borderRadius: '18px', fontWeight: '900', cursor: 'pointer' };
+const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
+const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
+const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
+// ============================================================================
+
 export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -30,9 +60,16 @@ export default function AdminDashboard() {
   const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
   const [userSearchQuery, setUserSearchQuery] = useState("");
 
-  // --- СОСТОЯНИЯ ДЛЯ ОТПРАВКИ УВЕДОМЛЕНИЙ ---
-  const [notifText, setNotifText] = useState("");
+  // --- ЦЕНТР ВЗАИМОДЕЙСТВИЯ (УВЕДОМЛЕНИЯ И АТТЕСТАЦИЯ) ---
+  const [interactionTab, setInteractionTab] = useState<'notif' | 'test'>('notif');
   const [selectedStaff, setSelectedStaff] = useState("Все");
+  const [notifText, setNotifText] = useState("");
+  const [testType, setTestType] = useState('final');
+  const [showTestEditor, setShowTestEditor] = useState(false);
+  const [testFormData, setTestFormData] = useState({
+      title: 'Итоговая аттестация',
+      quiz: [{ q: '', o: ['', '', ''], c: 0 }]
+  });
 
   // --- ДИНАМИЧЕСКИЕ ДАННЫЕ ДЛЯ СТАТИСТИКИ И РЕЗУЛЬТАТОВ ---
   const [totalBasicsModules, setTotalBasicsModules] = useState(50);
@@ -63,15 +100,12 @@ export default function AdminDashboard() {
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
     window.addEventListener('sidebarToggle', handleToggle);
 
-    // --- ЗАГРУЗКА ВСЕХ ДАННЫХ С СЕРВЕРА ПРИ ВХОДЕ ---
     const loadAllData = async () => {
         try {
-            // Заметки
             const notesRes = await fetch('/api/storage?key=admin_cal_notes_v1');
             const notesData = await notesRes.json();
             if (notesData && Object.keys(notesData).length > 0 && !Array.isArray(notesData)) setNotes(notesData);
 
-            // Пользователи
             const usersRes = await fetch('/api/storage?key=tea_hub_users_v1');
             let usersData = await usersRes.json();
             if (!Array.isArray(usersData) || usersData.length === 0) {
@@ -83,25 +117,21 @@ export default function AdminDashboard() {
             }
             setUsers(usersData);
 
-            // Результаты тестов
             const testRes = await fetch('/api/storage?key=tea_hub_test_results_v1');
             let testData = await testRes.json();
             if (!Array.isArray(testData) || testData.length === 0) {
                 testData = [
                     { id: 1, userName: 'Ярик', testName: 'История и Бренд', score: 100, attempts: 1, date: '14 Мая, 10:30' },
-                    { id: 2, userName: 'Ярик', testName: 'Ботаника чая', score: 60, attempts: 3, date: '13 Мая, 15:20' },
-                    { id: 3, userName: 'Ярик', testName: 'Зеленый чай', score: 85, attempts: 2, date: '12 Мая, 18:00' }
+                    { id: 2, userName: 'Ярик', testName: 'Ботаника чая', score: 60, attempts: 3, date: '13 Мая, 15:20' }
                 ];
                 saveDataToServer('tea_hub_test_results_v1', testData);
             }
             setTestResults(testData);
 
-            // Загруженные файлы
             const filesRes = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
             const filesData = await filesRes.json();
             if (Array.isArray(filesData)) setUrgentFiles(filesData);
 
-            // Данные для статистики
             const bRes = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1');
             const bDb = await bRes.json().catch(() => []);
             const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v1');
@@ -110,7 +140,6 @@ export default function AdminDashboard() {
             setTotalBasicsModules((Array.isArray(bDb) ? bDb : []).reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) || 50);
             setTotalRouteSteps(Array.isArray(rDb) ? rDb.length : 5);
 
-            // Прогресс каждого сотрудника
             const stats: Record<string, {route: number, basics: number}> = {};
             for (const u of usersData) {
                 if (u.role === 'staff') {
@@ -132,11 +161,9 @@ export default function AdminDashboard() {
     };
 
     loadAllData();
-
     return () => window.removeEventListener('sidebarToggle', handleToggle);
   }, []);
 
-  // --- ЛОГИКА УПРАВЛЕНИЯ ПЕРСОНАЛОМ ---
   const handleCreateUser = () => {
       if (!newUser.name.trim() || !newUser.login.trim() || !newUser.pass.trim()) {
           setErrorModal({ show: true, text: "Заполните все поля для создания сотрудника!" });
@@ -160,12 +187,7 @@ export default function AdminDashboard() {
       saveDataToServer('tea_hub_users_v1', updatedUsers);
       setShowUserForm(false);
       
-      setShowSuccessModal({ 
-        show: true, 
-        title: 'СОТРУДНИК СОЗДАН', 
-        text: `Учетная запись для ${newUser.name} успешно добавлена в базу данных.` 
-      });
-
+      setShowSuccessModal({ show: true, title: 'СОТРУДНИК СОЗДАН', text: `Учетная запись для ${newUser.name} успешно добавлена в базу данных.` });
       setNewUser({ name: '', login: '', pass: '', role: 'staff' });
   };
 
@@ -174,25 +196,14 @@ export default function AdminDashboard() {
           setErrorModal({ show: true, text: "Базовые системные аккаунты удалить нельзя!" });
           return;
       }
-      
-      setConfirmModal({
-          show: true,
-          type: 'user',
-          id: id,
-          title: 'УДАЛЕНИЕ СОТРУДНИКА',
-          text: 'Вы уверены, что хотите удалить учетную запись этого сотрудника? Это действие необратимо.'
-      });
+      setConfirmModal({ show: true, type: 'user', id: id, title: 'УДАЛЕНИЕ СОТРУДНИКА', text: 'Вы уверены, что хотите удалить учетную запись этого сотрудника? Это действие необратимо.' });
   };
 
-  // --- ЛОГИКА: ЧИТАЕМ ФАЙЛ И СОХРАНЯЕМ В BASE64 ---
   const handleSaveFile = () => {
       if (!selectedFile) return;
-
       const reader = new FileReader();
-      
       reader.onload = (e) => {
           const fileData = e.target?.result;
-
           const newFile = {
               id: 'file_' + Date.now(),
               name: selectedFile.name,
@@ -200,31 +211,17 @@ export default function AdminDashboard() {
               date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
               data: fileData 
           };
-
           const updatedFiles = [newFile, ...urgentFiles];
           setUrgentFiles(updatedFiles);
           saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-          
-          setShowSuccessModal({ 
-            show: true, 
-            title: 'МАТЕРИАЛ ОТПРАВЛЕН', 
-            text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников в разделе обучения.` 
-          });
-
+          setShowSuccessModal({ show: true, title: 'МАТЕРИАЛ ОТПРАВЛЕН', text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников в разделе обучения.` });
           setSelectedFile(null);
       };
-
       reader.readAsDataURL(selectedFile);
   };
 
   const handleDeleteFile = (id: string) => {
-      setConfirmModal({
-          show: true,
-          type: 'file',
-          id: id,
-          title: 'УДАЛЕНИЕ МАТЕРИАЛА',
-          text: 'Вы действительно хотите удалить этот учебный материал у всех сотрудников?'
-      });
+      setConfirmModal({ show: true, type: 'file', id: id, title: 'УДАЛЕНИЕ МАТЕРИАЛА', text: 'Вы действительно хотите удалить этот учебный материал у всех сотрудников?' });
   };
 
   const executeConfirmAction = () => {
@@ -278,11 +275,8 @@ export default function AdminDashboard() {
   const saveNote = () => {
       if (!selectedDateKey) return;
       const newNotes = { ...notes };
-      if (noteText.trim()) {
-          newNotes[selectedDateKey] = noteText.trim();
-      } else {
-          delete newNotes[selectedDateKey];
-      }
+      if (noteText.trim()) newNotes[selectedDateKey] = noteText.trim();
+      else delete newNotes[selectedDateKey];
       setNotes(newNotes);
       saveDataToServer('admin_cal_notes_v1', newNotes);
       closeNotePanel();
@@ -305,35 +299,73 @@ export default function AdminDashboard() {
 
   const handleSendNotification = async () => {
     if (!notifText.trim()) return;
-    
     const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
     const currentNotifs = await res.json().catch(() => []);
     const arr = Array.isArray(currentNotifs) ? currentNotifs : [];
-
-    const formattedTime = new Date().toLocaleDateString('ru-RU', { 
-        day: 'numeric', 
-        month: 'long', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
-
-    const newNotif = {
-        id: Date.now(),
-        title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение',
-        text: notifText.trim(),
-        time: formattedTime, 
-        target: selectedStaff
-    };
+    const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    const newNotif = { id: Date.now(), title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение', text: notifText.trim(), time: formattedTime, target: selectedStaff };
 
     saveDataToServer('tea_hub_notifications_v1', [newNotif, ...arr]);
-    
-    setShowSuccessModal({ 
-        show: true, 
-        title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', 
-        text: 'Ваше уведомление мгновенно доставлено в панели сотрудников.' 
-    });
-
+    setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Ваше уведомление мгновенно доставлено в панели сотрудников.' });
     setNotifText("");
+  };
+
+  // --- ЛОГИКА ОТПРАВКИ АТТЕСТАЦИОННЫХ ТЕСТОВ ---
+  const handleOpenTestEditor = () => {
+      setTestFormData({
+          title: testType === 'final' ? 'Итоговая аттестация' : 'Переаттестация',
+          quiz: [
+              { q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C'], c: 1 },
+              { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос'], c: 1 },
+              { q: 'Какая скрутка у Те Гуань Инь?', o: ['Продольная', 'Сферическая', 'Прессованная'], c: 1 }
+          ]
+      });
+      setShowTestEditor(true);
+  };
+
+  const updateTestQuestion = (index: number, field: string, value: any) => {
+      const newQuiz = [...testFormData.quiz];
+      if (field === 'q') newQuiz[index].q = value;
+      if (field === 'c') newQuiz[index].c = value;
+      if (field.startsWith('o')) {
+          const oIndex = parseInt(field.replace('o', ''));
+          newQuiz[index].o[oIndex] = value;
+      }
+      setTestFormData({...testFormData, quiz: newQuiz});
+  };
+
+  const addTestQuestion = () => {
+      setTestFormData({...testFormData, quiz: [...testFormData.quiz, { q: '', o: ['', '', ''], c: 0 }]});
+  };
+
+  const removeTestQuestion = (index: number) => {
+      const newQuiz = testFormData.quiz.filter((_, i) => i !== index);
+      setTestFormData({...testFormData, quiz: newQuiz});
+  };
+
+  const handleSendTest = () => {
+      if (testFormData.quiz.some(q => !q.q.trim() || q.o.some(opt => !opt.trim()))) {
+          setErrorModal({ show: true, text: 'Все вопросы и варианты ответов должны быть заполнены!' });
+          return;
+      }
+      
+      const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+      const newTestTask = {
+          id: 'test_' + Date.now(),
+          name: testFormData.title,
+          size: 'Интерактивный тест',
+          date: formattedTime,
+          isTest: true, // Флаг для распознавания на стороне сотрудника
+          target: selectedStaff,
+          quiz: testFormData.quiz
+      };
+
+      const updatedFiles = [newTestTask, ...urgentFiles];
+      setUrgentFiles(updatedFiles);
+      saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+      
+      setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" успешно отправлен.` });
+      setShowTestEditor(false);
   };
 
   const upcomingEvents = Object.entries(notes)
@@ -370,7 +402,7 @@ export default function AdminDashboard() {
           <div style={{ animation: 'fadeInUp 0.4s ease' }}>
             
             <div 
-              style={{ ...uploadZoneStyle, borderColor: isDragging ? '#0abab5' : '#333' } as any}
+              style={{ ...uploadZoneStyle, borderColor: isDragging ? '#0abab5' : '#333' }}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={(e) => { 
@@ -389,43 +421,26 @@ export default function AdminDashboard() {
                        <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>
                          Перетащите сюда документ (PDF, DOCX, TXT) или нажмите кнопку ниже.
                        </p>
-                       
                        <input 
-                          type="file" 
-                          id="file-upload-admin" 
-                          style={{ display: 'none' }} 
-                          onChange={(e) => {
-                              if (e.target.files && e.target.files.length > 0) {
-                                  setSelectedFile(e.target.files[0]);
-                              }
-                          }} 
+                          type="file" id="file-upload-admin" style={{ display: 'none' }} 
+                          onChange={(e) => { if (e.target.files && e.target.files.length > 0) setSelectedFile(e.target.files[0]); }} 
                        />
-                       
-                       <button onClick={() => document.getElementById('file-upload-admin')?.click()} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px', fontSize: '13px' } as any}>
+                       <button onClick={() => document.getElementById('file-upload-admin')?.click()} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px', fontSize: '13px' }}>
                          ВЫБРАТЬ ФАЙЛ
                        </button>
 
                        {urgentFiles.length > 0 && (
-                           <div 
-                            onClick={() => setShowFilesList(true)}
-                            style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8 }}
-                           >
+                           <div onClick={() => setShowFilesList(true)} style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8 }}>
                                Загруженный материал ({urgentFiles.length})
                            </div>
                        )}
                    </>
                ) : (
                    <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', wordBreak: 'break-word' }}>
-                       <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px' }}>
-                           📎 {selectedFile.name}
-                       </div>
+                       <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px' }}>📎 {selectedFile.name}</div>
                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                           <button onClick={handleSaveFile} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' } as any}>
-                               ПРИКРЕПИТЬ
-                           </button>
-                           <button onClick={() => setSelectedFile(null)} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' } as any}>
-                               ОТМЕНИТЬ
-                           </button>
+                           <button onClick={handleSaveFile} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' }}>ПРИКРЕПИТЬ</button>
+                           <button onClick={() => setSelectedFile(null)} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' }}>ОТМЕНИТЬ</button>
                        </div>
                    </div>
                )}
@@ -441,13 +456,7 @@ export default function AdminDashboard() {
 
                 <div style={{ marginBottom: '20px', position: 'relative' }}>
                     <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5, fontSize: '14px' }}>🔍</span>
-                    <input 
-                        type="text"
-                        placeholder="Поиск по имени или логину..."
-                        value={userSearchQuery}
-                        onChange={(e) => setUserSearchQuery(e.target.value)}
-                        style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' } as any}
-                    />
+                    <input type="text" placeholder="Поиск по имени или логину..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' }} />
                 </div>
                 
                 <div className="custom-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '5px' }}>
@@ -456,13 +465,11 @@ export default function AdminDashboard() {
                           <div style={{ color: '#555', padding: '20px 0', fontSize: '14px', fontWeight: 'bold', gridColumn: '1 / -1', textAlign: 'center' }}>Сотрудники не найдены</div>
                       ) : (
                           filteredUsers.map(u => (
-                            <div key={u.id} style={userCardStyle as any}>
+                            <div key={u.id} style={userCardStyle}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                                     <div>
                                         <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
-                                        <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>
-                                            {u.role === 'admin' ? 'Администратор' : 'Сотрудник'}
-                                        </div>
+                                        <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>{u.role === 'admin' ? 'Администратор' : 'Сотрудник'}</div>
                                     </div>
                                     {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
                                         <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>✕</div>
@@ -471,12 +478,10 @@ export default function AdminDashboard() {
                                 
                                 <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
-                                        <span style={{ color: '#666' }}>Логин:</span>
-                                        <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
+                                        <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                        <span style={{ color: '#666' }}>Пароль:</span>
-                                        <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
+                                        <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
                                     </div>
                                 </div>
                             </div>
@@ -486,38 +491,46 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="admin-flex-space" style={{ ...flexSpace, marginTop: '40px' }}>
-                  <h2 
-                    className="admin-section-title"
-                    style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'underline' }}
-                    onClick={() => setShowTestModal(true)}
-                  >
+                  <h2 className="admin-section-title" style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'underline' }} onClick={() => setShowTestModal(true)}>
                     Результаты тестирования ↗
                   </h2>
                   <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Всего записей: {testResults.length}</span>
                 </div>
 
-                <div style={{ ...adminCard, marginTop: '30px', padding: '25px' } as any}>
-                    <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', marginBottom: '15px' }}>Отправить уведомление</h2>
-                    <div className="admin-action-bar" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                        <select 
-                            style={{ ...adminIn, width: '180px', marginBottom: 0 } as any}
-                            value={selectedStaff}
-                            onChange={(e) => setSelectedStaff(e.target.value)}
-                        >
-                            <option value="Все">Всем сотрудникам</option>
-                            {users.filter(u => u.role === 'staff').map(u => (
-                                <option key={u.id} value={u.id}>{u.name} ({u.login})</option>
-                            ))}
-                        </select>
-                        <input 
-                            type="text"
-                            style={{ ...adminIn, flex: 1, marginBottom: 0 } as any}
-                            placeholder="Текст уведомления..."
-                            value={notifText}
-                            onChange={(e) => setNotifText(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()}
-                        />
-                        <button onClick={handleSendNotification} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px' } as any}>ОТПРАВИТЬ</button>
+                {/* --- ЦЕНТР ВЗАИМОДЕЙСТВИЯ --- */}
+                <div style={{ ...adminCard, marginTop: '30px', padding: '0', overflow: 'hidden' }}>
+                    <div className="interaction-center-tabs" style={{ display: 'flex', borderBottom: '1px solid #222' }}>
+                        <div onClick={() => setInteractionTab('notif')} style={{ flex: 1, padding: '20px', textAlign: 'center', cursor: 'pointer', background: interactionTab === 'notif' ? 'rgba(10,186,181,0.05)' : 'transparent', color: interactionTab === 'notif' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' }}>УВЕДОМЛЕНИЯ</div>
+                        <div onClick={() => setInteractionTab('test')} style={{ flex: 1, padding: '20px', textAlign: 'center', cursor: 'pointer', background: interactionTab === 'test' ? 'rgba(10,186,181,0.05)' : 'transparent', color: interactionTab === 'test' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', letterSpacing: '1px', transition: '0.2s', borderLeft: '1px solid #222' }}>АТТЕСТАЦИЯ</div>
+                    </div>
+                    
+                    <div style={{ padding: '25px' }}>
+                        <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
+                            <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Получатель:</div>
+                            <select style={{ ...adminIn, flex: 1, marginBottom: 0 }} value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}>
+                                <option value="Все">Всем сотрудникам</option>
+                                {users.filter(u => u.role === 'staff').map(u => (
+                                    <option key={u.id} value={u.id}>{u.name} ({u.login})</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        {interactionTab === 'notif' ? (
+                            <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Текст:</div>
+                                <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите текст сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} />
+                                <button onClick={handleSendNotification} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px' }}>ОТПРАВИТЬ</button>
+                            </div>
+                        ) : (
+                            <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Тип теста:</div>
+                                <select style={{ ...adminIn, flex: 1, marginBottom: 0 }} value={testType} onChange={(e) => setTestType(e.target.value)}>
+                                    <option value="final">🎓 Итоговый тест (Аттестация)</option>
+                                    <option value="re-attestation">🔄 Переаттестация</option>
+                                </select>
+                                <button onClick={handleOpenTestEditor} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px' }}>ОТКРЫТЬ РЕДАКТОР</button>
+                            </div>
+                        )}
                     </div>
                 </div>
               </section>
@@ -574,7 +587,7 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-               <section style={{...adminCard, padding: '35px'} as any}>
+               <section style={{...adminCard, padding: '35px'}}>
                     <div className="admin-flex-space" style={flexSpace}>
                         <h2 className="admin-section-title" style={sectionTitle}>Статистика обучения</h2>
                         <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Сотрудников в базе: {users.filter(u => u.role === 'staff').length}</span>
@@ -631,10 +644,42 @@ export default function AdminDashboard() {
           </div>
       </main>
 
+      {/* --- РЕДАКТОР АТТЕСТАЦИИ --- */}
+      {showTestEditor && (
+        <div style={{...modalOverlay, alignItems: 'flex-start'}}>
+            <div className="admin-modal-content custom-scroll" style={{...modalContentSmall, maxWidth: '900px', margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'}}>
+                <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>РЕДАКТОР ТЕСТА: {testFormData.title}</h2>
+                <input style={adminIn} placeholder="Название теста" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
+                
+                <div style={{borderTop: '1px solid #222', paddingTop: '30px', marginTop: '15px'}}>
+                    <h3 style={{fontSize: '20px', color: '#fff', marginBottom: '25px', fontWeight: '900'}}>ВОПРОСЫ И ОТВЕТЫ</h3>
+                    {testFormData.quiz.map((q, qIdx) => (
+                        <div key={qIdx} style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
+                            {testFormData.quiz.length > 1 && <div onClick={() => removeTestQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'}}>✕</div>}
+                            <div style={{fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '8px'}}>ВОПРОС {qIdx + 1}</div>
+                            <input style={adminIn} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
+                            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginTop: '10px'}}>
+                                {[0,1,2].map(i => (
+                                    <div key={i} style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                                        <label style={{display:'flex', gap:'5px', cursor:'pointer', color: q.c === i ? '#0abab5' : '#888', fontWeight: 'bold', fontSize: '13px'}}><input type="radio" checked={q.c === i} onChange={() => updateTestQuestion(qIdx, 'c', i)} /> Верный вариант {i+1}</label>
+                                        <input style={{...adminIn, marginBottom: 0, borderColor: q.c === i ? '#0abab5' : '#222'}} placeholder={`Ответ ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                    <button onClick={addTestQuestion} style={{...adminActionBtn, width: '100%', padding: '15px', background: 'transparent'}}>+ ДОБАВИТЬ ВОПРОС</button>
+                </div>
+                <button onClick={handleSendTest} style={{...saveBtn, marginTop: '30px'}}>ОТПРАВИТЬ СОТРУДНИКУ</button>
+                <div onClick={() => setShowTestEditor(false)} style={{ textAlign: 'center', marginTop: '25px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ОТМЕНА</div>
+            </div>
+        </div>
+      )}
+
       {showFilesList && (
-          <div style={modalOverlay as any}>
-              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '550px' } as any}>
-                  <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center' }}>ЗАГРУЖЕННЫЕ МАТЕРИАЛЫ</h2>
+          <div style={modalOverlay}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '550px' }}>
+                  <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center' }}>ЗАГРУЖЕННЫЕ МАТЕРИАЛЫ И ТЕСТЫ</h2>
                   
                   <div style={{ maxHeight: '350px', overflowY: 'auto', marginBottom: '25px', paddingRight: '10px' }} className="custom-scroll">
                       {urgentFiles.length === 0 ? (
@@ -643,12 +688,14 @@ export default function AdminDashboard() {
                           urgentFiles.map(file => (
                               <div key={file.id} style={{ background: '#000', border: '1px solid #222', padding: '15px', borderRadius: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                   <div style={{ overflow: 'hidden', flex: '1 1 150px', paddingRight: '10px' }}>
-                                      <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>📄 {file.name}</div>
+                                      <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: file.isTest ? '#0abab5' : '#fff' }}>
+                                          {file.isTest ? '🎓 ' : '📄 '}{file.name}
+                                      </div>
                                       <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>{file.date} • {file.size}</div>
                                   </div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <button onClick={() => setPreviewFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>
-                                      <button onClick={() => handleDownloadFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>СКАЧАТЬ</button>
+                                      {!file.isTest && <button onClick={() => setPreviewFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>}
+                                      {!file.isTest && <button onClick={() => handleDownloadFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>СКАЧАТЬ</button>}
                                       <button onClick={() => handleDeleteFile(file.id)} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', padding: '0 5px' }}>✕</button>
                                   </div>
                               </div>
@@ -656,21 +703,21 @@ export default function AdminDashboard() {
                       )}
                   </div>
 
-                  <button onClick={() => setShowFilesList(false)} style={saveBtn as any}>← НАЗАД К ПАНЕЛИ</button>
+                  <button onClick={() => setShowFilesList(false)} style={saveBtn}>← НАЗАД К ПАНЕЛИ</button>
               </div>
           </div>
       )}
 
       {showTestModal && (
-          <div style={modalOverlay as any} onClick={() => setShowTestModal(false)}>
-              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '650px', padding: '35px' } as any} onClick={e => e.stopPropagation()}>
+          <div style={modalOverlay} onClick={() => setShowTestModal(false)}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '650px', padding: '35px' }} onClick={e => e.stopPropagation()}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
                       <h2 style={{ color: '#0abab5', fontWeight: '900', margin: 0, letterSpacing: '1px', fontSize: '18px' }}>РЕЗУЛЬТАТЫ ТЕСТОВ</h2>
                       <div onClick={() => setShowTestModal(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', lineHeight: 1, fontWeight: 'bold' }}>✕</div>
                   </div>
 
                   <select
-                      style={{ ...adminIn, marginBottom: '25px', border: '1px solid #333' } as any}
+                      style={{ ...adminIn, marginBottom: '25px', border: '1px solid #333' }}
                       value={selectedTestUser}
                       onChange={(e) => setSelectedTestUser(e.target.value)}
                   >
@@ -709,8 +756,8 @@ export default function AdminDashboard() {
       )}
 
       {showSuccessModal.show && (
-          <div style={modalOverlay as any} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
-              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+          <div style={modalOverlay} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>✅</div>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{showSuccessModal.title}</h2>
                   <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.6', marginBottom: '25px' }}>
@@ -719,41 +766,41 @@ export default function AdminDashboard() {
                         : showSuccessModal.text
                       }
                   </p>
-                  <button onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })} style={saveBtn as any}>ПОНЯТНО</button>
+                  <button onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })} style={saveBtn}>ПОНЯТНО</button>
               </div>
           </div>
       )}
 
       {confirmModal.show && (
-          <div style={modalOverlay as any} onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
-              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+          <div style={modalOverlay} onClick={() => setConfirmModal({ ...confirmModal, show: false })}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
                   <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{confirmModal.title}</h2>
                   <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
                       {confirmModal.text}
                   </p>
                   <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                      <button onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px' } as any}>ОТМЕНА</button>
-                      <button onClick={executeConfirmAction} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px' } as any}>УДАЛИТЬ</button>
+                      <button onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px' }}>ОТМЕНА</button>
+                      <button onClick={executeConfirmAction} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px' }}>УДАЛИТЬ</button>
                   </div>
               </div>
           </div>
       )}
 
       {errorModal.show && (
-          <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
-              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '380px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+          <div style={modalOverlay} onClick={() => setErrorModal({ show: false, text: '' })}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '380px', padding: '35px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px' }}>⛔</div>
                   <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ОШИБКА</h2>
                   <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{errorModal.text}</p>
-                  <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>
+                  <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' }}>ПОНЯТНО</button>
               </div>
           </div>
       )}
 
       {previewFile && (
-          <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
-              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
+          <div style={modalOverlay} onClick={() => setPreviewFile(null)}>
+              <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
                       <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile.name}</h2>
                       <div onClick={() => setPreviewFile(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
@@ -772,28 +819,28 @@ export default function AdminDashboard() {
       )}
 
       {showUserForm && (
-        <div style={modalOverlay as any}>
-            <div className="admin-modal-content" style={modalContentSmall as any}>
+        <div style={modalOverlay}>
+            <div className="admin-modal-content" style={modalContentSmall}>
                 <h2 style={{color:'#0abab5', marginBottom:'25px', fontWeight: '900', textAlign: 'center'}}>НОВЫЙ СОТРУДНИК</h2>
-                <input style={adminIn as any} placeholder="Имя (напр. Анна)" value={newUser.name} onChange={e=>setNewUser({...newUser, name: e.target.value})} />
-                <input style={adminIn as any} placeholder="Придумайте Логин" value={newUser.login} onChange={e=>setNewUser({...newUser, login: e.target.value})} />
-                <input style={adminIn as any} placeholder="Придумайте Пароль" value={newUser.pass} onChange={e=>setNewUser({...newUser, pass: e.target.value})} />
+                <input style={adminIn} placeholder="Имя (напр. Анна)" value={newUser.name} onChange={e=>setNewUser({...newUser, name: e.target.value})} />
+                <input style={adminIn} placeholder="Придумайте Логин" value={newUser.login} onChange={e=>setNewUser({...newUser, login: e.target.value})} />
+                <input style={adminIn} placeholder="Придумайте Пароль" value={newUser.pass} onChange={e=>setNewUser({...newUser, pass: e.target.value})} />
                 
                 <div style={{ textAlign: 'left', marginBottom: '15px', color: '#888', fontSize: '13px', fontWeight: 'bold', marginLeft: '5px' }}>Роль пользователя:</div>
-                <select style={adminIn as any} value={newUser.role} onChange={e=>setNewUser({...newUser, role: e.target.value})}>
+                <select style={adminIn} value={newUser.role} onChange={e=>setNewUser({...newUser, role: e.target.value})}>
                     <option value="staff">🍵 Чайный мастер (Сотрудник)</option>
                     <option value="admin">👑 Администратор</option>
                 </select>
                 
-                <button onClick={handleCreateUser} style={{...saveBtn, marginTop: '20px'} as any}>СОЗДАТЬ УЧЕТКУ</button>
+                <button onClick={handleCreateUser} style={{...saveBtn, marginTop: '20px'}}>СОЗДАТЬ УЧЕТКУ</button>
                 <div onClick={()=>setShowUserForm(false)} style={{textAlign:'center', marginTop:'20px', cursor:'pointer', color:'#666', fontWeight:'bold'}}>ОТМЕНА</div>
             </div>
         </div>
       )}
 
       {selectedDateKey && (
-        <div style={noteOverlayStyle as any} onClick={closeNotePanel}>
-          <div style={noteSidebarStyle as any} onClick={e => e.stopPropagation()}>
+        <div style={noteOverlayStyle} onClick={closeNotePanel}>
+          <div style={noteSidebarStyle} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0abab5' }}>ЗАМЕТКА</h2>
               <div onClick={closeNotePanel} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5 }}>✕</div>
@@ -801,8 +848,8 @@ export default function AdminDashboard() {
             <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '20px', color: '#ccc' }}>Дата: {formattedSelectedDate()}</p>
             <textarea autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Текст заметки..." style={noteTextarea} />
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
-                <button onClick={saveNote} style={{...adminSendBtn, flex: 1, minWidth: '100px'} as any}>СОХРАНИТЬ</button>
-                {notes[selectedDateKey] && <button onClick={deleteNote} style={{...noteDeleteBtn, flex: 1, minWidth: '100px'} as any}>УДАЛИТЬ</button>}
+                <button onClick={saveNote} style={{...adminSendBtn, flex: 1, minWidth: '100px'}}>СОХРАНИТЬ</button>
+                {notes[selectedDateKey] && <button onClick={deleteNote} style={{...noteDeleteBtn, flex: 1, minWidth: '100px'}}>УДАЛИТЬ</button>}
             </div>
           </div>
         </div>
@@ -815,11 +862,8 @@ export default function AdminDashboard() {
         
         * { box-sizing: border-box; }
         
-        /* ⚠️ ГЛАВНЫЙ ФИКС ДЛЯ WINDOWS СКРОЛЛА: 
-           Убираем жесткие ограничения с html и разрешаем body скроллиться естественно.
-        */
         body { 
-            overflow-x: hidden; /* Скрываем горизонтальный мусор */
+            overflow-x: hidden;
             margin: 0; 
             padding: 0; 
             background: #0d0f0d; 
@@ -831,7 +875,6 @@ export default function AdminDashboard() {
         .note-dot { position: absolute; bottom: 4px; width: 4px; height: 4px; background: #0abab5; border-radius: 50%; }
         .cal-day:hover .note-dot, .cal-day.today .note-dot { background: #000; }
         
-        /* Стилизация скроллбара для модальных окон */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 
@@ -844,10 +887,8 @@ export default function AdminDashboard() {
             .admin-section-title { font-size: 20px !important; margin-bottom: 20px !important; }
             .admin-flex-space { flex-direction: column; align-items: flex-start !important; gap: 15px !important; margin-bottom: 25px !important; }
             
-            /* Сетка пользователей */
             .admin-user-grid { grid-template-columns: 1fr !important; }
             
-            /* Карточка статистики сотрудника (разворачиваем в колонку) */
             .admin-user-card { 
                 flex-direction: column !important; 
                 align-items: flex-start !important; 
@@ -872,11 +913,12 @@ export default function AdminDashboard() {
                 padding-top: 20px !important;
             }
 
-            /* Панель отправки уведомлений */
-            .admin-action-bar { flex-direction: column; align-items: stretch !important; gap: 15px !important; }
-            .admin-action-bar > * { width: 100% !important; }
+            /* Панель Центра взаимодействия */
+            .interaction-center-tabs { flex-direction: column; }
+            .interaction-center-tabs > div { border-left: none !important; border-bottom: 1px solid #222; }
+            .interaction-center-row { flex-direction: column; align-items: stretch !important; gap: 15px !important; }
+            .interaction-center-label { width: 100% !important; margin-bottom: -5px; }
 
-            /* Модальные окна */
             .admin-modal-content {
                 padding: 30px 20px !important;
                 width: 95% !important;
@@ -887,27 +929,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-// --- СТИЛИ ---
-const uploadZoneStyle = { background: '#111', border: '2px dashed', borderRadius: '35px', padding: '25px 20px', textAlign: 'center' as any, transition: '0.3s ease', cursor: 'pointer' };
-const flexSpace: any = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' };
-const sectionTitle: any = { fontSize: '22px', fontWeight: '900', color: '#fff' };
-const actionBtn: any = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
-const adminCard: any = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
-const userCardStyle: any = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s' };
-const scheduleItem: any = { display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '15px', padding: '15px', background: '#0d0d0d', borderRadius: '20px', border: '1px solid #1a1a1a' };
-const dateBox: any = { background: '#0abab5', color: '#000', padding: '10px', borderRadius: '12px', fontSize: '14px', fontWeight: '900', textAlign: 'center', minWidth: '45px' };
-const calNavBtn: any = { cursor: 'pointer', opacity: 0.5, fontSize: '16px' };
-const calendarGrid: any = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center' };
-const calDayHead: any = { fontSize: '11px', opacity: 0.3, fontWeight: '900', marginBottom: '10px' };
-const statusBadge = (color: string): any => ({ background: `${color}15`, color: color, padding: '6px 15px', borderRadius: '10px', fontSize: '11px', fontWeight: '900' });
-const barStyle = (h: number): any => ({ width: '12px', height: `${h}%`, background: 'linear-gradient(to top, #0abab5, #0abab533)', borderRadius: '4px 4px 2px 2px', transition: '1s ease' });
-const adminSendBtn: any = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '18px', fontWeight: '900', cursor: 'pointer' };
-const adminIn = { width: '100%', padding: '16px', background: '#000', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '12px', outline: 'none', fontSize: '15px', boxSizing: 'border-box' as any };
-const saveBtn = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer' };
-const modalOverlay: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)', padding: '20px', boxSizing: 'border-box' };
-const modalContentSmall: any = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxSizing: 'border-box' };
-const noteOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };
-const noteSidebarStyle = { width: '100%', maxWidth: '400px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.3s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.8)', boxSizing: 'border-box' as any };
-const noteTextarea = { width: '100%', height: '200px', background: '#111', border: '1px solid #222', borderRadius: '20px', padding: '20px', color: '#fff', outline: 'none', fontSize: '15px', resize: 'none' as any, lineHeight: '1.5', boxSizing: 'border-box' as any };
-const noteDeleteBtn = { width: '100%', padding: '18px', background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', borderRadius: '18px', fontWeight: '900', cursor: 'pointer' };
