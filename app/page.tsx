@@ -137,15 +137,18 @@ export default function Home() {
 
       <style jsx global>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        body { margin: 0; padding: 0; background: #000; }
+        
+        /* ИСПРАВЛЕНА БЛОКИРОВКА СКРОЛЛА: Разрешаем скроллить вниз (overflow-y: auto) */
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background: #000; 
+            overflow-x: hidden; 
+            overflow-y: auto !important;
+        }
+
         .doc-link:hover { color: #0abab5 !important; }
 
-        /* --- ЖЕСТКАЯ БЛОКИРОВКА ГОРИЗОНТАЛЬНОГО СКРОЛЛА --- */
-        html, body {
-            overflow-x: hidden !important;
-            width: 100%;
-            max-width: 100vw;
-        }
         * {
             box-sizing: border-box;
         }
