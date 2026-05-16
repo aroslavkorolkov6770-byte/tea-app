@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import { useSearchParams } from 'next/navigation';
 
-// --- КЛЮЧИ ПАМЯТИ СЕРВЕРА ---
+// --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
     ONBOARD_ROUTE: 'tea_hub_onboard_route_v1',
     BASICS_PROGRESS: 'tea_hub_basics_progress_v1',
@@ -13,25 +13,12 @@ const STORAGE_KEYS = {
     URGENT_FILES: 'tea_hub_urgent_files_v1'
 };
 
-// --- КЛЮЧИ ЛОКАЛЬНОГО КЭША (ДЛЯ МГНОВЕННОЙ ЗАГРУЗКИ) ---
-const CACHE_KEYS = {
-    URGENT_FILES: 'th_cache_files',
-    DYNAMIC_ROUTE: 'th_cache_route',
-    DYNAMIC_BASICS: 'th_cache_basics',
-};
-
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, data })
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
-};
-
-const saveToCache = (key: string, data: any) => {
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(key, JSON.stringify(data));
-    }
 };
 
 const stripEmoji = (str: string) => {
@@ -43,84 +30,13 @@ const INITIAL_BASICS = [
   { 
     id: "sec_1", title: "01. История и Бренд", 
     modules: [
-        { id: "m1_1", title: "Философия Tea Master", t1: "Мастер — это лицо бренда. Мы не просто продаем продукт, мы создаем атмосферу и состояние.", t2: "Важно понимать психологию гостя. Кому-то нужна тишина, кому-то — подробный рассказ.", t3: "Эстетика в деталях: от чистоты полотенца до постановки пиалы.", quiz: [{q: "Кто такой мастер?", o: ["Продавец", "Проводник", "Официант"], c: 1}] },
-        { id: "m1_2", title: "История основания", t1: "Бренд зародился из любви к путешествиям по Китаю. Первая точка открылась в 2020 году.", t2: "Основатели лично отбирали каждый сорт в провинциях Юньнань и Фуцзянь.", t3: "Сегодня HUB — это сердце нашего обучения. Мы передаем накопленный опыт.", quiz: [{q: "Год основания?", o: ["2020", "2018", "2024"], c: 0}] },
-        { id: "m1_3", title: "Наши ценности", t1: "Честность перед гостем.", t2: "Качество каждого листа.", t3: "Постоянное саморазвитие мастера.", quiz: [{q: "Сколько главных ценностей?", o: ["1", "5", "3"], c: 2}] },
-        { id: "m1_4", title: "Миссия компании", t1: "Популяризация культуры.", t2: "Доступность элитных сортов.", t3: "Обучение мастеров.", quiz: [{q: "В чем наша миссия?", o: ["Популяризация", "Быстрая прибыль", "Скорость работы"], c: 0}] },
-        { id: "m1_5", title: "Корпоративный этикет", t1: "Взаимовыручка.", t2: "Дисциплина.", t3: "Развитие.", quiz: [{q: "Важна ли вежливость в команде?", o: ["Второстепенна", "Нет", "Да, это основа"], c: 2}] },
+        { id: "m1_1", title: "Философия Tea Master", t1: "Мастер — это лицо бренда.", t2: "Важно понимать психологию гостя.", t3: "Эстетика в деталях.", quiz: [{q: "Кто такой мастер?", o: ["Продавец", "Проводник", "Официант"], c: 1}] },
     ]
-  },
-  { id: "sec_2", title: "02. Ботаника чая", modules: [
-        { id: "m2_1", title: "Camellia Sinensis", t1: "Это вечнозеленый куст.", t2: "Существует два основных подвида.", t3: "Китайская и ассамская разновидности.", quiz: [{q: "Как называется чайный куст?", o: ["Камелия", "Акация", "Фикус"], c: 0}] },
-        { id: "m2_2", title: "Терруар и почва", t1: "Минеральный состав почвы.", t2: "Кислотность.", t3: "Дренаж воды.", quiz: [{q: "Влияет ли почва на вкус?", o: ["Никак не влияет", "Формирует вкус", "Только на цвет настоя"], c: 1}] },
-        { id: "m2_3", title: "Высота произрастания", t1: "Высокогорный чай.", t2: "Влияние туманов.", t3: "Концентрация веществ.", quiz: [{q: "Важна ли высота плантации?", o: ["Важна", "Не имеет значения", "Влияет только на размер"], c: 0}] },
-        { id: "m2_4", title: "Строение листа", t1: "Почка (типс).", t2: "Верхние листочки.", t3: "Флеш.", quiz: [{q: "Что такое типс?", o: ["Нижний старый лист", "Стебель", "Почка"], c: 2}] },
-        { id: "m2_5", title: "Химия листа", t1: "Теанин.", t2: "Кофеин.", t3: "Полифенолы.", quiz: [{q: "Какое вещество дает бодрость?", o: ["Кофеин", "Теанин", "Полифенолы"], c: 0}] },
-  ]},
-  { id: "sec_3", title: "03. Зеленый чай", modules: [
-        { id: "m3_1", title: "Лунцзин", t1: "История сорта.", t2: "Технология плоской прожарки.", t3: "Вкусовой профиль: семечки.", quiz: [{q: "Какая форма листа у Лунцзина?", o: ["Плоский", "Спираль", "Шар"], c: 0}] },
-        { id: "m3_2", title: "Би Ло Чунь", t1: "Сбор почек.", t2: "Аромат фруктовых деревьев.", t3: "Ворсистость листа.", quiz: [{q: "Какая форма у Би Ло Чунь?", o: ["Плоский", "Спираль", "Связанный"], c: 1}] },
-        { id: "m3_3", title: "Убийство зелени", t1: "Остановка ферментации.", t2: "Температурный удар.", t3: "Сохранение цвета.", quiz: [{q: "Какова цель этого этапа?", o: ["Усилить цвет", "Высушить лист", "Остановить окисление"], c: 2}] },
-        { id: "m3_4", title: "Японская Сенча", t1: "Обработка паром.", t2: "Морской вкус.", t3: "Отличие от Китая.", quiz: [{q: "Основной метод фиксации в Японии?", o: ["Прожарка", "Пар", "Копчение"], c: 1}] },
-        { id: "m3_5", title: "Температура воды", t1: "Почему нельзя кипяток.", t2: "Раскрытие нежности.", t3: "Оптимально 75-80C.", quiz: [{q: "Какая температура оптимальна?", o: ["95-100°C", "60-65°C", "75-80°C"], c: 2}] },
-  ]},
-  { id: "sec_4", title: "04. Белый чай", modules: [
-        { id: "m4_1", title: "Бай Хао Инь Чжэнь", t1: "Высший сорт.", t2: "Только почки.", t3: "Ворсистость.", quiz: [{q: "Из чего делают этот чай?", o: ["Только почки", "Почка и лист", "Крупные листья"], c: 0}] },
-        { id: "m4_2", title: "Бай Му Дань", t1: "Лист + почка.", t2: "Цветочный вкус.", t3: "Классика Фудина.", quiz: [{q: "Как переводится Бай Му Дань?", o: ["Белый лотос", "Белый пион", "Белая орхидея"], c: 1}] },
-        { id: "m4_3", title: "Обработка", t1: "Солнечная сушка.", t2: "Отсутствие скрутки.", t3: "Минимальное вмешательство.", quiz: [{q: "Какая обжарка у белого чая?", o: ["Сильная", "Слабая", "Её нет (солнечная сушка)"], c: 2}] },
-        { id: "m4_4", title: "Хранение", t1: "Года делают его лучше.", t2: "Трансформация вкуса.", t3: "Лечебные свойства.", quiz: [{q: "Что происходит при старении?", o: ["Становится лучше", "Портится за год", "Теряет вкус"], c: 0}] },
-        { id: "m4_5", title: "Польза", t1: "Антиоксиданты.", t2: "Охлаждающий эффект.", t3: "Витамины.", quiz: [{q: "Главный регион производства?", o: ["Аньси", "Фудин", "Тайвань"], c: 1}] },
-  ]},
-  { id: "sec_5", title: "05. Улуны", modules: [
-        { id: "m5_1", title: "Те Гуань Инь", t1: "Железная Бодхисаттва Милосердия.", t2: "Светлый улун сферической скрутки.", t3: "Аромат сирени и свежего молока.", quiz: [{q: "К какому виду он относится?", o: ["Темный улун", "Светлый улун", "Красный чай"], c: 1}] },
-        { id: "m5_2", title: "Да Хун Пао", t1: "Большой Красный Халат.", t2: "Темный утесный улун из гор Уи.", t3: "Прожарка на углях дает вкус огня.", quiz: [{q: "Где растет Да Хун Пао?", o: ["Горы Уишань", "Аньси", "Юньнань"], c: 0}] },
-        { id: "m5_3", title: "Скрутка листа", t1: "Сферическая (шарики) — южные улуны.", t2: "Продольная (полоски) — северные.", t3: "Степень скрутки влияет на экстракцию.", quiz: [{q: "Какая скрутка у Те Гуань Инь?", o: ["Продольная", "Прессованная", "Сферическая"], c: 2}] },
-        { id: "m5_4", title: "Габа чаи", t1: "Ферментация в азотной среде.", t2: "Повышенное содержание ГАМК.", t3: "Успокаивает и концентрирует мозг.", quiz: [{q: "Что уникального в этом чае?", o: ["Витамин С", "ГАМК (GABA)", "Кофеин"], c: 1}] },
-        { id: "m5_5", title: "Аромат", t1: "Улуны — самые ароматные чаи.", t2: "Метод производства: встряхивание.", t3: "Эфирные масла выходят на края.", quiz: [{q: "Насколько они ароматны?", o: ["Самые ароматные", "Слабый аромат", "Пахнут рыбой"], c: 0}] },
-  ]},
-  { id: "sec_6", title: "06. Красный чай", modules: [
-        { id: "m6_1", title: "Дянь Хун", t1: "Юньнаньский красный чай.", t2: "Вкус хлеба, меда и шоколада.", t3: "Много золотистых почек.", quiz: [{q: "Какой это регион?", o: ["Фуцзянь", "Юньнань", "Сычуань"], c: 1}] },
-        { id: "m6_2", title: "Сяо Чжун", t1: "Дымная сушка.", t2: "История сорта.", t3: "Копченые ноты.", quiz: [{q: "Какой у него характерный запах?", o: ["Ягоды", "Цветы", "Дым и костер"], c: 2}] },
-        { id: "m6_3", title: "Окисление", t1: "Биохимия.", t2: "Темный настой.", t3: "Прогрев.", quiz: [{q: "Степень окисления красного чая?", o: ["Полное", "Частичное", "Без окисления"], c: 0}] },
-        { id: "m6_4", title: "Названия", t1: "В Европе это 'Черный чай'.", t2: "В Китае — 'Красный' по цвету настоя.", t3: "Важно не путать термины.", quiz: [{q: "Как его называют в Китае?", o: ["Зеленый", "Черный", "Красный"], c: 2}] },
-        { id: "m6_5", title: "Польза", t1: "Сильно согревает организм.", t2: "Улучшает кровообращение.", t3: "Идеален для зимнего времени.", quiz: [{q: "Как он влияет на тело?", o: ["Охлаждает", "Сильно согревает", "Нейтрален"], c: 1}] },
-  ]},
-  { id: "sec_7", title: "07. Пуэр: Шу и Шен", modules: [
-        { id: "m7_1", title: "Шен Пуэр", t1: "Зеленый пуэр естественного старения.", t2: "Вкус сухофруктов, дыма и травы.", t3: "Дает сильное 'чайное состояние'.", quiz: [{q: "Какой цвет настоя у молодого Шена?", o: ["Светлый (зеленый)", "Нефтяной", "Красный"], c: 0}] },
-        { id: "m7_2", title: "Шу Пуэр", t1: "Черный пуэр ускоренной ферментации.", t2: "Землистый, ореховый, древесный.", t3: "Очень мягкий и плотный настой.", quiz: [{q: "Какой профиль у Шу пуэра?", o: ["Цветочный", "Землистый и древесный", "Морской"], c: 1}] },
-        { id: "m7_3", title: "Во Дуй", t1: "Технология влажного скирдования.", t2: "Лист накрывают тканью и поливают.", t3: "Процесс занимает 45-60 дней.", quiz: [{q: "Что такое Во Дуй?", o: ["Прожарка", "Скрутка", "Влажное скирдование"], c: 2}] },
-        { id: "m7_4", title: "Прессовка", t1: "Традиционная форма — блин 357г.", t2: "Бывают кирпичи, грибы и точи.", t3: "Легкость транспортировки.", quiz: [{q: "Классический вес блина?", o: ["357г", "100г", "250г"], c: 0}] },
-        { id: "m7_5", title: "Хранение", t1: "Пуэр — живой продукт.", t2: "Нужен доступ воздуха и влажность.", t3: "Нельзя хранить в шкафу со специями.", quiz: [{q: "Как правильно хранить?", o: ["В вакууме", "С доступом воздуха", "В холодильнике"], c: 1}] },
-  ]},
-  { id: "sec_8", title: "08. Посуда", modules: [
-        { id: "m8_1", title: "Гайвань", t1: "Крышка, чаша, блюдце.", t2: "Крышка — Небо, блюдце — Земля.", t3: "Мастер — человек посередине.", quiz: [{q: "Что это такое?", o: ["Чашка с крышкой", "Чайник", "Деревянный поднос"], c: 0}] },
-        { id: "m8_2", title: "Исинский чайник", t1: "Пористая глина из города Исин.", t2: "Впитывает эфирные масла годами.", t3: "Один чайник — под один вид чая.", quiz: [{q: "Из чего он сделан?", o: ["Стекло", "Исинская глина", "Фарфор"], c: 1}] },
-        { id: "m8_3", title: "Чахай", t1: "Справедливая чаша.", t2: "Выравнивает крепость чая.", t3: "В пиалы попадает одинаковый вкус.", quiz: [{q: "Зачем нужен Чахай?", o: ["Для охлаждения", "Для красоты", "Выравнивание крепости"], c: 2}] },
-        { id: "m8_4", title: "Пиалы", t1: "Маленький объем для концентрации.", t2: "Материал: фарфор, керамика, стекло.", t3: "Форма влияет на восприятие аромата.", quiz: [{q: "Какой у них объем?", o: ["Маленький", "Средний", "Большой"], c: 0}] },
-        { id: "m8_5", title: "Уход", t1: "Только вода.", t2: "Никаких моющих средств.", t3: "Тщательная просушка после смены.", quiz: [{q: "Как мыть чайную посуду?", o: ["С мылом", "Только горячей водой", "В посудомойке"], c: 1}] },
-  ]},
-  { id: "sec_9", title: "09. Сервис", modules: [
-        { id: "m9_1", title: "Встреча гостя", t1: "Улыбка и зрительный контакт.", t2: "Приветствие в первые 5 секунд.", t3: "Расположение гостя к диалогу.", quiz: [{q: "Главное при встрече?", o: ["Улыбка и контакт", "Строгость", "Игнор до заказа"], c: 0}] },
-        { id: "m9_2", title: "Выявление вкуса", t1: "Задавайте открытые вопросы.", t2: "Спрашивайте о желаемом состоянии.", t3: "Предлагайте 2-3 варианта на выбор.", quiz: [{q: "Как понять гостя?", o: ["Молча налить", "Задать вопросы", "Дать меню"], c: 1}] },
-        { id: "m9_3", title: "Подача", t1: "Пиалу подаем двумя руками.", t2: "Следим за уровнем воды в чайнике.", t3: "Мастер всегда незаметен, но рядом.", quiz: [{q: "Как подавать пиалу?", o: ["Одной левой", "Одной правой", "Двумя руками"], c: 2}] },
-        { id: "m9_4", title: "Чистота", t1: "Чабань всегда сухая.", t2: "Никаких крошек листа на столе.", t3: "Порядок — это часть церемонии.", quiz: [{q: "Правило чабани?", o: ["Она всегда сухая", "Можно оставить лужи", "Убираем раз в день"], c: 0}] },
-        { id: "m9_5", title: "Прощание", t1: "Поблагодарите за визит.", t2: "Пригласите вернуться снова.", t3: "Подарите доброе пожелание.", quiz: [{q: "Что делаем при уходе гостя?", o: ["Просто киваем", "Искренне прощаемся", "Молча убираем стол"], c: 1}] },
-  ]},
-  { id: "sec_10", title: "10. Аттестация", modules: [
-        { id: "m10_1", title: "Теория", t1: "Проверка всех знаний по ботанике.", t2: "История сортов и регионов.", t3: "Химия и воздействие на организм.", quiz: [{q: "Что нужно сдать?", o: ["Всю базу знаний", "Только цены", "Только названия сортов"], c: 0}] },
-        { id: "m10_2", title: "Практика", t1: "Техника работы с гайванью.", t2: "Контроль температуры воды.", t3: "Плавность и красота движений.", quiz: [{q: "Что главное в практике?", o: ["Скорость", "Плавность и техника", "Количество чая"], c: 1}] },
-        { id: "m10_3", title: "Слепая дегустация", t1: "Узнать чай только по аромату.", t2: "Описать вкусовой профиль.", t3: "Назвать примерную цену за 100г.", quiz: [{q: "В чем суть этого этапа?", o: ["Узнать сорт по цвету", "Узнать по форме", "Узнать вслепую по аромату"], c: 2}] },
-        { id: "m10_4", title: "Работа в зале", t1: "Обслуживание нескольких столов.", t2: "Коммуникация в стрессе.", t3: "Знание кассовой дисциплины.", quiz: [{q: "Что проверяется в зале?", o: ["Реальное обслуживание", "Мытье полов", "Работа курьером"], c: 0}] },
-        { id: "m10_5", title: "Статус Мастера", t1: "Получение фирменного значка.", t2: "Право проводить церемонии.", t3: "Вход в элиту сообщества HUB.", quiz: [{q: "Что дает успешная сдача?", o: ["Скидку", "Право проводить церемонии", "Новую форму"], c: 1}] },
-  ]},
+  }
 ];
 
 const INITIAL_ROUTE = [
-  { id: "route_1", title: "О компании и бренде", time: "3 мин", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной." },
-  { id: "route_2", title: "Работа с кассой", time: "5 мин", content: "Открытие смены в 09:50. Работа в системе учета." },
-  { id: "route_3", title: "Как рассказывать о чае", time: "7 мин", content: "Не грузи гостя терминами. Спрашивай о чувствах." },
-  { id: "route_4", title: "Стандарты сервиса", time: "4 мин", content: "Подача пиалы двумя руками. Улыбка — это база." },
-  { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
+  { id: "route_1", title: "О компании и бренде", time: "3 мин", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной." }
 ];
 
 // --- СТИЛИ ГРАФИКОВ ---
@@ -205,42 +121,71 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
-  // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА ---
+  // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА (КЭШ + ФОНОВОЕ ОБНОВЛЕНИЕ) ---
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
+      // 1. МГНОВЕННО ДОСТАЕМ ИЗ ПАМЯТИ БРАУЗЕРА
+      if (typeof window !== 'undefined') {
+          const cachedFiles = localStorage.getItem('th_cache_files');
+          const cachedRoute = localStorage.getItem('th_cache_route');
+          const cachedBasics = localStorage.getItem('th_cache_basics');
+          const cachedProgRoute = localStorage.getItem(`th_prog_route_${currentUserId}`);
+          const cachedProgBasics = localStorage.getItem(`th_prog_basics_${currentUserId}`);
+
+          if (cachedFiles) setUrgentFiles(JSON.parse(cachedFiles));
+          if (cachedRoute) setDynamicRoute(JSON.parse(cachedRoute));
+          if (cachedBasics) setDynamicBasics(JSON.parse(cachedBasics));
+          if (cachedProgRoute) setCompletedRoute(JSON.parse(cachedProgRoute));
+          if (cachedProgBasics) setCompletedBasics(JSON.parse(cachedProgBasics));
+      }
+
+      // 2. ФОНОМ ИДЕМ НА СЕРВЕР И ОБНОВЛЯЕМ ДАННЫЕ (ЕСЛИ ОНИ ПОМЕНЯЛИСЬ)
       try {
           const [sFiles, cRoute, cBasics, sBasicsData, sRouteData] = await Promise.all([
-              fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => []),
-              fetch(`/api/storage?key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => []),
-              fetch(`/api/storage?key=prog_basics_${currentUserId}`).then(r => r.json()).catch(() => []),
-              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => []),
-              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => [])
+              fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage?key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage?key=prog_basics_${currentUserId}`).then(r => r.json()).catch(() => null),
+              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => null),
+              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => null)
           ]);
 
-          setUrgentFiles(Array.isArray(sFiles) ? sFiles : []);
-          setCompletedRoute(Array.isArray(cRoute) ? cRoute : []);
-          setCompletedBasics(Array.isArray(cBasics) ? cBasics : []);
-
-          let sBasics = sBasicsData;
-          if (!Array.isArray(sBasics) || sBasics.length === 0) {
-              sBasics = INITIAL_BASICS;
-              saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, sBasics);
+          if (Array.isArray(sFiles)) {
+              setUrgentFiles(sFiles);
+              localStorage.setItem('th_cache_files', JSON.stringify(sFiles));
           }
-          setDynamicBasics(sBasics);
 
-          let sRoute = sRouteData;
-          if (!Array.isArray(sRoute) || sRoute.length === 0) {
-              sRoute = INITIAL_ROUTE;
-              saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, sRoute);
+          if (Array.isArray(cRoute)) {
+              setCompletedRoute(cRoute);
+              localStorage.setItem(`th_prog_route_${currentUserId}`, JSON.stringify(cRoute));
           }
-          setDynamicRoute(sRoute);
+
+          if (Array.isArray(cBasics)) {
+              setCompletedBasics(cBasics);
+              localStorage.setItem(`th_prog_basics_${currentUserId}`, JSON.stringify(cBasics));
+          }
+
+          let finalBasics = sBasicsData;
+          if (!Array.isArray(finalBasics) || finalBasics.length === 0) {
+              finalBasics = INITIAL_BASICS;
+              saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, finalBasics);
+          }
+          setDynamicBasics(finalBasics);
+          localStorage.setItem('th_cache_basics', JSON.stringify(finalBasics));
+
+          let finalRoute = sRouteData;
+          if (!Array.isArray(finalRoute) || finalRoute.length === 0) {
+              finalRoute = INITIAL_ROUTE;
+              saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, finalRoute);
+          }
+          setDynamicRoute(finalRoute);
+          localStorage.setItem('th_cache_route', JSON.stringify(finalRoute));
 
           if (checkUrl) {
               const sectionId = searchParams.get('sectionId');
               const moduleId = searchParams.get('moduleId');
               const routeId = searchParams.get('routeId');
 
-              if (sectionId && sBasics) {
-                  const foundSection = sBasics.find((s: any) => s.id === sectionId);
+              if (sectionId && finalBasics) {
+                  const foundSection = finalBasics.find((s: any) => s.id === sectionId);
                   if (foundSection) {
                       setSelectedSection(foundSection);
                       if (moduleId) {
@@ -253,8 +198,8 @@ function ShiftContent() {
                   }
               }
 
-              if (routeId && sRoute) {
-                  const foundRoute = sRoute.find((r: any) => r.id === routeId);
+              if (routeId && finalRoute) {
+                  const foundRoute = finalRoute.find((r: any) => r.id === routeId);
                   if (foundRoute) {
                       setSelectedRouteStep(foundRoute);
                   }
@@ -301,6 +246,7 @@ function ShiftContent() {
         newList.push({ ...routeFormData, id: 'route_' + Date.now() });
     }
     setDynamicRoute(newList);
+    localStorage.setItem('th_cache_route', JSON.stringify(newList));
     saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newList);
     setShowRouteForm(false);
   };
@@ -309,6 +255,7 @@ function ShiftContent() {
     if (!routeToDelete) return;
     const newList = dynamicRoute.filter(r => r.id !== routeToDelete);
     setDynamicRoute(newList);
+    localStorage.setItem('th_cache_route', JSON.stringify(newList));
     saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newList);
     setRouteToDelete(null);
   };
@@ -322,6 +269,7 @@ function ShiftContent() {
           newList.push({ id: 'sec_' + Date.now(), title: sectionFormData.title, modules: [] });
       }
       setDynamicBasics(newList);
+      localStorage.setItem('th_cache_basics', JSON.stringify(newList));
       saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, newList);
       setShowSectionForm(false);
   };
@@ -330,6 +278,7 @@ function ShiftContent() {
       if (!sectionToDelete) return;
       const newList = dynamicBasics.filter(s => s.id !== sectionToDelete);
       setDynamicBasics(newList);
+      localStorage.setItem('th_cache_basics', JSON.stringify(newList));
       saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, newList);
       setSectionToDelete(null);
   };
@@ -387,6 +336,7 @@ function ShiftContent() {
       });
 
       setDynamicBasics(newList);
+      localStorage.setItem('th_cache_basics', JSON.stringify(newList));
       saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, newList);
       setSelectedSection(newList.find(s => s.id === selectedSection.id));
       setShowModuleForm(false);
@@ -401,6 +351,7 @@ function ShiftContent() {
           return s;
       });
       setDynamicBasics(newList);
+      localStorage.setItem('th_cache_basics', JSON.stringify(newList));
       saveDataToServer(STORAGE_KEYS.DYNAMIC_BASICS, newList);
       setSelectedSection(newList.find(s => s.id === selectedSection.id));
       setModuleToDelete(null);
@@ -410,6 +361,7 @@ function ShiftContent() {
     if (!completedRoute.includes(id)) {
         const newProg = [...completedRoute, id];
         setCompletedRoute(newProg);
+        localStorage.setItem(`th_prog_route_${userId}`, JSON.stringify(newProg));
         saveDataToServer(`prog_route_${userId}`, newProg);
     }
     setSelectedRouteStep(null);
@@ -430,6 +382,7 @@ function ShiftContent() {
             if (!completedBasics.includes(selectedModule.id)) {
                 const newComp = [...completedBasics, selectedModule.id];
                 setCompletedBasics(newComp);
+                localStorage.setItem(`th_prog_basics_${userId}`, JSON.stringify(newComp));
                 saveDataToServer(`prog_basics_${userId}`, newComp);
             }
             setTimeout(() => { 
@@ -543,7 +496,6 @@ function ShiftContent() {
           <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
              {!selectedSection ? (
                <>
-                  {/* --- ЗОНА: СРОЧНО К ПРОХОЖДЕНИЮ --- */}
                   <div style={{ marginBottom: '60px', width: '100%', boxSizing: 'border-box' }}>
                       <div className="tasks-flex-space" style={flexSpace}>
                           <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>⚠️ Срочно к прохождению</h2>
@@ -570,7 +522,6 @@ function ShiftContent() {
                       )}
                   </div>
 
-                  {/* 1. ПЛАН НА НЕДЕЛЮ */}
                   <div className="tasks-flex-space" style={flexSpace}>
                      <h2 className="tasks-title" style={sectionTitle}>1. Твой план на неделю</h2>
                      {isAdmin && <button onClick={() => { setRouteFormData({ id: '', title: '', time: '', content: '' }); setShowRouteForm(true); }} style={adminActionBtn}>+ НОВЫЙ ШАГ</button>}
@@ -599,7 +550,6 @@ function ShiftContent() {
                      })}
                   </div>
 
-                  {/* 2. КАТАЛОГ КУРСОВ */}
                   <div className="tasks-flex-space" style={flexSpace}>
                       <h2 className="tasks-title" style={sectionTitle}>2. Каталог курсов (Основы)</h2>
                       {isAdmin && <button onClick={() => { setSectionFormData({ id: '', title: '' }); setShowSectionForm(true); }} style={adminActionBtn}>+ НОВЫЙ РАЗДЕЛ</button>}
@@ -675,7 +625,6 @@ function ShiftContent() {
           </section>
         )}
 
-        {/* --- УМНОЕ ОКНО ПРЕДПРОСМОТРА ФАЙЛА --- */}
         {previewFile && (
             <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
                 <div className="tasks-modal" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
@@ -706,8 +655,6 @@ function ShiftContent() {
                 </div>
             </div>
         )}
-
-        {/* --- МОДАЛКИ ДЛЯ АДМИНА --- */}
 
         {showRouteForm && (
             <div style={modalOverlay}>
@@ -886,12 +833,9 @@ function ShiftContent() {
         * { box-sizing: border-box; }
         body { overflow-x: hidden; width: 100vw; margin: 0; padding: 0; }
 
-        /* =========================================================
-           ПЛОСКИЙ ПРЕМИАЛЬНЫЙ ДИЗАЙН КАРТОЧЕК
-        ========================================================= */
         .premium-cards-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* Умная сетка для ПК */
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
             gap: 20px;
             width: 100%;
         }
@@ -911,22 +855,18 @@ function ShiftContent() {
             box-sizing: border-box; 
         }
 
-        /* 1. ЭФФЕКТ ПРИ НАВЕДЕНИИ КУРСОРА (HOVER) */
         .premium-card:hover {
             border-color: #0abab5;
             box-shadow: 0 8px 25px rgba(10, 186, 181, 0.15);
             transform: translateY(-3px);
         }
 
-        /* 2. ЭФФЕКТ ПРИ НАЖАТИИ (ACTIVE) */
         .premium-card:active {
-            background: rgba(10, 186, 181, 0.05); /* Заливка фирменным цветом */
+            background: rgba(10, 186, 181, 0.05); 
             border-color: #0abab5;
-            transform: scale(0.98); /* Легкое вдавливание */
+            transform: scale(0.98); 
         }
-        /* ========================================================= */
 
-        /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
         @media (max-width: 768px) {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
             
@@ -935,7 +875,6 @@ function ShiftContent() {
             .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
             .tasks-stat-card { padding: 25px 20px !important; border-radius: 25px !important; }
             
-            /* Выстраиваем карточки по центру на телефоне, фиксируя размер */
             .premium-cards-container { 
                 display: flex !important;
                 flex-direction: column !important;
