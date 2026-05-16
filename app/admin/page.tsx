@@ -841,11 +841,10 @@ export default function AdminDashboard() {
         
         * { box-sizing: border-box; }
         
-        /* ⚠️ ИСПРАВЛЕНИЕ: ДОБАВЛЕНО overflow-y: auto !important; ДЛЯ ДЕСКТОПНОГО СКРОЛЛА ⚠️ */
+        /* ⚠️ ИСПРАВЛЕНИЕ: ДОБАВЛЕНО width: 100% ВМЕСТО 100vw И УБРАНЫ ЖЕСТКИЕ БЛОКИРОВКИ ⚠️ */
         html, body { 
             overflow-x: hidden !important; 
-            overflow-y: auto !important; 
-            width: 100vw; 
+            width: 100%; 
             margin: 0; 
             padding: 0; 
             background: #0d0f0d; 
