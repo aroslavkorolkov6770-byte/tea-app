@@ -71,8 +71,8 @@ const flexSpace: React.CSSProperties = { display: 'flex', justifyContent: 'space
 const ansBtn = (active: boolean, isCorrect: boolean): React.CSSProperties => ({ padding: '20px 30px', background: active ? (isCorrect ? '#0abab5' : '#ff4d4d') : '#111', color: active ? (isCorrect ? '#000' : '#fff') : '#fff', borderRadius: '18px', cursor: 'pointer', border: '1px solid #222', fontWeight: '800', marginBottom: '12px', transition: '0.2s' });
 
 const errorOverlayStyle: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', zIndex: 40000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(12px)' };
-const errorModalContent: React.CSSProperties = { background: '#111', padding: '50px', borderRadius: '40px', border: '2px solid #ff4d4d', textAlign: 'center', maxWidth: '450px', boxShadow: '0 20px 50px rgba(255, 77, 77, 0.15)' };
-const errorBtnStyle: React.CSSProperties = { background: '#ff4d4d', color: '#fff', border: 'none', padding: '18px 40px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '15px', letterSpacing: '1px', marginTop: '15px' };
+const errorModalContent: React.CSSProperties = { background: '#111', padding: '50px', borderRadius: '40px', border: '2px solid #222', textAlign: 'center', maxWidth: '450px', boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)' };
+const errorBtnStyle: React.CSSProperties = { border: 'none', padding: '18px 40px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '15px', letterSpacing: '1px', marginTop: '15px', width: '100%' };
 
 const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#111', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '15px', outline: 'none', fontSize: '15px' };
 const saveBtn: React.CSSProperties = { width: '100%', padding: '20px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '10px', fontSize: '16px' };
@@ -110,6 +110,7 @@ function ShiftContent() {
   const [completedBasics, setCompletedBasics] = useState<string[]>([]);
   
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
+  const [passedTests, setPassedTests] = useState<string[]>([]);
   const [previewFile, setPreviewFile] = useState<any>(null);
 
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
@@ -121,31 +122,38 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
+  // --- СОСТОЯНИЯ ДЛЯ АТТЕСТАЦИОННОГО ТЕСТА (Срочно к прохождению) ---
+  const [activeUrgentTest, setActiveUrgentTest] = useState<any>(null);
+  const [urgentTestStep, setUrgentTestStep] = useState(0);
+  const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
+  const [testResultModal, setTestResultModal] = useState<{show: boolean, score: number, isPassed: boolean, title: string}>({show: false, score: 0, isPassed: false, title: ''});
+
   // --- ИДЕАЛЬНО ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА (КЭШ + ФОНОВОЕ ОБНОВЛЕНИЕ) ---
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
-      // 1. МГНОВЕННО ДОСТАЕМ ИЗ ПАМЯТИ БРАУЗЕРА
       if (typeof window !== 'undefined') {
           const cachedFiles = localStorage.getItem('th_cache_files');
           const cachedRoute = localStorage.getItem('th_cache_route');
           const cachedBasics = localStorage.getItem('th_cache_basics');
           const cachedProgRoute = localStorage.getItem(`th_prog_route_${currentUserId}`);
           const cachedProgBasics = localStorage.getItem(`th_prog_basics_${currentUserId}`);
+          const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
 
           if (cachedFiles) setUrgentFiles(JSON.parse(cachedFiles));
           if (cachedRoute) setDynamicRoute(JSON.parse(cachedRoute));
           if (cachedBasics) setDynamicBasics(JSON.parse(cachedBasics));
           if (cachedProgRoute) setCompletedRoute(JSON.parse(cachedProgRoute));
           if (cachedProgBasics) setCompletedBasics(JSON.parse(cachedProgBasics));
+          if (cachedPassedTests) setPassedTests(JSON.parse(cachedPassedTests));
       }
 
-      // 2. ФОНОМ ИДЕМ НА СЕРВЕР И ОБНОВЛЯЕМ ДАННЫЕ (ЕСЛИ ОНИ ПОМЕНЯЛИСЬ)
       try {
-          const [sFiles, cRoute, cBasics, sBasicsData, sRouteData] = await Promise.all([
+          const [sFiles, cRoute, cBasics, sBasicsData, sRouteData, pTestsRes] = await Promise.all([
               fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => null),
               fetch(`/api/storage?key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage?key=prog_basics_${currentUserId}`).then(r => r.json()).catch(() => null),
               fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => null),
-              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => null)
+              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage?key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null)
           ]);
 
           if (Array.isArray(sFiles)) {
@@ -161,6 +169,11 @@ function ShiftContent() {
           if (Array.isArray(cBasics)) {
               setCompletedBasics(cBasics);
               localStorage.setItem(`th_prog_basics_${currentUserId}`, JSON.stringify(cBasics));
+          }
+
+          if (Array.isArray(pTestsRes)) {
+              setPassedTests(pTestsRes);
+              localStorage.setItem(`th_cache_passed_tests_${currentUserId}`, JSON.stringify(pTestsRes));
           }
 
           let finalBasics = sBasicsData;
@@ -236,6 +249,13 @@ function ShiftContent() {
         window.removeEventListener('focus', focusHandler);
     };
   }, [searchParams]);
+
+  // --- ФИЛЬТРАЦИЯ СРОЧНЫХ ЗАДАНИЙ ДЛЯ ТЕКУЩЕГО ЮЗЕРА ---
+  const visibleUrgentFiles = urgentFiles.filter(f => {
+      const isForMe = !f.target || f.target === 'Все' || f.target === userId;
+      const isPassed = f.isTest && passedTests.includes(f.id);
+      return isForMe && !isPassed;
+  });
 
   const handleSaveRoute = () => {
     if (!routeFormData.title.trim()) return;
@@ -400,6 +420,76 @@ function ShiftContent() {
     }
   };
 
+  // --- ЛОГИКА АТТЕСТАЦИИ ---
+  const handleUrgentTestAnswer = (idx: number) => {
+      if (activeAnswer !== null) return; 
+      setActiveAnswer(idx);
+      
+      const newAnswers = [...urgentTestAnswers, idx];
+      setUrgentTestAnswers(newAnswers);
+
+      setTimeout(() => { 
+          if (urgentTestStep < activeUrgentTest.quiz.length - 1) {
+              setUrgentTestStep(v => v + 1); 
+              setActiveAnswer(null); 
+          } else {
+              finishUrgentTest(newAnswers);
+          }
+      }, 500); 
+  };
+
+  const finishUrgentTest = async (answers: number[]) => {
+      let correct = 0;
+      activeUrgentTest.quiz.forEach((q: any, i: number) => {
+          if (q.c === answers[i]) correct++;
+      });
+      const score = Math.round((correct / activeUrgentTest.quiz.length) * 100);
+      
+      // СТРОГОЕ ТРЕБОВАНИЕ: ТОЛЬКО 100% ДЛЯ УСПЕШНОГО ПРОХОЖДЕНИЯ
+      const isPassed = score === 100;
+
+      try {
+          const res = await fetch('/api/storage?key=tea_hub_test_results_v1');
+          let results = await res.json().catch(() => []);
+          if (!Array.isArray(results)) results = [];
+
+          const currentUserName = localStorage.getItem('current_user_name') || 'Сотрудник';
+          const previousAttempts = results.filter((r: any) => r.testName === activeUrgentTest.name && r.userName === currentUserName).length;
+          
+          const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+          
+          const newResult = {
+              id: Date.now(),
+              userName: currentUserName,
+              testName: activeUrgentTest.name,
+              score: score,
+              attempts: previousAttempts + 1,
+              date: formattedTime
+          };
+          
+          const newResults = [newResult, ...results];
+          saveDataToServer('tea_hub_test_results_v1', newResults);
+
+          // Если пройден на 100%, записываем в пройденные тесты текущего юзера
+          if (isPassed) {
+              const newPassed = [...passedTests, activeUrgentTest.id];
+              setPassedTests(newPassed);
+              localStorage.setItem(`th_cache_passed_tests_${userId}`, JSON.stringify(newPassed));
+              saveDataToServer(`th_passed_tests_${userId}`, newPassed);
+          }
+          
+          setTestResultModal({ show: true, score, isPassed, title: activeUrgentTest.name });
+
+          setActiveUrgentTest(null);
+          setUrgentTestStep(0);
+          setUrgentTestAnswers([]);
+          setActiveAnswer(null);
+
+      } catch (e) {
+          console.error("Ошибка при сохранении результатов теста", e);
+      }
+  };
+
   const handleDownloadFile = (file: any) => {
       if (!file.data) {
           alert("Этот файл был загружен в старой версии платформы и содержит только название.");
@@ -500,24 +590,35 @@ function ShiftContent() {
                       <div className="tasks-flex-space" style={flexSpace}>
                           <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>⚠️ Срочно к прохождению</h2>
                       </div>
-                      {urgentFiles.length > 0 ? (
+                      {visibleUrgentFiles.length > 0 ? (
                           <div className="premium-cards-container"> 
-                              {urgentFiles.map((file) => (
-                                  <div key={file.id} className="premium-card">
-                                      <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginBottom: '8px', opacity: 0.8 }}>{file.date}</div>
-                                      <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', wordBreak: 'break-word', color: '#fff' }}>📄 {file.name}</h4>
-                                      <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px' }}>{file.size}</div>
-                                      
-                                      <div style={{ display: 'flex', gap: '15px', marginTop: 'auto' }}>
-                                          <div onClick={() => setPreviewFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>ОТКРЫТЬ</div>
-                                          <div onClick={() => handleDownloadFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>СКАЧАТЬ ↓</div>
+                              {visibleUrgentFiles.map((file) => (
+                                  file.isTest ? (
+                                      <div key={file.id} className="premium-card" onClick={() => setActiveUrgentTest(file)}>
+                                          <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px'}}>🎓 АТТЕСТАЦИЯ</span>
+                                          <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(file.name)}</h4>
+                                          
+                                          <div style={{ marginTop: 'auto' }}>
+                                              <div style={cardFooter}><span>Пройти тестирование</span><span style={{color: '#0abab5'}}>{file.quiz?.length || 0} вопр.</span></div>
+                                          </div>
                                       </div>
-                                  </div>
+                                  ) : (
+                                      <div key={file.id} className="premium-card">
+                                          <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginBottom: '8px', opacity: 0.8 }}>{file.date}</div>
+                                          <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', wordBreak: 'break-word', color: '#fff' }}>📄 {file.name}</h4>
+                                          <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px' }}>{file.size}</div>
+                                          
+                                          <div style={{ display: 'flex', gap: '15px', marginTop: 'auto' }}>
+                                              <div onClick={() => setPreviewFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>ОТКРЫТЬ</div>
+                                              <div onClick={() => handleDownloadFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>СКАЧАТЬ ↓</div>
+                                          </div>
+                                      </div>
+                                  )
                               ))}
                           </div>
                       ) : (
                           <div style={{ marginTop: '20px', color: '#666', fontSize: '14px', background: '#111', padding: '30px', borderRadius: '30px', border: '1px dashed #222', textAlign: 'center' }}>
-                              Пока нет файлов для срочного изучения.
+                              У вас нет срочных заданий.
                           </div>
                       )}
                   </div>
@@ -625,6 +726,62 @@ function ShiftContent() {
           </section>
         )}
 
+        {/* --- ОКНО ПРОХОЖДЕНИЯ АТТЕСТАЦИИ --- */}
+        {activeUrgentTest && (
+           <div style={modalOverlay}>
+              <div className="tasks-modal" style={modalContent}>
+                 <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
+                    <div onClick={() => {setActiveUrgentTest(null); setUrgentTestStep(0); setActiveAnswer(null); setUrgentTestAnswers([]);}} style={{...backLink, margin:0}}>← ОТЛОЖИТЬ</div>
+                    <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(activeUrgentTest.name)}</h2>
+                    <div className="desktop-spacer" style={{width:'80px'}} />
+                 </div>
+                 
+                 <div style={{animation: 'fadeInUp 0.3s ease'}}>
+                    <div style={quizBox}>
+                        <h4 style={{color:'#0abab5', marginBottom:'20px', fontWeight:'900'}}>ВОПРОС {urgentTestStep + 1} / {activeUrgentTest.quiz?.length || 1}</h4>
+                        <p style={{fontSize:'22px', fontWeight:'800', marginBottom:'30px'}}>{activeUrgentTest.quiz?.[urgentTestStep]?.q}</p>
+                        <div style={{display:'grid', gap:'15px'}}>
+                           {activeUrgentTest.quiz?.[urgentTestStep]?.o.map((opt:any, i:any) => (
+                               <div key={i} onClick={() => handleUrgentTestAnswer(i)} style={{ padding: '20px 30px', background: activeAnswer === i ? '#0abab5' : '#111', color: activeAnswer === i ? '#000' : '#fff', borderRadius: '18px', cursor: 'pointer', border: '1px solid #222', fontWeight: '800', marginBottom: '12px', transition: '0.2s' }}>
+                                   {opt}
+                               </div>
+                           ))}
+                        </div>
+                    </div>
+                 </div>
+              </div>
+           </div>
+        )}
+
+        {/* --- МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТОВ АТТЕСТАЦИИ --- */}
+        {testResultModal.show && (
+            <div style={{...errorOverlayStyle, zIndex: 60000}}>
+                <div className="tasks-modal" style={{...errorModalContent, borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'}}>
+                    <div style={{ fontSize: '70px', marginBottom: '20px' }}>
+                        {testResultModal.isPassed ? '🏆' : '❌'}
+                    </div>
+                    <h2 style={{ fontSize: '28px', color: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', marginBottom: '15px', fontWeight: '900', textTransform: 'uppercase' }}>
+                        {testResultModal.isPassed ? 'ТЕСТ ПРОЙДЕН!' : 'ТЕСТ НЕ ПРОЙДЕН'}
+                    </h2>
+                    <p style={{ color: '#ccc', fontSize: '16px', marginBottom: '10px' }}>{testResultModal.title}</p>
+                    <div style={{ fontSize: '50px', fontWeight: '900', color: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', marginBottom: '20px' }}>
+                        {testResultModal.score}%
+                    </div>
+                    
+                    {!testResultModal.isPassed ? (
+                        <p style={{ color: '#888', fontSize: '14px', marginBottom: '30px' }}>Минимум для прохождения: 100%</p>
+                    ) : (
+                        <p style={{ color: '#0abab5', fontSize: '14px', marginBottom: '30px' }}>Результат отправлен администратору.</p>
+                    )}
+                    
+                    <button onClick={() => setTestResultModal({show: false, score: 0, isPassed: false, title: ''})} style={{...errorBtnStyle, background: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', color: testResultModal.isPassed ? '#000' : '#fff', marginTop: 0}}>
+                        {testResultModal.isPassed ? 'ОТЛИЧНО' : 'ПОНЯТНО'}
+                    </button>
+                </div>
+            </div>
+        )}
+
+        {/* --- УМНОЕ ОКНО ПРЕДПРОСМОТРА ФАЙЛА --- */}
         {previewFile && (
             <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
                 <div className="tasks-modal" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
@@ -655,6 +812,8 @@ function ShiftContent() {
                 </div>
             </div>
         )}
+
+        {/* --- МОДАЛКИ ДЛЯ АДМИНА --- */}
 
         {showRouteForm && (
             <div style={modalOverlay}>

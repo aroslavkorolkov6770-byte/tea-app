@@ -548,7 +548,7 @@ export default function AdminDashboard() {
                             <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                 <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Тип теста:</div>
                                 <select style={{ ...adminIn, flex: 1, marginBottom: 0 }} value={testType} onChange={(e) => setTestType(e.target.value)}>
-                                    <option value="final">🎓 Итоговый тест (Аттестация)</option>
+                                    <option value="final">🎓 Итоговый тест</option>
                                     <option value="re-attestation">🔄 Переаттестация</option>
                                 </select>
                                 <button onClick={handleOpenTestEditor} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px' }}>РЕДАКТОР</button>
