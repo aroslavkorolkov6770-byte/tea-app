@@ -492,6 +492,9 @@ export default function AdminDashboard() {
       u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
 
+  // ⚠️ ФИЛЬТРУЕМ ТЕСТЫ, ЧТОБЫ ОНИ НЕ ОТОБРАЖАЛИСЬ В "ЗАГРУЖЕННЫХ МАТЕРИАЛАХ" АДМИНА
+  const uploadedMaterials = urgentFiles.filter(f => !f.isTest);
+
   if (!isMounted) {
     return (
       <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', display: 'flex' }}>
@@ -538,9 +541,10 @@ export default function AdminDashboard() {
                          ВЫБРАТЬ ФАЙЛ
                        </button>
 
-                       {urgentFiles.length > 0 && (
+                       {/* ⚠️ ИСПОЛЬЗУЕМ ОТФИЛЬТРОВАННЫЙ СПИСОК */}
+                       {uploadedMaterials.length > 0 && (
                            <div onClick={() => setShowFilesList(true)} style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8 }}>
-                               Загруженный материал ({urgentFiles.length})
+                               Загруженный материал ({uploadedMaterials.length})
                            </div>
                        )}
                    </>
@@ -918,26 +922,27 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* ⚠️ ИСПОЛЬЗУЕМ ОТФИЛЬТРОВАННЫЙ СПИСОК В МОДАЛКЕ */}
       {showFilesList && (
           <div style={modalOverlay}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '550px' }}>
-                  <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center' }}>ЗАГРУЖЕННЫЕ МАТЕРИАЛЫ И ТЕСТЫ</h2>
+                  <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center' }}>ЗАГРУЖЕННЫЕ МАТЕРИАЛЫ</h2>
                   
                   <div style={{ maxHeight: '350px', overflowY: 'auto', marginBottom: '25px', paddingRight: '10px' }} className="custom-scroll">
-                      {urgentFiles.length === 0 ? (
+                      {uploadedMaterials.length === 0 ? (
                           <p style={{ textAlign: 'center', color: '#666' }}>Список пуст</p>
                       ) : (
-                          urgentFiles.map(file => (
+                          uploadedMaterials.map(file => (
                               <div key={file.id} style={{ background: '#000', border: '1px solid #222', padding: '15px', borderRadius: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                   <div style={{ overflow: 'hidden', flex: '1 1 150px', paddingRight: '10px' }}>
-                                      <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: file.isTest ? '#0abab5' : '#fff' }}>
-                                          {file.isTest ? '🎓 ' : '📄 '}{file.name}
+                                      <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>
+                                          📄 {file.name}
                                       </div>
                                       <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>{file.date} • {file.size}</div>
                                   </div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      {!file.isTest && <button onClick={() => setPreviewFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>}
-                                      {!file.isTest && <button onClick={() => handleDownloadFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>СКАЧАТЬ</button>}
+                                      <button onClick={() => setPreviewFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>
+                                      <button onClick={() => handleDownloadFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>СКАЧАТЬ</button>
                                       <button onClick={() => handleDeleteFile(file.id)} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', padding: '0 5px' }}>✕</button>
                                   </div>
                               </div>
