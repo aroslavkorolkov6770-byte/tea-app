@@ -370,7 +370,7 @@ const INITIAL_ASSORTMENT = [
         children: [
           { id: "cf_1", title: "Мельницы", content: "Ручные жерновые кофемолки." },
           { id: "cf_2", title: "Турки", content: "Джезвы: медные, керамические, из нержавеющей стали." },
-          { id: "cf_3", title: "Кофеварки гейзерные", content: "Мока для приготовления плотного кофе на плите." },
+          { id: "cf_3", title: "Коварки гейзерные", content: "Мока для приготовления плотного кофе на плите." },
           { id: "cf_4", title: "Френч-прессы", content: "Колбы с поршнем-фильтром для заваривания кофе (и чая)." },
           {
             id: "cf_5", title: "Кофейные пары и чашки",
@@ -457,7 +457,7 @@ const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)'
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 
-// --- ПЛОСКИЙ СТАНДАРТНЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА (БЕЗ НЕОНА И ЦЕНТРОВКИ) ---
+// --- ПЛОСКИЙ СТАНДАРТНЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА ---
 function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
     const [isOpen, setIsOpen] = useState(false);
     const hasChildren = node.children && node.children.length > 0;
@@ -467,34 +467,35 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
             marginLeft: depth === 0 ? '0' : '20px', 
             borderLeft: depth === 0 ? 'none' : '1px solid #333', 
             paddingLeft: depth === 0 ? '0' : '15px', 
-            marginTop: '5px', 
-            marginBottom: '5px' 
+            marginTop: depth === 0 ? '12px' : '8px', 
+            marginBottom: depth === 0 ? '12px' : '8px' 
         }}>
             <div 
                 onClick={() => setIsOpen(!isOpen)} 
+                className={`assortment-row ${isOpen ? 'open' : ''}`}
                 style={{
                     display: 'flex', 
                     alignItems: 'center', 
-                    padding: '12px 15px', 
+                    padding: '14px 18px', 
                     background: isOpen ? '#1a1a1a' : '#111', 
                     color: '#fff', 
-                    borderRadius: '8px', 
+                    borderRadius: '10px', 
                     cursor: 'pointer', 
                     border: '1px solid #222',
-                    transition: 'background 0.2s ease'
+                    transition: 'all 0.15s ease'
                 }}
             >
-                <span style={{ 
+                <span className="assortment-icon" style={{ 
                     marginRight: '12px', 
                     color: '#0abab5', 
-                    transition: '0.2s', 
+                    transition: '0.15s', 
                     display: 'inline-block', 
                     transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', 
                     fontSize: '12px' 
                 }}>
                     {hasChildren ? '▶' : '•'}
                 </span>
-                <span style={{ 
+                <span className="assortment-text" style={{ 
                     fontWeight: depth === 0 ? 'bold' : 'normal', 
                     fontSize: depth === 0 ? '18px' : '16px',
                 }}>
@@ -504,9 +505,9 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
             
             {/* INLINE-РАСКРЫТИЕ (БЕЗ ВСПЛЫВАЮЩИХ ОКОН И МОДАЛОК) */}
             {isOpen && (
-                <div style={{ marginTop: '5px' }}>
+                <div style={{ marginTop: '8px' }}>
                     {node.desc && (
-                        <div style={{ padding: '10px 15px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '5px', border: '1px solid #1a1a1a' }}>
+                        <div style={{ padding: '12px 18px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1a1a1a' }}>
                             {node.desc}
                         </div>
                     )}
@@ -516,7 +517,7 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
                     ))}
                     
                     {!hasChildren && node.content && (
-                        <div style={{ padding: '15px', background: '#000', borderRadius: '8px', border: '1px solid #222', color: '#ddd', fontSize: '15px', lineHeight: '1.5', marginTop: '5px' }}>
+                        <div style={{ padding: '18px', background: '#000', borderRadius: '8px', border: '1px solid #222', color: '#ddd', fontSize: '15px', lineHeight: '1.5', marginTop: '8px' }}>
                             {node.content}
                         </div>
                     )}
@@ -1594,14 +1595,22 @@ function ShiftContent() {
             border-color: #ff4d4d !important;
         }
 
-        /* АНИМАЦИЯ НАВЕДЕНИЯ ДЛЯ ПЛОСКИХ СТРОК АССОРТИМЕНТА */
-        .assortment-row:hover {
-            background: rgba(10, 186, 181, 0.08) !important;
-            border-color: rgba(10, 186, 181, 0.2) !important;
-            transform: translateX(5px);
+        /* АНИМАЦИЯ НАВЕДЕНИЯ И НАЖАТИЯ ДЛЯ ПЛОСКИХ СТРОК АССОРТИМЕНТА */
+        .assortment-row {
+            transition: all 0.15s ease !important;
         }
-        .assortment-row.open:hover {
-            transform: none; 
+        .assortment-row:hover {
+            border-color: #0abab5 !important;
+        }
+        .assortment-row:active {
+            transform: scale(0.98) !important;
+            background: #0abab5 !important;
+            border-color: #0abab5 !important;
+            color: #000 !important;
+        }
+        .assortment-row:active .assortment-icon,
+        .assortment-row:active .assortment-text {
+            color: #000 !important;
         }
 
         @media (max-width: 768px) {
