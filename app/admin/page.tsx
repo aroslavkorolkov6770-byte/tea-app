@@ -167,7 +167,8 @@ export default function AdminDashboard() {
             const avatarsFound: Record<string, string> = {};
             const profilesFound: Record<string, any> = {};
 
-            for (const u of usersData) {
+            // ⚠️ ПАРАЛЛЕЛЬНАЯ ЗАГРУЗКА ДАННЫХ СОТРУДНИКОВ ДЛЯ УСКОРЕНИЯ ⚠️
+            await Promise.all(usersData.map(async (u: any) => {
                 if (u.avatar) avatarsFound[u.id] = u.avatar;
                 
                 // ГЛУБОКИЙ СКАНЕР: Ищем профили
@@ -180,17 +181,22 @@ export default function AdminDashboard() {
                 } catch(e) {}
 
                 if (u.role === 'staff') {
-                    const uRouteRes = await fetch(`/api/storage?key=prog_route_${u.id}`);
-                    const uRouteData = await uRouteRes.json().catch(() => []);
-                    const uBasicsRes = await fetch(`/api/storage?key=prog_basics_${u.id}`);
-                    const uBasicsData = await uBasicsRes.json().catch(() => []);
-                    
-                    stats[u.id] = {
-                        route: Array.isArray(uRouteData) ? uRouteData.length : 0,
-                        basics: Array.isArray(uBasicsData) ? uBasicsData.length : 0
-                    };
+                    try {
+                        const [uRouteData, uBasicsData] = await Promise.all([
+                            fetch(`/api/storage?key=prog_route_${u.id}`).then(r => r.json()).catch(() => []),
+                            fetch(`/api/storage?key=prog_basics_${u.id}`).then(r => r.json()).catch(() => [])
+                        ]);
+                        
+                        stats[u.id] = {
+                            route: Array.isArray(uRouteData) ? uRouteData.length : 0,
+                            basics: Array.isArray(uBasicsData) ? uBasicsData.length : 0
+                        };
+                    } catch(e) {
+                        stats[u.id] = { route: 0, basics: 0 };
+                    }
                 }
-            }
+            }));
+            
             setUsersStats(stats);
             setUserAvatars(avatarsFound);
             setUserProfiles(profilesFound);
@@ -545,7 +551,8 @@ export default function AdminDashboard() {
       u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
 
-  const uploadedMaterials = urgentFiles.filter(f => !f.isTest);
+  // ⚠️ ТЕПЕРЬ ДЕДЛАЙНЫ НЕ ПОКАЗЫВАЮТСЯ В СПИСКЕ ЗАГРУЖЕННЫХ МАТЕРИАЛОВ ⚠️
+  const uploadedMaterials = urgentFiles.filter(f => !f.isTest && !f.id.startsWith('deadline_'));
 
   if (!isMounted) {
     return (
