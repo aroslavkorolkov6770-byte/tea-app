@@ -254,47 +254,66 @@ const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)'
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 
-// ---РЕКУРСИВНЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА---
-function AssortmentNode({ node }: { node: any }) {
+// --- НОВЫЙ ЧИСТЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА (БЕЗ РАМОК) ---
+function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
     const [isOpen, setIsOpen] = useState(false);
     const hasChildren = node.children && node.children.length > 0;
 
     return (
-        <div style={{ marginLeft: '15px', borderLeft: '1px dashed #222', paddingLeft: '15px', marginTop: '5px', marginBottom: '5px' }}>
+        <div style={{ 
+            marginLeft: depth === 0 ? '0' : '20px', 
+            borderLeft: depth === 0 ? 'none' : '1px solid rgba(255,255,255,0.05)', 
+            paddingLeft: depth === 0 ? '0' : '15px', 
+            marginTop: '4px', 
+            marginBottom: '4px' 
+        }}>
             <div 
                 onClick={() => setIsOpen(!isOpen)} 
+                className="assortment-row"
                 style={{
                     display: 'flex', 
                     alignItems: 'center', 
-                    padding: '14px 20px', 
-                    background: isOpen ? '#111' : '#161816', 
-                    border: isOpen ? '1px solid #0abab5' : '1px solid #222',
-                    color: '#fff', 
-                    borderRadius: '16px', 
+                    padding: depth === 0 ? '16px 20px' : '12px 15px', 
+                    background: isOpen ? (depth === 0 ? 'rgba(10,186,181,0.05)' : 'rgba(255,255,255,0.02)') : 'transparent',
+                    color: isOpen ? '#0abab5' : '#fff', 
+                    borderRadius: '12px', 
                     cursor: 'pointer', 
-                    margin: '6px 0',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    border: 'none'
                 }}
             >
-                <span style={{ marginRight: '15px', color: '#0abab5', transition: '0.2s', display: 'inline-block', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', fontSize: '12px' }}>
+                <span style={{ 
+                    marginRight: '15px', 
+                    color: isOpen ? '#0abab5' : '#666', 
+                    transition: '0.2s', 
+                    display: 'inline-block', 
+                    transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', 
+                    fontSize: '12px' 
+                }}>
                     {hasChildren ? '▶' : '•'}
                 </span>
-                <span style={{ fontWeight: hasChildren ? '800' : '500', fontSize: hasChildren ? '16px' : '15px' }}>{node.title}</span>
+                <span style={{ 
+                    fontWeight: depth === 0 ? '900' : (hasChildren ? '700' : '500'), 
+                    fontSize: depth === 0 ? '18px' : (hasChildren ? '16px' : '15px'),
+                    letterSpacing: depth === 0 ? '1px' : 'normal'
+                }}>
+                    {node.title}
+                </span>
             </div>
             
-            {isOpen && node.desc && (
-                <div style={{ background: '#0a0a0a', padding: '15px 20px', borderRadius: '12px', border: '1px solid #1a1a1a', margin: '5px 0', fontSize: '14px', color: '#888', lineHeight: '1.5' }}>
-                    {node.desc}
-                </div>
-            )}
-
             <div style={{ display: isOpen ? 'block' : 'none', animation: 'fadeInUp 0.3s ease' }}>
+                {node.desc && (
+                    <div style={{ padding: '10px 20px 15px 45px', fontSize: '14px', color: '#888', lineHeight: '1.5', fontStyle: 'italic' }}>
+                        {node.desc}
+                    </div>
+                )}
+
                 {hasChildren && node.children.map((child: any) => (
-                    <AssortmentNode key={child.id} node={child} />
+                    <AssortmentNode key={child.id} node={child} depth={depth + 1} />
                 ))}
                 
                 {!hasChildren && node.content && (
-                    <div style={{ background: '#000', padding: '20px 25px', borderRadius: '18px', border: '1px solid #222', margin: '10px 0 15px 0', lineHeight: '1.6', fontSize: '14px', color: '#ccc' }}>
+                    <div style={{ padding: '10px 20px 20px 45px', lineHeight: '1.6', fontSize: '14px', color: '#ccc' }}>
                         <div style={{ fontSize: '11px', fontWeight: '900', color: '#0abab5', letterSpacing: '1.5px', marginBottom: '8px', textTransform: 'uppercase' }}>ИНФОРМАЦИЯ КАТЕГОРИИ</div>
                         {node.content}
                     </div>
@@ -1005,7 +1024,7 @@ function ShiftContent() {
           </section>
         )}
 
-        {/* --- ВКЛАДКА: АССОРТИМЕНТ --- */}
+        {/* ⚠️ ПОЛНОСТЬЮ ИЗБАВЛЕННЫЙ ОТ "ПРЯМОУГОЛЬНИКА" АССОРТИМЕНТ ⚠️ */}
         {(activeTab === 'assortment' || activeTab === 'products') && (
             <section style={{ animation: 'fadeInUp 0.5s ease', maxWidth: '100%' }}>
                 <h2 className="tasks-title" style={{ fontSize: '32px', fontWeight: '900', marginBottom: '15px' }}>
@@ -1015,9 +1034,10 @@ function ShiftContent() {
                     Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов и изучения описаний групп товаров.
                 </p>
                 
-                <div style={{ background: '#161816', padding: '30px', borderRadius: '35px', border: '1px solid #222' }}>
+                {/* Огромный фон удален. Элементы парят на фоне страницы. */}
+                <div style={{ marginTop: '10px' }}>
                     {assortmentMatrix.map((rootNode: any) => (
-                        <AssortmentNode key={rootNode.id} node={rootNode} />
+                        <AssortmentNode key={rootNode.id} node={rootNode} depth={0} />
                     ))}
                 </div>
             </section>
@@ -1298,7 +1318,7 @@ function ShiftContent() {
         )}
       </main>
 
-      {/* --- ГЛОБАЛЬНЫЕ СТИЛИ (КЛАССИЧЕСКИЕ ПЛОСКИЕ) --- */}
+      {/* --- ГЛОБАЛЬНЫЕ СТИЛИ (КЛАССИЧЕСКИЕ ПЛОСКИЕ + ASSORTMENT HOVER) --- */}
       <style jsx global>{` 
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -1342,6 +1362,11 @@ function ShiftContent() {
             background: rgba(10, 186, 181, 0.05); 
             border-color: #0abab5;
             transform: scale(0.98); 
+        }
+
+        /* ⚠️ АНИМАЦИЯ НАВЕДЕНИЯ ДЛЯ ПЛОСКИХ СТРОК АССОРТИМЕНТА ⚠️ */
+        .assortment-row:hover {
+            background: rgba(255, 255, 255, 0.04) !important;
         }
 
         @media (max-width: 768px) {
