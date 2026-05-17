@@ -23,6 +23,7 @@ const sectionTitle: React.CSSProperties = { fontSize: '22px', fontWeight: '900',
 const actionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const adminCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
 const userCardStyle: React.CSSProperties = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s' };
+const scheduleItem: React.CSSProperties = { display: 'flex', gap: '20px', alignItems: 'center', padding: '15px', background: '#0d0d0d', borderRadius: '20px', border: '1px solid #1a1a1a' };
 const dateBox: React.CSSProperties = { color: '#000', padding: '8px', borderRadius: '10px', fontSize: '13px', fontWeight: '900', textAlign: 'center', minWidth: '42px' };
 const calNavBtn: React.CSSProperties = { cursor: 'pointer', opacity: 0.5, fontSize: '16px' };
 const calendarGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center' };
@@ -168,7 +169,7 @@ export default function AdminDashboard() {
             const avatarsFound: Record<string, string> = {};
             const profilesFound: Record<string, any> = {};
 
-            // ⚠️ ПАРАЛЛЕЛЬНАЯ ЗАГРУЗКА ДАННЫХ СОТРУДНИКОВ ДЛЯ УСКОРЕНИЯ ⚠️
+            // ПАРАЛЛЕЛЬНАЯ ЗАГРУЗКА ДАННЫХ СОТРУДНИКОВ ДЛЯ УСКОРЕНИЯ
             await Promise.all(usersData.map(async (u: any) => {
                 if (u.avatar) avatarsFound[u.id] = u.avatar;
                 
@@ -210,6 +211,34 @@ export default function AdminDashboard() {
     loadAllData();
     return () => window.removeEventListener('sidebarToggle', handleToggle);
   }, []);
+
+  // --- ⚠️ НОВАЯ ФУНКЦИЯ ДЛЯ ОТПРАВКИ WEB-PUSH УВЕДОМЛЕНИЙ ⚠️ ---
+  const sendPushNotification = async (targetUserId: string, payload: { title: string, body: string, url?: string }) => {
+      try {
+          const subsRes = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+          const subs = await subsRes.json().catch(() => []);
+          
+          if (!Array.isArray(subs) || subs.length === 0) return;
+
+          // Фильтруем подписки: либо всем, либо конкретному сотруднику
+          const targetSubs = targetUserId === 'Все' 
+              ? subs 
+              : subs.filter((s: any) => s.userId === targetUserId);
+
+          if (targetSubs.length > 0) {
+              await fetch('/api/push', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      subscriptions: targetSubs.map((s: any) => s.sub),
+                      payload: payload
+                  })
+              });
+          }
+      } catch (e) {
+          console.error("Ошибка при отправке Web Push:", e);
+      }
+  };
 
   const handleCreateUser = () => {
       if (!newUser.name.trim() || !newUser.login.trim() || !newUser.pass.trim()) {
@@ -269,6 +298,13 @@ export default function AdminDashboard() {
               const updatedFiles = [newFile, ...currentFiles];
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+              
+              // Отправляем PUSH-уведомление всем
+              await sendPushNotification('Все', {
+                  title: '📚 Новый учебный материал',
+                  body: `В базу добавлен файл: ${selectedFile.name}`,
+                  url: '/tasks?tab=edu'
+              });
               
               setShowSuccessModal({ show: true, title: 'МАТЕРИАЛ ОТПРАВЛЕН', text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников в разделе обучения.` });
               setSelectedFile(null);
@@ -372,6 +408,13 @@ export default function AdminDashboard() {
               const updatedFiles = [newDeadlineTask, ...currentFiles];
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+
+              // ⚠️ ОТПРАВЛЯЕМ WEB-PUSH О НОВОМ ДЕДЛАЙНЕ ⚠️
+              await sendPushNotification(deadlineTarget, {
+                  title: '⚠️ Новый дедлайн',
+                  body: noteText.trim(),
+                  url: '/tasks?tab=edu'
+              });
               
               setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача успешно отправлена в панель сотрудника.` });
           }
@@ -419,6 +462,14 @@ export default function AdminDashboard() {
         };
 
         await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...arr]);
+
+        // ⚠️ ОТПРАВЛЯЕМ WEB-PUSH СООБЩЕНИЕ ⚠️
+        await sendPushNotification(selectedStaff, {
+            title: newNotif.title,
+            body: newNotif.text,
+            url: '/tasks?tab=welcome' // Отправляем на главную, где висят уведомления
+        });
+
         setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Ваше уведомление мгновенно доставлено в панели сотрудников.' });
         setNotifText("");
     } finally {
@@ -466,6 +517,13 @@ export default function AdminDashboard() {
           setUrgentFiles(updatedFiles);
           await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
           
+          // ⚠️ ОТПРАВЛЯЕМ WEB-PUSH О БЫСТРОМ ТЕСТЕ ⚠️
+          await sendPushNotification(selectedStaff, {
+              title: '🎓 Новая аттестация',
+              body: `Вам назначен тест: ${title}`,
+              url: '/tasks?tab=edu'
+          });
+
           setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${title}" успешно отправлен.` });
       } catch (e) {
           console.error("Ошибка при отправке теста", e);
@@ -523,6 +581,13 @@ export default function AdminDashboard() {
           setUrgentFiles(updatedFiles);
           await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
           
+          // ⚠️ ОТПРАВЛЯЕМ WEB-PUSH О СОЗДАННОМ ТЕСТЕ ⚠️
+          await sendPushNotification(selectedStaff, {
+              title: '🎓 Новая аттестация',
+              body: `Вам назначен тест: ${testFormData.title}`,
+              url: '/tasks?tab=edu'
+          });
+
           setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" успешно отправлен.` });
           setShowTestEditor(false);
       } catch (e) {

@@ -370,7 +370,7 @@ const INITIAL_ASSORTMENT = [
         children: [
           { id: "cf_1", title: "Мельницы", content: "Ручные жерновые кофемолки." },
           { id: "cf_2", title: "Турки", content: "Джезвы: медные, керамические, из нержавеющей стали." },
-          { id: "cf_3", title: "Коварки гейзерные", content: "Мока для приготовления плотного кофе на плите." },
+          { id: "cf_3", title: "Кофеварки гейзерные", content: "Мока для приготовления плотного кофе на плите." },
           { id: "cf_4", title: "Френч-прессы", content: "Колбы с поршнем-фильтром для заваривания кофе (и чая)." },
           {
             id: "cf_5", title: "Кофейные пары и чашки",
@@ -695,6 +695,57 @@ function ShiftContent() {
     setUserId(currentId);
 
     loadAllData(currentId, true);
+
+    // --- ВЕБ ПУШ: РЕГИСТРАЦИЯ И ПОДПИСКА ---
+    const registerPush = async () => {
+        if ('serviceWorker' in navigator && 'PushManager' in window && currentId !== 'guest') {
+            try {
+                const registration = await navigator.serviceWorker.register('/sw.js');
+                let subscription = await registration.pushManager.getSubscription();
+
+                if (!subscription) {
+                    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                    if (!vapidPublicKey) {
+                        console.warn("VAPID ключ не найден в .env");
+                        return;
+                    }
+
+                    // Конвертация ключа для подписки
+                    const urlBase64ToUint8Array = (base64String: string) => {
+                        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+                        const rawData = window.atob(base64);
+                        const outputArray = new Uint8Array(rawData.length);
+                        for (let i = 0; i < rawData.length; ++i) {
+                            outputArray[i] = rawData.charCodeAt(i);
+                        }
+                        return outputArray;
+                    };
+
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+                    });
+
+                    // Сохраняем подписку в нашу базу (чтобы админ мог слать на нее пуши)
+                    const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+                    let subs = await res.json().catch(() => []);
+                    if (!Array.isArray(subs)) subs = [];
+
+                    const exists = subs.find((s: any) => s.sub.endpoint === subscription?.endpoint);
+                    if (!exists) {
+                        subs.push({ userId: currentId, sub: subscription });
+                        saveDataToServer('tea_hub_push_subs_v1', subs);
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка Service Worker или Push-подписки:', error);
+            }
+        }
+    };
+
+    // Запускаем через 3 секунды после загрузки, чтобы не мешать основному рендеру и показать запрос разрешения
+    setTimeout(registerPush, 3000);
 
     const urlTab = searchParams.get('tab');
     if (urlTab) setActiveTab(urlTab);
