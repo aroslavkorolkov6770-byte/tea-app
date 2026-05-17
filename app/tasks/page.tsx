@@ -261,7 +261,7 @@ function AssortmentNode({ node }: { node: any }) {
     const hasChildren = node.children && node.children.length > 0;
 
     return (
-        <div style={{ marginLeft: '15px', borderLeft: '1px dashed #222', paddingLeft: '15px', marginVertical: '5px' }}>
+        <div style={{ marginLeft: '15px', borderLeft: '1px dashed #222', paddingLeft: '15px', marginTop: '5px', marginBottom: '5px' }}>
             <div 
                 onClick={() => setIsOpen(!isOpen)} 
                 style={{
