@@ -23,8 +23,7 @@ const sectionTitle: React.CSSProperties = { fontSize: '22px', fontWeight: '900',
 const actionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const adminCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
 const userCardStyle: React.CSSProperties = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s' };
-const scheduleItem: React.CSSProperties = { display: 'flex', gap: '20px', alignItems: 'center', padding: '15px', background: '#0d0d0d', borderRadius: '20px', border: '1px solid #1a1a1a' };
-const dateBox: React.CSSProperties = { background: '#0abab5', color: '#000', padding: '10px', borderRadius: '12px', fontSize: '14px', fontWeight: '900', textAlign: 'center', minWidth: '45px' };
+const dateBox: React.CSSProperties = { color: '#000', padding: '8px', borderRadius: '10px', fontSize: '13px', fontWeight: '900', textAlign: 'center', minWidth: '42px' };
 const calNavBtn: React.CSSProperties = { cursor: 'pointer', opacity: 0.5, fontSize: '16px' };
 const calendarGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center' };
 const calDayHead: React.CSSProperties = { fontSize: '11px', opacity: 0.3, fontWeight: '900', marginBottom: '10px' };
@@ -70,9 +69,11 @@ export default function AdminDashboard() {
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
   
-  // --- НОВЫЕ СОСТОЯНИЯ ДЛЯ ДЕДЛАЙНА В КАЛЕНДАРЕ ---
   const [noteType, setNoteType] = useState<'personal' | 'deadline'>('personal');
   const [deadlineTarget, setDeadlineTarget] = useState<string>('Все');
+  
+  // Переключатель отображаемых событий на панели
+  const [eventTab, setEventTab] = useState<'personal' | 'deadline'>('personal');
 
   // --- СОСТОЯНИЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ И ГЛУБОКОГО ПОИСКА ---
   const [users, setUsers] = useState<any[]>([]);
@@ -332,11 +333,9 @@ export default function AdminDashboard() {
       setNoteText("");
   };
 
-  // ⚠️ ОБНОВЛЕННАЯ ЛОГИКА СОХРАНЕНИЯ: ТЕПЕРЬ ПОДДЕРЖИВАЕТ ДЕДЛАЙНЫ С ОТПРАВКОЙ ⚠️
   const saveNote = async () => {
       if (!selectedDateKey) return;
       
-      // Если текст пустой, просто удаляем заметку из календаря
       if (!noteText.trim()) {
           const newNotes = { ...notes };
           delete newNotes[selectedDateKey];
@@ -353,7 +352,6 @@ export default function AdminDashboard() {
           const newNotes = { ...notes };
           let adminNoteText = noteText.trim();
           
-          // Если это дедлайн сотруднику
           if (noteType === 'deadline') {
               const targetName = deadlineTarget === 'Все' ? 'Всем' : users.find(u => u.id === deadlineTarget)?.name || deadlineTarget;
               adminNoteText = `[Дедлайн: ${targetName}]\n${noteText.trim()}`;
@@ -367,7 +365,6 @@ export default function AdminDashboard() {
                   isTest: false
               };
 
-              // Отправляем дедлайн сотруднику в раздел "Срочно к прохождению"
               const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
               let currentFiles = await res.json().catch(() => []);
               if (!Array.isArray(currentFiles)) currentFiles = [];
@@ -379,7 +376,6 @@ export default function AdminDashboard() {
               setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача успешно отправлена в панель сотрудника.` });
           }
 
-          // В любом случае сохраняем отметку в админском календаре
           newNotes[selectedDateKey] = adminNoteText;
           setNotes(newNotes);
           saveDataToServer('admin_cal_notes_v1', newNotes);
@@ -536,22 +532,44 @@ export default function AdminDashboard() {
       }
   };
 
-  const upcomingEvents = Object.entries(notes)
+  // --- ОБРАБОТКА И ФИЛЬТРАЦИЯ СОБЫТИЙ ДЛЯ СПИСКА ---
+  const parsedEvents = Object.entries(notes)
     .map(([key, text]) => {
       const [y, m, d] = key.split('-').map(Number);
       const dateObj = new Date(y, m, d);
-      return { key, text, dateObj, d };
+      const isDeadline = text.startsWith('[Дедлайн:');
+      
+      let title = text;
+      let desc = '';
+      let target = '';
+
+      if (isDeadline) {
+          const match = text.match(/\[Дедлайн: (.*?)\]\n?([\s\S]*)/);
+          if (match) {
+              target = match[1];
+              const cleanText = match[2];
+              const lines = cleanText.split('\n');
+              title = lines[0] || 'Без названия';
+              desc = lines.slice(1).join(' ');
+          }
+      } else {
+          const lines = text.split('\n');
+          title = lines[0] || 'Без названия';
+          desc = lines.slice(1).join(' ');
+      }
+      
+      return { key, text, dateObj, d, isDeadline, target, title, desc };
     })
     .filter(event => event.dateObj >= today)
-    .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
-    .slice(0, 3);
+    .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+
+  const filteredEvents = parsedEvents.filter(e => eventTab === 'personal' ? !e.isDeadline : e.isDeadline);
 
   const filteredUsers = users.filter(u => 
       u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
       u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
 
-  // ⚠️ ТЕПЕРЬ ДЕДЛАЙНЫ НЕ ПОКАЗЫВАЮТСЯ В СПИСКЕ ЗАГРУЖЕННЫХ МАТЕРИАЛОВ ⚠️
   const uploadedMaterials = urgentFiles.filter(f => !f.isTest && !f.id.startsWith('deadline_'));
 
   if (!isMounted) {
@@ -716,28 +734,59 @@ export default function AdminDashboard() {
               </section>
 
               <aside style={{ display: 'flex', flexDirection: 'column', gap: '30px', minWidth: 0 }}>
-                <div style={{ ...adminCard, padding: '20px 25px' }}>
+                {/* ⚠️ БЛОК БЛИЖАЙШИХ СОБЫТИЙ С ПЕРЕКЛЮЧАТЕЛЕМ ⚠️ */}
+                <div style={{ ...adminCard, padding: '20px' }}>
                     <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', margin: '0 0 15px 0' }}>Ближайшие события</h2>
-                    {upcomingEvents.length === 0 ? (
-                        <div style={{ color: '#555', fontSize: '14px', textAlign: 'center', padding: '10px 0' }}>Нет запланированных задач</div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {upcomingEvents.map((event) => {
-                                const lines = event.text.split('\n');
-                                const title = lines[0];
-                                const desc = lines.slice(1).join(' ');
-                                return (
-                                    <div key={event.key} style={{ ...scheduleItem, marginBottom: 0, padding: '12px 15px' }}>
-                                        <div style={dateBox}>{event.d} <br/> <span style={{ fontSize: '11px', opacity: 0.8 }}>{DAYS_OF_WEEK[event.dateObj.getDay()]}</span></div>
+                    
+                    <div style={{ position: 'relative', display: 'flex', background: '#111', borderRadius: '25px', padding: '4px', marginBottom: '15px', border: '1px solid #222' }}>
+                        <div style={{ 
+                            position: 'absolute', 
+                            top: '4px', 
+                            bottom: '4px', 
+                            left: '4px', 
+                            width: 'calc(50% - 4px)', 
+                            background: eventTab === 'personal' ? '#0abab5' : '#ff4d4d', 
+                            borderRadius: '20px', 
+                            transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            transform: eventTab === 'personal' ? 'translateX(0)' : 'translateX(100%)'
+                        }} />
+                        <div 
+                            onClick={() => setEventTab('personal')} 
+                            style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '8px', cursor: 'pointer', color: eventTab === 'personal' ? '#000' : '#888', fontWeight: '900', fontSize: '12px', transition: '0.3s' }}
+                        >
+                            ЗАМЕТКИ
+                        </div>
+                        <div 
+                            onClick={() => setEventTab('deadline')} 
+                            style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '8px', cursor: 'pointer', color: eventTab === 'deadline' ? '#000' : '#888', fontWeight: '900', fontSize: '12px', transition: '0.3s' }}
+                        >
+                            ДЕДЛАЙНЫ
+                        </div>
+                    </div>
+
+                    <div className="custom-scroll" style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '5px' }}>
+                        {filteredEvents.length === 0 ? (
+                            <div style={{ color: '#555', fontSize: '13px', textAlign: 'center', padding: '20px 0', fontWeight: 'bold' }}>Нет записей</div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {filteredEvents.slice(0, 10).map((event) => (
+                                    <div key={event.key} style={{ display: 'flex', gap: '15px', alignItems: 'center', padding: '12px', background: '#0d0d0d', borderRadius: '15px', border: `1px solid ${eventTab === 'deadline' ? 'rgba(255,77,77,0.2)' : 'rgba(10,186,181,0.1)'}` }}>
+                                        <div style={{ ...dateBox, background: eventTab === 'deadline' ? '#ff4d4d' : '#0abab5' }}>
+                                            {event.d} <br/> <span style={{ fontSize: '10px', opacity: 0.8 }}>{DAYS_OF_WEEK[event.dateObj.getDay()]}</span>
+                                        </div>
                                         <div style={{ flex: 1, overflow: 'hidden' }}>
-                                            <div style={{ fontWeight: '800', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>
-                                            {desc && <div style={{ fontSize: '12px', color: '#888', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{desc}</div>}
+                                            <div style={{ fontWeight: '800', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }}>{event.title}</div>
+                                            {eventTab === 'deadline' ? (
+                                                <div style={{ fontSize: '11px', color: '#ff4d4d', marginTop: '4px', fontWeight: 'bold' }}>Кому: {event.target}</div>
+                                            ) : (
+                                                event.desc && <div style={{ fontSize: '11px', color: '#888', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{event.desc}</div>
+                                            )}
                                         </div>
                                     </div>
-                                )
-                            })}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div style={adminCard}>
