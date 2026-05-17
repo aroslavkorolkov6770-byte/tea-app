@@ -58,8 +58,11 @@ export default function AdminDashboard() {
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
 
-  // --- СОСТОЯНИЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ ---
+  // --- СОСТОЯНИЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ И ГЛУБОКОГО ПОИСКА ---
   const [users, setUsers] = useState<any[]>([]);
+  const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
+  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
+  
   const [showUserForm, setShowUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -127,11 +130,7 @@ export default function AdminDashboard() {
             const testRes = await fetch('/api/storage?key=tea_hub_test_results_v1');
             let testData = await testRes.json();
             if (!Array.isArray(testData) || testData.length === 0) {
-                testData = [
-                    { id: 1, userName: 'Ярик', testName: 'История и Бренд', score: 100, attempts: 1, date: '14 Мая, 10:30' },
-                    { id: 2, userName: 'Ярик', testName: 'Ботаника чая', score: 60, attempts: 3, date: '13 Мая, 15:20' }
-                ];
-                saveDataToServer('tea_hub_test_results_v1', testData);
+                testData = [];
             }
             setTestResults(testData);
 
@@ -149,7 +148,27 @@ export default function AdminDashboard() {
             setTotalRouteSteps(Array.isArray(rDb) ? rDb.length : 5);
 
             const stats: Record<string, {route: number, basics: number}> = {};
+            const avatarsFound: Record<string, string> = {};
+            const profilesFound: Record<string, any> = {};
+
             for (const u of usersData) {
+                // Если аватарка или контакты сохранены прямо в пользователе
+                if (u.avatar) avatarsFound[u.id] = u.avatar;
+                
+                // ГЛУБОКИЙ СКАНЕР: Ищем скрытые профили и аватарки по отдельным ключам
+                try {
+                    const profData = await fetch(`/api/storage?key=tea_hub_profile_${u.id}`).then(r => r.json()).catch(() => null);
+                    if (profData && !Array.isArray(profData)) {
+                        profilesFound[u.id] = profData;
+                        if (profData.avatar) avatarsFound[u.id] = profData.avatar;
+                    }
+
+                    const avData = await fetch(`/api/storage?key=tea_hub_avatar_${u.id}`).then(r => r.json()).catch(() => null);
+                    if (avData) {
+                        avatarsFound[u.id] = typeof avData === 'string' ? avData : (avData.data || avData.avatar || avData);
+                    }
+                } catch(e) {}
+
                 if (u.role === 'staff') {
                     const uRouteRes = await fetch(`/api/storage?key=prog_route_${u.id}`);
                     const uRouteData = await uRouteRes.json().catch(() => []);
@@ -163,6 +182,9 @@ export default function AdminDashboard() {
                 }
             }
             setUsersStats(stats);
+            setUserAvatars(avatarsFound);
+            setUserProfiles(profilesFound);
+
         } catch (error) {
             console.error("Ошибка загрузки данных с сервера:", error);
         }
@@ -684,14 +706,16 @@ export default function AdminDashboard() {
                         const basicsLen = usersStats[user.id]?.basics || 0;
                         const planPercent = Math.round((routeLen / (totalRouteSteps || 1)) * 100);
                         const basicsPercent = Math.round((basicsLen / (totalBasicsModules || 1)) * 100);
+                        
+                        // Ищем аватар из глубокого сканера или берем напрямую из базы юзера
+                        const avatarImg = userAvatars[user.id] || user.avatar;
 
                         return (
                             <div key={user.id} className="admin-user-card" style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}>
                                 <div className="admin-user-avatar-col" style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px' }}>
-                                    {/* Аватарка в списке статистики */}
                                     <div style={{ width: '55px', height: '55px', borderRadius: '18px', background: '#222', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #333' }}>
-                                        {user.avatar ? (
-                                            <img src={user.avatar} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        {avatarImg ? (
+                                            <img src={avatarImg} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         ) : (
                                             <span style={{ fontSize: '24px' }}>👤</span>
                                         )}
@@ -699,7 +723,6 @@ export default function AdminDashboard() {
                                     <div style={{ overflow: 'hidden' }}>
                                         <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.name}</h3>
                                         <div style={{ fontSize: '12px', color: '#0abab5', fontWeight: 'bold', marginTop: '3px' }}>@{user.login}</div>
-                                        {/* КНОПКА ОТКРЫТИЯ ПРОФИЛЯ */}
                                         <div onClick={() => setSelectedProfileUser(user)} style={profileBtnStyle}>ПРОФИЛЬ ↗</div>
                                     </div>
                                 </div>
@@ -743,21 +766,30 @@ export default function AdminDashboard() {
                 </div>
 
                 <div style={{ background: '#000', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                     {/* Аватарка в модальном окне профиля */}
-                     <div style={{ width: '80px', height: '80px', borderRadius: '25px', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: '1px solid #333' }}>
-                         {selectedProfileUser.avatar ? (
-                             <img src={selectedProfileUser.avatar} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                         ) : (
-                             <span style={{ fontSize: '40px' }}>👤</span>
-                         )}
-                     </div>
-                     <div style={{ flex: 1 }}>
-                         <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginBottom: '10px' }}>{selectedProfileUser.name}</div>
-                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Логин: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.login}</span></div>
-                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Пароль: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.pass}</span></div>
-                         {/* Новое поле Связь */}
-                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold' }}>Связь: <span style={{color: '#0abab5', marginLeft: '5px'}}>{selectedProfileUser.contact || selectedProfileUser.phone || selectedProfileUser.telegram || 'Не указана'}</span></div>
-                     </div>
+                     {/* Аватарка в модальном окне профиля с учетом глубокого поиска */}
+                     {(() => {
+                         const profileAvatar = userAvatars[selectedProfileUser.id] || selectedProfileUser.avatar;
+                         const pData = userProfiles[selectedProfileUser.id] || {};
+                         const contactInfo = pData.contact || pData.phone || pData.telegram || selectedProfileUser.contact || selectedProfileUser.phone || selectedProfileUser.telegram || 'Не указана';
+                         
+                         return (
+                             <>
+                                 <div style={{ width: '80px', height: '80px', borderRadius: '25px', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: '1px solid #333' }}>
+                                     {profileAvatar ? (
+                                         <img src={profileAvatar} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                     ) : (
+                                         <span style={{ fontSize: '40px' }}>👤</span>
+                                     )}
+                                 </div>
+                                 <div style={{ flex: 1 }}>
+                                     <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginBottom: '10px' }}>{selectedProfileUser.name}</div>
+                                     <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Логин: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.login}</span></div>
+                                     <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Пароль: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.pass}</span></div>
+                                     <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold' }}>Связь: <span style={{color: '#0abab5', marginLeft: '5px'}}>{contactInfo}</span></div>
+                                 </div>
+                             </>
+                         )
+                     })()}
                 </div>
 
                 <h3 style={{ fontSize: '14px', color: '#fff', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase', opacity: 0.8 }}>Статистика</h3>
