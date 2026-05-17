@@ -234,11 +234,6 @@ function ProfileContent() {
                                 <div style={statCardStyle}><span style={statNum}>{adminStats.lessons}</span><span style={statLabel}>УРОКОВ</span></div>
                                 <div style={statCardStyle}><span style={statNum}>{adminStats.rules}</span><span style={statLabel}>ПРАВИЛ</span></div>
                             </div>
-                            <h3 style={sectionTitle}>ИНСТРУМЕНТЫ МАСТЕРА</h3>
-                            <div style={adminPanelStyle}>
-                                <Link href="/admin" style={adminLinkStyle}>📊 Управление персоналом и статистика</Link>
-                                <Link href="/tasks?tab=edu" style={adminLinkStyle}>✍️ Конструктор базы знаний</Link>
-                            </div>
                         </div>
                     ) : (
                         <div style={{ animation: 'fadeInUp 0.5s ease' }}>
@@ -383,8 +378,7 @@ const sectionTitle: any = { fontSize: '12px', fontWeight: '900', color: '#444', 
 const statCardStyle: any = { background: '#161816', padding: '25px 10px', borderRadius: '25px', border: '1px solid #222', display: 'flex', flexDirection: 'column', alignItems: 'center' };
 const statNum: any = { fontSize: '28px', fontWeight: '900', color: '#0abab5' };
 const statLabel: any = { fontSize: '10px', color: '#555', marginTop: '5px', fontWeight: 'bold' };
-const adminPanelStyle: any = { background: '#161816', padding: '20px', borderRadius: '30px', border: '1px solid #222' };
-const adminLinkStyle: any = { display: 'block', padding: '18px 22px', background: '#0d0f0d', borderRadius: '18px', marginBottom: '12px', border: '1px solid #222', textDecoration: 'none', color: '#fff', fontSize: '14px', fontWeight: 'bold' };
+
 const progressSectionStyle: any = { background: '#161816', padding: '35px', borderRadius: '35px', border: '1px solid #222', marginBottom: '35px' };
 const labelRow: any = { display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '900' };
 const barBg: any = { width: '100%', height: '10px', background: '#000', borderRadius: '12px', overflow: 'hidden' };
