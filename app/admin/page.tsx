@@ -15,7 +15,7 @@ const saveDataToServer = (key: string, data: any) => {
 };
 
 // ============================================================================
-// СТИЛИ (ПОДНЯТЫ ВВЕРХ ДЛЯ ИСКЛЮЧЕНИЯ ОШИБОК TYPESCRIPT)
+// СТИЛИ АДМИНКИ
 // ============================================================================
 const uploadZoneStyle: React.CSSProperties = { background: '#111', border: '2px dashed', borderRadius: '35px', padding: '25px 20px', textAlign: 'center', transition: '0.3s ease', cursor: 'pointer' };
 const flexSpace: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' };
@@ -43,7 +43,19 @@ const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)'
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const profileBtnStyle: React.CSSProperties = { marginTop: '8px', fontSize: '10px', background: '#222', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', display: 'inline-block', color: '#aaa', fontWeight: 'bold', transition: '0.2s' };
+
 // ============================================================================
+// ИМПОРТИРОВАННЫЕ СТИЛИ ЛИЧНОГО КАБИНЕТА ДЛЯ МОДАЛКИ
+// ============================================================================
+const profileHeaderCardStyle: React.CSSProperties = { position: 'relative', backgroundColor: '#161816', padding: '40px 30px', borderRadius: '40px', border: '1px solid #222', textAlign: 'center', marginBottom: '25px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' };
+const profileSectionTitle: React.CSSProperties = { fontSize: '12px', fontWeight: '900', color: '#888', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center', textTransform: 'uppercase' };
+const progressSectionStyle: React.CSSProperties = { background: '#161816', padding: '35px', borderRadius: '35px', border: '1px solid #222', marginBottom: '35px' };
+const labelRow: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '900' };
+const barBg: React.CSSProperties = { width: '100%', height: '10px', background: '#000', borderRadius: '12px', overflow: 'hidden' };
+const barFill: React.CSSProperties = { height: '100%', background: '#0abab5', transition: '1.2s cubic-bezier(0.4, 0, 0.2, 1)' };
+const badgeStyle: React.CSSProperties = { background: '#111', height: '80px', borderRadius: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '35px', border: '1px solid #222', transition: '0.4s' };
+const contactCardStyle: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', marginBottom: '35px' };
+const contactIconStyle: React.CSSProperties = { width: '45px', height: '45px', background: '#000', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
 
 export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
@@ -58,8 +70,11 @@ export default function AdminDashboard() {
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
 
-  // --- СОСТОЯНИЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ ---
+  // --- СОСТОЯНИЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ И ГЛУБОКОГО ПОИСКА ---
   const [users, setUsers] = useState<any[]>([]);
+  const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
+  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
+  
   const [showUserForm, setShowUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -127,11 +142,7 @@ export default function AdminDashboard() {
             const testRes = await fetch('/api/storage?key=tea_hub_test_results_v1');
             let testData = await testRes.json();
             if (!Array.isArray(testData) || testData.length === 0) {
-                testData = [
-                    { id: 1, userName: 'Ярик', testName: 'История и Бренд', score: 100, attempts: 1, date: '14 Мая, 10:30' },
-                    { id: 2, userName: 'Ярик', testName: 'Ботаника чая', score: 60, attempts: 3, date: '13 Мая, 15:20' }
-                ];
-                saveDataToServer('tea_hub_test_results_v1', testData);
+                testData = [];
             }
             setTestResults(testData);
 
@@ -149,7 +160,21 @@ export default function AdminDashboard() {
             setTotalRouteSteps(Array.isArray(rDb) ? rDb.length : 5);
 
             const stats: Record<string, {route: number, basics: number}> = {};
+            const avatarsFound: Record<string, string> = {};
+            const profilesFound: Record<string, any> = {};
+
             for (const u of usersData) {
+                if (u.avatar) avatarsFound[u.id] = u.avatar;
+                
+                // ГЛУБОКИЙ СКАНЕР: Ищем профили
+                try {
+                    const profData = await fetch(`/api/storage?key=profile_data_${u.id}`).then(r => r.json()).catch(() => null);
+                    if (profData && !Array.isArray(profData)) {
+                        profilesFound[u.id] = profData;
+                        if (profData.avatar) avatarsFound[u.id] = profData.avatar;
+                    }
+                } catch(e) {}
+
                 if (u.role === 'staff') {
                     const uRouteRes = await fetch(`/api/storage?key=prog_route_${u.id}`);
                     const uRouteData = await uRouteRes.json().catch(() => []);
@@ -163,6 +188,9 @@ export default function AdminDashboard() {
                 }
             }
             setUsersStats(stats);
+            setUserAvatars(avatarsFound);
+            setUserProfiles(profilesFound);
+
         } catch (error) {
             console.error("Ошибка загрузки данных с сервера:", error);
         }
@@ -545,28 +573,36 @@ export default function AdminDashboard() {
                       {filteredUsers.length === 0 ? (
                           <div style={{ color: '#555', padding: '20px 0', fontSize: '14px', fontWeight: 'bold', gridColumn: '1 / -1', textAlign: 'center' }}>Сотрудники не найдены</div>
                       ) : (
-                          filteredUsers.map(u => (
-                            <div key={u.id} style={userCardStyle}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
-                                        <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>{u.role === 'admin' ? 'Администратор' : 'Сотрудник'}</div>
+                          filteredUsers.map(u => {
+                              const avatarImg = userAvatars[u.id] || u.avatar;
+                              return (
+                                <div key={u.id} style={userCardStyle}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
+                                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                            <div style={{ width: '45px', height: '45px', borderRadius: '15px', background: '#222', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #333' }}>
+                                                {avatarImg ? <img src={avatarImg} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '20px' }}>👤</span>}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
+                                                <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>{u.role === 'admin' ? 'Администратор' : 'Сотрудник'}</div>
+                                            </div>
+                                        </div>
+                                        {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
+                                            <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>✕</div>
+                                        )}
                                     </div>
-                                    {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
-                                        <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>✕</div>
-                                    )}
+                                    
+                                    <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
+                                            <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                            <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                
-                                <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
-                                        <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                        <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
-                                    </div>
-                                </div>
-                            </div>
-                          ))
+                              )
+                          })
                       )}
                     </div>
                 </div>
@@ -684,14 +720,15 @@ export default function AdminDashboard() {
                         const basicsLen = usersStats[user.id]?.basics || 0;
                         const planPercent = Math.round((routeLen / (totalRouteSteps || 1)) * 100);
                         const basicsPercent = Math.round((basicsLen / (totalBasicsModules || 1)) * 100);
+                        
+                        const avatarImg = userAvatars[user.id] || user.avatar;
 
                         return (
                             <div key={user.id} className="admin-user-card" style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}>
                                 <div className="admin-user-avatar-col" style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px' }}>
-                                    {/* Аватарка в списке статистики */}
                                     <div style={{ width: '55px', height: '55px', borderRadius: '18px', background: '#222', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #333' }}>
-                                        {user.avatar ? (
-                                            <img src={user.avatar} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        {avatarImg ? (
+                                            <img src={avatarImg} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         ) : (
                                             <span style={{ fontSize: '24px' }}>👤</span>
                                         )}
@@ -699,7 +736,6 @@ export default function AdminDashboard() {
                                     <div style={{ overflow: 'hidden' }}>
                                         <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.name}</h3>
                                         <div style={{ fontSize: '12px', color: '#0abab5', fontWeight: 'bold', marginTop: '3px' }}>@{user.login}</div>
-                                        {/* КНОПКА ОТКРЫТИЯ ПРОФИЛЯ */}
                                         <div onClick={() => setSelectedProfileUser(user)} style={profileBtnStyle}>ПРОФИЛЬ ↗</div>
                                     </div>
                                 </div>
@@ -733,86 +769,119 @@ export default function AdminDashboard() {
           </div>
       </main>
 
-      {/* --- МОДАЛЬНОЕ ОКНО: ПРОФИЛЬ СОТРУДНИКА --- */}
+      {/* --- ИДЕНТИЧНОЕ МОДАЛЬНОЕ ОКНО ПРОФИЛЯ СОТРУДНИКА (КАК В APP/PROFILE) --- */}
       {selectedProfileUser && (
         <div style={modalOverlay as any} onClick={() => setSelectedProfileUser(null)}>
-            <div className="admin-modal-content custom-scroll" style={{...modalContentSmall, maxWidth: '600px', padding: '35px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-                    <h2 style={{ color: '#0abab5', fontWeight: '900', margin: 0, letterSpacing: '1px', fontSize: '18px', textTransform: 'uppercase' }}>Профиль сотрудника</h2>
-                    <div onClick={() => setSelectedProfileUser(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', lineHeight: 1, fontWeight: 'bold' }}>✕</div>
+            <div className="custom-scroll" style={{ background: '#0d0f0d', padding: '40px 20px', borderRadius: '40px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #333' } as any} onClick={e => e.stopPropagation()}>
+                
+                {/* Кнопка закрытия */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+                    <div onClick={() => setSelectedProfileUser(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
                 </div>
 
-                <div style={{ background: '#000', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                     {/* Аватарка в модальном окне профиля */}
-                     <div style={{ width: '80px', height: '80px', borderRadius: '25px', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: '1px solid #333' }}>
-                         {selectedProfileUser.avatar ? (
-                             <img src={selectedProfileUser.avatar} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                         ) : (
-                             <span style={{ fontSize: '40px' }}>👤</span>
-                         )}
-                     </div>
-                     <div style={{ flex: 1 }}>
-                         <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginBottom: '10px' }}>{selectedProfileUser.name}</div>
-                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Логин: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.login}</span></div>
-                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Пароль: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.pass}</span></div>
-                         {/* Новое поле Связь */}
-                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold' }}>Связь: <span style={{color: '#0abab5', marginLeft: '5px'}}>{selectedProfileUser.contact || selectedProfileUser.phone || selectedProfileUser.telegram || 'Не указана'}</span></div>
-                     </div>
-                </div>
+                {(() => {
+                    // Извлекаем данные профиля
+                    const pData = userProfiles[selectedProfileUser.id] || {};
+                    const routeLen = usersStats[selectedProfileUser.id]?.route || 0;
+                    const basicsLen = usersStats[selectedProfileUser.id]?.basics || 0;
+                    const profileAvatar = userAvatars[selectedProfileUser.id] || selectedProfileUser.avatar;
+                    const tg = pData.tg || selectedProfileUser.tg || '';
+                    const email = pData.email || selectedProfileUser.email || '';
+                    const phone = pData.phone || selectedProfileUser.phone || '';
 
-                <h3 style={{ fontSize: '14px', color: '#fff', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase', opacity: 0.8 }}>Статистика</h3>
-                <div style={{ background: '#000', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px' }}>
-                    {(() => {
-                        const routeLen = usersStats[selectedProfileUser.id]?.route || 0;
-                        const basicsLen = usersStats[selectedProfileUser.id]?.basics || 0;
-                        const planPercent = Math.round((routeLen / (totalRouteSteps || 1)) * 100);
-                        const basicsPercent = Math.round((basicsLen / (totalBasicsModules || 1)) * 100);
-                        return (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ПЛАН</div>
-                                    <div style={{ flex: 1, height: '8px', background: '#111', borderRadius: '10px', overflow: 'hidden' }}>
-                                        <div style={{ width: `${planPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px' }} />
-                                    </div>
-                                    <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{planPercent}%</div>
+                    const planPercent = Math.min((routeLen / (totalRouteSteps || 1)) * 100, 100);
+                    const basicsPercent = Math.min((basicsLen / (totalBasicsModules || 1)) * 100, 100);
+
+                    return (
+                        <>
+                            {/* БЛОК 1: ШАПКА ПРОФИЛЯ С АВАТАРКОЙ */}
+                            <section style={profileHeaderCardStyle}>
+                                <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
+                                    {profileAvatar ? (
+                                        <img src={profileAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
+                                    ) : (
+                                        <span style={{ fontSize: '45px' }}>👤</span>
+                                    )}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>БАЗА</div>
-                                    <div style={{ flex: 1, height: '8px', background: '#111', borderRadius: '10px', overflow: 'hidden' }}>
-                                        <div style={{ width: `${basicsPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px' }} />
-                                    </div>
-                                    <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{basicsPercent}%</div>
+                                <h2 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', color: '#fff' }}>{selectedProfileUser.name}</h2>
+                                <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>
+                                    ЧАЙНЫЙ МАСТЕР (УЧЕНИК)
+                                </p>
+                            </section>
+
+                            {/* БЛОК 2: ДОСТУПЫ (ТОЛЬКО ДЛЯ АДМИНА) */}
+                            <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.2)', padding: '15px', borderRadius: '20px', marginBottom: '35px', display: 'flex', justifyContent: 'space-around' }}>
+                                <div style={{textAlign: 'center'}}>
+                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '5px'}}>ЛОГИН ДОСТУПА</div>
+                                    <div style={{fontFamily: 'monospace', fontSize: '15px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.login}</div>
+                                </div>
+                                <div style={{textAlign: 'center'}}>
+                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '5px'}}>ПАРОЛЬ</div>
+                                    <div style={{fontFamily: 'monospace', fontSize: '15px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.pass}</div>
                                 </div>
                             </div>
-                        );
-                    })()}
-                </div>
 
-                <h3 style={{ fontSize: '14px', color: '#fff', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase', opacity: 0.8 }}>История аттестаций</h3>
-                <div style={{ background: '#000', padding: '10px', borderRadius: '20px', border: '1px solid #222' }}>
-                    {testResults.filter(r => r.userName === selectedProfileUser.name).length === 0 ? (
-                        <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px', fontWeight: 'bold' }}>Сотрудник еще не сдавал тесты</div>
-                    ) : (
-                        testResults.filter(r => r.userName === selectedProfileUser.name).map((res: any) => {
-                            const isPassed = res.score === 100;
-                            const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
-                            return (
-                                <div key={res.id} style={{ padding: '15px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px' }}>
+                            {/* БЛОК 3: ПРОГРЕСС ОБУЧЕНИЯ */}
+                            <section style={progressSectionStyle}>
+                                <div style={{ marginBottom: '25px' }}>
+                                    <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{routeLen}/{totalRouteSteps}</span></div>
+                                    <div style={barBg}><div style={{ ...barFill, width: `${planPercent}%` }} /></div>
+                                </div>
+                                <div style={{ marginBottom: '10px' }}>
+                                    <div style={labelRow}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{basicsLen}/{totalBasicsModules}</span></div>
+                                    <div style={barBg}><div style={{ ...barFill, width: `${basicsPercent}%` }} /></div>
+                                </div>
+                            </section>
+
+                            {/* БЛОК 4: БЕЙДЖИ ДОСТИЖЕНИЙ */}
+                            <h3 style={profileSectionTitle}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
+                                <div title="Старт" style={{ ...badgeStyle, opacity: routeLen >= 1 ? 1 : 0.1 }}>🌱</div>
+                                <div title="План" style={{ ...badgeStyle, opacity: routeLen >= 5 ? 1 : 0.1 }}>🚀</div>
+                                <div title="Теория" style={{ ...badgeStyle, opacity: basicsLen >= 5 ? 1 : 0.1 }}>📚</div>
+                                <div title="Мастер" style={{ ...badgeStyle, opacity: basicsLen >= 10 ? 1 : 0.1 }}>🏮</div>
+                            </div>
+
+                            {/* БЛОК 5: КОНТАКТЫ */}
+                            <h3 style={profileSectionTitle}>СВЯЗЬ</h3>
+                            <section style={contactCardStyle}>
+                                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                    <div style={contactIconStyle}>💬</div>
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: '900', color: '#fff', fontSize: '14px', marginBottom: '4px' }}>{res.testName}</div>
-                                        <div style={{ fontSize: '11px', color: '#888' }}>{res.date} • Попытка: {res.attempts}</div>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontWeight: '900', color: scoreColor, fontSize: '16px' }}>{res.score}%</div>
-                                        <span style={{ fontSize: '10px', fontWeight: '900', color: scoreColor }}>{isPassed ? 'ПРОЙДЕН' : 'ПРОФАЛ'}</span>
+                                        <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{tg || 'telegram не указан'}</div>
+                                        <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{email || 'e-mail не указан'}</div>
+                                        <div style={{ fontSize: '13px', color: '#555' }}>{phone || 'телефон не указан'}</div>
                                     </div>
                                 </div>
-                            );
-                        })
-                    )}
-                </div>
+                            </section>
 
-                <button onClick={() => setSelectedProfileUser(null)} style={{...saveBtn, marginTop: '30px', background: '#222', color: '#fff'} as any}>ЗАКРЫТЬ ПРОФИЛЬ</button>
+                            {/* БЛОК 6: ИСТОРИЯ ТЕСТОВ (ДОПОЛНЕНИЕ АДМИНА) */}
+                            <h3 style={{...profileSectionTitle, marginTop: '35px'}}>История аттестаций</h3>
+                            <div style={{ background: '#000', padding: '10px', borderRadius: '20px', border: '1px solid #222' }}>
+                                {testResults.filter(r => r.userName === selectedProfileUser.name).length === 0 ? (
+                                    <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px', fontWeight: 'bold' }}>Сотрудник еще не сдавал тесты</div>
+                                ) : (
+                                    testResults.filter(r => r.userName === selectedProfileUser.name).map((res: any) => {
+                                        const isPassed = res.score === 100;
+                                        const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
+                                        return (
+                                            <div key={res.id} style={{ padding: '15px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontWeight: '900', color: '#fff', fontSize: '14px', marginBottom: '4px' }}>{res.testName}</div>
+                                                    <div style={{ fontSize: '11px', color: '#888' }}>{res.date} • Попытка: {res.attempts}</div>
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div style={{ fontWeight: '900', color: scoreColor, fontSize: '16px' }}>{res.score}%</div>
+                                                    <span style={{ fontSize: '10px', fontWeight: '900', color: scoreColor }}>{isPassed ? 'ПРОЙДЕН' : 'ПРОФАЛ'}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </>
+                    );
+                })()}
             </div>
         </div>
       )}
