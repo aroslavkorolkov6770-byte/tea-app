@@ -3,14 +3,14 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import { useSearchParams } from 'next/navigation';
 
-// --- КЛЮЧИ ПАМЯТИ (ИЗМЕНЕНЫ НА V2 ДЛЯ СБРОСА СЛОМАННОГО КЭША БАЗЫ, НО ПРОГРЕСС СОХРАНЕН) ---
+// --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
     ONBOARD_ROUTE: 'tea_hub_onboard_route_v2',
-    BASICS_PROGRESS: 'tea_hub_basics_progress_v1', // Прогресс юзера сохраняем
-    DYNAMIC_BASICS: 'tea_hub_dynamic_basics_v2',   // Обновляем структуру каталога
-    DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v2',     // Обновляем структуру маршрута
+    BASICS_PROGRESS: 'tea_hub_basics_progress_v1', 
+    DYNAMIC_BASICS: 'tea_hub_dynamic_basics_v2',   
+    DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v2',     
     DYNAMIC_STANDARDS: 'tea_hub_dynamic_standards_v2',
-    URGENT_FILES: 'tea_hub_urgent_files_v1'        // Файлы и тесты сохраняем
+    URGENT_FILES: 'tea_hub_urgent_files_v1'        
 };
 
 const saveDataToServer = (key: string, data: any) => {
@@ -116,7 +116,7 @@ const cardHeaderLabel: React.CSSProperties = { fontSize: '11px', fontWeight: '90
 const bigStatVal: React.CSSProperties = { fontSize: '48px', fontWeight: '900', color: '#fff' };
 const cardSubText: React.CSSProperties = { fontSize: '14px', opacity: 0.5, marginBottom: '25px' };
 
-// --- ВОЗВРАТ К КЛАССИЧЕСКИМ ПРОГРЕСС-БАРАМ (БЕЗ НЕОНА) ---
+// КЛАССИЧЕСКИЕ ПРОГРЕСС-БАРЫ
 const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height: '8px', marginTop: '10px', width: '100%' };
 const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#222', borderRadius: '4px', transition: '0.3s' });
 const pBarBg: React.CSSProperties = { height: '8px', background: '#222', borderRadius: '4px', marginTop: '15px', marginBottom: '10px' };
@@ -188,7 +188,7 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
-  // --- СОСТОЯНИЯ ДЛЯ АТТЕСТАЦИОННОГО ТЕСТА (Срочно к прохождению) ---
+  // --- СОСТОЯНИЯ ДЛЯ АТТЕСТАЦИОННОГО ТЕСТА ---
   const [activeUrgentTest, setActiveUrgentTest] = useState<any>(null);
   const [urgentTestStep, setUrgentTestStep] = useState(0);
   const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
@@ -580,31 +580,28 @@ function ShiftContent() {
 
   if (!isMounted) return null;
 
-  // --- ЛОГИКА НОВОГО ГРАФИКА ДИНАМИКИ ---
+  // --- ИСПРАВЛЕННЫЙ РАСЧЕТ ДЛЯ ГРАФИКА ДИНАМИКИ ---
   const totalBasicsModules = dynamicBasics.reduce((acc, s) => acc + (s.modules?.length || 0), 0);
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const basicsPercent = Math.round((completedBasics.length / (Math.max(totalBasicsModules, 1))) * 100);
-  const totalHubPercent = basicsPercent;
+  const totalHubPercent = basicsPercent; // Текущий общий процент
 
-  let cumulativeModulesDone = 0;
-  const rawChartPoints = [0]; 
-  let lastActiveIdx = 0;
+  // Построение кривой Безье
+  // Линия начинается в 0 и тянется ровно до твоего реального процента (totalHubPercent). Дальше график пустой.
+  const pct = totalHubPercent;
+  const startX = 0;
+  const startY = 100;
+  const endX = pct;
+  const endY = 100 - pct; // SVG ось Y перевернута, поэтому 100 - pct
+  // Контрольная точка для создания красивого прогиба
+  const cpX = pct * 0.5;
+  const cpY = 100;
+  // Точка, чтобы график не уходил под землю при 0%
+  const dotY = Math.max(pct, 2);
+  const lineEndY = 100 - dotY;
 
-  dynamicBasics.forEach((sec, idx) => {
-      const doneInSec = sec.modules?.filter((m:any) => completedBasics.includes(m.id)).length || 0;
-      cumulativeModulesDone += doneInSec;
-      rawChartPoints.push((cumulativeModulesDone / (Math.max(totalBasicsModules, 1))) * 100);
-      if (doneInSec > 0) {
-          lastActiveIdx = idx + 1;
-      }
-  });
-
-  // ГРАФИК ОБРЕЗАЕТСЯ И РИСУЕТСЯ ТОЛЬКО ДО ТЕКУЩЕГО ПРОГРЕССА
-  const displayPoints = rawChartPoints.slice(0, Math.max(lastActiveIdx + 1, 2));
-  
-  // Формируем линии SVG только для пройденной части
-  const pathArea = `M 0 100 ` + displayPoints.map((p, i) => `L ${i * 10} ${100 - p}`).join(' ') + ` L ${(displayPoints.length - 1) * 10} 100 Z`;
-  const pathLine = `M ` + displayPoints.map((p, i) => `${i * 10} ${100 - p}`).join(' L ');
+  const pathArea = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY} L ${endX} ${startY} Z`;
+  const pathLine = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY}`;
 
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
@@ -629,27 +626,34 @@ function ShiftContent() {
                         <div style={rankBadge}>{totalHubPercent < 40 ? '🌱 НОВИЧОК' : totalHubPercent < 80 ? '⚖️ ЭРУДИТ' : '🏮 МАСТЕР'}</div>
                     </div>
 
-                    {/* ⚠️ НОВЫЙ СТРОГИЙ ГРАФИК, КОТОРЫЙ ОБРЫВАЕТСЯ НА ТЕКУЩЕМ ПРОГРЕССЕ */}
-                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '20px', marginBottom: '30px' }}>
-                        {/* Горизонтальные фоновые линии */}
+                    {/* --- НОВЫЙ ГРАФИК --- */}
+                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '30px', marginBottom: '30px' }}>
+                        {/* Горизонтальные сетки */}
                         {[0, 25, 50, 75, 100].map(v => (
                             <div key={`h-${v}`} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', borderBottom: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
                         ))}
-                        {/* Вертикальные фоновые линии (каждые 10%) */}
+                        {/* Вертикальные сетки */}
                         {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(v => (
                             <div key={`v-${v}`} style={{ position: 'absolute', bottom: 0, left: `${v}%`, height: '100%', borderLeft: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
                         ))}
                         
+                        {/* Линия и заливка (рисуется ровно до текущего процента) */}
                         <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, overflow: 'visible' }}>
-                            <path d={pathArea} fill="rgba(10,186,181,0.15)" style={{ transition: '1s ease' }} />
-                            <path d={pathLine} fill="none" stroke="#0abab5" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '1s ease' }} />
+                            <defs>
+                                <linearGradient id="flatGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#0abab5" stopOpacity="0.15" />
+                                    <stop offset="100%" stopColor="#0abab5" stopOpacity="0" />
+                                </linearGradient>
+                            </defs>
+                            <path d={pathArea} fill="url(#flatGrad)" style={{ transition: '1s ease' }} />
+                            <path d={pathLine} fill="none" stroke="#0abab5" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '1s ease' }} />
                         </svg>
-                        
-                        {/* Маркер текущей позиции (одна точка на конце графика) */}
+
+                        {/* Точка на конце графика */}
                         <div style={{ 
                             position: 'absolute', 
-                            left: `${(displayPoints.length - 1) * 10}%`, 
-                            bottom: `${displayPoints[displayPoints.length - 1]}%`, 
+                            left: `${endX}%`, 
+                            bottom: `${dotY}%`, 
                             transform: 'translate(-50%, 50%)', 
                             width: '10px', 
                             height: '10px', 
@@ -660,9 +664,9 @@ function ShiftContent() {
                             transition: '1s ease' 
                         }} />
 
-                        {/* Подписи оси X в процентах */}
-                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(pct => (
-                            <div key={`lbl-${pct}`} style={{ position: 'absolute', left: `${pct}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '10px', color: '#666', fontWeight: 'bold' }}>{pct}%</div>
+                        {/* Подписи оси X (Проценты) */}
+                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(p => (
+                            <div key={`lbl-${p}`} style={{ position: 'absolute', left: `${p}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '10px', color: '#666', fontWeight: 'bold' }}>{p}%</div>
                         ))}
                     </div>
                 </section>
