@@ -107,13 +107,10 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// === МАТРИЦА АССОРТИМЕНТА (ДЛЯ БЫСТРОГО РЕДАКТИРОВАНИЯ) ===
-// ИНСТРУКЦИЯ: Чтобы изменить текст, просто впишите его в кавычки поля content: "Ваш текст" или desc: "Ваш текст"
+// --- ЭТАЛОННАЯ МАТРИЦА АССОРТИМЕНТА ИЗ WORD-ДОКУМЕНТА ---
 const INITIAL_ASSORTMENT = [
   {
-    id: "as_1", title: "1. ЧАЙ (Camellia sinensis)", 
-    // СЮДА ВСТАВЛЯТЬ ОПИСАНИЕ КАТЕГОРИИ
-    desc: "Включает ТОЛЬКО чай как растение. Если в смеси >2/3 — чай, иначе — чаеподобный напиток.",
+    id: "as_1", title: "1. ЧАЙ (Camellia sinensis)", desc: "Включает ТОЛЬКО чай как растение. Если в смеси >2/3 — чай, иначе — чаеподобный напиток.",
     children: [
       {
         id: "as_1_1", title: "1.1 Весовой чай",
@@ -460,21 +457,55 @@ const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)'
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 
-// --- НОВЫЙ ТАКТИЛЬНЫЙ И УДОБНЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА ---
+// --- НОВЫЙ ЧИСТЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА (БЕЗ РАМОК) ---
 function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
     const [isOpen, setIsOpen] = useState(false);
     const hasChildren = node.children && node.children.length > 0;
 
     return (
-        <div className={`assortment-node-wrapper ${depth === 0 ? 'depth-0' : 'depth-nested'}`}>
+        <div style={{ 
+            marginLeft: depth === 0 ? '0' : '20px', 
+            borderLeft: depth === 0 ? 'none' : '1px solid rgba(10,186,181,0.2)', 
+            paddingLeft: depth === 0 ? '0' : '15px', 
+            marginTop: depth === 0 ? '12px' : '6px', 
+            marginBottom: depth === 0 ? '12px' : '6px' 
+        }}>
             <div 
                 onClick={() => setIsOpen(!isOpen)} 
-                className={`assortment-row ${depth === 0 ? 'depth-0' : 'depth-nested'} ${isOpen ? 'open' : ''}`}
+                className={`assortment-row ${isOpen ? 'open' : ''}`}
+                style={{
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    padding: depth === 0 ? '18px 25px' : '14px 20px', 
+                    background: isOpen ? (depth === 0 ? 'rgba(10,186,181,0.08)' : 'rgba(10,186,181,0.05)') : 'transparent',
+                    color: isOpen ? '#0abab5' : '#fff', 
+                    borderRadius: '16px', 
+                    cursor: 'pointer', 
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    border: isOpen ? '1px solid rgba(10,186,181,0.3)' : '1px solid transparent',
+                }}
             >
-                <span className={`assortment-icon ${isOpen ? 'open' : ''}`}>
+                <span style={{ 
+                    marginRight: '15px', 
+                    color: isOpen ? '#0abab5' : '#666', 
+                    transition: '0.3s', 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '24px',
+                    height: '24px',
+                    background: isOpen ? 'rgba(10,186,181,0.1)' : 'rgba(255,255,255,0.05)',
+                    borderRadius: '6px',
+                    transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', 
+                    fontSize: '12px' 
+                }}>
                     {hasChildren ? '▶' : '•'}
                 </span>
-                <span style={{ flex: 1, wordBreak: 'break-word' }}>
+                <span style={{ 
+                    fontWeight: depth === 0 ? '900' : (hasChildren ? '800' : '600'), 
+                    fontSize: depth === 0 ? '20px' : (hasChildren ? '18px' : '16px'),
+                    letterSpacing: depth === 0 ? '0.5px' : 'normal'
+                }}>
                     {node.title}
                 </span>
             </div>
@@ -482,7 +513,7 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
             {isOpen && (
                 <div style={{ animation: 'fadeInUp 0.3s ease' }}>
                     {node.desc && (
-                        <div className="assortment-desc">
+                        <div style={{ padding: '15px 20px 10px 45px', fontSize: '15px', color: '#bbb', lineHeight: '1.6', fontStyle: 'italic' }}>
                             {node.desc}
                         </div>
                     )}
@@ -492,9 +523,9 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
                     ))}
                     
                     {!hasChildren && node.content && (
-                        <div className="assortment-content-box">
-                            <div className="assortment-content-label">
-                                <span style={{width: '6px', height: '6px', background: '#0abab5', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px rgba(10,186,181,0.8)'}}></span>
+                        <div style={{ padding: '15px 25px 25px 45px', lineHeight: '1.7', fontSize: '15px', color: '#eee' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '900', color: '#0abab5', letterSpacing: '1.5px', marginBottom: '10px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{width: '6px', height: '6px', background: '#0abab5', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #0abab5'}}></span>
                                 ИНФОРМАЦИЯ
                             </div>
                             {node.content}
@@ -954,7 +985,6 @@ function ShiftContent() {
 
   if (!isMounted) return null;
 
-  // --- МАТЕМАТИКА ПРОГРЕССА ДЛЯ ГРАФИКОВ ---
   const totalBasicsModules = dynamicBasics.reduce((acc, s) => acc + (s.modules?.length || 0), 0);
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const basicsPercent = Math.round((completedBasics.length / (Math.max(totalBasicsModules, 1))) * 100);
@@ -1214,7 +1244,7 @@ function ShiftContent() {
                     Каталог товаров (Ассортимент)
                 </h2>
                 <p style={{ color: '#666', fontSize: '14px', marginBottom: '35px', lineHeight: '1.5', maxWidth: '700px' }}>
-                    Интерактивная эталонная товарная матрица компании. Нажимайте на категории для раскрытия информации о продуктах.
+                    Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов и изучения описаний групп товаров.
                 </p>
                 
                 <div style={{ marginTop: '10px' }}>
@@ -1546,159 +1576,20 @@ function ShiftContent() {
             transform: scale(0.98); 
         }
 
-        /* -------------------------------------------------------------------------
-           ⚠️ СТИЛИ И АНИМАЦИИ ДЛЯ ДЕРЕВА АССОРТИМЕНТА (ПЛОСКИЕ, БЕЗ НЕОНА) ⚠️
-        --------------------------------------------------------------------------*/
-        .assortment-node-wrapper {
-            margin-top: 6px;
-            margin-bottom: 6px;
-        }
-
-        .assortment-row {
-            display: flex;
-            align-items: center;
-            background: #111;
-            color: #fff;
-            border-radius: 12px;
-            cursor: pointer;
-            border: 1px solid #222;
-            transition: all 0.2s ease;
-        }
-
-        /* Уровни глубины: размеры и отступы */
-        .assortment-row.depth-0 {
-            padding: 18px 20px;
-            font-size: 20px;
-            font-weight: 900;
-            background: #161816;
-        }
-        .assortment-row.depth-nested {
-            padding: 14px 18px;
-            font-size: 17px;
-            font-weight: 700;
-        }
-
-        /* Наведение (Hover): бирюзовая подсветка и сдвиг */
+        /* ⚠️ АНИМАЦИЯ НАВЕДЕНИЯ ДЛЯ ПЛОСКИХ СТРОК АССОРТИМЕНТА ⚠️ */
         .assortment-row:hover {
-            border-color: rgba(10, 186, 181, 0.4);
-            background: rgba(10, 186, 181, 0.05);
-            transform: translateX(4px);
+            background: rgba(10, 186, 181, 0.08) !important;
+            border-color: rgba(10, 186, 181, 0.2) !important;
+            transform: translateX(5px);
+        }
+        .assortment-row.open:hover {
+            transform: none; 
         }
 
-        /* Нажатие (Active): эффект вдавливания и более яркий бирюзовый цвет */
-        .assortment-row:active {
-            border-color: #0abab5;
-            background: rgba(10, 186, 181, 0.15);
-            transform: scale(0.98) translateX(0);
-        }
-
-        /* Открытое состояние */
-        .assortment-row.open {
-            border-color: rgba(10, 186, 181, 0.3);
-            background: rgba(10, 186, 181, 0.08);
-        }
-
-        /* Иконка-стрелочка */
-        .assortment-icon {
-            margin-right: 15px;
-            color: #0abab5;
-            transition: 0.3s ease;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            background: rgba(10, 186, 181, 0.1);
-            border-radius: 6px;
-            flex-shrink: 0;
-        }
-        .assortment-icon.open {
-            transform: rotate(90deg);
-            background: #0abab5;
-            color: #000;
-        }
-
-        /* Описания и контент */
-        .assortment-desc {
-            padding: 12px 15px 12px 25px;
-            font-size: 14px;
-            color: #aaa;
-            background: #0a0a0a;
-            border-radius: 10px;
-            margin: 8px 0;
-            border: 1px solid #1a1a1a;
-            font-style: italic;
-        }
-        .assortment-content-box {
-            padding: 20px;
-            background: #000;
-            border-radius: 12px;
-            border: 1px solid #222;
-            color: #eee;
-            font-size: 15px;
-            line-height: 1.6;
-            margin-top: 8px;
-        }
-        .assortment-content-label {
-            font-size: 11px;
-            font-weight: 900;
-            color: #0abab5;
-            letter-spacing: 1.5px;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-
-        /* -------------------------------------------------------------------------
-           ⚠️ ЖЕСТКАЯ МОБИЛЬНАЯ АДАПТАЦИЯ (ПРАВКИ ИЕРАРХИИ) ⚠️
-        --------------------------------------------------------------------------*/
         @media (max-width: 768px) {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
             
-            .tasks-main { 
-                padding: 90px 15px 50px 15px !important; 
-                width: 100vw !important;
-                overflow-x: hidden !important; 
-            }
-
-            /* Сужаем отступы лесенки на телефоне, чтобы текст не уезжал вправо */
-            .assortment-node-wrapper.depth-nested {
-                margin-left: 8px !important;
-                padding-left: 8px !important;
-                border-left: 1px solid rgba(10,186,181,0.1) !important;
-            }
-            .assortment-node-wrapper.depth-0 {
-                margin-left: 0 !important;
-                padding-left: 0 !important;
-            }
-            
-            /* Уменьшаем шрифты и отступы в мобильной версии */
-            .assortment-row.depth-0 {
-                padding: 15px !important;
-                font-size: 17px !important;
-            }
-            .assortment-row.depth-nested {
-                padding: 12px !important;
-                font-size: 15px !important;
-            }
-            
-            /* Отключаем сдвиг вправо при наведении на мобилках (предотвращает появление скролла) */
-            .assortment-row:hover {
-                transform: none !important; 
-            }
-            .assortment-row:active {
-                transform: scale(0.98) !important; 
-            }
-
-            .assortment-desc, .assortment-content-box {
-                padding: 15px !important;
-                font-size: 14px !important;
-            }
-
+            .tasks-main { padding: 90px 15px 50px 15px !important; }
             .tasks-title { font-size: 26px !important; margin-bottom: 25px !important; line-height: 1.2 !important; }
             .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
             .tasks-stat-card { padding: 25px 20px !important; border-radius: 25px !important; }
