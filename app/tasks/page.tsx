@@ -457,7 +457,7 @@ const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)'
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 
-// --- НОВЫЙ ЧИСТЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА (БЕЗ РАМОК) ---
+// --- ПЛОСКИЙ СТАНДАРТНЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА (БЕЗ НЕОНА И ЦЕНТРОВКИ) ---
 function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
     const [isOpen, setIsOpen] = useState(false);
     const hasChildren = node.children && node.children.length > 0;
@@ -465,55 +465,48 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
     return (
         <div style={{ 
             marginLeft: depth === 0 ? '0' : '20px', 
-            borderLeft: depth === 0 ? 'none' : '1px solid rgba(10,186,181,0.2)', 
+            borderLeft: depth === 0 ? 'none' : '1px solid #333', 
             paddingLeft: depth === 0 ? '0' : '15px', 
-            marginTop: depth === 0 ? '12px' : '6px', 
-            marginBottom: depth === 0 ? '12px' : '6px' 
+            marginTop: '5px', 
+            marginBottom: '5px' 
         }}>
             <div 
                 onClick={() => setIsOpen(!isOpen)} 
-                className={`assortment-row ${isOpen ? 'open' : ''}`}
                 style={{
                     display: 'flex', 
                     alignItems: 'center', 
-                    padding: depth === 0 ? '18px 25px' : '14px 20px', 
-                    background: isOpen ? (depth === 0 ? 'rgba(10,186,181,0.08)' : 'rgba(10,186,181,0.05)') : 'transparent',
-                    color: isOpen ? '#0abab5' : '#fff', 
-                    borderRadius: '16px', 
+                    padding: '12px 15px', 
+                    background: isOpen ? '#1a1a1a' : '#111', 
+                    color: '#fff', 
+                    borderRadius: '8px', 
                     cursor: 'pointer', 
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    border: isOpen ? '1px solid rgba(10,186,181,0.3)' : '1px solid transparent',
+                    border: '1px solid #222',
+                    transition: 'background 0.2s ease'
                 }}
             >
                 <span style={{ 
-                    marginRight: '15px', 
-                    color: isOpen ? '#0abab5' : '#666', 
-                    transition: '0.3s', 
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '24px',
-                    height: '24px',
-                    background: isOpen ? 'rgba(10,186,181,0.1)' : 'rgba(255,255,255,0.05)',
-                    borderRadius: '6px',
+                    marginRight: '12px', 
+                    color: '#0abab5', 
+                    transition: '0.2s', 
+                    display: 'inline-block', 
                     transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', 
                     fontSize: '12px' 
                 }}>
                     {hasChildren ? '▶' : '•'}
                 </span>
                 <span style={{ 
-                    fontWeight: depth === 0 ? '900' : (hasChildren ? '800' : '600'), 
-                    fontSize: depth === 0 ? '20px' : (hasChildren ? '18px' : '16px'),
-                    letterSpacing: depth === 0 ? '0.5px' : 'normal'
+                    fontWeight: depth === 0 ? 'bold' : 'normal', 
+                    fontSize: depth === 0 ? '18px' : '16px',
                 }}>
                     {node.title}
                 </span>
             </div>
             
+            {/* INLINE-РАСКРЫТИЕ (БЕЗ ВСПЛЫВАЮЩИХ ОКОН И МОДАЛОК) */}
             {isOpen && (
-                <div style={{ animation: 'fadeInUp 0.3s ease' }}>
+                <div style={{ marginTop: '5px' }}>
                     {node.desc && (
-                        <div style={{ padding: '15px 20px 10px 45px', fontSize: '15px', color: '#bbb', lineHeight: '1.6', fontStyle: 'italic' }}>
+                        <div style={{ padding: '10px 15px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '5px', border: '1px solid #1a1a1a' }}>
                             {node.desc}
                         </div>
                     )}
@@ -523,11 +516,7 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
                     ))}
                     
                     {!hasChildren && node.content && (
-                        <div style={{ padding: '15px 25px 25px 45px', lineHeight: '1.7', fontSize: '15px', color: '#eee' }}>
-                            <div style={{ fontSize: '12px', fontWeight: '900', color: '#0abab5', letterSpacing: '1.5px', marginBottom: '10px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{width: '6px', height: '6px', background: '#0abab5', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #0abab5'}}></span>
-                                ИНФОРМАЦИЯ
-                            </div>
+                        <div style={{ padding: '15px', background: '#000', borderRadius: '8px', border: '1px solid #222', color: '#ddd', fontSize: '15px', lineHeight: '1.5', marginTop: '5px' }}>
                             {node.content}
                         </div>
                     )}
@@ -568,6 +557,7 @@ function ShiftContent() {
   
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   const [passedTests, setPassedTests] = useState<string[]>([]);
+  const [dismissedTasks, setDismissedTasks] = useState<string[]>([]);
   const [previewFile, setPreviewFile] = useState<any>(null);
 
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
@@ -596,6 +586,7 @@ function ShiftContent() {
           const cachedProgRoute = localStorage.getItem(`th_prog_route_${currentUserId}`);
           const cachedProgBasics = localStorage.getItem(`th_prog_basics_${currentUserId}`);
           const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
+          const cachedDismissed = localStorage.getItem(`th_dismissed_tasks_${currentUserId}`);
           const cachedAssortment = localStorage.getItem('th_cache_assortment_matrix');
 
           if (cachedFiles) setUrgentFiles(JSON.parse(cachedFiles));
@@ -604,6 +595,7 @@ function ShiftContent() {
           if (cachedProgRoute) setCompletedRoute(JSON.parse(cachedProgRoute));
           if (cachedProgBasics) setCompletedBasics(JSON.parse(cachedProgBasics));
           if (cachedPassedTests) setPassedTests(JSON.parse(cachedPassedTests));
+          if (cachedDismissed) setDismissedTasks(JSON.parse(cachedDismissed));
           if (cachedAssortment) setAssortmentMatrix(JSON.parse(cachedAssortment));
       }
 
@@ -720,10 +712,17 @@ function ShiftContent() {
     };
   }, [searchParams]);
 
+  const handleDismissTask = (id: string) => {
+      const newDismissed = [...dismissedTasks, id];
+      setDismissedTasks(newDismissed);
+      localStorage.setItem(`th_dismissed_tasks_${userId}`, JSON.stringify(newDismissed));
+  };
+
   const visibleUrgentFiles = urgentFiles.filter(f => {
       const isForMe = !f.target || f.target === 'Все' || f.target === userId;
       const isPassed = f.isTest && passedTests.includes(f.id);
-      return isForMe && !isPassed;
+      const isDismissed = dismissedTasks.includes(f.id);
+      return isForMe && !isPassed && !isDismissed;
   });
 
   const handleSaveRoute = () => {
@@ -1100,7 +1099,17 @@ function ShiftContent() {
                       {visibleUrgentFiles.length > 0 ? (
                           <div className="premium-cards-container"> 
                               {visibleUrgentFiles.map((file) => (
-                                  file.isTest ? (
+                                  file.id.startsWith('deadline_') ? (
+                                      <div key={file.id} className="premium-card deadline-card" style={{ borderColor: '#ff4d4d', borderWidth: '1px' }}>
+                                          <div onClick={(e) => { e.stopPropagation(); handleDismissTask(file.id); }} style={{ position: 'absolute', top: '15px', right: '15px', cursor: 'pointer', color: '#ff4d4d', fontWeight: 'bold', fontSize: '18px', zIndex: 10 }}>✕</div>
+                                          <span style={{fontSize:'12px', color:'#ff4d4d', fontWeight:'900', marginBottom: '8px', display: 'inline-block'}}>⚠️ ДЕДЛАЙН</span>
+                                          <h4 style={{fontSize:'15px', margin:'0 0 10px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{file.name.replace('⚠️ Дедлайн: ', '')}</h4>
+                                          <div style={{ marginTop: 'auto' }}>
+                                              <div style={{ color: '#ff4d4d', fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>{file.size}</div>
+                                              <div style={{ color: '#555', fontSize: '11px', fontWeight: 'bold' }}>Назначено: {file.date}</div>
+                                          </div>
+                                      </div>
+                                  ) : file.isTest ? (
                                       <div key={file.id} className="premium-card" onClick={() => setActiveUrgentTest(file)}>
                                           <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px'}}>🎓 АТТЕСТАЦИЯ</span>
                                           <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(file.name)}</h4>
@@ -1237,14 +1246,14 @@ function ShiftContent() {
           </section>
         )}
 
-        {/* --- ВКЛАДКА: АССОРТИМЕНТ --- */}
+        {/* --- ПЛОСКИЙ СТАНДАРТНЫЙ АССОРТИМЕНТ --- */}
         {(activeTab === 'assortment' || activeTab === 'products') && (
             <section style={{ animation: 'fadeInUp 0.5s ease', maxWidth: '100%' }}>
                 <h2 className="tasks-title" style={{ fontSize: '32px', fontWeight: '900', marginBottom: '15px' }}>
                     Каталог товаров (Ассортимент)
                 </h2>
                 <p style={{ color: '#666', fontSize: '14px', marginBottom: '35px', lineHeight: '1.5', maxWidth: '700px' }}>
-                    Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов и изучения описаний групп товаров.
+                    Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов.
                 </p>
                 
                 <div style={{ marginTop: '10px' }}>
@@ -1566,7 +1575,6 @@ function ShiftContent() {
 
         .premium-card:hover {
             border-color: #0abab5;
-            box-shadow: 0 8px 25px rgba(10, 186, 181, 0.15);
             transform: translateY(-3px);
         }
 
@@ -1576,7 +1584,17 @@ function ShiftContent() {
             transform: scale(0.98); 
         }
 
-        /* ⚠️ АНИМАЦИЯ НАВЕДЕНИЯ ДЛЯ ПЛОСКИХ СТРОК АССОРТИМЕНТА ⚠️ */
+        /* ⚠️ АНИМАЦИЯ НАВЕДЕНИЯ ДЛЯ ДЕДЛАЙНОВ ⚠️ */
+        .deadline-card:hover {
+            border-color: #ff4d4d !important;
+            box-shadow: 0 8px 25px rgba(255, 77, 77, 0.15) !important;
+        }
+        .deadline-card:active {
+            background: rgba(255, 77, 77, 0.05) !important;
+            border-color: #ff4d4d !important;
+        }
+
+        /* АНИМАЦИЯ НАВЕДЕНИЯ ДЛЯ ПЛОСКИХ СТРОК АССОРТИМЕНТА */
         .assortment-row:hover {
             background: rgba(10, 186, 181, 0.08) !important;
             border-color: rgba(10, 186, 181, 0.2) !important;
