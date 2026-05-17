@@ -4,10 +4,15 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 // --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES (ПАРАЛЛЕЛЬНАЯ ЗАПИСЬ) ---
-const setAppCookie = (name: string, value: string, days = 7) => {
-    const date = new Date();
-    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-    document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
+const setAppCookie = (name: string, value: string, days: number | null = 7) => {
+    if (days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
+    } else {
+        // Если days = null, создается сессионная cookie (уничтожается при закрытии вкладки)
+        document.cookie = `${name}=${encodeURIComponent(value)};path=/`;
+    }
 };
 
 const deleteAppCookie = (name: string) => {
@@ -96,8 +101,9 @@ export default function Navigation() {
         setIsSidebarOpen(false);
     }
 
-    const auth = localStorage.getItem('isLoggedIn');
-    const role = localStorage.getItem('userRole');
+    // ЧЕСТНАЯ ПРОВЕРКА АВТОРИЗАЦИИ: ищем и в Local, и в Session
+    const auth = localStorage.getItem('isLoggedIn') || sessionStorage.getItem('isLoggedIn');
+    const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
     if (auth === 'true') {
       setIsLoggedIn(true);
       setUserRole(role);
@@ -105,7 +111,8 @@ export default function Navigation() {
 
     const loadServerData = async () => {
         try {
-            const currentUserId = localStorage.getItem('current_user_id') || 'guest';
+            // ЧЕСТНЫЙ ПОИСК ID: ищем и в Local, и в Session
+            const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
             
             const notifsRes = await fetch('/api/storage?key=tea_hub_notifications_v1').then(r => r.json()).catch(() => []);
             if (Array.isArray(notifsRes)) {
@@ -153,15 +160,30 @@ export default function Navigation() {
         const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
         if (foundUser) {
-          localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userRole', foundUser.role);
-          localStorage.setItem('current_user_id', foundUser.id);
-          localStorage.setItem('current_user_name', foundUser.name);
+          // --- ЧЕСТНОЕ СОХРАНЕНИЕ С УЧЕТОМ COOKIE БАННЕРА ---
+          const hasConsent = localStorage.getItem('cookieConsent') === 'true';
 
-          setAppCookie('isLoggedIn', 'true');
-          setAppCookie('userRole', foundUser.role);
-          setAppCookie('current_user_id', foundUser.id);
-          setAppCookie('current_user_name', foundUser.name);
+          if (hasConsent) {
+              localStorage.setItem('isLoggedIn', 'true');
+              localStorage.setItem('userRole', foundUser.role);
+              localStorage.setItem('current_user_id', foundUser.id);
+              localStorage.setItem('current_user_name', foundUser.name);
+
+              setAppCookie('isLoggedIn', 'true', 7);
+              setAppCookie('userRole', foundUser.role, 7);
+              setAppCookie('current_user_id', foundUser.id, 7);
+              setAppCookie('current_user_name', foundUser.name, 7);
+          } else {
+              sessionStorage.setItem('isLoggedIn', 'true');
+              sessionStorage.setItem('userRole', foundUser.role);
+              sessionStorage.setItem('current_user_id', foundUser.id);
+              sessionStorage.setItem('current_user_name', foundUser.name);
+
+              setAppCookie('isLoggedIn', 'true', null);
+              setAppCookie('userRole', foundUser.role, null);
+              setAppCookie('current_user_id', foundUser.id, null);
+              setAppCookie('current_user_name', foundUser.name, null);
+          }
           
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
@@ -224,15 +246,30 @@ export default function Navigation() {
           };
           saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
 
-          localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userRole', existingUser.role);
-          localStorage.setItem('current_user_id', existingUser.id);
-          localStorage.setItem('current_user_name', regName.trim());
+          // --- ЧЕСТНОЕ СОХРАНЕНИЕ С УЧЕТОМ COOKIE БАННЕРА ---
+          const hasConsent = localStorage.getItem('cookieConsent') === 'true';
 
-          setAppCookie('isLoggedIn', 'true');
-          setAppCookie('userRole', existingUser.role);
-          setAppCookie('current_user_id', existingUser.id);
-          setAppCookie('current_user_name', regName.trim());
+          if (hasConsent) {
+              localStorage.setItem('isLoggedIn', 'true');
+              localStorage.setItem('userRole', existingUser.role);
+              localStorage.setItem('current_user_id', existingUser.id);
+              localStorage.setItem('current_user_name', regName.trim());
+
+              setAppCookie('isLoggedIn', 'true', 7);
+              setAppCookie('userRole', existingUser.role, 7);
+              setAppCookie('current_user_id', existingUser.id, 7);
+              setAppCookie('current_user_name', regName.trim(), 7);
+          } else {
+              sessionStorage.setItem('isLoggedIn', 'true');
+              sessionStorage.setItem('userRole', existingUser.role);
+              sessionStorage.setItem('current_user_id', existingUser.id);
+              sessionStorage.setItem('current_user_name', regName.trim());
+
+              setAppCookie('isLoggedIn', 'true', null);
+              setAppCookie('userRole', existingUser.role, null);
+              setAppCookie('current_user_id', existingUser.id, null);
+              setAppCookie('current_user_name', regName.trim(), null);
+          }
 
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
@@ -251,10 +288,16 @@ export default function Navigation() {
   };
 
   const handleLogout = () => {
+    // ВЫЧИЩАЕМ ВСЁ, НЕЗАВИСИМО ОТ ТОГО, ГДЕ ОНО БЫЛО
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userRole');
     localStorage.removeItem('current_user_id');
     localStorage.removeItem('current_user_name');
+
+    sessionStorage.removeItem('isLoggedIn');
+    sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('current_user_id');
+    sessionStorage.removeItem('current_user_name');
 
     deleteAppCookie('isLoggedIn');
     deleteAppCookie('userRole');
@@ -274,7 +317,7 @@ export default function Navigation() {
             const updated = allNotifs.filter((n: any) => n.id !== id);
             saveDataToServer('tea_hub_notifications_v1', updated);
             
-            const currentUserId = localStorage.getItem('current_user_id') || 'guest';
+            const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
             const myNotifs = updated.filter((n: any) => n.target === 'Все' || n.target === currentUserId || !n.target);
             setNotifications(myNotifs);
         }
@@ -342,7 +385,6 @@ export default function Navigation() {
     router.push(link);
   };
 
-  // ⚠️ ИЗМЕНЕНО: Вкладка "Продукты" заменена на "Ассортимент" с правильной ссылкой ⚠️
   const sideItems = [
     { id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', label: 'Статистика' },
     { id: '/tasks?tab=edu', label: 'Обучение' },
