@@ -688,8 +688,13 @@ export default function AdminDashboard() {
                         return (
                             <div key={user.id} className="admin-user-card" style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}>
                                 <div className="admin-user-avatar-col" style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px' }}>
+                                    {/* Аватарка в списке статистики */}
                                     <div style={{ width: '55px', height: '55px', borderRadius: '18px', background: '#222', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #333' }}>
-                                        <span style={{ fontSize: '24px' }}>👤</span>
+                                        {user.avatar ? (
+                                            <img src={user.avatar} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                            <span style={{ fontSize: '24px' }}>👤</span>
+                                        )}
                                     </div>
                                     <div style={{ overflow: 'hidden' }}>
                                         <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.name}</h3>
@@ -738,11 +743,20 @@ export default function AdminDashboard() {
                 </div>
 
                 <div style={{ background: '#000', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                     <div style={{ fontSize: '40px', background: '#111', padding: '15px', borderRadius: '20px' }}>👤</div>
+                     {/* Аватарка в модальном окне профиля */}
+                     <div style={{ width: '80px', height: '80px', borderRadius: '25px', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: '1px solid #333' }}>
+                         {selectedProfileUser.avatar ? (
+                             <img src={selectedProfileUser.avatar} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                         ) : (
+                             <span style={{ fontSize: '40px' }}>👤</span>
+                         )}
+                     </div>
                      <div style={{ flex: 1 }}>
                          <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginBottom: '10px' }}>{selectedProfileUser.name}</div>
                          <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Логин: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.login}</span></div>
-                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold' }}>Пароль: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.pass}</span></div>
+                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Пароль: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.pass}</span></div>
+                         {/* Новое поле Связь */}
+                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold' }}>Связь: <span style={{color: '#0abab5', marginLeft: '5px'}}>{selectedProfileUser.contact || selectedProfileUser.phone || selectedProfileUser.telegram || 'Не указана'}</span></div>
                      </div>
                 </div>
 
