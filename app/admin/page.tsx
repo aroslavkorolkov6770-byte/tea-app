@@ -23,7 +23,7 @@ const sectionTitle: React.CSSProperties = { fontSize: '22px', fontWeight: '900',
 const actionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const adminCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
 const userCardStyle: React.CSSProperties = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s' };
-const scheduleItem: React.CSSProperties = { display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '15px', padding: '15px', background: '#0d0d0d', borderRadius: '20px', border: '1px solid #1a1a1a' };
+const scheduleItem: React.CSSProperties = { display: 'flex', gap: '20px', alignItems: 'center', padding: '15px', background: '#0d0d0d', borderRadius: '20px', border: '1px solid #1a1a1a' };
 const dateBox: React.CSSProperties = { background: '#0abab5', color: '#000', padding: '10px', borderRadius: '12px', fontSize: '14px', fontWeight: '900', textAlign: 'center', minWidth: '45px' };
 const calNavBtn: React.CSSProperties = { cursor: 'pointer', opacity: 0.5, fontSize: '16px' };
 const calendarGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center' };
@@ -716,25 +716,27 @@ export default function AdminDashboard() {
               </section>
 
               <aside style={{ display: 'flex', flexDirection: 'column', gap: '30px', minWidth: 0 }}>
-                <div style={adminCard}>
-                    <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', marginBottom: '20px' }}>Ближайшие события</h2>
+                <div style={{ ...adminCard, padding: '20px 25px' }}>
+                    <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', margin: '0 0 15px 0' }}>Ближайшие события</h2>
                     {upcomingEvents.length === 0 ? (
-                        <div style={{ color: '#555', fontSize: '14px', textAlign: 'center', padding: '20px 0' }}>Нет запланированных задач</div>
+                        <div style={{ color: '#555', fontSize: '14px', textAlign: 'center', padding: '10px 0' }}>Нет запланированных задач</div>
                     ) : (
-                        upcomingEvents.map((event) => {
-                            const lines = event.text.split('\n');
-                            const title = lines[0];
-                            const desc = lines.slice(1).join(' ');
-                            return (
-                                <div key={event.key} style={scheduleItem}>
-                                    <div style={dateBox}>{event.d} <br/> <span style={{ fontSize: '11px', opacity: 0.8 }}>{DAYS_OF_WEEK[event.dateObj.getDay()]}</span></div>
-                                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                                        <div style={{ fontWeight: '800', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>
-                                        {desc && <div style={{ fontSize: '12px', color: '#888', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{desc}</div>}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {upcomingEvents.map((event) => {
+                                const lines = event.text.split('\n');
+                                const title = lines[0];
+                                const desc = lines.slice(1).join(' ');
+                                return (
+                                    <div key={event.key} style={{ ...scheduleItem, marginBottom: 0, padding: '12px 15px' }}>
+                                        <div style={dateBox}>{event.d} <br/> <span style={{ fontSize: '11px', opacity: 0.8 }}>{DAYS_OF_WEEK[event.dateObj.getDay()]}</span></div>
+                                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                                            <div style={{ fontWeight: '800', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>
+                                            {desc && <div style={{ fontSize: '12px', color: '#888', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{desc}</div>}
+                                        </div>
                                     </div>
-                                </div>
-                            )
-                        })
+                                )
+                            })}
+                        </div>
                     )}
                 </div>
 
@@ -1153,17 +1155,28 @@ export default function AdminDashboard() {
             </div>
             <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '20px', color: '#ccc' }}>Дата: {formattedSelectedDate()}</p>
             
-            {/* ПЕРЕКЛЮЧАТЕЛЬ ТИПА СОБЫТИЯ */}
-            <div style={{ display: 'flex', background: '#111', borderRadius: '12px', marginBottom: '20px', padding: '4px' }}>
+            {/* ПЕРЕКЛЮЧАТЕЛЬ ТИПА СОБЫТИЯ (С ПЛАВНОЙ АНИМАЦИЕЙ) */}
+            <div style={{ position: 'relative', display: 'flex', background: '#111', borderRadius: '14px', marginBottom: '20px', padding: '4px', border: '1px solid #222' }}>
+                <div style={{ 
+                    position: 'absolute', 
+                    top: '4px', 
+                    bottom: '4px', 
+                    left: noteType === 'personal' ? '4px' : 'calc(50% + 2px)', 
+                    width: 'calc(50% - 6px)', 
+                    background: '#222', 
+                    borderRadius: '10px', 
+                    transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    border: '1px solid #333'
+                }} />
                 <div 
                     onClick={() => setNoteType('personal')} 
-                    style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', cursor: 'pointer', background: noteType === 'personal' ? '#222' : 'transparent', color: noteType === 'personal' ? '#0abab5' : '#888', fontWeight: 'bold', fontSize: '13px', transition: '0.2s' }}
+                    style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '10px', cursor: 'pointer', color: noteType === 'personal' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', transition: '0.3s' }}
                 >
                     Для себя
                 </div>
                 <div 
                     onClick={() => setNoteType('deadline')} 
-                    style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', cursor: 'pointer', background: noteType === 'deadline' ? '#222' : 'transparent', color: noteType === 'deadline' ? '#0abab5' : '#888', fontWeight: 'bold', fontSize: '13px', transition: '0.2s' }}
+                    style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '10px', cursor: 'pointer', color: noteType === 'deadline' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', transition: '0.3s' }}
                 >
                     Дедлайн
                 </div>
@@ -1171,7 +1184,7 @@ export default function AdminDashboard() {
 
             {/* ВЫБОР СОТРУДНИКА ЕСЛИ ЭТО ДЕДЛАЙН */}
             {noteType === 'deadline' && (
-                <div style={{ marginBottom: '15px' }}>
+                <div style={{ marginBottom: '15px', animation: 'fadeInUp 0.3s ease' }}>
                     <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Кому назначить:</div>
                     <select style={{ ...adminIn, marginBottom: 0, padding: '12px', cursor: 'pointer' }} value={deadlineTarget} onChange={e => setDeadlineTarget(e.target.value)}>
                         <option value="Все">Всем сотрудникам</option>
