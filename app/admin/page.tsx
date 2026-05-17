@@ -36,8 +36,8 @@ const saveBtn: React.CSSProperties = { width: '100%', padding: '18px', backgroun
 const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)', padding: '20px', boxSizing: 'border-box' };
 const modalContentSmall: React.CSSProperties = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxSizing: 'border-box' };
 const noteOverlayStyle: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };
-const noteSidebarStyle: React.CSSProperties = { width: '100%', maxWidth: '400px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.3s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.8)', boxSizing: 'border-box' };
-const noteTextarea: React.CSSProperties = { width: '100%', height: '200px', background: '#111', border: '1px solid #222', borderRadius: '20px', padding: '20px', color: '#fff', outline: 'none', fontSize: '15px', resize: 'none', lineHeight: '1.5', boxSizing: 'border-box' };
+const noteSidebarStyle: React.CSSProperties = { width: '100%', maxWidth: '400px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.3s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.8)', boxSizing: 'border-box', overflowY: 'auto' };
+const noteTextarea: React.CSSProperties = { width: '100%', background: '#111', border: '1px solid #222', borderRadius: '20px', padding: '20px', color: '#fff', outline: 'none', fontSize: '15px', resize: 'none', lineHeight: '1.5', boxSizing: 'border-box' };
 const noteDeleteBtn: React.CSSProperties = { width: '100%', padding: '18px', background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', borderRadius: '18px', fontWeight: '900', cursor: 'pointer' };
 const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
@@ -69,6 +69,10 @@ export default function AdminDashboard() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
+  
+  // --- НОВЫЕ СОСТОЯНИЯ ДЛЯ ДЕДЛАЙНА В КАЛЕНДАРЕ ---
+  const [noteType, setNoteType] = useState<'personal' | 'deadline'>('personal');
+  const [deadlineTarget, setDeadlineTarget] = useState<string>('Все');
 
   // --- СОСТОЯНИЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ И ГЛУБОКОГО ПОИСКА ---
   const [users, setUsers] = useState<any[]>([]);
@@ -313,6 +317,8 @@ export default function AdminDashboard() {
       const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`;
       setSelectedDateKey(key);
       setNoteText(notes[key] || "");
+      setNoteType('personal');
+      setDeadlineTarget('Все');
   };
 
   const closeNotePanel = () => {
@@ -320,14 +326,61 @@ export default function AdminDashboard() {
       setNoteText("");
   };
 
-  const saveNote = () => {
+  // ⚠️ ОБНОВЛЕННАЯ ЛОГИКА СОХРАНЕНИЯ: ТЕПЕРЬ ПОДДЕРЖИВАЕТ ДЕДЛАЙНЫ С ОТПРАВКОЙ ⚠️
+  const saveNote = async () => {
       if (!selectedDateKey) return;
-      const newNotes = { ...notes };
-      if (noteText.trim()) newNotes[selectedDateKey] = noteText.trim();
-      else delete newNotes[selectedDateKey];
-      setNotes(newNotes);
-      saveDataToServer('admin_cal_notes_v1', newNotes);
-      closeNotePanel();
+      
+      // Если текст пустой, просто удаляем заметку из календаря
+      if (!noteText.trim()) {
+          const newNotes = { ...notes };
+          delete newNotes[selectedDateKey];
+          setNotes(newNotes);
+          saveDataToServer('admin_cal_notes_v1', newNotes);
+          closeNotePanel();
+          return;
+      }
+
+      if (isProcessing) return;
+      setIsProcessing(true);
+
+      try {
+          const newNotes = { ...notes };
+          let adminNoteText = noteText.trim();
+          
+          // Если это дедлайн сотруднику
+          if (noteType === 'deadline') {
+              const targetName = deadlineTarget === 'Все' ? 'Всем' : users.find(u => u.id === deadlineTarget)?.name || deadlineTarget;
+              adminNoteText = `[Дедлайн: ${targetName}]\n${noteText.trim()}`;
+              
+              const newDeadlineTask = {
+                  id: 'deadline_' + Date.now(),
+                  name: '⚠️ Дедлайн: ' + noteText.trim(),
+                  size: 'Выполнить до: ' + formattedSelectedDate(),
+                  date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
+                  target: deadlineTarget,
+                  isTest: false
+              };
+
+              // Отправляем дедлайн сотруднику в раздел "Срочно к прохождению"
+              const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+              let currentFiles = await res.json().catch(() => []);
+              if (!Array.isArray(currentFiles)) currentFiles = [];
+
+              const updatedFiles = [newDeadlineTask, ...currentFiles];
+              setUrgentFiles(updatedFiles);
+              await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+              
+              setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача успешно отправлена в панель сотрудника.` });
+          }
+
+          // В любом случае сохраняем отметку в админском календаре
+          newNotes[selectedDateKey] = adminNoteText;
+          setNotes(newNotes);
+          saveDataToServer('admin_cal_notes_v1', newNotes);
+      } finally {
+          setIsProcessing(false);
+          closeNotePanel();
+      }
   };
 
   const deleteNote = () => {
@@ -492,7 +545,6 @@ export default function AdminDashboard() {
       u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
 
-  // ⚠️ ФИЛЬТРУЕМ ТЕСТЫ, ЧТОБЫ ОНИ НЕ ОТОБРАЖАЛИСЬ В "ЗАГРУЖЕННЫХ МАТЕРИАЛАХ" АДМИНА
   const uploadedMaterials = urgentFiles.filter(f => !f.isTest);
 
   if (!isMounted) {
@@ -541,7 +593,6 @@ export default function AdminDashboard() {
                          ВЫБРАТЬ ФАЙЛ
                        </button>
 
-                       {/* ⚠️ ИСПОЛЬЗУЕМ ОТФИЛЬТРОВАННЫЙ СПИСОК */}
                        {uploadedMaterials.length > 0 && (
                            <div onClick={() => setShowFilesList(true)} style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8 }}>
                                Загруженный материал ({uploadedMaterials.length})
@@ -1085,18 +1136,62 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* ⚠️ ОБНОВЛЕННЫЙ САЙДБАР КАЛЕНДАРЯ ДЛЯ АДМИНА ⚠️ */}
       {selectedDateKey && (
         <div style={noteOverlayStyle} onClick={closeNotePanel}>
           <div style={noteSidebarStyle} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0abab5' }}>ЗАМЕТКА</h2>
               <div onClick={closeNotePanel} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5 }}>✕</div>
             </div>
             <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '20px', color: '#ccc' }}>Дата: {formattedSelectedDate()}</p>
-            <textarea autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Текст заметки..." style={noteTextarea} />
+            
+            {/* ПЕРЕКЛЮЧАТЕЛЬ ТИПА СОБЫТИЯ */}
+            <div style={{ display: 'flex', background: '#111', borderRadius: '12px', marginBottom: '20px', padding: '4px' }}>
+                <div 
+                    onClick={() => setNoteType('personal')} 
+                    style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', cursor: 'pointer', background: noteType === 'personal' ? '#222' : 'transparent', color: noteType === 'personal' ? '#0abab5' : '#888', fontWeight: 'bold', fontSize: '13px', transition: '0.2s' }}
+                >
+                    Для себя
+                </div>
+                <div 
+                    onClick={() => setNoteType('deadline')} 
+                    style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', cursor: 'pointer', background: noteType === 'deadline' ? '#222' : 'transparent', color: noteType === 'deadline' ? '#0abab5' : '#888', fontWeight: 'bold', fontSize: '13px', transition: '0.2s' }}
+                >
+                    Дедлайн
+                </div>
+            </div>
+
+            {/* ВЫБОР СОТРУДНИКА ЕСЛИ ЭТО ДЕДЛАЙН */}
+            {noteType === 'deadline' && (
+                <div style={{ marginBottom: '15px' }}>
+                    <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Кому назначить:</div>
+                    <select style={{ ...adminIn, marginBottom: 0, padding: '12px', cursor: 'pointer' }} value={deadlineTarget} onChange={e => setDeadlineTarget(e.target.value)}>
+                        <option value="Все">Всем сотрудникам</option>
+                        {users.filter(u => u.role === 'staff').map(u => (
+                            <option key={u.id} value={u.id}>{u.name} ({u.login})</option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
+            <textarea 
+                autoFocus 
+                value={noteText} 
+                onChange={(e) => setNoteText(e.target.value)} 
+                placeholder={noteType === 'deadline' ? "Текст задачи (например: Сдать аттестацию)..." : "Текст заметки..."} 
+                style={{...noteTextarea, height: noteType === 'deadline' ? '135px' : '200px'}} 
+            />
+            
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
-                <button onClick={saveNote} style={{...adminSendBtn, flex: 1, minWidth: '100px'}}>СОХРАНИТЬ</button>
-                {notes[selectedDateKey] && <button onClick={deleteNote} style={{...noteDeleteBtn, flex: 1, minWidth: '100px'}}>УДАЛИТЬ</button>}
+                <button onClick={saveNote} disabled={isProcessing} style={{...adminSendBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'}}>
+                    {isProcessing ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
+                </button>
+                {notes[selectedDateKey] && (
+                    <button onClick={deleteNote} disabled={isProcessing} style={{...noteDeleteBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'}}>
+                        УДАЛИТЬ
+                    </button>
+                )}
             </div>
           </div>
         </div>
