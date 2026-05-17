@@ -342,10 +342,11 @@ export default function Navigation() {
     router.push(link);
   };
 
+  // ⚠️ ИЗМЕНЕНО: Вкладка "Продукты" заменена на "Ассортимент" с правильной ссылкой ⚠️
   const sideItems = [
-    { id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', label: 'Статистика', },
-    { id: '/tasks?tab=edu', label: 'Обучение', },
-    { id: '/search', label: 'Продукты' },
+    { id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', label: 'Статистика' },
+    { id: '/tasks?tab=edu', label: 'Обучение' },
+    { id: '/tasks?tab=assortment', label: 'Ассортимент' },
     { id: '/tasks?tab=standards', label: 'ИИ Помощник' },
   ];
 
@@ -362,12 +363,10 @@ export default function Navigation() {
           <aside style={{ ...sidebarStyle, left: isSidebarOpen ? 0 : '-260px', transition: '0.3s ease' }} className="nav-sidebar">
             <div style={logoArea}>
                 <div onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="desktop-hamburger" style={logoIcon}>≡</div>
-                {/* ⚠️ ИЗМЕНЕН ЗАГОЛОВОК НА "Меню" ⚠️ */}
                 <span style={logoText}>Меню</span>
                 <div onClick={() => setIsSidebarOpen(false)} className="mobile-close-btn" style={{ marginLeft: 'auto', fontSize: '24px', cursor: 'pointer', color: '#ff4d4d' }}>✕</div>
              </div>
              
-             {/* ⚠️ НОВЫЙ БЛОК НАВИГАЦИИ С КЛАССАМИ ДЛЯ АНИМАЦИЙ ⚠️ */}
              <nav style={sideNav}>
                 {sideItems.map(item => {
                     const isActive = (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === item.id;
@@ -425,7 +424,6 @@ export default function Navigation() {
                    👤
                    {isProfileOpen && (
                      <div style={profileDropdown}>
-                        {/* ⚠️ АНИМАЦИИ ДЛЯ МЕНЮ ПРОФИЛЯ ⚠️ */}
                         <Link href="/profile" className="drop-item">👤 Мой Профиль</Link>
                         <div onClick={handleLogout} className="drop-item logout-item" style={{ borderBottom: 'none' }}>Выйти</div>
                      </div>
