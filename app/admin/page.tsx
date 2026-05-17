@@ -6,7 +6,6 @@ const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель
 const DAYS_OF_WEEK = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
-// ДОБАВЛЕН return ДЛЯ КОРРЕКТНОГО ОЖИДАНИЯ (async/await)
 const saveDataToServer = (key: string, data: any) => {
     return fetch('/api/storage', {
         method: 'POST',
@@ -43,6 +42,7 @@ const noteDeleteBtn: React.CSSProperties = { width: '100%', padding: '18px', bac
 const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
+const profileBtnStyle: React.CSSProperties = { marginTop: '8px', fontSize: '10px', background: '#222', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', display: 'inline-block', color: '#aaa', fontWeight: 'bold', transition: '0.2s' };
 // ============================================================================
 
 export default function AdminDashboard() {
@@ -63,6 +63,9 @@ export default function AdminDashboard() {
   const [showUserForm, setShowUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
   const [userSearchQuery, setUserSearchQuery] = useState("");
+  
+  // --- СОСТОЯНИЕ ДЛЯ ПРОФИЛЯ СОТРУДНИКА ---
+  const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
 
   // --- ЦЕНТР ВЗАИМОДЕЙСТВИЯ (УВЕДОМЛЕНИЯ И АТТЕСТАЦИЯ) ---
   const [interactionTab, setInteractionTab] = useState<'notif' | 'test'>('notif');
@@ -136,9 +139,10 @@ export default function AdminDashboard() {
             const filesData = await filesRes.json();
             if (Array.isArray(filesData)) setUrgentFiles(filesData);
 
-            const bRes = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1');
+            // Ключи v2 для синхронизации со сломанным кешем базы
+            const bRes = await fetch('/api/storage?key=tea_hub_dynamic_basics_v2');
             const bDb = await bRes.json().catch(() => []);
-            const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v1');
+            const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v2');
             const rDb = await rRes.json().catch(() => []);
             
             setTotalBasicsModules((Array.isArray(bDb) ? bDb : []).reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) || 50);
@@ -219,7 +223,6 @@ export default function AdminDashboard() {
                   data: fileData 
               };
               
-              // Запрашиваем актуальную базу перед сохранением
               const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
               let currentFiles = await res.json().catch(() => []);
               if (!Array.isArray(currentFiles)) currentFiles = [];
@@ -340,7 +343,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- ЛОГИКА ОТПРАВКИ АТТЕСТАЦИОННЫХ ТЕСТОВ С ПРЕДОХРАНИТЕЛЕМ ---
   const getBaseQuizTemplate = () => [
       { q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C'], c: 1 },
       { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос'], c: 1 },
@@ -373,7 +375,6 @@ export default function AdminDashboard() {
               quiz: getBaseQuizTemplate()
           };
 
-          // Запрашиваем самую свежую базу перед добавлением (защита от дублей)
           const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
           let currentFiles = await res.json().catch(() => []);
           if (!Array.isArray(currentFiles)) currentFiles = [];
@@ -693,6 +694,8 @@ export default function AdminDashboard() {
                                     <div style={{ overflow: 'hidden' }}>
                                         <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.name}</h3>
                                         <div style={{ fontSize: '12px', color: '#0abab5', fontWeight: 'bold', marginTop: '3px' }}>@{user.login}</div>
+                                        {/* КНОПКА ОТКРЫТИЯ ПРОФИЛЯ */}
+                                        <div onClick={() => setSelectedProfileUser(user)} style={profileBtnStyle}>ПРОФИЛЬ ↗</div>
                                     </div>
                                 </div>
 
@@ -724,6 +727,81 @@ export default function AdminDashboard() {
             </div>
           </div>
       </main>
+
+      {/* --- МОДАЛЬНОЕ ОКНО: ПРОФИЛЬ СОТРУДНИКА --- */}
+      {selectedProfileUser && (
+        <div style={modalOverlay as any} onClick={() => setSelectedProfileUser(null)}>
+            <div className="admin-modal-content custom-scroll" style={{...modalContentSmall, maxWidth: '600px', padding: '35px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                    <h2 style={{ color: '#0abab5', fontWeight: '900', margin: 0, letterSpacing: '1px', fontSize: '18px', textTransform: 'uppercase' }}>Профиль сотрудника</h2>
+                    <div onClick={() => setSelectedProfileUser(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', lineHeight: 1, fontWeight: 'bold' }}>✕</div>
+                </div>
+
+                <div style={{ background: '#000', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                     <div style={{ fontSize: '40px', background: '#111', padding: '15px', borderRadius: '20px' }}>👤</div>
+                     <div style={{ flex: 1 }}>
+                         <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginBottom: '10px' }}>{selectedProfileUser.name}</div>
+                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Логин: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.login}</span></div>
+                         <div style={{ color: '#888', fontSize: '12px', fontWeight: 'bold' }}>Пароль: <span style={{color: '#fff', fontFamily: 'monospace', marginLeft: '5px'}}>{selectedProfileUser.pass}</span></div>
+                     </div>
+                </div>
+
+                <h3 style={{ fontSize: '14px', color: '#fff', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase', opacity: 0.8 }}>Статистика</h3>
+                <div style={{ background: '#000', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px' }}>
+                    {(() => {
+                        const routeLen = usersStats[selectedProfileUser.id]?.route || 0;
+                        const basicsLen = usersStats[selectedProfileUser.id]?.basics || 0;
+                        const planPercent = Math.round((routeLen / (totalRouteSteps || 1)) * 100);
+                        const basicsPercent = Math.round((basicsLen / (totalBasicsModules || 1)) * 100);
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                    <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ПЛАН</div>
+                                    <div style={{ flex: 1, height: '8px', background: '#111', borderRadius: '10px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${planPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px' }} />
+                                    </div>
+                                    <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{planPercent}%</div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                    <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>БАЗА</div>
+                                    <div style={{ flex: 1, height: '8px', background: '#111', borderRadius: '10px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${basicsPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px' }} />
+                                    </div>
+                                    <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{basicsPercent}%</div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
+
+                <h3 style={{ fontSize: '14px', color: '#fff', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase', opacity: 0.8 }}>История аттестаций</h3>
+                <div style={{ background: '#000', padding: '10px', borderRadius: '20px', border: '1px solid #222' }}>
+                    {testResults.filter(r => r.userName === selectedProfileUser.name).length === 0 ? (
+                        <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px', fontWeight: 'bold' }}>Сотрудник еще не сдавал тесты</div>
+                    ) : (
+                        testResults.filter(r => r.userName === selectedProfileUser.name).map((res: any) => {
+                            const isPassed = res.score === 100;
+                            const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
+                            return (
+                                <div key={res.id} style={{ padding: '15px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: '900', color: '#fff', fontSize: '14px', marginBottom: '4px' }}>{res.testName}</div>
+                                        <div style={{ fontSize: '11px', color: '#888' }}>{res.date} • Попытка: {res.attempts}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontWeight: '900', color: scoreColor, fontSize: '16px' }}>{res.score}%</div>
+                                        <span style={{ fontSize: '10px', fontWeight: '900', color: scoreColor }}>{isPassed ? 'ПРОЙДЕН' : 'ПРОФАЛ'}</span>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                <button onClick={() => setSelectedProfileUser(null)} style={{...saveBtn, marginTop: '30px', background: '#222', color: '#fff'} as any}>ЗАКРЫТЬ ПРОФИЛЬ</button>
+            </div>
+        </div>
+      )}
 
       {/* --- РЕДАКТОР АТТЕСТАЦИИ --- */}
       {showTestEditor && (
