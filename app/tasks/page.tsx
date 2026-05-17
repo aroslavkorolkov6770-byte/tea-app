@@ -107,6 +107,115 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
+// --- ЭТАЛОННАЯ МАТРИЦА АССОРТИМЕНТА (БЕЗ ТЕСТИРОВАНИЯ) ---
+const INITIAL_ASSORTMENT = [
+  {
+    id: "as_1", title: "1. ЧАЙ (Camellia sinensis)", desc: "Включает только чай как растение. Важнейшее правило матрицы: если в травяной или ароматизированной смеси содержится более 2/3 чайного листа — позиция относится к группе чая, в противном случае — классифицируется как чаеподобный напиток.",
+    children: [
+      {
+        id: "as_1_1", title: "1.1 Весовой чай",
+        children: [
+          {
+            id: "as_1_1_1", title: "Классический (без добавок)",
+            children: [
+              {
+                id: "as_1_1_1_ch", title: "Китай (по ферментации)",
+                children: [
+                  { id: "as_c1", title: "Белый чай", content: "Минимальная обработка (только завяливание и сушка). Сохраняет максимальное количество естественных антиоксидантов и почек. Дает прозрачный настой, легкий цветочный аромат и длительное сладкое послевкусие." },
+                  { id: "as_c2", title: "Жёлтый чай", content: "Редкий императорский чай. Технология включает этап «томления» в пергаментных мешках, что убирает травянистую резкость, делая вкус округлым, бархатистым с тонкими копчеными нотами." },
+                  { id: "as_c3", title: "Зелёный чай", content: "Остановка ферментации методом фиксации зелени (обжарка в котлах или обработка паром). Насыщен аминокислотами. Вкусовой профиль: свежие травы, семечки, орехи, легкая сладость." },
+                  { id: "as_c4", title: "Зелёный жасминовый", content: "Зеленый чай, прошедший совместную механическую ароматизацию живыми цветами жасмина. Аромат глубокий, парфюмерный, но без химической горечи." },
+                  { id: "as_c5", title: "Улун", content: "Полуферментированные чаи. Делятся на светлые (южнофуцзяньские и тайваньские, сферическая скрутка, ноты сирени и свежести) и темные (уишаньские и гуандунские, продольная скрутка, ноты огня, пряностей, меда)." },
+                  { id: "as_c6", title: "Kрасный чай", content: "Полностью ферментированный классический чай (в Европе зовется черным). Обладает сильным согревающим эффектом. Во вкусе преобладают ноты сухофруктов, ржаного хлеба, шоколада и темного меда." },
+                  { id: "as_c7", title: "Пуэр шу (тёмный)", content: "Чай, прошедший форсированную постферментацию «Во Дуй» (влажное скирдование). Дает густой, темный, маслянистый настой. Вкусовой профиль: земля, орехи, древесная кора, сухофрукты." },
+                  { id: "as_c8", title: "Пуэр шэн (зелёный)", content: "Живой зеленый пуэр, созданный для естественного старения. В молодом возрасте имеет фруктово-дымный дерзкий вкус, со временем темнеет, становясь благородным и глубоким чаем. Дает сильное чайное состояние." },
+                  { id: "as_c9", title: "Связанный чай", content: "Эстетическое изделие мастеров: связанные вручную листья зеленого чая с цветком (клевер, жасмин, лилия) внутри. Красиво раскрывается бутоном при заваривании в стеклянной посуде." }
+                ]
+              },
+              {
+                id: "as_1_1_1_in", title: "Индия",
+                children: [
+                  { id: "as_i1", title: "Дарджилинг", content: "Высокогорный чай, называемый «шампанским среди чаев». Собирается вручную. Настой светлый, вкус мускатный с яркой благородной кислинкой и цветочным шлейфом." },
+                  { id: "as_i2", title: "Ассам", content: "Классический насыщенный индийский чай с равнинных плантаций. Насыщенный, крепкий, терпкий, с солодово-медовым ароматом. Идеален для утреннего чаепития." },
+                  { id: "as_i3", title: "Прочие регионы", content: "Включает чаи из Нилгири и других локальных штатов, используемые в основном для купажирования или крепких классических подач." }
+                ]
+              },
+              { id: "as_c_cey", title: "Цейлон (Шри-Ланка)", content: "Обладает красивым медно-красным настоем, классическим строгим вкусом с цитрусовыми нотами и приятной терпкостью. Эталон черного чая." },
+              { id: "as_c_oth", title: "Прочие страны", content: "Экзотические и развивающиеся регионы: Кения, Япония (Матча, Сенча), Вьетнам, Грузия, Краснодарский край." }
+            ]
+          },
+          {
+            id: "as_1_1_2", title: "С добавками",
+            children: [
+              { id: "as_add_1", title: "С ароматизаторами", content: "Купажи на основе черного, зеленого чая или улунов с добавлением сублимированных ягод, лепестков и жидких ароматических масел европейского производства." },
+              { id: "as_add_2", title: "С натуральными добавками (без аромы)", content: "Чистые чайные купажи с сухими кусочками ягод, фруктов, специй, трав и корней без какого-либо химического или масляного вмешательства." }
+            ]
+          }
+        ]
+      },
+      {
+        id: "as_1_2", title: "1.2 Прессованный чай", content: "Чайные листья, прошедшие обработку паром и спрессованные под прессом. Включает Белые, Зеленые, Красные чаи и оба вида Пуэров. Формы прессовки: сяо то (мини-точа), то ча (гнездо), бин ча (блин 357г), фан ча (квадрат), чжуан ча (кирпич).",
+      },
+      {
+        id: "as_1_3", title: "1.3 Фасованный чай", content: "Порционный, заварной (листовой фасованный в пачки) и пакетированный чай от сторонних мировых брендов, а также фирменные наборы в подарочных упаковках магазина."
+      }
+    ]
+  },
+  {
+    id: "as_2", title: "2. КОФЕ", desc: "Кофейная матрица магазина, разделенная по типу фасовки и происхождению зерна.",
+    children: [
+      {
+        id: "as_2_1", title: "2.1 Весовой кофе",
+        children: [
+          { id: "as_k1", title: "Плантационные моносорта", content: "Зерна 100% арабики, собранные в конкретной стране и регионе (Эфиопия, Колумбия, Бразилия). Имеют уникальный терруарный вкус с нотами ягод, цветов или шоколада." },
+          { id: "as_k2", title: "Эспрессо-смеси и купажи", content: "Сбалансированные смеси из нескольких сортов арабики, либо смеси арабики и робусты. Оптимизированы для идеальной плотной крема и стабильного вкуса в кофемашинах." },
+          { id: "as_k3", title: "Ароматизированный кофе", content: "Свежеобжаренные зерна, обработанные кондитерскими сиропами в барабане обжарочной машины. Популярные вкусы: Ирландский крем, Марагоджип, Шоколад, Ваниль." }
+        ]
+      },
+      {
+        id: "as_2_2", title: "2.2 Фасованный кофе", content: "Зерновой, молотый и растворимый кофе (порошок, гранула, кристалл) в заводских упаковках от обжарщиков и брендов, а также порционные форматы: дрип-пакеты (чалды) и капсулы."
+      }
+    ]
+  },
+  {
+    id: "as_3", title: "3. ЧАЕПОДОБНЫЕ НАПИТКИ", desc: "Высушенные растения, цветы и плоды, ботанически не имеющие отношения к чайному кусту Camellia sinensis.",
+    children: [
+      {
+        id: "as_3_1", title: "3.1 Весовые напитки",
+        children: [
+          { id: "as_et1", title: "Этнические (Матэ, Ройбуш, Иван-чай)", content: "Традиционные напитки народов мира. Иван-чай (Россия) — ферментированный кипрей; Матэ (Парагвай) — листья падуба, богатые матеином; Ройбуш (ЮАР) — кустарник без кофеина со сладковатым вкусом." },
+          { id: "as_et2", title: "Травяные и фруктовые смеси", content: "Сборы на основе натуральной мяты, ромашки, чабреца или фруктовые смеси типа 'Наглый фрукт' на базе гибискуса (каркаде) со вкусом сушеных яблок, ананаса и шиповника." },
+          { id: "as_et3", title: "Растительные добавки к чаю", content: "Чистые ботанические компоненты для создания авторских купажей: бутоны анчан, цветы хризантемы, бутоны роз, лепестки василька и цветы жасмина." }
+        ]
+      },
+      { id: "as_3_2", title: "3.2 Поштучные и фасованные напитки", content: "Брендированные травяные сборы, фито-чаи в аптечных или премиальных пачках, готовые к розничной продаже." }
+    ]
+  },
+  {
+    id: "as_4", title: "4. СЛАДОСТИ И ДЕСЕРТЫ К ЧАЮ И КОФЕ", desc: "Готовые гастрономические позиции, дополняющие чаепитие, не требующие специфического температурного хранения.",
+    children: [
+      { id: "as_sl1", title: "4.1 Длительного хранения (≥8 месяцев)", content: "Леденцовый карамельный сахар на палочках, тростниковый кусковой сахар, натуральный мед, кофейные и чайные сиропы, крафтовое варенье, джемы и конфитюры." },
+      { id: "as_sl2", title: "4.2 Скоропортящиеся (<8 месяцев)", content: "Имбирная выпечка, мягкая нуга с орехами, ремесленный шоколад, плитки ручной работы и марципановые фигурки." }
+    ]
+  },
+  {
+    id: "as_5", title: "5. ПОСУДА И АКСЕССУАРЫ", desc: "Инструменты для приготовления, сервировки и хранения напитков.",
+    children: [
+      {
+        id: "as_5_1", title: "5.1 Для чая",
+        children: [
+          { id: "as_p1", title: "Посуда по материалам", content: "Исинская глина (нарабатывает вкус чая), звонкий фарфор (для дегустаций), тонкая керамика, жаропрочное стекло (для визуального контроля) и чугунные массивные чайники." },
+          { id: "as_p2", title: "Предметы церемонии и аксессуары", content: "Ча Бани (чайные доски), Ча Хэ (коробочки знакомства с чаем), Ча Цзюй (инструменты), пиалы, ситечки, а также специальные ножи и шила для аккуратного расслоения пуэров." }
+        ]
+      },
+      { id: "as_5_2", title: "5.2 Для кофе", content: "Ручные и механические мельницы, медные и керамические турки (джезвы), гейзерные кофеварки, френч-прессы, а также кофейные пары разного объема (эспрессо 50-70мл, американо от 100мл)." },
+      { id: "as_5_3", title: "5.3 Для матэ", content: "Традиционные сосуды из тыквы-горлянки — калебасы, металлические трубочки с фильтром — бомбильи, и специализированные термосы с тонким носиком." }
+    ]
+  },
+  { id: "as_6", title: "6. ПОДАРОЧНАЯ УПАКОВКА", content: "Платные упаковочные материалы: дизайнерские плотные полиэтиленовые сумки, деревянные шкатулки, плетеные корзины, жестяные банки, а также специализированные сумки-чехлы для блинов и кирпичей пуэра." },
+  { id: "as_7", title: "7. СОПУТСТВУЮЩИЕ ТОВАРЫ", content: "Товары, расширяющие чек без нарушения концепции: фигурки фэн-шуй (меняющие цвет от кипятка, писающие мальчики), книги по чайной культуре (Похлебкин, Виногродский), эфирные аромамасла и настольные игры Го (вейчи)." }
+];
+
 // --- СТИЛИ БЛОКОВ И КАРТОЧЕК ---
 const wideChartCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', marginBottom: '30px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
 const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
@@ -145,6 +254,59 @@ const saveBtn: React.CSSProperties = { width: '100%', padding: '20px', backgroun
 const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
+
+// ---РЕКУРСИВНЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА---
+function AssortmentNode({ node }: { node: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const hasChildren = node.children && node.children.length > 0;
+
+    return (
+        <div style={{ marginLeft: '15px', borderLeft: '1px dashed #222', paddingLeft: '15px', marginVertical: '5px' }}>
+            <div 
+                onClick={() => setIsOpen(!isOpen)} 
+                style={{
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    padding: '14px 20px', 
+                    background: isOpen ? '#111' : '#161816', 
+                    border: isOpen ? '1px solid #0abab5' : '1px solid #222',
+                    color: '#fff', 
+                    borderRadius: '16px', 
+                    cursor: 'pointer', 
+                    margin: '6px 0',
+                    transition: 'all 0.2s ease'
+                }}
+            >
+                <span style={{ marginRight: '15px', color: '#0abab5', transition: '0.2s', display: 'inline-block', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', fontSize: '12px' }}>
+                    {hasChildren ? '▶' : '•'}
+                </span>
+                <span style={{ fontWeight: hasChildren ? '800' : '500', fontSize: hasChildren ? '16px' : '15px' }}>{node.title}</span>
+            </div>
+            
+            {/* Описание категории верхнего уровня, если есть */}
+            {isOpen && node.desc && (
+                <div style={{ background: '#0a0a0a', padding: '15px 20px', borderRadius: '12px', border: '1px solid #1a1a1a', margin: '5px 0', fontSize: '14px', color: '#888', lineHeight: '1.5' }}>
+                    {node.desc}
+                </div>
+            )}
+
+            {/* Раскрывающийся контейнер */}
+            <div style={{ display: isOpen ? 'block' : 'none', animation: 'fadeInUp 0.3s ease' }}>
+                {hasChildren && node.children.map((child: any) => (
+                    <AssortmentNode key={child.id} node={child} />
+                ))}
+                
+                {/* Финальный контент (1-2 абзаца без тестов) */}
+                {!hasChildren && node.content && (
+                    <div style={{ background: '#000', padding: '20px 25px', borderRadius: '18px', border: '1px solid #222', margin: '10px 0 15px 0', lineHeight: '1.6', fontSize: '14px', color: '#ccc' }}>
+                        <div style={{ fontSize: '11px', fontWeight: '900', color: '#0abab5', letterSpacing: '1.5px', marginBottom: '8px', textTransform: 'uppercase' }}>ИНФОРМАЦИЯ КАТЕГОРИИ</div>
+                        {node.content}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 function ShiftContent() {
   const searchParams = useSearchParams();
@@ -194,6 +356,9 @@ function ShiftContent() {
   const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
   const [testResultModal, setTestResultModal] = useState<{show: boolean, score: number, isPassed: boolean, title: string}>({show: false, score: 0, isPassed: false, title: ''});
 
+  // --- ДИНАМИЧЕСКИЙ АССОРТИМЕНТ С СЕРВЕРА ---
+  const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
+
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
       if (typeof window !== 'undefined') {
           const cachedFiles = localStorage.getItem('th_cache_files');
@@ -202,6 +367,7 @@ function ShiftContent() {
           const cachedProgRoute = localStorage.getItem(`th_prog_route_${currentUserId}`);
           const cachedProgBasics = localStorage.getItem(`th_prog_basics_${currentUserId}`);
           const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
+          const cachedAssortment = localStorage.getItem('th_cache_assortment_matrix');
 
           if (cachedFiles) setUrgentFiles(JSON.parse(cachedFiles));
           if (cachedRoute) setDynamicRoute(JSON.parse(cachedRoute));
@@ -209,16 +375,18 @@ function ShiftContent() {
           if (cachedProgRoute) setCompletedRoute(JSON.parse(cachedProgRoute));
           if (cachedProgBasics) setCompletedBasics(JSON.parse(cachedProgBasics));
           if (cachedPassedTests) setPassedTests(JSON.parse(cachedPassedTests));
+          if (cachedAssortment) setAssortmentMatrix(JSON.parse(cachedAssortment));
       }
 
       try {
-          const [sFiles, cRoute, cBasics, sBasicsData, sRouteData, pTestsRes] = await Promise.all([
+          const [sFiles, cRoute, cBasics, sBasicsData, sRouteData, pTestsRes, sAssortment] = await Promise.all([
               fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => null),
               fetch(`/api/storage?key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage?key=prog_basics_${currentUserId}`).then(r => r.json()).catch(() => null),
               fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => null),
               fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage?key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null)
+              fetch(`/api/storage?key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
+              fetch('/api/storage?key=tea_hub_assortment_matrix_v1').then(r => r.json()).catch(() => null)
           ]);
 
           if (Array.isArray(sFiles)) {
@@ -256,6 +424,14 @@ function ShiftContent() {
           }
           setDynamicRoute(finalRoute);
           localStorage.setItem('th_cache_route', JSON.stringify(finalRoute));
+
+          let finalAssortment = sAssortment;
+          if (!Array.isArray(finalAssortment) || finalAssortment.length === 0) {
+              finalAssortment = INITIAL_ASSORTMENT;
+              saveDataToServer('tea_hub_assortment_matrix_v1', finalAssortment);
+          }
+          setAssortmentMatrix(finalAssortment);
+          localStorage.setItem('th_cache_assortment_matrix', JSON.stringify(finalAssortment));
 
           if (checkUrl) {
               const sectionId = searchParams.get('sectionId');
@@ -580,23 +756,19 @@ function ShiftContent() {
 
   if (!isMounted) return null;
 
-  // --- ИСПРАВЛЕННЫЙ РАСЧЕТ ДЛЯ ГРАФИКА ДИНАМИКИ ---
+  // --- ВОССТАНОВЛЕННЫЕ ПЕРЕМЕННЫЕ ДЛЯ РАСЧЕТА ПРОГРЕССА И ГРАФИКА ---
   const totalBasicsModules = dynamicBasics.reduce((acc, s) => acc + (s.modules?.length || 0), 0);
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const basicsPercent = Math.round((completedBasics.length / (Math.max(totalBasicsModules, 1))) * 100);
-  const totalHubPercent = basicsPercent; // Текущий общий процент
+  const totalHubPercent = basicsPercent; 
 
-  // Построение кривой Безье
-  // Линия начинается в 0 и тянется ровно до твоего реального процента (totalHubPercent). Дальше график пустой.
   const pct = totalHubPercent;
   const startX = 0;
   const startY = 100;
   const endX = pct;
-  const endY = 100 - pct; // SVG ось Y перевернута, поэтому 100 - pct
-  // Контрольная точка для создания красивого прогиба
+  const endY = 100 - pct; 
   const cpX = pct * 0.5;
   const cpY = 100;
-  // Точка, чтобы график не уходил под землю при 0%
   const dotY = Math.max(pct, 2);
   const lineEndY = 100 - dotY;
 
@@ -626,18 +798,14 @@ function ShiftContent() {
                         <div style={rankBadge}>{totalHubPercent < 40 ? '🌱 НОВИЧОК' : totalHubPercent < 80 ? '⚖️ ЭРУДИТ' : '🏮 МАСТЕР'}</div>
                     </div>
 
-                    {/* --- НОВЫЙ ГРАФИК --- */}
                     <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '30px', marginBottom: '30px' }}>
-                        {/* Горизонтальные сетки */}
                         {[0, 25, 50, 75, 100].map(v => (
                             <div key={`h-${v}`} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', borderBottom: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
                         ))}
-                        {/* Вертикальные сетки */}
                         {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(v => (
                             <div key={`v-${v}`} style={{ position: 'absolute', bottom: 0, left: `${v}%`, height: '100%', borderLeft: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
                         ))}
                         
-                        {/* Линия и заливка (рисуется ровно до текущего процента) */}
                         <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, overflow: 'visible' }}>
                             <defs>
                                 <linearGradient id="flatGrad" x1="0" y1="0" x2="0" y2="1">
@@ -649,7 +817,6 @@ function ShiftContent() {
                             <path d={pathLine} fill="none" stroke="#0abab5" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '1s ease' }} />
                         </svg>
 
-                        {/* Точка на конце графика */}
                         <div style={{ 
                             position: 'absolute', 
                             left: `${endX}%`, 
@@ -664,7 +831,6 @@ function ShiftContent() {
                             transition: '1s ease' 
                         }} />
 
-                        {/* Подписи оси X (Проценты) */}
                         {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(p => (
                             <div key={`lbl-${p}`} style={{ position: 'absolute', left: `${p}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '10px', color: '#666', fontWeight: 'bold' }}>{p}%</div>
                         ))}
@@ -841,6 +1007,24 @@ function ShiftContent() {
                </div>
              )}
           </section>
+        )}
+
+        {/* --- НОВАЯ ВКЛАДКА: АССОРТИМЕНТ (ИНТЕРАКТИВНЫЙ СПРАВОЧНИК В ВИДЕ ДЕРЕВА) --- */}
+        {(activeTab === 'assortment' || activeTab === 'products') && (
+            <section style={{ animation: 'fadeInUp 0.5s ease', maxWidth: '100%' }}>
+                <h2 className="tasks-title" style={{ fontSize: '32px', fontWeight: '900', marginBottom: '15px' }}>
+                    Каталог товаров (Ассортимент)
+                </h2>
+                <p style={{ color: '#666', fontSize: '14px', marginBottom: '35px', lineHeight: '1.5', maxWidth: '700px' }}>
+                    Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов и изучения регламентов и описаний групп товаров.
+                </p>
+                
+                <div style={{ background: '#161816', padding: '30px', borderRadius: '35px', border: '1px solid #222' }}>
+                    {assortmentMatrix.map((rootNode: any) => (
+                        <AssortmentNode key={rootNode.id} node={rootNode} />
+                    ))}
+                </div>
+            </section>
         )}
 
         {/* --- ОКНО ПРОХОЖДЕНИЯ АТТЕСТАЦИИ (С АНТИ-ЧИТ ЗАЩИТОЙ) --- */}
