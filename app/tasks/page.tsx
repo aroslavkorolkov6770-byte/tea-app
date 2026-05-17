@@ -107,7 +107,7 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// --- ЭТАЛОННАЯ МАТРИЦА АССОРТИМЕНТА (БЕЗ ТЕСТИРОВАНИЯ) ---
+// --- ЭТАЛОННАЯ МАТРИЦА АССОРТИМЕНТА ---
 const INITIAL_ASSORTMENT = [
   {
     id: "as_1", title: "1. ЧАЙ (Camellia sinensis)", desc: "Включает только чай как растение. Важнейшее правило матрицы: если в травяной или ароматизированной смеси содержится более 2/3 чайного листа — позиция относится к группе чая, в противном случае — классифицируется как чаеподобный напиток.",
@@ -225,7 +225,6 @@ const cardHeaderLabel: React.CSSProperties = { fontSize: '11px', fontWeight: '90
 const bigStatVal: React.CSSProperties = { fontSize: '48px', fontWeight: '900', color: '#fff' };
 const cardSubText: React.CSSProperties = { fontSize: '14px', opacity: 0.5, marginBottom: '25px' };
 
-// КЛАССИЧЕСКИЕ ПРОГРЕСС-БАРЫ
 const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height: '8px', marginTop: '10px', width: '100%' };
 const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#222', borderRadius: '4px', transition: '0.3s' });
 const pBarBg: React.CSSProperties = { height: '8px', background: '#222', borderRadius: '4px', marginTop: '15px', marginBottom: '10px' };
@@ -283,20 +282,17 @@ function AssortmentNode({ node }: { node: any }) {
                 <span style={{ fontWeight: hasChildren ? '800' : '500', fontSize: hasChildren ? '16px' : '15px' }}>{node.title}</span>
             </div>
             
-            {/* Описание категории верхнего уровня, если есть */}
             {isOpen && node.desc && (
                 <div style={{ background: '#0a0a0a', padding: '15px 20px', borderRadius: '12px', border: '1px solid #1a1a1a', margin: '5px 0', fontSize: '14px', color: '#888', lineHeight: '1.5' }}>
                     {node.desc}
                 </div>
             )}
 
-            {/* Раскрывающийся контейнер */}
             <div style={{ display: isOpen ? 'block' : 'none', animation: 'fadeInUp 0.3s ease' }}>
                 {hasChildren && node.children.map((child: any) => (
                     <AssortmentNode key={child.id} node={child} />
                 ))}
                 
-                {/* Финальный контент (1-2 абзаца без тестов) */}
                 {!hasChildren && node.content && (
                     <div style={{ background: '#000', padding: '20px 25px', borderRadius: '18px', border: '1px solid #222', margin: '10px 0 15px 0', lineHeight: '1.6', fontSize: '14px', color: '#ccc' }}>
                         <div style={{ fontSize: '11px', fontWeight: '900', color: '#0abab5', letterSpacing: '1.5px', marginBottom: '8px', textTransform: 'uppercase' }}>ИНФОРМАЦИЯ КАТЕГОРИИ</div>
@@ -756,7 +752,7 @@ function ShiftContent() {
 
   if (!isMounted) return null;
 
-  // --- ВОССТАНОВЛЕННЫЕ ПЕРЕМЕННЫЕ ДЛЯ РАСЧЕТА ПРОГРЕССА И ГРАФИКА ---
+  // --- МАТЕМАТИКА ПРОГРЕССА ДЛЯ ГРАФИКОВ ---
   const totalBasicsModules = dynamicBasics.reduce((acc, s) => acc + (s.modules?.length || 0), 0);
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const basicsPercent = Math.round((completedBasics.length / (Math.max(totalBasicsModules, 1))) * 100);
@@ -1009,14 +1005,14 @@ function ShiftContent() {
           </section>
         )}
 
-        {/* --- НОВАЯ ВКЛАДКА: АССОРТИМЕНТ (ИНТЕРАКТИВНЫЙ СПРАВОЧНИК В ВИДЕ ДЕРЕВА) --- */}
+        {/* --- ВКЛАДКА: АССОРТИМЕНТ --- */}
         {(activeTab === 'assortment' || activeTab === 'products') && (
             <section style={{ animation: 'fadeInUp 0.5s ease', maxWidth: '100%' }}>
                 <h2 className="tasks-title" style={{ fontSize: '32px', fontWeight: '900', marginBottom: '15px' }}>
                     Каталог товаров (Ассортимент)
                 </h2>
                 <p style={{ color: '#666', fontSize: '14px', marginBottom: '35px', lineHeight: '1.5', maxWidth: '700px' }}>
-                    Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов и изучения регламентов и описаний групп товаров.
+                    Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов и изучения описаний групп товаров.
                 </p>
                 
                 <div style={{ background: '#161816', padding: '30px', borderRadius: '35px', border: '1px solid #222' }}>
@@ -1027,7 +1023,7 @@ function ShiftContent() {
             </section>
         )}
 
-        {/* --- ОКНО ПРОХОЖДЕНИЯ АТТЕСТАЦИИ (С АНТИ-ЧИТ ЗАЩИТОЙ) --- */}
+        {/* --- ОКНО ПРОХОЖДЕНИЯ АТТЕСТАЦИИ --- */}
         {activeUrgentTest && (
            <div style={modalOverlay}>
               <div className="tasks-modal" style={modalContent}>
@@ -1105,12 +1101,12 @@ function ShiftContent() {
             <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
                 <div className="tasks-modal" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
                     <div className="tasks-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
-                        <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile.name}</h2>
+                        <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile?.name}</h2>
                         <div onClick={() => setPreviewFile(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
                     </div>
                     <div style={{ flex: 1, width: '100%', background: '#fff', borderRadius: '15px', overflow: 'hidden' }}>
                         {previewFile.data ? (
-                            previewFile.name.toLowerCase().match(/\.(docx|doc|xls|xlsx|ppt|pptx|zip|rar)$/i) ? (
+                            previewFile.name?.toLowerCase().match(/\.(docx|doc|xls|xlsx|ppt|pptx|zip|rar)$/i) ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', textAlign: 'center', padding: '20px' }}>
                                     <div style={{ fontSize: '60px', marginBottom: '15px' }}>📄</div>
                                     <h3 style={{ margin: '0 0 10px 0', fontSize: '20px' }}>Формат не поддерживается</h3>
@@ -1356,7 +1352,6 @@ function ShiftContent() {
             .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
             .tasks-stat-card { padding: 25px 20px !important; border-radius: 25px !important; }
             
-            /* СТРОГО: Плоские маленькие прямоугольники для мобильных */
             .premium-cards-container { 
                 display: grid !important;
                 grid-template-columns: repeat(2, 1fr) !important;
