@@ -254,7 +254,7 @@ const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)'
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 
-// --- НОВЫЙ ЧИСТЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА (БЕЗ РАМОК) ---
+// --- НОВЫЙ ЧИСТЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА (С КРУТЫМ ДИЗАЙНОМ И НАВЕДЕНИЕМ) ---
 function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
     const [isOpen, setIsOpen] = useState(false);
     const hasChildren = node.children && node.children.length > 0;
@@ -262,63 +262,74 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
     return (
         <div style={{ 
             marginLeft: depth === 0 ? '0' : '20px', 
-            borderLeft: depth === 0 ? 'none' : '1px solid rgba(255,255,255,0.05)', 
+            borderLeft: depth === 0 ? 'none' : '1px solid rgba(10,186,181,0.2)', 
             paddingLeft: depth === 0 ? '0' : '15px', 
-            marginTop: '4px', 
-            marginBottom: '4px' 
+            marginTop: depth === 0 ? '12px' : '6px', 
+            marginBottom: depth === 0 ? '12px' : '6px' 
         }}>
             <div 
                 onClick={() => setIsOpen(!isOpen)} 
-                className="assortment-row"
+                className={`assortment-row ${isOpen ? 'open' : ''}`}
                 style={{
                     display: 'flex', 
                     alignItems: 'center', 
-                    padding: depth === 0 ? '16px 20px' : '12px 15px', 
-                    background: isOpen ? (depth === 0 ? 'rgba(10,186,181,0.05)' : 'rgba(255,255,255,0.02)') : 'transparent',
+                    padding: depth === 0 ? '18px 25px' : '14px 20px', 
+                    background: isOpen ? (depth === 0 ? 'rgba(10,186,181,0.08)' : 'rgba(10,186,181,0.05)') : 'transparent',
                     color: isOpen ? '#0abab5' : '#fff', 
-                    borderRadius: '12px', 
+                    borderRadius: '16px', 
                     cursor: 'pointer', 
-                    transition: 'all 0.2s ease',
-                    border: 'none'
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    border: isOpen ? '1px solid rgba(10,186,181,0.3)' : '1px solid transparent',
                 }}
             >
                 <span style={{ 
                     marginRight: '15px', 
                     color: isOpen ? '#0abab5' : '#666', 
-                    transition: '0.2s', 
-                    display: 'inline-block', 
+                    transition: '0.3s', 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '24px',
+                    height: '24px',
+                    background: isOpen ? 'rgba(10,186,181,0.1)' : 'rgba(255,255,255,0.05)',
+                    borderRadius: '6px',
                     transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', 
                     fontSize: '12px' 
                 }}>
                     {hasChildren ? '▶' : '•'}
                 </span>
                 <span style={{ 
-                    fontWeight: depth === 0 ? '900' : (hasChildren ? '700' : '500'), 
-                    fontSize: depth === 0 ? '18px' : (hasChildren ? '16px' : '15px'),
-                    letterSpacing: depth === 0 ? '1px' : 'normal'
+                    fontWeight: depth === 0 ? '900' : (hasChildren ? '800' : '600'), 
+                    fontSize: depth === 0 ? '20px' : (hasChildren ? '18px' : '16px'),
+                    letterSpacing: depth === 0 ? '0.5px' : 'normal'
                 }}>
                     {node.title}
                 </span>
             </div>
             
-            <div style={{ display: isOpen ? 'block' : 'none', animation: 'fadeInUp 0.3s ease' }}>
-                {node.desc && (
-                    <div style={{ padding: '10px 20px 15px 45px', fontSize: '14px', color: '#888', lineHeight: '1.5', fontStyle: 'italic' }}>
-                        {node.desc}
-                    </div>
-                )}
+            {isOpen && (
+                <div style={{ animation: 'fadeInUp 0.3s ease' }}>
+                    {node.desc && (
+                        <div style={{ padding: '15px 20px 10px 45px', fontSize: '15px', color: '#bbb', lineHeight: '1.6', fontStyle: 'italic' }}>
+                            {node.desc}
+                        </div>
+                    )}
 
-                {hasChildren && node.children.map((child: any) => (
-                    <AssortmentNode key={child.id} node={child} depth={depth + 1} />
-                ))}
-                
-                {!hasChildren && node.content && (
-                    <div style={{ padding: '10px 20px 20px 45px', lineHeight: '1.6', fontSize: '14px', color: '#ccc' }}>
-                        <div style={{ fontSize: '11px', fontWeight: '900', color: '#0abab5', letterSpacing: '1.5px', marginBottom: '8px', textTransform: 'uppercase' }}>ИНФОРМАЦИЯ КАТЕГОРИИ</div>
-                        {node.content}
-                    </div>
-                )}
-            </div>
+                    {hasChildren && node.children.map((child: any) => (
+                        <AssortmentNode key={child.id} node={child} depth={depth + 1} />
+                    ))}
+                    
+                    {!hasChildren && node.content && (
+                        <div style={{ padding: '15px 25px 25px 45px', lineHeight: '1.7', fontSize: '15px', color: '#eee' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '900', color: '#0abab5', letterSpacing: '1.5px', marginBottom: '10px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{width: '6px', height: '6px', background: '#0abab5', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #0abab5'}}></span>
+                                ИНФОРМАЦИЯ
+                            </div>
+                            {node.content}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
@@ -1034,7 +1045,6 @@ function ShiftContent() {
                     Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов и изучения описаний групп товаров.
                 </p>
                 
-                {/* Огромный фон удален. Элементы парят на фоне страницы. */}
                 <div style={{ marginTop: '10px' }}>
                     {assortmentMatrix.map((rootNode: any) => (
                         <AssortmentNode key={rootNode.id} node={rootNode} depth={0} />
@@ -1366,7 +1376,12 @@ function ShiftContent() {
 
         /* ⚠️ АНИМАЦИЯ НАВЕДЕНИЯ ДЛЯ ПЛОСКИХ СТРОК АССОРТИМЕНТА ⚠️ */
         .assortment-row:hover {
-            background: rgba(255, 255, 255, 0.04) !important;
+            background: rgba(10, 186, 181, 0.08) !important;
+            border-color: rgba(10, 186, 181, 0.2) !important;
+            transform: translateX(5px);
+        }
+        .assortment-row.open:hover {
+            transform: none; /* убираем сдвиг у открытых, чтобы не дергались */
         }
 
         @media (max-width: 768px) {
