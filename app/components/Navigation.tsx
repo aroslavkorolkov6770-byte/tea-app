@@ -502,13 +502,13 @@ export default function Navigation() {
           {isNotifOpen && (
             <div style={notifOverlayStyle as any} onClick={() => setIsNotifOpen(false)}>
               <div style={notifSidebarStyle as any} className="notif-sidebar-custom" onClick={e => e.stopPropagation()}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#fff' }}>УВЕДОМЛЕНИЯ</h2>
-                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', gap: '15px' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#fff', margin: 0 }}>УВЕДОМЛЕНИЯ</h2>
+                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginLeft: 'auto' }}>
                       {notifications.length > 0 && (
-                          <span onClick={clearAllNotifications} style={{ fontSize: '11px', color: '#ff4d4d', cursor: 'pointer', fontWeight: '900', textTransform: 'uppercase', borderBottom: '1px dashed #ff4d4d', transition: '0.2s' }}>Очистить всё</span>
+                          <span onClick={clearAllNotifications} style={{ fontSize: '11px', color: '#ff4d4d', cursor: 'pointer', fontWeight: '900', textTransform: 'uppercase', borderBottom: '1px dashed #ff4d4d', transition: '0.2s', whiteSpace: 'nowrap' }}>Очистить всё</span>
                       )}
-                      <div onClick={() => setIsNotifOpen(false)} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5 }}>✕</div>
+                      <div onClick={() => setIsNotifOpen(false)} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5, flexShrink: 0 }}>✕</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
