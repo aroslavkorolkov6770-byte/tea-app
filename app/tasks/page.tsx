@@ -575,7 +575,6 @@ function ShiftContent() {
   const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
 
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
-  // ⚠️ СОСТОЯНИЕ ДЛЯ СКРЫТИЯ БАННЕРА ПОСЛЕ ПРИВЯЗКИ ⚠️
   const [isPushBound, setIsPushBound] = useState(false);
 
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
@@ -691,7 +690,7 @@ function ShiftContent() {
       const currentId = localStorage.getItem('current_user_id') || 'guest';
       
       if (currentId === 'guest' || !currentId) {
-          alert("⚠️ Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве! Пожалуйста, сначала авторизуйтесь под логином сотрудника и попробуйте снова.");
+          alert("⚠️ Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве!");
           return;
       }
       
@@ -732,11 +731,9 @@ function ShiftContent() {
               if (!Array.isArray(subs)) subs = [];
 
               let filteredSubs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
-
               filteredSubs.push({ userId: currentId, sub: subscription });
               await saveDataToServer('tea_hub_push_subs_v1', filteredSubs);
               
-              // ⚠️ ПРЯЧЕМ БАННЕР ПОСЛЕ ПРИВЯЗКИ ⚠️
               localStorage.setItem('tea_hub_push_bound', 'true');
               setIsPushBound(true);
 
@@ -745,6 +742,33 @@ function ShiftContent() {
       } catch (error) {
           console.error('Ошибка подписки на Push:', error);
           alert("Ошибка привязки устройства: " + error);
+      }
+  };
+
+  // 🔴 НОВАЯ ФУНКЦИЯ ДЛЯ УНИЧТОЖЕНИЯ СЛОМАННОГО ТОКЕНА ОТ APPLE 🔴
+  const hardResetPush = async () => {
+      try {
+          if ('serviceWorker' in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              for (let r of regs) {
+                  const sub = await r.pushManager.getSubscription();
+                  if (sub) await sub.unsubscribe();
+                  await r.unregister();
+              }
+          }
+          localStorage.removeItem('tea_hub_push_bound');
+          
+          const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+          let subs = await res.json().catch(() => []);
+          if (Array.isArray(subs)) {
+              subs = subs.filter((s: any) => s.userId !== userId);
+              await saveDataToServer('tea_hub_push_subs_v1', subs);
+          }
+          
+          alert("♻️ Токены Apple APNs полностью уничтожены! Сейчас страница перезагрузится. После этого нажмите кнопку 'ПРИВЯЗАТЬ' еще раз.");
+          window.location.reload();
+      } catch(e) {
+          alert("Ошибка сброса: " + e);
       }
   };
 
@@ -762,8 +786,6 @@ function ShiftContent() {
         } else {
             setPushStatus(Notification.permission as any);
         }
-        
-        // ⚠️ ДОСТАЕМ ФЛАГ СКРЫТИЯ БАННЕРА ИЗ ПАМЯТИ ⚠️
         setIsPushBound(localStorage.getItem('tea_hub_push_bound') === 'true');
     }
 
@@ -1084,16 +1106,25 @@ function ShiftContent() {
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
-        {/* ⚠️ ИСПРАВЛЕННОЕ УСЛОВИЕ ДЛЯ СКРЫТИЯ БАННЕРА ПОСЛЕ ПРИВЯЗКИ ⚠️ */}
-        {!isPushBound && (pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest' && (
+        {/* БАННЕР ПРИВЯЗКИ */}
+        {(!isPushBound && (pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest') ? (
             <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
                 <div>
                     <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Синхронизация уведомлений устройства</h3>
-                    <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Нажмите кнопку справа, чтобы жестко привязать этот телефон/компьютер к вашему рабочему аккаунту.</p>
+                    <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Нажмите кнопку справа, чтобы жестко привязать этот телефон к вашему рабочему аккаунту.</p>
                 </div>
                 <button onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>ПРИВЯЗАТЬ</button>
             </div>
-        )}
+        ) : isPushBound ? (
+            // 🔴 БЛОК ДИАГНОСТИКИ ПОСЛЕ ПРИВЯЗКИ 🔴
+            <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.3)', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
+                <div>
+                    <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#ff4d4d', fontWeight: '900' }}>Диагностика связи (Только если пуши не приходят)</h3>
+                    <p style={{ margin: 0, color: '#aaa', fontSize: '12px', maxWidth: '400px' }}>Apple иногда молча блокирует старые токены. Нажмите эту кнопку для полного сброса кэша пушей, а затем привяжитесь заново.</p>
+                </div>
+                <button onClick={hardResetPush} style={{ background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', fontSize: '12px' }}>СБРОСИТЬ КЭШ ПУШЕЙ</button>
+            </div>
+        ) : null}
 
         {activeTab === 'welcome' && (
             <div style={{ animation: 'fadeInUp 0.6s ease' }}>
