@@ -200,7 +200,6 @@ export default function AdminDashboard() {
     return () => window.removeEventListener('sidebarToggle', handleToggle);
   }, []);
 
-  // ⚠️ УЛУЧШЕННАЯ ФУНКЦИЯ ПОДПИСКИ С ИСПРАВЛЕННЫМ РЕГУЛЯРНЫМ ВЫРАЖЕНИЕМ ⚠️
   const subscribeToPush = async () => {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
           alert("Браузер не поддерживает Web Push уведомления.");
@@ -223,10 +222,8 @@ export default function AdminDashboard() {
                   }
 
                   const urlBase64ToUint8Array = (base64String: string) => {
-                      // Очищаем от возможных случайных кавычек или пробелов при копировании
                       const cleanKey = base64String.replace(/["']/g, '').trim();
                       const padding = '='.repeat((4 - cleanKey.length % 4) % 4);
-                      // ИСПРАВЛЕНО: Убран лишний экранирующий слэш \\ из регулярного выражения
                       const base64 = (cleanKey + padding).replace(/-/g, '+').replace(/_/g, '/');
                       const rawData = window.atob(base64);
                       const outputArray = new Uint8Array(rawData.length);
@@ -479,6 +476,11 @@ export default function AdminDashboard() {
               const updatedFiles = [newDeadlineTask, ...currentFiles];
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+
+              // --- ИСПРАВЛЕНИЕ: ДОБАВЛЕНО СОХРАНЕНИЕ ДЕДЛАЙНА В БАЗУ КАЛЕНДАРЯ ---
+              newNotes[selectedDateKey] = adminNoteText;
+              setNotes(newNotes);
+              saveDataToServer('admin_cal_notes_v1', newNotes);
 
               const pushSent = await sendPushNotification(deadlineTarget, {
                   title: '⚠️ Новый дедлайн',
@@ -735,7 +737,7 @@ export default function AdminDashboard() {
                 <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
                         <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Включите Web-Push (Тестовый режим)</h3>
-                        <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Нажмите \"Разрешить\", чтобы протестировать получение пушей прямо на этот компьютер.</p>
+                        <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Нажмите "Разрешить", чтобы протестировать получение пушей прямо на этот компьютер.</p>
                     </div>
                     <button onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>РАЗРЕШИТЬ</button>
                 </div>
@@ -867,7 +869,7 @@ export default function AdminDashboard() {
                         {interactionTab === 'notif' ? (
                             <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                 <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Текст:</div>
-                                <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите text сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} disabled={isProcessing} />
+                                <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите текст сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} disabled={isProcessing} />
                                 <button onClick={handleSendNotification} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1 }}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
                             </div>
                         ) : (
@@ -952,15 +954,19 @@ export default function AdminDashboard() {
                     <div style={calendarGrid}>
                         {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => <div key={d} style={calDayHead}>{d}</div>)}
                         {Array.from({length: shiftStartDay}).map((_, i) => <div key={`empty-${i}`} />)}
+                        
+                        {/* ⚠️ ИСПРАВЛЕНИЕ: ПРОВЕРКА НА ДЕДЛАЙН ДЛЯ КРАСНОЙ ТОЧКИ ⚠️ */}
                         {Array.from({length: daysInMonth}).map((_, i) => {
                             const dayNumber = i + 1;
                             const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${dayNumber}`;
-                            const hasNote = !!notes[dateKey];
+                            const noteTextStr = notes[dateKey];
+                            const hasNote = !!noteTextStr;
+                            const isDeadlineNote = hasNote && noteTextStr.startsWith('[Дедлайн:');
                             const isTdy = isToday(dayNumber);
                             return (
                                 <div key={dayNumber} className={`cal-day ${isTdy ? 'today' : ''}`} onClick={() => openNotePanel(dayNumber)}>
                                     <span>{dayNumber}</span>
-                                    {hasNote && <div className="note-dot" />}
+                                    {hasNote && <div className={`note-dot ${isDeadlineNote ? 'deadline-dot' : ''}`} />}
                                 </div>
                             )
                         })}
@@ -1121,7 +1127,7 @@ export default function AdminDashboard() {
                             </section>
 
                             {/* БЛОК 6: ИСТОРИЯ ТЕСТОВ (ДОПОЛНЕНИЕ АДМИНА) */}
-                            <h3 style={{...profileSectionTitle, marginTop: '35px'}}>Исиория аттестаций</h3>
+                            <h3 style={{...profileSectionTitle, marginTop: '35px'}}>История аттестаций</h3>
                             <div style={{ background: '#000', padding: '10px', borderRadius: '20px', border: '1px solid #222' }}>
                                 {testResults.filter(r => r.userName === selectedProfileUser.name).length === 0 ? (
                                     <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px', fontWeight: 'bold' }}>Сотрудник еще не сдавал тесты</div>
@@ -1436,6 +1442,7 @@ export default function AdminDashboard() {
         .cal-day:hover { background: #0abab5; color: #000; }
         .cal-day.today { background: #0abab5; color: #000; }
         .note-dot { position: absolute; bottom: 4px; width: 4px; height: 4px; background: #0abab5; border-radius: 50%; }
+        .deadline-dot { background: #ff4d4d; }
         .cal-day:hover .note-dot, .cal-day.today .note-dot { background: #000; }
         
         .custom-scroll::-webkit-scrollbar { width: 6px; }
