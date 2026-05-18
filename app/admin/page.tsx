@@ -477,7 +477,6 @@ export default function AdminDashboard() {
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
 
-              // --- ИСПРАВЛЕНИЕ: ДОБАВЛЕНО СОХРАНЕНИЕ ДЕДЛАЙНА В БАЗУ КАЛЕНДАРЯ ---
               newNotes[selectedDateKey] = adminNoteText;
               setNotes(newNotes);
               saveDataToServer('admin_cal_notes_v1', newNotes);
@@ -869,7 +868,7 @@ export default function AdminDashboard() {
                         {interactionTab === 'notif' ? (
                             <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                 <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Текст:</div>
-                                <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите текст сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} disabled={isProcessing} />
+                                <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите text сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} disabled={isProcessing} />
                                 <button onClick={handleSendNotification} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1 }}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
                             </div>
                         ) : (
@@ -1129,10 +1128,10 @@ export default function AdminDashboard() {
                             {/* БЛОК 6: ИСТОРИЯ ТЕСТОВ (ДОПОЛНЕНИЕ АДМИНА) */}
                             <h3 style={{...profileSectionTitle, marginTop: '35px'}}>История аттестаций</h3>
                             <div style={{ background: '#000', padding: '10px', borderRadius: '20px', border: '1px solid #222' }}>
-                                {testResults.filter(r => r.userName === selectedProfileUser.name).length === 0 ? (
-                                    <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px', fontWeight: 'bold' }}>Сотрудник еще не сдавал тесты</div>
+                                {testResults.filter(r => r.userName === selectedProfileUser.name && r.testName?.toLowerCase().includes('аттестация')).length === 0 ? (
+                                    <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px', fontWeight: 'bold' }}>Сотрудник еще не сдавал аттестации</div>
                                 ) : (
-                                    testResults.filter(r => r.userName === selectedProfileUser.name).map((res: any) => {
+                                    testResults.filter(r => r.userName === selectedProfileUser.name && r.testName?.toLowerCase().includes('аттестация')).map((res: any) => {
                                         const isPassed = res.score === 100;
                                         const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
                                         return (
@@ -1243,7 +1242,7 @@ export default function AdminDashboard() {
 
                   <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '10px' }} className="custom-scroll">
                       {testResults
-                          .filter(res => selectedTestUser === 'Все' || res.userName === selectedTestUser)
+                          .filter(res => (selectedTestUser === 'Все' || res.userName === selectedTestUser) && res.testName?.toLowerCase().includes('аттестация'))
                           .map((res: any) => {
                               const isPassed = res.score === 100;
                               const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
@@ -1261,8 +1260,8 @@ export default function AdminDashboard() {
                                   </div>
                               );
                       })}
-                      {testResults.filter(res => selectedTestUser === 'Все' || res.userName === selectedTestUser).length === 0 && (
-                          <div style={{ textAlign: 'center', color: '#666', padding: '30px', fontWeight: 'bold', fontSize: '15px' }}>У этого сотрудника пока нет пройденных тестов</div>
+                      {testResults.filter(res => (selectedTestUser === 'Все' || res.userName === selectedTestUser) && res.testName?.toLowerCase().includes('аттестация')).length === 0 && (
+                          <div style={{ textAlign: 'center', color: '#666', padding: '30px', fontWeight: 'bold', fontSize: '15px' }}>Нет результатов аттестаций</div>
                       )}
                   </div>
               </div>
