@@ -262,7 +262,7 @@ export default function AdminDashboard() {
       }
   };
 
-  // 📧 ФУНКЦИЯ ДЛЯ ОТПРАВКИ EMAIL (РАБОТАЕТ ЧЕРЕЗ НОВЫЙ БЭКЕНД) 📧
+  // ⚠️ УЛУЧШЕННАЯ ФУНКЦИЯ ОПОВЕЩЕНИЯ НА EMAIL С ЖЕСТКИМИ СИСТЕМНЫМИ ALERTS ДЛЯ ОТЛАДКИ ⚠️
   const sendEmailNotification = async (targetUserId: string, subject: string, text: string) => {
       try {
           let emailsToSend: string[] = [];
@@ -279,11 +279,12 @@ export default function AdminDashboard() {
           }
 
           if (emailsToSend.length === 0) {
-              console.log("Нет email адресов для отправки. Email-уведомление пропущено.");
+              alert("ℹ️ Отладка Email:\nВ профиле получателя (или у всех сотрудников) отсутствует Email-адрес! Отправка письма автоматически отменена.");
               return false;
           }
 
           const to = emailsToSend.join(', ');
+          alert(`📨 Отладка Email:\nЗапускаем отправку на ящик: ${to}\nТема: ${subject}`);
 
           const res = await fetch('/api/send-email', {
               method: 'POST',
@@ -291,15 +292,19 @@ export default function AdminDashboard() {
               body: JSON.stringify({ to, subject, text })
           });
 
+          const responseText = await res.text();
+          let data = {};
+          try { data = JSON.parse(responseText); } catch(e) {}
+
           if (res.ok) {
-              console.log("Email успешно отправлен на адреса:", to);
+              alert(`✅ Отладка Email:\nПочтовый робот успешно отправил письмо на адрес: ${to}! Проверяйте Входящие / Спам.`);
               return true;
           } else {
-              console.error("Ошибка ответа от API отправки Email:", await res.text());
+              alert(`❌ Отладка Email (ОШИБКА SMTP СЕРВЕРА):\nКод ответа: ${res.status}\nОписание ошибки: ${(data as any).error || responseText || 'Неизвестный сбой SMTP'}`);
               return false;
           }
-      } catch (e) {
-          console.error("Ошибка при запросе к /api/send-email:", e);
+      } catch (e: any) {
+          alert(`💥 Отладка Email (КРИТИЧЕСКИЙ СБОЙ СЕТИ):\nНе удалось связаться с /api/send-email.\nПричина: ${e.message}`);
           return false;
       }
   };
@@ -404,15 +409,15 @@ export default function AdminDashboard() {
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
               
-              const pushSent = await sendPushNotification('Все', {
+              await sendPushNotification('Все', {
                   title: '📚 Новый учебный материал',
                   body: `В базу добавлен файл: ${selectedFile.name}`,
                   url: '/tasks?tab=edu'
               });
               
-              const emailSent = await sendEmailNotification('Все', '📚 Новый учебный материал', `Администратор добавил новый файл в базу знаний: ${selectedFile.name}`);
+              await sendEmailNotification('Все', '📚 Новый учебный материал', `Администратор добавил новый файл в базу знаний: ${selectedFile.name}`);
 
-              setShowSuccessModal({ show: true, title: 'МАТЕРИАЛ ОТПРАВЛЕН', text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников. ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
+              setShowSuccessModal({ show: true, title: 'МАТЕРИАЛ ОТПРАВЛЕН', text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников.` });
               setSelectedFile(null);
           } finally {
               setIsProcessing(false);
@@ -519,19 +524,15 @@ export default function AdminDashboard() {
               setNotes(newNotes);
               saveDataToServer('admin_cal_notes_v1', newNotes);
 
-              const pushSent = await sendPushNotification(deadlineTarget, {
+              await sendPushNotification(deadlineTarget, {
                   title: '⚠️ Новый дедлайн',
                   body: noteText.trim(),
                   url: '/tasks?tab=edu'
               });
               
-              const emailSent = await sendEmailNotification(deadlineTarget, '⚠️ Внимание: Новый дедлайн!', `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`);
+              await sendEmailNotification(deadlineTarget, '⚠️ Внимание: Новый дедлайн!', `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`);
 
-              if (pushSent || emailSent) {
-                  setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена и уведомления отправлены.` });
-              } else {
-                  setShowSuccessModal({ show: true, title: 'ЗАДАЧА СОХРАНЕНА', text: `Задача сохранена в базу, НО уведомления не были отправлены.` });
-              }
+              setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена в расписание и отправлена на устройства.` });
           } else {
               newNotes[selectedDateKey] = adminNoteText;
               setNotes(newNotes);
@@ -578,17 +579,15 @@ export default function AdminDashboard() {
 
         await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...arr]);
 
-        const pushSent = await sendPushNotification(selectedStaff, {
+        await sendPushNotification(selectedStaff, {
             title: newNotif.title,
             body: newNotif.text,
             url: '/tasks?tab=welcome'
         });
         
-        const emailSent = await sendEmailNotification(selectedStaff, newNotif.title, newNotif.text);
+        await sendEmailNotification(selectedStaff, newNotif.title, newNotif.text);
 
-        if (pushSent || emailSent) {
-            setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление доставлено сотрудникам (Push или Email).' });
-        }
+        setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление доставлено сотрудникам.' });
         setNotifText("");
     } finally {
         setIsProcessing(false);
@@ -635,17 +634,15 @@ export default function AdminDashboard() {
           setUrgentFiles(updatedFiles);
           await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
           
-          const pushSent = await sendPushNotification(selectedStaff, {
+          await sendPushNotification(selectedStaff, {
               title: '🎓 Новая аттестация',
               body: `Вам назначен тест: ${title}`,
               url: '/tasks?tab=edu'
           });
           
-          const emailSent = await sendEmailNotification(selectedStaff, '🎓 Вам назначена новая аттестация', `Администратор назначил вам новый тест для прохождения: ${title}. Зайдите в Tea Hub, чтобы его выполнить.`);
+          await sendEmailNotification(selectedStaff, '🎓 Вам назначена новая аттестация', `Администратор назначил вам новый тест для прохождения: ${title}. Зайдите в Tea Hub, чтобы его выполнить.`);
 
-          if (pushSent || emailSent) {
-              setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест успешно отправлен сотрудникам.` });
-          }
+          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест успешно отправлен сотрудникам.` });
       } catch (e) {
           console.error("Ошибка при отправке теста", e);
       } finally {
@@ -694,7 +691,7 @@ export default function AdminDashboard() {
               quiz: testFormData.quiz
           };
 
-          const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
+          const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
           let currentFiles = await res.json().catch(() => []);
           if (!Array.isArray(currentFiles)) currentFiles = [];
 
@@ -702,15 +699,15 @@ export default function AdminDashboard() {
           setUrgentFiles(updatedFiles);
           await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
           
-          const pushSent = await sendPushNotification(selectedStaff, {
+          await sendPushNotification(selectedStaff, {
               title: '🎓 Новая аттестация',
               body: `Вам назначен тест: ${testFormData.title}`,
               url: '/tasks?tab=edu'
           });
           
-          const emailSent = await sendEmailNotification(selectedStaff, '🎓 Вам назначена новая аттестация', `Администратор назначил вам новый тест для прохождения: ${testFormData.title}. Зайдите в Tea Hub, чтобы его выполнить.`);
+          await sendEmailNotification(selectedStaff, '🎓 Вам назначена новая аттестация', `Администратор назначил вам новый тест для прохождения: ${testFormData.title}. Зайдите в Tea Hub, чтобы его выполнить.`);
 
-          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" успешно отправлен. ${pushSent || emailSent ? '(Уведомления ушли)' : ''}` });
+          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" успешно отправлен.` });
           setShowTestEditor(false);
       } catch (e) {
           console.error("Ошибка при отправке теста", e);
@@ -750,32 +747,15 @@ export default function AdminDashboard() {
     .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
 
   const filteredEvents = parsedEvents.filter(e => eventTab === 'personal' ? !e.isDeadline : e.isDeadline);
-
-  const filteredUsers = users.filter(u => 
-      u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
-      u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
-  );
-
+  const filteredUsers = users.filter(u => u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || u.login.toLowerCase().includes(userSearchQuery.toLowerCase()));
   const uploadedMaterials = urgentFiles.filter(f => !f.isTest && !f.id.startsWith('deadline_'));
-
-  if (!isMounted) {
-    return (
-      <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', display: 'flex' }}>
-        <Navigation />
-        <div style={{ width: '260px', flexShrink: 0 }} />
-      </div>
-    );
-  }
 
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s' }}>
       <Navigation />
-      
       <div className="desktop-sidebar-spacer" style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
-
       <main className="admin-main" style={{ flex: 1, padding: '110px 40px 40px 40px', transition: '0.3s', boxSizing: 'border-box', maxWidth: '100%' }}>
           <div style={{ animation: 'fadeInUp 0.4s ease' }}>
-
             {pushStatus === 'default' && (
                 <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
@@ -793,39 +773,24 @@ export default function AdminDashboard() {
               onDrop={(e) => { 
                 e.preventDefault(); 
                 setIsDragging(false); 
-                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    setSelectedFile(e.dataTransfer.files[0]);
-                } 
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) setSelectedFile(e.dataTransfer.files[0]);
               }}
             >
                <div style={{ fontSize: '28px', marginBottom: '10px' }}>📁</div>
                <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '5px' }}>Загрузка учебных материалов</h3>
-               
                {!selectedFile ? (
                    <>
-                       <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>
-                         Перетащите сюда документ (PDF, DOCX, TXT) или нажмите кнопку ниже.
-                       </p>
-                       <input 
-                          type="file" id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing}
-                          onChange={(e) => { if (e.target.files && e.target.files.length > 0) setSelectedFile(e.target.files[0]); }} 
-                       />
-                       <button onClick={() => document.getElementById('file-upload-admin')?.click()} disabled={isProcessing} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
-                         ВЫБРАТЬ ФАЙЛ
-                       </button>
-
-                       {uploadedMaterials.length > 0 && (
-                           <div onClick={() => setShowFilesList(true)} style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8 }}>
-                               Загруженный материал ({uploadedMaterials.length})
-                           </div>
-                       )}
+                       <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>Перетащите сюда документ (PDF, DOCX, TXT) или нажмите кнопку ниже.</p>
+                       <input type="file" id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing} onChange={(e) => { if (e.target.files && e.target.files.length > 0) setSelectedFile(e.target.files[0]); }} />
+                       <button onClick={() => document.getElementById('file-upload-admin')?.click()} disabled={isProcessing} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px', fontSize: '13px' }}>ВЫБРАТЬ ФАЙЛ</button>
+                       {uploadedMaterials.length > 0 && <div onClick={() => setShowFilesList(true)} style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline', opacity: 0.8 }}>Загруженный материал ({uploadedMaterials.length})</div>}
                    </>
                ) : (
                    <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', wordBreak: 'break-word' }}>
                        <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px' }}>📎 {selectedFile.name}</div>
                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                           <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>{isProcessing ? 'ОТПРАВКА...' : 'ПРИКРЕПИТЬ'}</button>
-                           <button onClick={() => setSelectedFile(null)} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>ОТМЕНИТЬ</button>
+                           <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' }}>{isProcessing ? 'ОТПРАВКА...' : 'ПРИКРЕПИТЬ'}</button>
+                           <button onClick={() => setSelectedFile(null)} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px' }}>ОТМЕНИТЬ</button>
                        </div>
                    </div>
                )}
@@ -833,19 +798,16 @@ export default function AdminDashboard() {
 
             <div className="admin-layout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px', marginBottom: '30px', marginTop: '40px' }}>
               <section style={{ minWidth: 0 }}>
-                
-                <div className="admin-flex-space" style={flexSpace}>
-                  <h2 className="admin-section-title" style={sectionTitle}>Управление персоналом</h2>
+                <div style={flexSpace}>
+                  <h2 style={sectionTitle}>Управление персоналом</h2>
                   <span onClick={() => setShowUserForm(true)} style={actionBtn}>+ Новый сотрудник</span>
                 </div>
-
                 <div style={{ marginBottom: '20px', position: 'relative' }}>
                     <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5, fontSize: '14px' }}>🔍</span>
                     <input type="text" placeholder="Поиск по имени или логину..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' }} />
                 </div>
-                
                 <div className="custom-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '5px' }}>
-                    <div className="admin-user-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                       {filteredUsers.length === 0 ? (
                           <div style={{ color: '#555', padding: '20px 0', fontSize: '14px', fontWeight: 'bold', gridColumn: '1 / -1', textAlign: 'center' }}>Сотрудники не найдены</div>
                       ) : (
@@ -867,16 +829,10 @@ export default function AdminDashboard() {
                                             <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>✕</div>
                                         )}
                                     </div>
-                                    
                                     <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
-                                            <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                            <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
-                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}><span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span></div>
                                     </div>
-                                    
                                 </div>
                               )
                           })
@@ -884,46 +840,39 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <div className="admin-flex-space" style={{ ...flexSpace, marginTop: '40px' }}>
-                  <h2 className="admin-section-title" style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'underline' }} onClick={() => setShowTestModal(true)}>
-                    Результаты тестирования ↗
-                  </h2>
+                <div style={{ ...flexSpace, marginTop: '40px' }}>
+                  <h2 style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'underline' }} onClick={() => setShowTestModal(true)}>Результаты тестирования ↗</h2>
                   <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Всего записей: {testResults.length}</span>
                 </div>
 
-                {/* --- ЦЕНТР ВЗАИМОДЕЙСТВИЯ --- */}
                 <div style={{ ...adminCard, marginTop: '30px', padding: '0', overflow: 'hidden' }}>
-                    <div className="interaction-center-tabs" style={{ display: 'flex', borderBottom: '1px solid #222' }}>
-                        <div onClick={() => setInteractionTab('notif')} style={{ flex: 1, padding: '20px', textAlign: 'center', cursor: 'pointer', background: interactionTab === 'notif' ? 'rgba(10,186,181,0.05)' : 'transparent', color: interactionTab === 'notif' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' }}>УВЕДОМЛЕНИЯ</div>
-                        <div onClick={() => setInteractionTab('test')} style={{ flex: 1, padding: '20px', textAlign: 'center', cursor: 'pointer', background: interactionTab === 'test' ? 'rgba(10,186,181,0.05)' : 'transparent', color: interactionTab === 'test' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', letterSpacing: '1px', transition: '0.2s', borderLeft: '1px solid #222' }}>АТТЕСТАЦИЯ</div>
+                    <div style={{ display: 'flex', borderBottom: '1px solid #222' }}>
+                        <div onClick={() => setInteractionTab('notif')} style={{ flex: 1, padding: '20px', textAlign: 'center', cursor: 'pointer', background: interactionTab === 'notif' ? 'rgba(10,186,181,0.05)' : 'transparent', color: interactionTab === 'notif' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', letterSpacing: '1px' }}>УВЕДОМЛЕНИЯ</div>
+                        <div onClick={() => setInteractionTab('test')} style={{ flex: 1, padding: '20px', textAlign: 'center', cursor: 'pointer', background: interactionTab === 'test' ? 'rgba(10,186,181,0.05)' : 'transparent', color: interactionTab === 'test' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', letterSpacing: '1px', borderLeft: '1px solid #222' }}>АТТЕСТАЦИЯ</div>
                     </div>
-                    
                     <div style={{ padding: '25px' }}>
-                        <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
-                            <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Получатель:</div>
+                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
+                            <div style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Получатель:</div>
                             <select style={{ ...adminIn, flex: 1, marginBottom: 0 }} value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}>
                                 <option value="Все">Всем сотрудникам</option>
-                                {users.filter(u => u.role === 'staff').map(u => (
-                                    <option key={u.id} value={u.id}>{u.name} ({u.login})</option>
-                                ))}
+                                {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.id}>{u.name} ({u.login})</option>)}
                             </select>
                         </div>
-                        
                         {interactionTab === 'notif' ? (
-                            <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Текст:</div>
+                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                <div style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Текст:</div>
                                 <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите текст сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} disabled={isProcessing} />
-                                <button onClick={handleSendNotification} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1 }}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
+                                <button onClick={handleSendNotification} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px' }}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
                             </div>
                         ) : (
-                            <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Тип теста:</div>
+                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                <div style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Тип теста:</div>
                                 <select style={{ ...adminIn, flex: 1, marginBottom: 0 }} value={testType} onChange={(e) => setTestType(e.target.value)}>
                                     <option value="final">🎓 Итоговый тест (Аттестация)</option>
                                     <option value="re-attestation">🔄 Переаттестация</option>
                                 </select>
                                 <button onClick={handleOpenTestEditor} disabled={isProcessing} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px' }}>РЕДАКТОР</button>
-                                <button onClick={handleQuickSendTest} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', borderRadius: '15px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1 }}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
+                                <button onClick={handleQuickSendTest} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', borderRadius: '15px' }}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
                             </div>
                         )}
                     </div>
@@ -931,53 +880,24 @@ export default function AdminDashboard() {
               </section>
 
               <aside style={{ display: 'flex', flexDirection: 'column', gap: '30px', minWidth: 0 }}>
-                {/* ⚠️ БЛОК БЛИЖАЙШИХ СОБЫТИЙ С ПЕРЕКЛЮЧАТЕЛЕМ ⚠️ */}
                 <div style={{ ...adminCard, padding: '20px' }}>
                     <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', margin: '0 0 15px 0' }}>Ближайшие события</h2>
-                    
                     <div style={{ position: 'relative', display: 'flex', background: '#111', borderRadius: '25px', padding: '4px', marginBottom: '15px', border: '1px solid #222' }}>
-                        <div style={{ 
-                            position: 'absolute', 
-                            top: '4px', 
-                            bottom: '4px', 
-                            left: '4px', 
-                            width: 'calc(50% - 4px)', 
-                            background: eventTab === 'personal' ? '#0abab5' : '#ff4d4d', 
-                            borderRadius: '20px', 
-                            transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            transform: eventTab === 'personal' ? 'translateX(0)' : 'translateX(100%)'
-                        }} />
-                        <div 
-                            onClick={() => setEventTab('personal')} 
-                            style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '8px', cursor: 'pointer', color: eventTab === 'personal' ? '#000' : '#888', fontWeight: '900', fontSize: '12px', transition: '0.3s' }}
-                        >
-                            ЗАМЕТКИ
-                        </div>
-                        <div 
-                            onClick={() => setEventTab('deadline')} 
-                            style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '8px', cursor: 'pointer', color: eventTab === 'deadline' ? '#000' : '#888', fontWeight: '900', fontSize: '12px', transition: '0.3s' }}
-                        >
-                            ДЕДЛАЙНЫ
-                        </div>
+                        <div style={{ position: 'absolute', top: '4px', bottom: '4px', left: '4px', width: 'calc(50% - 4px)', background: eventTab === 'personal' ? '#0abab5' : '#ff4d4d', borderRadius: '20px', transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)', transform: eventTab === 'personal' ? 'translateX(0)' : 'translateX(100%)' }} />
+                        <div onClick={() => setEventTab('personal')} style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '8px', cursor: 'pointer', color: eventTab === 'personal' ? '#000' : '#888', fontWeight: '900', fontSize: '12px' }}>ЗАМЕТКИ</div>
+                        <div onClick={() => setEventTab('deadline')} style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '8px', cursor: 'pointer', color: eventTab === 'deadline' ? '#000' : '#888', fontWeight: '900', fontSize: '12px' }}>ДЕДЛАЙНЫ</div>
                     </div>
-
                     <div className="custom-scroll" style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '5px' }}>
                         {filteredEvents.length === 0 ? (
                             <div style={{ color: '#555', fontSize: '13px', textAlign: 'center', padding: '20px 0', fontWeight: 'bold' }}>Нет записей</div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {filteredEvents.slice(0, 10).map((event) => (
-                                    <div key={event.key} style={{ display: 'flex', gap: '15px', alignItems: 'center', padding: '12px', background: '#0d0d0d', borderRadius: '15px', border: `1px solid ${eventTab === 'deadline' ? 'rgba(255,77,77,0.2)' : 'rgba(10,186,181,0.1)'}` }}>
-                                        <div style={{ ...dateBox, background: eventTab === 'deadline' ? '#ff4d4d' : '#0abab5' }}>
-                                            {event.d} <br/> <span style={{ fontSize: '10px', opacity: 0.8 }}>{DAYS_OF_WEEK[event.dateObj.getDay()]}</span>
-                                        </div>
+                                    <div key={event.key} style={{ display: 'flex', gap: '15px', alignItems: 'center', padding: '12px', background: '#0d0d0d', borderRadius: '15px', border: `1px solid ${event.isDeadline ? 'rgba(255,77,77,0.2)' : 'rgba(10,186,181,0.1)'}` }}>
+                                        <div style={{ ...dateBox, background: event.isDeadline ? '#ff4d4d' : '#0abab5' }}>{event.d} <br/> <span style={{ fontSize: '10px', opacity: 0.8 }}>{DAYS_OF_WEEK[event.dateObj.getDay()]}</span></div>
                                         <div style={{ flex: 1, overflow: 'hidden' }}>
                                             <div style={{ fontWeight: '800', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }}>{event.title}</div>
-                                            {eventTab === 'deadline' ? (
-                                                <div style={{ fontSize: '11px', color: '#ff4d4d', marginTop: '4px', fontWeight: 'bold' }}>Кому: {event.target}</div>
-                                            ) : (
-                                                event.desc && <div style={{ fontSize: '11px', color: '#888', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{event.desc}</div>
-                                            )}
+                                            {event.isDeadline ? <div style={{ fontSize: '11px', color: '#ff4d4d', marginTop: '4px', fontWeight: 'bold' }}>Кому: {event.target}</div> : event.desc && <div style={{ fontSize: '11px', color: '#888', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{event.desc}</div>}
                                         </div>
                                     </div>
                                 ))}
@@ -989,15 +909,11 @@ export default function AdminDashboard() {
                 <div style={adminCard}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
                         <span style={{ fontWeight: '900', fontSize: '18px' }}>{MONTH_NAMES[currentDate.getMonth()]} {currentDate.getFullYear()}</span>
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                            <span onClick={handlePrevMonth} style={calNavBtn}>←</span>
-                            <span onClick={handleNextMonth} style={calNavBtn}>→</span>
-                        </div>
+                        <div style={{ display: 'flex', gap: '15px' }}><span onClick={handlePrevMonth} style={calNavBtn}>←</span><span onClick={handleNextMonth} style={calNavBtn}>→</span></div>
                     </div>
                     <div style={calendarGrid}>
                         {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => <div key={d} style={calDayHead}>{d}</div>)}
                         {Array.from({length: shiftStartDay}).map((_, i) => <div key={`empty-${i}`} />)}
-                        
                         {Array.from({length: daysInMonth}).map((_, i) => {
                             const dayNumber = i + 1;
                             const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${dayNumber}`;
@@ -1019,32 +935,22 @@ export default function AdminDashboard() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                <section style={{...adminCard, padding: '35px'}}>
-                    <div className="admin-flex-space" style={flexSpace}>
-                        <h2 className="admin-section-title" style={sectionTitle}>Статистика обучения</h2>
+                    <div style={flexSpace}>
+                        <h2 style={sectionTitle}>Статистика обучения</h2>
                         <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Сотрудников в базе: {users.filter(u => u.role === 'staff').length}</span>
                     </div>
-                    
-                    {users.filter(u => u.role === 'staff').length === 0 && (
-                        <div style={{ color: '#555', textAlign: 'center', padding: '30px', fontWeight: 'bold' }}>Нет добавленных сотрудников</div>
-                    )}
-
+                    {users.filter(u => u.role === 'staff').length === 0 && <div style={{ color: '#555', textAlign: 'center', padding: '30px', fontWeight: 'bold' }}>Нет добавленных сотрудников</div>}
                     {users.filter(u => u.role === 'staff').map(user => {
                         const routeLen = usersStats[user.id]?.route || 0;
                         const basicsLen = usersStats[user.id]?.basics || 0;
                         const planPercent = Math.round((routeLen / (totalRouteSteps || 1)) * 100);
                         const basicsPercent = Math.round((basicsLen / (totalBasicsModules || 1)) * 100);
-                        
                         const avatarImg = userAvatars[user.id] || user.avatar;
-
                         return (
-                            <div key={user.id} className="admin-user-card" style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}>
-                                <div className="admin-user-avatar-col" style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px' }}>
+                            <div key={user.id} style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px' }}>
                                     <div style={{ width: '55px', height: '55px', borderRadius: '18px', background: '#222', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #333' }}>
-                                        {avatarImg ? (
-                                            <img src={avatarImg} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                        ) : (
-                                            <span style={{ fontSize: '24px' }}>👤</span>
-                                        )}
+                                        {avatarImg ? <img src={avatarImg} alt="Аватар" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '24px' }}>👤</span>}
                                     </div>
                                     <div style={{ overflow: 'hidden' }}>
                                         <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.name}</h3>
@@ -1052,25 +958,19 @@ export default function AdminDashboard() {
                                         <div onClick={() => setSelectedProfileUser(user)} style={profileBtnStyle}>ПРОФИЛЬ ↗</div>
                                     </div>
                                 </div>
-
-                                <div className="admin-user-bars-col" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                         <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ПЛАН</div>
-                                        <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
-                                            <div style={{ width: `${planPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
-                                        </div>
+                                        <div style={barBg}><div style={{ width: `${planPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px' }} /></div>
                                         <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{planPercent}%</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                         <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>БАЗА</div>
-                                        <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
-                                            <div style={{ width: `${basicsPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
-                                        </div>
+                                        <div style={barBg}><div style={{ width: `${basicsPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px' }} /></div>
                                         <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{basicsPercent}%</div>
                                     </div>
                                 </div>
-
-                                <div className="admin-user-actions-col" style={{ display: 'flex', gap: '12px', height: '50px', alignItems: 'flex-end', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
+                                <div style={{ display: 'flex', gap: '12px', height: '50px', alignItems: 'flex-end', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
                                     <div style={barStyle(planPercent)} />
                                     <div style={barStyle(basicsPercent)} />
                                 </div>
@@ -1082,16 +982,10 @@ export default function AdminDashboard() {
           </div>
       </main>
 
-      {/* --- ИДЕНТИЧНОЕ МОДАЛЬНОЕ ОКНО ПРОФИЛЯ СОТРУДНИКА (КАК В APP/PROFILE) --- */}
       {selectedProfileUser && (
-        <div style={modalOverlay as any} onClick={() => setSelectedProfileUser(null)}>
-            <div className="custom-scroll" style={{ background: '#0d0f0d', padding: '40px 20px', borderRadius: '40px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #333' } as any} onClick={e => e.stopPropagation()}>
-                
-                {/* Кнопка закрытия */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                    <div onClick={() => setSelectedProfileUser(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
-                </div>
-
+        <div style={modalOverlay} onClick={() => setSelectedProfileUser(null)}>
+            <div className="custom-scroll" style={{ background: '#0d0f0d', padding: '40px 20px', borderRadius: '40px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #333' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><div onClick={() => setSelectedProfileUser(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div></div>
                 {(() => {
                     const pData = userProfiles[selectedProfileUser.id] || {};
                     const routeLen = usersStats[selectedProfileUser.id]?.route || 0;
@@ -1100,52 +994,25 @@ export default function AdminDashboard() {
                     const tg = pData.tg || selectedProfileUser.tg || '';
                     const email = pData.email || selectedProfileUser.email || '';
                     const phone = pData.phone || selectedProfileUser.phone || '';
-
                     const planPercent = Math.min((routeLen / (totalRouteSteps || 1)) * 100, 100);
                     const basicsPercent = Math.min((basicsLen / (totalBasicsModules || 1)) * 100, 100);
-
                     return (
                         <>
-                            {/* БЛОК 1: ШАПКА ПРОФИЛЯ С АВАТАРКОЙ */}
                             <section style={profileHeaderCardStyle}>
                                 <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
-                                    {profileAvatar ? (
-                                        <img src={profileAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
-                                    ) : (
-                                        <span style={{ fontSize: '45px' }}>👤</span>
-                                    )}
+                                    {profileAvatar ? <img src={profileAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" /> : <span style={{ fontSize: '45px' }}>👤</span>}
                                 </div>
                                 <h2 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', color: '#fff' }}>{selectedProfileUser.name}</h2>
-                                <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>
-                                    ЧАЙНЫЙ МАСТЕР (УЧЕНИК)
-                                </p>
+                                <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>ЧАЙНЫЙ МАСТЕР (УЧЕНИК)</p>
                             </section>
-
-                            {/* БЛОК 2: ДОСТУПЫ (ТОЛЬКО ДЛЯ АДМИНА) */}
                             <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.2)', padding: '15px', borderRadius: '20px', marginBottom: '35px', display: 'flex', justifyContent: 'space-around' }}>
-                                <div style={{textAlign: 'center'}}>
-                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '5px'}}>ЛОГИН ДОСТУПА</div>
-                                    <div style={{fontFamily: 'monospace', fontSize: '15px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.login}</div>
-                                </div>
-                                <div style={{textAlign: 'center'}}>
-                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '5px'}}>ПАРОЛЬ</div>
-                                    <div style={{fontFamily: 'monospace', fontSize: '15px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.pass}</div>
-                                </div>
+                                <div style={{textAlign: 'center'}}><div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '5px'}}>ЛОГИН ДОСТУПА</div><div style={{fontFamily: 'monospace', fontSize: '15px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.login}</div></div>
+                                <div style={{textAlign: 'center'}}><div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '5px'}}>ПАРОЛЬ</div><div style={{fontFamily: 'monospace', fontSize: '15px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.pass}</div></div>
                             </div>
-
-                            {/* БЛОК 3: ПРОГРЕСС ОБУЧЕНИЯ */}
                             <section style={progressSectionStyle}>
-                                <div style={{ marginBottom: '25px' }}>
-                                    <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{routeLen}/{totalRouteSteps}</span></div>
-                                    <div style={barBg}><div style={{ ...barFill, width: `${planPercent}%` }} /></div>
-                                </div>
-                                <div style={{ marginBottom: '10px' }}>
-                                    <div style={labelRow}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{basicsLen}/{totalBasicsModules}</span></div>
-                                    <div style={barBg}><div style={{ ...barFill, width: `${basicsPercent}%` }} /></div>
-                                </div>
+                                <div style={{ marginBottom: '25px' }}><div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{routeLen}/{totalRouteSteps}</span></div><div style={barBg}><div style={{ ...barFill, width: `${planPercent}%` }} /></div></div>
+                                <div style={{ marginBottom: '10px' }}><div style={labelRow}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{basicsLen}/{totalBasicsModules}</span></div><div style={barBg}><div style={{ ...barFill, width: `${basicsPercent}%` }} /></div></div>
                             </section>
-
-                            {/* БЛОК 4: БЕЙДЖИ ДОСТИЖЕНИЙ */}
                             <h3 style={profileSectionTitle}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
                                 <div title="Старт" style={{ ...badgeStyle, opacity: routeLen >= 1 ? 1 : 0.1 }}>🌱</div>
@@ -1153,8 +1020,6 @@ export default function AdminDashboard() {
                                 <div title="Теория" style={{ ...badgeStyle, opacity: basicsLen >= 5 ? 1 : 0.1 }}>📚</div>
                                 <div title="Мастер" style={{ ...badgeStyle, opacity: basicsLen >= 10 ? 1 : 0.1 }}>🏮</div>
                             </div>
-
-                            {/* БЛОК 5: КОНТАКТЫ */}
                             <h3 style={profileSectionTitle}>СВЯЗЬ</h3>
                             <section style={contactCardStyle}>
                                 <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
@@ -1166,9 +1031,7 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                             </section>
-
-                            {/* БЛОК 6: ИСТОРИЯ ТЕСТОВ (ДОПОЛНЕНИЕ АДМИНА) */}
-                            <h3 style={{...profileSectionTitle, marginTop: '35px'}}>История аттестаций</h3>
+                            <h3 style={profileSectionTitle}>История аттестаций</h3>
                             <div style={{ background: '#000', padding: '10px', borderRadius: '20px', border: '1px solid #222' }}>
                                 {testResults.filter(r => r.userName === selectedProfileUser.name && r.testName?.toLowerCase().includes('аттестация')).length === 0 ? (
                                     <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px', fontWeight: 'bold' }}>Сотрудник еще не сдавал аттестации</div>
@@ -1198,13 +1061,11 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* --- РЕДАКТОР АТТЕСТАЦИИ --- */}
       {showTestEditor && (
         <div style={{...modalOverlay, alignItems: 'flex-start'}}>
             <div className="admin-modal-content custom-scroll" style={{...modalContentSmall, maxWidth: '900px', margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'}}>
                 <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>РЕДАКТОР ТЕСТА: {testFormData.title}</h2>
                 <input style={adminIn} placeholder="Название теста" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
-                
                 <div style={{borderTop: '1px solid #222', paddingTop: '30px', marginTop: '15px'}}>
                     <h3 style={{fontSize: '20px', color: '#fff', marginBottom: '25px', fontWeight: '900'}}>ВОПРОСЫ И ОТВЕТЫ</h3>
                     {testFormData.quiz.map((q, qIdx) => (
@@ -1216,7 +1077,7 @@ export default function AdminDashboard() {
                                 {[0,1,2].map(i => (
                                     <div key={i} style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                         <label style={{display:'flex', gap:'5px', cursor:'pointer', color: q.c === i ? '#0abab5' : '#888', fontWeight: 'bold', fontSize: '13px'}}><input type="radio" checked={q.c === i} onChange={() => updateTestQuestion(qIdx, 'c', i)} /> Верный вариант {i+1}</label>
-                                        <input style={{...adminIn, marginBottom: 0, borderColor: q.c === i ? '#0abab5' : '#222'}} placeholder={`Ответ ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
+                                        <input style={{...adminIn, marginBottom: 0, borderColor: q.c === i ? '#0abab5' : '#222'}} placeholder={`Ответ \${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o\${i}`, e.target.value)} />
                                     </div>
                                 ))}
                             </div>
@@ -1224,18 +1085,16 @@ export default function AdminDashboard() {
                     ))}
                     <button onClick={addTestQuestion} disabled={isProcessing} style={{...adminActionBtn, width: '100%', padding: '15px', background: 'transparent'}}>+ ДОБАВИТЬ ВОПРОС</button>
                 </div>
-                <button onClick={handleSendTest} disabled={isProcessing} style={{...saveBtn, marginTop: '30px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1}}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ СОТРУДНИКУ'}</button>
+                <button onClick={handleSendTest} disabled={isProcessing} style={{...saveBtn, marginTop: '30px'}}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ СОТРУДНИКУ'}</button>
                 <div onClick={() => setShowTestEditor(false)} style={{ textAlign: 'center', marginTop: '25px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ОТМЕНА</div>
             </div>
         </div>
       )}
 
-      {/* ⚠️ ИСПОЛЬЗУЕМ ОТФИЛЬТРОВАННЫЙ СПИСОК В МОДАЛКЕ */}
       {showFilesList && (
           <div style={modalOverlay}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '550px' }}>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center' }}>ЗАГРУЖЕННЫЕ МАТЕРИАЛЫ</h2>
-                  
                   <div style={{ maxHeight: '350px', overflowY: 'auto', marginBottom: '25px', paddingRight: '10px' }} className="custom-scroll">
                       {uploadedMaterials.length === 0 ? (
                           <p style={{ textAlign: 'center', color: '#666' }}>Список пуст</p>
@@ -1243,9 +1102,7 @@ export default function AdminDashboard() {
                           uploadedMaterials.map(file => (
                               <div key={file.id} style={{ background: '#000', border: '1px solid #222', padding: '15px', borderRadius: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                                   <div style={{ overflow: 'hidden', flex: '1 1 150px', paddingRight: '10px' }}>
-                                      <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>
-                                          📄 {file.name}
-                                      </div>
+                                      <div style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>📄 {file.name}</div>
                                       <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>{file.date} • {file.size}</div>
                                   </div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1257,7 +1114,6 @@ export default function AdminDashboard() {
                           ))
                       )}
                   </div>
-
                   <button onClick={() => setShowFilesList(false)} style={saveBtn}>← НАЗАД К ПАНЕЛИ</button>
               </div>
           </div>
@@ -1270,25 +1126,16 @@ export default function AdminDashboard() {
                       <h2 style={{ color: '#0abab5', fontWeight: '900', margin: 0, letterSpacing: '1px', fontSize: '18px' }}>РЕЗУЛЬТАТЫ ТЕСТОВ</h2>
                       <div onClick={() => setShowTestModal(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', lineHeight: 1, fontWeight: 'bold' }}>✕</div>
                   </div>
-
-                  <select
-                      style={{ ...adminIn, marginBottom: '25px', border: '1px solid #333' }}
-                      value={selectedTestUser}
-                      onChange={(e) => setSelectedTestUser(e.target.value)}
-                  >
+                  <select style={{ ...adminIn, marginBottom: '25px', border: '1px solid #333' }} value={selectedTestUser} onChange={(e) => setSelectedTestUser(e.target.value)}>
                       <option value="Все">Показать всех сотрудников</option>
-                      {users.filter(u => u.role === 'staff').map(u => (
-                          <option key={u.id} value={u.name}>{u.name} ({u.login})</option>
-                      ))}
+                      {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.name}>{u.name} ({u.login})</option>)}
                   </select>
-
                   <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '10px' }} className="custom-scroll">
                       {testResults
                           .filter(res => (selectedTestUser === 'Все' || res.userName === selectedTestUser) && res.testName?.toLowerCase().includes('аттестация'))
                           .map((res: any) => {
                               const isPassed = res.score === 100;
                               const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
-
                               return (
                                   <div key={res.id} style={{ background: '#000', border: '1px solid #222', padding: '20px', borderRadius: '20px', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px' }}>
                                       <div style={{ flex: 1, minWidth: '150px' }}>
@@ -1313,14 +1160,9 @@ export default function AdminDashboard() {
       {showSuccessModal.show && (
           <div style={modalOverlay} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                  <div style={{ fontSize: '50px', marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>✅</div>
+                  <div style={{ fontSize: '50px', marginBottom: '20px' }}>✅</div>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{showSuccessModal.title}</h2>
-                  <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.6', marginBottom: '25px' }}>
-                      {showSuccessModal.text.includes('"') 
-                        ? showSuccessModal.text.split('"').map((part, i) => i === 1 ? <span key={i} style={{fontSize: '18px', color: '#fff', fontWeight: '900'}}>"{part}"</span> : part)
-                        : showSuccessModal.text
-                      }
-                  </p>
+                  <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.6', marginBottom: '25px' }}>{showSuccessModal.text}</p>
                   <button onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })} style={saveBtn}>ПОНЯТНО</button>
               </div>
           </div>
@@ -1331,9 +1173,7 @@ export default function AdminDashboard() {
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
                   <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{confirmModal.title}</h2>
-                  <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
-                      {confirmModal.text}
-                  </p>
+                  <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{confirmModal.text}</p>
                   <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
                       <button onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px' }}>ОТМЕНА</button>
                       <button onClick={executeConfirmAction} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px' }}>УДАЛИТЬ</button>
@@ -1361,13 +1201,7 @@ export default function AdminDashboard() {
                       <div onClick={() => setPreviewFile(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
                   </div>
                   <div style={{ flex: 1, width: '100%', background: '#fff', borderRadius: '15px', overflow: 'hidden' }}>
-                      {previewFile.data ? (
-                          <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
-                      ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '20px' }}>
-                              Нет данных для отображения (загружено в старой версии)
-                          </div>
-                      )}
+                      {previewFile.data ? <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '20px' }}>Нет данных для отображения (загружено в старой версии)</div>}
                   </div>
               </div>
           </div>
@@ -1380,13 +1214,11 @@ export default function AdminDashboard() {
                 <input style={adminIn} placeholder="Имя (напр. Анна)" value={newUser.name} onChange={e=>setNewUser({...newUser, name: e.target.value})} />
                 <input style={adminIn} placeholder="Придумайте Логин" value={newUser.login} onChange={e=>setNewUser({...newUser, login: e.target.value})} />
                 <input style={adminIn} placeholder="Придумайте Пароль" value={newUser.pass} onChange={e=>setNewUser({...newUser, pass: e.target.value})} />
-                
                 <div style={{ textAlign: 'left', marginBottom: '15px', color: '#888', fontSize: '13px', fontWeight: 'bold', marginLeft: '5px' }}>Роль пользователя:</div>
                 <select style={adminIn} value={newUser.role} onChange={e=>setNewUser({...newUser, role: e.target.value})}>
                     <option value="staff">🍵 Чайный мастер (Сотрудник)</option>
                     <option value="admin">👑 Администратор</option>
                 </select>
-                
                 <button onClick={handleCreateUser} style={{...saveBtn, marginTop: '20px'}}>СОЗДАТЬ УЧЕТКУ</button>
                 <div onClick={()=>setShowUserForm(false)} style={{textAlign:'center', marginTop:'20px', cursor:'pointer', color:'#666', fontWeight:'bold'}}>ОТМЕНА</div>
             </div>
@@ -1401,62 +1233,24 @@ export default function AdminDashboard() {
               <div onClick={closeNotePanel} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5 }}>✕</div>
             </div>
             <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '20px', color: '#ccc' }}>Дата: {formattedSelectedDate()}</p>
-            
             <div style={{ position: 'relative', display: 'flex', background: '#111', borderRadius: '14px', marginBottom: '20px', padding: '4px', border: '1px solid #222' }}>
-                <div style={{ 
-                    position: 'absolute', 
-                    top: '4px', 
-                    bottom: '4px', 
-                    left: noteType === 'personal' ? '4px' : 'calc(50% + 2px)', 
-                    width: 'calc(50% - 6px)', 
-                    background: '#222', 
-                    borderRadius: '10px', 
-                    transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    border: '1px solid #333'
-                }} />
-                <div 
-                    onClick={() => setNoteType('personal')} 
-                    style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '10px', cursor: 'pointer', color: noteType === 'personal' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', transition: '0.3s' }}
-                >
-                    Для себя
-                </div>
-                <div 
-                    onClick={() => setNoteType('deadline')} 
-                    style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '10px', cursor: 'pointer', color: noteType === 'deadline' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px', transition: '0.3s' }}
-                >
-                    Дедлайн
-                </div>
+                <div style={{ position: 'absolute', top: '4px', bottom: '4px', left: noteType === 'personal' ? '4px' : 'calc(50% + 2px)', width: 'calc(50% - 6px)', background: '#222', borderRadius: '10px', transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)', border: '1px solid #333' }} />
+                <div onClick={() => setNoteType('personal')} style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '10px', cursor: 'pointer', color: noteType === 'personal' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px' }}>Для себя</div>
+                <div onClick={() => setNoteType('deadline')} style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '10px', cursor: 'pointer', color: noteType === 'deadline' ? '#0abab5' : '#666', fontWeight: '900', fontSize: '13px' }}>Дедлайн</div>
             </div>
-
             {noteType === 'deadline' && (
-                <div style={{ marginBottom: '15px', animation: 'fadeInUp 0.3s ease' }}>
+                <div style={{ marginBottom: '15px' }}>
                     <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Кому назначить:</div>
-                    <select style={{ ...adminIn, marginBottom: 0, padding: '12px', cursor: 'pointer' }} value={deadlineTarget} onChange={e => setDeadlineTarget(e.target.value)}>
+                    <select style={{ ...adminIn, marginBottom: 0, padding: '12px' }} value={deadlineTarget} onChange={e => setDeadlineTarget(e.target.value)}>
                         <option value="Все">Всем сотрудникам</option>
-                        {users.filter(u => u.role === 'staff').map(u => (
-                            <option key={u.id} value={u.id}>{u.name} ({u.login})</option>
-                        ))}
+                        {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.id}>{u.name} ({u.login})</option>)}
                     </select>
                 </div>
             )}
-
-            <textarea 
-                autoFocus 
-                value={noteText} 
-                onChange={(e) => setNoteText(e.target.value)} 
-                placeholder={noteType === 'deadline' ? "Текст задачи (например: Сдать аттестацию)..." : "Текст заметки..."} 
-                style={{...noteTextarea, height: noteType === 'deadline' ? '135px' : '200px'}} 
-            />
-            
+            <textarea autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={noteType === 'deadline' ? "Текст задачи..." : "Текст заметки..."} style={{...noteTextarea, height: noteType === 'deadline' ? '135px' : '200px'}} />
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
-                <button onClick={saveNote} disabled={isProcessing} style={{...adminSendBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'}}>
-                    {isProcessing ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
-                </button>
-                {notes[selectedDateKey] && (
-                    <button onClick={deleteNote} disabled={isProcessing} style={{...noteDeleteBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'}}>
-                        УДАЛИТЬ
-                    </button>
-                )}
+                <button onClick={saveNote} disabled={isProcessing} style={{...adminSendBtn, flex: 1, minWidth: '100px'}}>{isProcessing ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}</button>
+                {notes[selectedDateKey] && <button onClick={deleteNote} disabled={isProcessing} style={{...noteDeleteBtn, flex: 1, minWidth: '100px'}}>УДАЛИТЬ</button>}
             </div>
           </div>
         </div>
@@ -1466,70 +1260,29 @@ export default function AdminDashboard() {
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        
         * { box-sizing: border-box; }
-        
-        body { 
-            overflow-x: hidden;
-            margin: 0; 
-            padding: 0; 
-            background: #0d0f0d; 
-        }
-
+        body { overflow-x: hidden; margin: 0; padding: 0; background: #0d0f0d; }
         .cal-day { position: relative; font-size: 13px; padding: 10px 0; border-radius: 12px; font-weight: 800; color: #fff; cursor: pointer; transition: 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 38px; }
-        .cal-day:hover { background: #0abab5; color: #000; }
-        .cal-day.today { background: #0abab5; color: #000; }
+        .cal-day:hover, .cal-day.today { background: #0abab5; color: #000; }
         .note-dot { position: absolute; bottom: 4px; width: 4px; height: 4px; background: #0abab5; border-radius: 50%; }
         .deadline-dot { background: #ff4d4d; }
         .cal-day:hover .note-dot, .cal-day.today .note-dot { background: #000; }
-        
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-
         @media (max-width: 768px) {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
             .admin-main { padding: 90px 15px 50px 15px !important; }
             .admin-layout-grid { grid-template-columns: 1fr !important; gap: 20px !important; margin-top: 20px !important; }
-            
-            .admin-section-title { font-size: 20px !important; margin-bottom: 20px !important; }
             .admin-flex-space { flex-direction: column; align-items: flex-start !important; gap: 15px !important; margin-bottom: 25px !important; }
-            
             .admin-user-grid { grid-template-columns: 1fr !important; }
-            
-            .admin-user-card { 
-                flex-direction: column !important; 
-                align-items: flex-start !important; 
-                gap: 20px !important; 
-                padding: 20px !important;
-            }
-            .admin-user-avatar-col { flex: auto !important; width: 100% !important; margin-bottom: 0 !important; }
-            .admin-user-bars-col { 
-                border-left: none !important; 
-                padding-left: 0 !important; 
-                width: 100% !important; 
-                border-top: 1px solid #222; 
-                padding-top: 20px !important; 
-            }
-            .admin-user-actions-col { 
-                border-left: none !important; 
-                padding-left: 0 !important; 
-                width: 100% !important; 
-                justify-content: flex-end; 
-                height: auto !important; 
-                border-top: 1px solid #222; 
-                padding-top: 20px !important;
-            }
-
+            .admin-user-card { flex-direction: column !important; align-items: flex-start !important; gap: 20px !important; padding: 20px !important;}
+            .admin-user-avatar-col { flex: auto !important; width: 100% !important; }
+            .admin-user-bars-col, .admin-user-actions-col { border-left: none !important; padding-left: 0 !important; width: 100% !important; border-top: 1px solid #222; padding-top: 20px !important; }
             .interaction-center-tabs { flex-direction: column; }
             .interaction-center-tabs > div { border-left: none !important; border-bottom: 1px solid #222; }
             .interaction-center-row { flex-direction: column; align-items: stretch !important; gap: 15px !important; }
             .interaction-center-label { width: 100% !important; margin-bottom: -5px; }
-
-            .admin-modal-content {
-                padding: 30px 20px !important;
-                width: 95% !important;
-                border-radius: 25px !important;
-            }
+            .admin-modal-content { padding: 30px 20px !important; width: 95% !important; border-radius: 25px !important; }
         }
       `}</style>
     </div>
