@@ -14,7 +14,7 @@ const STORAGE_KEYS = {
 };
 
 const saveDataToServer = (key: string, data: any) => {
-    fetch('/api/storage', {
+    return fetch('/api/storage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, data })
@@ -599,14 +599,15 @@ function ShiftContent() {
       }
 
       try {
+          const cacheBuster = `?t=${Date.now()}`;
           const [sFiles, cRoute, cBasics, sBasicsData, sRouteData, pTestsRes, sAssortment] = await Promise.all([
-              fetch('/api/storage?key=' + STORAGE_KEYS.URGENT_FILES).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage?key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage?key=prog_basics_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_BASICS).then(r => r.json()).catch(() => null),
-              fetch('/api/storage?key=' + STORAGE_KEYS.DYNAMIC_ROUTE).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage?key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch('/api/storage?key=tea_hub_assortment_matrix_v1').then(r => r.json()).catch(() => null)
+              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.URGENT_FILES}`).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage${cacheBuster}&key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage${cacheBuster}&key=prog_basics_${currentUserId}`).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_BASICS}`).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_ROUTE}`).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage${cacheBuster}&key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage${cacheBuster}&key=tea_hub_assortment_matrix_v1`).then(r => r.json()).catch(() => null)
           ]);
 
           if (Array.isArray(sFiles)) {
@@ -685,12 +686,15 @@ function ShiftContent() {
   };
 
   const subscribeToPush = async () => {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          alert("Браузер не поддерживает Web Push уведомления.");
+          return;
+      }
       
       const currentId = localStorage.getItem('current_user_id') || 'guest';
       
       if (currentId === 'guest' || !currentId) {
-          alert("⚠️ Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве!");
+          alert("⚠️ Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве! Пожалуйста, сначала авторизуйтесь под логином сотрудника и попробуйте снова.");
           return;
       }
       
@@ -699,7 +703,8 @@ function ShiftContent() {
           setPushStatus(permission);
           
           if (permission === 'granted') {
-              const registration = await navigator.serviceWorker.register('/sw.js');
+              const swUrl = `/sw.js?v=${Date.now()}`;
+              const registration = await navigator.serviceWorker.register(swUrl);
               let subscription = await registration.pushManager.getSubscription();
 
               if (!subscription) {
@@ -710,8 +715,9 @@ function ShiftContent() {
                   }
 
                   const urlBase64ToUint8Array = (base64String: string) => {
-                      const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                      const cleanKey = base64String.replace(/["']/g, '').trim();
+                      const padding = '='.repeat((4 - cleanKey.length % 4) % 4);
+                      const base64 = (cleanKey + padding).replace(/-/g, '+').replace(/_/g, '/');
                       const rawData = window.atob(base64);
                       const outputArray = new Uint8Array(rawData.length);
                       for (let i = 0; i < rawData.length; ++i) {
@@ -726,7 +732,7 @@ function ShiftContent() {
                   });
               }
 
-              const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+              const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
               let subs = await res.json().catch(() => []);
               if (!Array.isArray(subs)) subs = [];
 
@@ -738,6 +744,8 @@ function ShiftContent() {
               setIsPushBound(true);
 
               alert(`🎉 Устройство успешно зарегистрировано и привязано к вашему аккаунту!`);
+          } else {
+              alert("❌ Вы заблокировали уведомления в браузере.");
           }
       } catch (error) {
           console.error('Ошибка подписки на Push:', error);
@@ -788,7 +796,6 @@ function ShiftContent() {
   };
 
   const visibleUrgentFiles = urgentFiles.filter(f => {
-      // 1. Извлекаем дату создания задачи из её ID (например: test_1715000000000)
       let taskCreatedAt = 0;
       if (f.id && typeof f.id === 'string') {
           const parts = f.id.split('_');
@@ -796,9 +803,8 @@ function ShiftContent() {
           if (!isNaN(timePart)) taskCreatedAt = timePart;
       }
 
-      // 2. Извлекаем дату создания текущего пользователя из его ID (например: u_1715000000000)
       let userCreatedAt = 0;
-      if (userId && userId !== 'u_admin' && userId !== 'u_staff') { // Базовые аккаунты видят всё (созданы в 0 миллисекунду)
+      if (userId && userId !== 'u_admin' && userId !== 'u_staff') {
           const uParts = userId.split('_');
           const uTimePart = parseInt(uParts[uParts.length - 1]);
           if (!isNaN(uTimePart)) userCreatedAt = uTimePart;
@@ -806,17 +812,13 @@ function ShiftContent() {
 
       let isForMe = false;
       
-      // 3. Если отправлено конкретно этому юзеру - показываем
       if (f.target === userId) {
           isForMe = true;
       } 
-      // 4. Если отправлено "Всем"
       else if (!f.target || f.target === 'Все') {
-          // ИСКЛЮЧЕНИЕ: Если это обычный файл (не тест и не дедлайн), показываем ВСЕГДА
           if (!f.isTest && !(f.id && f.id.startsWith('deadline_'))) {
               isForMe = true;
           } else {
-              // Если это тест или дедлайн - только если создан ПОСЛЕ регистрации аккаунта
               isForMe = taskCreatedAt >= userCreatedAt;
           }
       }
@@ -1018,7 +1020,7 @@ function ShiftContent() {
       const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
       try {
-          const res = await fetch('/api/storage?key=tea_hub_test_results_v1');
+          const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_test_results_v1`);
           let results = await res.json().catch(() => []);
           if (!Array.isArray(results)) results = [];
 
@@ -1038,7 +1040,7 @@ function ShiftContent() {
           const newResults = [newResult, ...results];
           saveDataToServer('tea_hub_test_results_v1', newResults);
 
-          const notifRes = await fetch('/api/storage?key=tea_hub_notifications_v1');
+          const notifRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_notifications_v1`);
           let notifs = await notifRes.json().catch(() => []);
           if (!Array.isArray(notifs)) notifs = [];
 
@@ -1111,7 +1113,6 @@ function ShiftContent() {
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
-        {/* ЧИСТЫЙ БАННЕР ПРИВЯЗКИ, ИСЧЕЗАЮЩИЙ ПОСЛЕ КЛИКА */}
         {(!isPushBound && (pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest') && (
             <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
                 <div>

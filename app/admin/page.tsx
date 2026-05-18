@@ -57,10 +57,7 @@ export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // --- ЖЕСТКИЙ ПРЕДОХРАНИТЕЛЬ ОТ ДВОЙНЫХ КЛИКОВ ---
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // --- СОСТОЯНИЕ ДЛЯ WEB-PUSH ---
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -121,11 +118,13 @@ export default function AdminDashboard() {
 
     const loadAllData = async () => {
         try {
-            const notesRes = await fetch('/api/storage?key=admin_cal_notes_v1');
+            const cacheBuster = `?t=${Date.now()}`;
+            
+            const notesRes = await fetch(`/api/storage${cacheBuster}&key=admin_cal_notes_v1`);
             const notesData = await notesRes.json();
             if (notesData && Object.keys(notesData).length > 0 && !Array.isArray(notesData)) setNotes(notesData);
 
-            const usersRes = await fetch('/api/storage?key=tea_hub_users_v1');
+            const usersRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_users_v1`);
             let usersData = await usersRes.json();
             if (!Array.isArray(usersData) || usersData.length === 0) {
                 usersData = [
@@ -136,20 +135,18 @@ export default function AdminDashboard() {
             }
             setUsers(usersData);
 
-            const testRes = await fetch('/api/storage?key=tea_hub_test_results_v1');
+            const testRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_test_results_v1`);
             let testData = await testRes.json();
-            if (!Array.isArray(testData) || testData.length === 0) {
-                testData = [];
-            }
+            if (!Array.isArray(testData) || testData.length === 0) testData = [];
             setTestResults(testData);
 
-            const filesRes = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+            const filesRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_urgent_files_v1`);
             const filesData = await filesRes.json();
             if (Array.isArray(filesData)) setUrgentFiles(filesData);
 
-            const bRes = await fetch('/api/storage?key=tea_hub_dynamic_basics_v2');
+            const bRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_basics_v2`);
             const bDb = await bRes.json().catch(() => []);
-            const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v2');
+            const rRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_route_v2`);
             const rDb = await rRes.json().catch(() => []);
             
             setTotalBasicsModules((Array.isArray(bDb) ? bDb : []).reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) || 50);
@@ -161,9 +158,8 @@ export default function AdminDashboard() {
 
             await Promise.all(usersData.map(async (u: any) => {
                 if (u.avatar) avatarsFound[u.id] = u.avatar;
-                
                 try {
-                    const profData = await fetch(`/api/storage?key=profile_data_${u.id}`).then(r => r.json()).catch(() => null);
+                    const profData = await fetch(`/api/storage${cacheBuster}&key=profile_data_${u.id}`).then(r => r.json()).catch(() => null);
                     if (profData && !Array.isArray(profData)) {
                         profilesFound[u.id] = profData;
                         if (profData.avatar) avatarsFound[u.id] = profData.avatar;
@@ -173,10 +169,9 @@ export default function AdminDashboard() {
                 if (u.role === 'staff') {
                     try {
                         const [uRouteData, uBasicsData] = await Promise.all([
-                            fetch(`/api/storage?key=prog_route_${u.id}`).then(r => r.json()).catch(() => []),
-                            fetch(`/api/storage?key=prog_basics_${u.id}`).then(r => r.json()).catch(() => [])
+                            fetch(`/api/storage${cacheBuster}&key=prog_route_${u.id}`).then(r => r.json()).catch(() => []),
+                            fetch(`/api/storage${cacheBuster}&key=prog_basics_${u.id}`).then(r => r.json()).catch(() => [])
                         ]);
-                        
                         stats[u.id] = {
                             route: Array.isArray(uRouteData) ? uRouteData.length : 0,
                             basics: Array.isArray(uBasicsData) ? uBasicsData.length : 0
@@ -206,12 +201,20 @@ export default function AdminDashboard() {
           return;
       }
       
+      const currentId = localStorage.getItem('current_user_id') || 'guest';
+      
+      if (currentId === 'guest' || !currentId) {
+          alert("⚠️ Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве!");
+          return;
+      }
+
       try {
           const permission = await Notification.requestPermission();
           setPushStatus(permission);
           
           if (permission === 'granted') {
-              const registration = await navigator.serviceWorker.register('/sw.js');
+              const swUrl = `/sw.js?v=${Date.now()}`;
+              const registration = await navigator.serviceWorker.register(swUrl);
               let subscription = await registration.pushManager.getSubscription();
 
               if (!subscription) {
@@ -238,11 +241,10 @@ export default function AdminDashboard() {
                       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
                   });
 
-                  const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+                  const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
                   let subs = await res.json().catch(() => []);
                   if (!Array.isArray(subs)) subs = [];
 
-                  const currentId = localStorage.getItem('current_user_id') || 'u_admin';
                   const exists = subs.find((s: any) => s.sub.endpoint === subscription?.endpoint);
                   if (!exists) {
                       subs.push({ userId: currentId, sub: subscription });
@@ -263,7 +265,7 @@ export default function AdminDashboard() {
 
   const sendPushNotification = async (targetUserId: string, payload: { title: string, body: string, url?: string }) => {
       try {
-          const subsRes = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+          const subsRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`, { cache: 'no-store' });
           const subs = await subsRes.json().catch(() => []);
           
           if (!Array.isArray(subs) || subs.length === 0) {
@@ -276,7 +278,7 @@ export default function AdminDashboard() {
               : subs.filter((s: any) => s.userId === targetUserId);
 
           if (targetSubs.length === 0) {
-              alert(`⚠️ ПРЕДУПРЕЖДЕНИЕ: Для пользователя (${targetUserId}) не найдено ни одного привязанного устройства.`);
+              alert(`⚠️ ПРЕДУПРЕЖДЕНИЕ: Для пользователя (${targetUserId}) не найдено ни одного привязанного устройства в базе.`);
               return false;
           }
 
@@ -292,8 +294,6 @@ export default function AdminDashboard() {
           });
 
           const responseData = await apiRes.json();
-          console.log("Ответ от сервера Push API:", responseData);
-
           if (!apiRes.ok) {
               alert(`❌ СЕРВЕРНАЯ ОШИБКА: Сервер не смог отправить пуш. Причина: ${responseData.error || 'Неизвестно'}`);
               return false;
@@ -360,7 +360,7 @@ export default function AdminDashboard() {
                   data: fileData 
               };
               
-              const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+              const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
               let currentFiles = await res.json().catch(() => []);
               if (!Array.isArray(currentFiles)) currentFiles = [];
 
@@ -469,7 +469,7 @@ export default function AdminDashboard() {
                   isTest: false
               };
 
-              const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+              const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
               let currentFiles = await res.json().catch(() => []);
               if (!Array.isArray(currentFiles)) currentFiles = [];
 
@@ -523,7 +523,7 @@ export default function AdminDashboard() {
     setIsProcessing(true);
     
     try {
-        const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
+        const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_notifications_v1`);
         const currentNotifs = await res.json().catch(() => []);
         const arr = Array.isArray(currentNotifs) ? currentNotifs : [];
         const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
@@ -585,7 +585,7 @@ export default function AdminDashboard() {
               quiz: getBaseQuizTemplate()
           };
 
-          const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+          const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
           let currentFiles = await res.json().catch(() => []);
           if (!Array.isArray(currentFiles)) currentFiles = [];
 
@@ -650,7 +650,7 @@ export default function AdminDashboard() {
               quiz: testFormData.quiz
           };
 
-          const res = await fetch('/api/storage?key=tea_hub_urgent_files_v1');
+          const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
           let currentFiles = await res.json().catch(() => []);
           if (!Array.isArray(currentFiles)) currentFiles = [];
 
@@ -673,7 +673,6 @@ export default function AdminDashboard() {
       }
   };
 
-  // --- ОБРАБОТКА И ФИЛЬТРАЦИЯ СОБЫТИЙ ДЛЯ СПИСКА ---
   const parsedEvents = Object.entries(notes)
     .map(([key, text]) => {
       const [y, m, d] = key.split('-').map(Number);
@@ -731,7 +730,6 @@ export default function AdminDashboard() {
       <main className="admin-main" style={{ flex: 1, padding: '110px 40px 40px 40px', transition: '0.3s', boxSizing: 'border-box', maxWidth: '100%' }}>
           <div style={{ animation: 'fadeInUp 0.4s ease' }}>
 
-            {/* ⚠️ БАННЕР РАЗРЕШЕНИЯ УВЕДОМЛЕНИЙ ПРЯМО В АДМИНКЕ ⚠️ */}
             {pushStatus === 'default' && (
                 <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
