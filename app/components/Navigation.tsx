@@ -326,6 +326,31 @@ export default function Navigation() {
     }
   };
 
+  // --- НОВАЯ ФУНКЦИЯ ДЛЯ ОЧИСТКИ ВСЕХ УВЕДОМЛЕНИЙ ---
+  const clearAllNotifications = async () => {
+    try {
+        const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
+        const allNotifs = await res.json().catch(() => []);
+
+        if (Array.isArray(allNotifs)) {
+            const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
+            
+            // Фильтруем базу: оставляем только те уведомления, которые НЕ предназначены нам
+            const updated = allNotifs.filter((n: any) => {
+                const isMyNotif = n.target === 'Все' || n.target === currentUserId || !n.target;
+                return !isMyNotif; // Если это мое уведомление - удаляем его из базы
+            });
+            
+            saveDataToServer('tea_hub_notifications_v1', updated);
+            
+            // Сразу очищаем список на экране, не дожидаясь авто-синхронизации
+            setNotifications([]);
+        }
+    } catch (e) {
+        console.error("Не удалось очистить уведомления:", e);
+    }
+  };
+
   const handleSearch = (val: string) => {
     setSearchQuery(val);
     if (!val.trim()) {
@@ -479,7 +504,12 @@ export default function Navigation() {
               <div style={notifSidebarStyle as any} className="notif-sidebar-custom" onClick={e => e.stopPropagation()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                   <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#fff' }}>УВЕДОМЛЕНИЯ</h2>
-                  <div onClick={() => setIsNotifOpen(false)} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5 }}>✕</div>
+                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                      {notifications.length > 0 && (
+                          <span onClick={clearAllNotifications} style={{ fontSize: '11px', color: '#ff4d4d', cursor: 'pointer', fontWeight: '900', textTransform: 'uppercase', borderBottom: '1px dashed #ff4d4d', transition: '0.2s' }}>Очистить всё</span>
+                      )}
+                      <div onClick={() => setIsNotifOpen(false)} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5 }}>✕</div>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   {notifications.length === 0 ? (
