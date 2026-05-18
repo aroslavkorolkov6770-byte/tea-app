@@ -5,7 +5,6 @@ import Navigation from '@/app/components/Navigation';
 const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 const DAYS_OF_WEEK = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
-// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
     return fetch('/api/storage', {
         method: 'POST',
@@ -44,9 +43,6 @@ const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const profileBtnStyle: React.CSSProperties = { marginTop: '8px', fontSize: '10px', background: '#222', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', display: 'inline-block', color: '#aaa', fontWeight: 'bold', transition: '0.2s' };
 
-// ============================================================================
-// ИМПОРТИРОВАННЫЕ СТИЛИ ЛИЧНОГО КАБИНЕТА ДЛЯ МОДАЛКИ
-// ============================================================================
 const profileHeaderCardStyle: React.CSSProperties = { position: 'relative', backgroundColor: '#161816', padding: '40px 30px', borderRadius: '40px', border: '1px solid #222', textAlign: 'center', marginBottom: '25px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' };
 const profileSectionTitle: React.CSSProperties = { fontSize: '12px', fontWeight: '900', color: '#888', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center', textTransform: 'uppercase' };
 const progressSectionStyle: React.CSSProperties = { background: '#161816', padding: '35px', borderRadius: '35px', border: '1px solid #222', marginBottom: '35px' };
@@ -64,7 +60,9 @@ export default function AdminDashboard() {
   // --- ЖЕСТКИЙ ПРЕДОХРАНИТЕЛЬ ОТ ДВОЙНЫХ КЛИКОВ ---
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // --- СОСТОЯНИЯ КАЛЕНДАРЯ И ЗАМЕТОК ---
+  // --- ⚠️ СОСТОЯНИЕ ДЛЯ WEB-PUSH ⚠️ ---
+  const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
@@ -72,54 +70,39 @@ export default function AdminDashboard() {
   
   const [noteType, setNoteType] = useState<'personal' | 'deadline'>('personal');
   const [deadlineTarget, setDeadlineTarget] = useState<string>('Все');
-  
-  // Переключатель отображаемых событий на панели
   const [eventTab, setEventTab] = useState<'personal' | 'deadline'>('personal');
 
-  // --- СОСТОЯНИЯ УПРАВЛЕНИЯ ПЕРСОНАЛОМ И ГЛУБОКОГО ПОИСКА ---
   const [users, setUsers] = useState<any[]>([]);
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
-  
   const [showUserForm, setShowUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
   const [userSearchQuery, setUserSearchQuery] = useState("");
-  
-  // --- СОСТОЯНИЕ ДЛЯ ПРОФИЛЯ СОТРУДНИКА ---
   const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
 
-  // --- ЦЕНТР ВЗАИМОДЕЙСТВИЯ (УВЕДОМЛЕНИЯ И АТТЕСТАЦИЯ) ---
   const [interactionTab, setInteractionTab] = useState<'notif' | 'test'>('notif');
   const [selectedStaff, setSelectedStaff] = useState("Все");
   const [notifText, setNotifText] = useState("");
   const [testType, setTestType] = useState('final');
   const [showTestEditor, setShowTestEditor] = useState(false);
-  const [testFormData, setTestFormData] = useState({
-      title: 'Итоговая аттестация',
-      quiz: [{ q: '', o: ['', '', ''], c: 0 }]
-  });
+  const [testFormData, setTestFormData] = useState({ title: 'Итоговая аттестация', quiz: [{ q: '', o: ['', '', ''], c: 0 }] });
 
-  // --- ДИНАМИЧЕСКИЕ ДАННЫЕ ДЛЯ СТАТИСТИКИ И РЕЗУЛЬТАТОВ ---
   const [totalBasicsModules, setTotalBasicsModules] = useState(50);
   const [totalRouteSteps, setTotalRouteSteps] = useState(5);
   const [testResults, setTestResults] = useState<any[]>([]);
   const [usersStats, setUsersStats] = useState<Record<string, {route: number, basics: number}>>({});
   
-  // Состояния для зоны загрузки файлов
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   
-  // СОСТОЯНИЕ МОДАЛЬНОГО ОКНА СПИСКА ФАЙЛОВ И ПРЕДПРОСМОТРА
   const [showFilesList, setShowFilesList] = useState(false);
   const [previewFile, setPreviewFile] = useState<any>(null);
 
-  // --- СОСТОЯНИЯ ФИРМЕННЫХ МОДАЛЬНЫХ ОКОН ---
   const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, title: string, text: string}>({ show: false, title: '', text: '' });
   const [errorModal, setErrorModal] = useState({ show: false, text: '' });
   const [confirmModal, setConfirmModal] = useState<{show: boolean, type: 'user'|'file'|null, id: string, title: string, text: string}>({ show: false, type: null, id: '', title: '', text: '' });
 
-  // --- СОСТОЯНИЯ ДЛЯ МОДАЛКИ РЕЗУЛЬТАТОВ ТЕСТОВ ---
   const [showTestModal, setShowTestModal] = useState(false);
   const [selectedTestUser, setSelectedTestUser] = useState("Все");
 
@@ -127,6 +110,14 @@ export default function AdminDashboard() {
     setIsMounted(true);
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
     window.addEventListener('sidebarToggle', handleToggle);
+
+    if (typeof window !== 'undefined') {
+        if (!('Notification' in window)) {
+            setPushStatus('unsupported');
+        } else {
+            setPushStatus(Notification.permission as any);
+        }
+    }
 
     const loadAllData = async () => {
         try {
@@ -156,7 +147,6 @@ export default function AdminDashboard() {
             const filesData = await filesRes.json();
             if (Array.isArray(filesData)) setUrgentFiles(filesData);
 
-            // Ключи v2 для синхронизации со сломанным кешем базы
             const bRes = await fetch('/api/storage?key=tea_hub_dynamic_basics_v2');
             const bDb = await bRes.json().catch(() => []);
             const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v2');
@@ -169,11 +159,9 @@ export default function AdminDashboard() {
             const avatarsFound: Record<string, string> = {};
             const profilesFound: Record<string, any> = {};
 
-            // ПАРАЛЛЕЛЬНАЯ ЗАГРУЗКА ДАННЫХ СОТРУДНИКОВ ДЛЯ УСКОРЕНИЯ
             await Promise.all(usersData.map(async (u: any) => {
                 if (u.avatar) avatarsFound[u.id] = u.avatar;
                 
-                // ГЛУБОКИЙ СКАНЕР: Ищем профили
                 try {
                     const profData = await fetch(`/api/storage?key=profile_data_${u.id}`).then(r => r.json()).catch(() => null);
                     if (profData && !Array.isArray(profData)) {
@@ -212,31 +200,114 @@ export default function AdminDashboard() {
     return () => window.removeEventListener('sidebarToggle', handleToggle);
   }, []);
 
-  // --- ⚠️ НОВАЯ ФУНКЦИЯ ДЛЯ ОТПРАВКИ WEB-PUSH УВЕДОМЛЕНИЙ ⚠️ ---
+  // ⚠️ ФУНКЦИЯ ПОДПИСКИ ДЛЯ АДМИНА (ТЕПЕРЬ МОЖНО ТЕСТИТЬ ПРЯМО ТУТ) ⚠️
+  const subscribeToPush = async () => {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          alert("Браузер не поддерживает Web Push уведомления.");
+          return;
+      }
+      
+      try {
+          const permission = await Notification.requestPermission();
+          setPushStatus(permission);
+          
+          if (permission === 'granted') {
+              const registration = await navigator.serviceWorker.register('/sw.js');
+              let subscription = await registration.pushManager.getSubscription();
+
+              if (!subscription) {
+                  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                  if (!vapidPublicKey) {
+                      alert("⚠️ Ошибка: VAPID ключ не найден! Убедитесь, что NEXT_PUBLIC_VAPID_PUBLIC_KEY прописан в .env и сервер перезапущен.");
+                      return;
+                  }
+
+                  const urlBase64ToUint8Array = (base64String: string) => {
+                      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                      const base64 = (base64String + padding).replace(/\\-/g, '+').replace(/_/g, '/');
+                      const rawData = window.atob(base64);
+                      const outputArray = new Uint8Array(rawData.length);
+                      for (let i = 0; i < rawData.length; ++i) {
+                          outputArray[i] = rawData.charCodeAt(i);
+                      }
+                      return outputArray;
+                  };
+
+                  subscription = await registration.pushManager.subscribe({
+                      userVisibleOnly: true,
+                      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+                  });
+
+                  const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+                  let subs = await res.json().catch(() => []);
+                  if (!Array.isArray(subs)) subs = [];
+
+                  const currentId = localStorage.getItem('current_user_id') || 'u_admin';
+                  const exists = subs.find((s: any) => s.sub.endpoint === subscription?.endpoint);
+                  if (!exists) {
+                      subs.push({ userId: currentId, sub: subscription });
+                      saveDataToServer('tea_hub_push_subs_v1', subs);
+                      alert("✅ Вы успешно подписались на уведомления!");
+                  } else {
+                      alert("✅ Вы уже были подписаны.");
+                  }
+              }
+          } else {
+              alert("❌ Вы заблокировали уведомления в браузере.");
+          }
+      } catch (error) {
+          console.error('Ошибка подписки на Push:', error);
+          alert("Критическая ошибка при попытке подписки: " + error);
+      }
+  };
+
+  // ⚠️ УЛУЧШЕННАЯ ФУНКЦИЯ ОТПРАВКИ СО ВСТРОЕННОЙ ДИАГНОСТИКОЙ ⚠️
   const sendPushNotification = async (targetUserId: string, payload: { title: string, body: string, url?: string }) => {
       try {
           const subsRes = await fetch('/api/storage?key=tea_hub_push_subs_v1');
           const subs = await subsRes.json().catch(() => []);
           
-          if (!Array.isArray(subs) || subs.length === 0) return;
+          if (!Array.isArray(subs) || subs.length === 0) {
+              alert("⚠️ ПРЕДУПРЕЖДЕНИЕ: База подписок пуста! Ни один сотрудник еще не нажал кнопку 'Разрешить' на своем устройстве. Пуш никому не отправлен.");
+              return false;
+          }
 
-          // Фильтруем подписки: либо всем, либо конкретному сотруднику
           const targetSubs = targetUserId === 'Все' 
               ? subs 
               : subs.filter((s: any) => s.userId === targetUserId);
 
-          if (targetSubs.length > 0) {
-              await fetch('/api/push', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                      subscriptions: targetSubs.map((s: any) => s.sub),
-                      payload: payload
-                  })
-              });
+          if (targetSubs.length === 0) {
+              alert(`⚠️ ПРЕДУПРЕЖДЕНИЕ: Для пользователя (${targetUserId}) не найдено ни одного привязанного устройства.`);
+              return false;
           }
+
+          console.log(`Найдено ${targetSubs.length} устройств для отправки. Отправляем запрос на API...`);
+
+          const apiRes = await fetch('/api/push', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  subscriptions: targetSubs.map((s: any) => s.sub),
+                  payload: payload
+              })
+          });
+
+          const responseData = await apiRes.json();
+          console.log("Ответ от сервера Push API:", responseData);
+
+          if (!apiRes.ok) {
+              alert(`❌ СЕРВЕРНАЯ ОШИБКА: Сервер не смог отправить пуш. Причина: ${responseData.error || 'Неизвестно'}`);
+              return false;
+          }
+
+          // Если всё ок:
+          console.log("Успех! Пуш-сигнал отправлен.");
+          return true;
+
       } catch (e) {
           console.error("Ошибка при отправке Web Push:", e);
+          alert("❌ СЕТЕВАЯ ОШИБКА: Запрос к /api/push упал (возможно, сервер не запущен или нет интернета).");
+          return false;
       }
   };
 
@@ -299,7 +370,6 @@ export default function AdminDashboard() {
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
               
-              // Отправляем PUSH-уведомление всем
               await sendPushNotification('Все', {
                   title: '📚 Новый учебный материал',
                   body: `В базу добавлен файл: ${selectedFile.name}`,
@@ -409,19 +479,22 @@ export default function AdminDashboard() {
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
 
-              // ⚠️ ОТПРАВЛЯЕМ WEB-PUSH О НОВОМ ДЕДЛАЙНЕ ⚠️
-              await sendPushNotification(deadlineTarget, {
+              const pushSent = await sendPushNotification(deadlineTarget, {
                   title: '⚠️ Новый дедлайн',
                   body: noteText.trim(),
                   url: '/tasks?tab=edu'
               });
               
-              setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача успешно отправлена в панель сотрудника.` });
+              if (pushSent) {
+                  setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача успешно сохранена и Push отправлен.` });
+              } else {
+                  setShowSuccessModal({ show: true, title: 'ЗАДАЧА СОХРАНЕНА', text: `Задача сохранена в базу, НО пуш не был отправлен (прочитайте сообщение об ошибке).` });
+              }
+          } else {
+              newNotes[selectedDateKey] = adminNoteText;
+              setNotes(newNotes);
+              saveDataToServer('admin_cal_notes_v1', newNotes);
           }
-
-          newNotes[selectedDateKey] = adminNoteText;
-          setNotes(newNotes);
-          saveDataToServer('admin_cal_notes_v1', newNotes);
       } finally {
           setIsProcessing(false);
           closeNotePanel();
@@ -463,14 +536,15 @@ export default function AdminDashboard() {
 
         await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...arr]);
 
-        // ⚠️ ОТПРАВЛЯЕМ WEB-PUSH СООБЩЕНИЕ ⚠️
-        await sendPushNotification(selectedStaff, {
+        const pushSent = await sendPushNotification(selectedStaff, {
             title: newNotif.title,
             body: newNotif.text,
-            url: '/tasks?tab=welcome' // Отправляем на главную, где висят уведомления
+            url: '/tasks?tab=welcome'
         });
 
-        setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Ваше уведомление мгновенно доставлено в панели сотрудников.' });
+        if (pushSent) {
+            setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление доставлено сотрудникам.' });
+        }
         setNotifText("");
     } finally {
         setIsProcessing(false);
@@ -517,14 +591,15 @@ export default function AdminDashboard() {
           setUrgentFiles(updatedFiles);
           await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
           
-          // ⚠️ ОТПРАВЛЯЕМ WEB-PUSH О БЫСТРОМ ТЕСТЕ ⚠️
-          await sendPushNotification(selectedStaff, {
+          const pushSent = await sendPushNotification(selectedStaff, {
               title: '🎓 Новая аттестация',
               body: `Вам назначен тест: ${title}`,
               url: '/tasks?tab=edu'
           });
 
-          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${title}" успешно отправлен.` });
+          if (pushSent) {
+              setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест успешно отправлен.` });
+          }
       } catch (e) {
           console.error("Ошибка при отправке теста", e);
       } finally {
@@ -581,7 +656,6 @@ export default function AdminDashboard() {
           setUrgentFiles(updatedFiles);
           await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
           
-          // ⚠️ ОТПРАВЛЯЕМ WEB-PUSH О СОЗДАННОМ ТЕСТЕ ⚠️
           await sendPushNotification(selectedStaff, {
               title: '🎓 Новая аттестация',
               body: `Вам назначен тест: ${testFormData.title}`,
@@ -654,6 +728,17 @@ export default function AdminDashboard() {
 
       <main className="admin-main" style={{ flex: 1, padding: '110px 40px 40px 40px', transition: '0.3s', boxSizing: 'border-box', maxWidth: '100%' }}>
           <div style={{ animation: 'fadeInUp 0.4s ease' }}>
+
+            {/* ⚠️ БАННЕР РАЗРЕШЕНИЯ УВЕДОМЛЕНИЙ ПРЯМО В АДМИНКЕ ⚠️ */}
+            {pushStatus === 'default' && (
+                <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                    <div>
+                        <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Включите Web-Push (Тестовый режим)</h3>
+                        <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Нажмите "Разрешить", чтобы протестировать получение пушей прямо на этот компьютер.</p>
+                    </div>
+                    <button onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>РАЗРЕШИТЬ</button>
+                </div>
+            )}
             
             <div 
               style={{ ...uploadZoneStyle, borderColor: isDragging ? '#0abab5' : '#333', opacity: isProcessing ? 0.5 : 1 }}
