@@ -200,7 +200,7 @@ const INITIAL_ASSORTMENT = [
               {
                 id: "as_2_1_1_1", title: "Плантационный",
                 children: [
-                  { id: "as_k_1", title: "Моносорта", content: "Зерна 100% арабики из одного конкретного региона произрастания." },
+                  { id: "as_k_1", title: "Моносорта", content: "Зерна 100% арабики из одного конкретного region произрастания." },
                   { id: "as_k_2", title: "Эспрессо-смеси", content: "Специально подобранные смеси (арабика/робуста) для идеального эспрессо." },
                   { id: "as_k_3", title: "Купажи", content: "Авторские смеси различных сортов для получения уникального профиля чашки." }
                 ]
@@ -339,7 +339,7 @@ const INITIAL_ASSORTMENT = [
         children: [
           { id: "as_5_1_1", title: "Посуда из глины", content: "Исинская глина — пористая, дышащая, нарабатывает аромат чая (подходит для одного вида чая)." },
           { id: "as_5_1_2", title: "Посуда из керамики", content: "Глазурованная керамика — универсальна, не впитывает запахи." },
-          { id: "as_5_1_3", title: "Посуда из фарфора", content: "Звонкий тонкий фарфор — идеален для оценки цвета настоя и дегустации аромата." },
+          { id: "as_5_1_3", title: "Посуда из фарфора", content: "Звонкий тонкий фарфор — идеален для оценки цвета настои и дегустации аромата." },
           { id: "as_5_1_4", title: "Посуда из стекла", content: "Жаропрочное стекло — отлично подходит для связанных чаев, чтобы видеть процесс заваривания." },
           { id: "as_5_1_5", title: "Посуда из чугуна", content: "Массивные чугунные сервизы, чайники, пиалы и чашки (хорошо держат температуру)." },
           { id: "as_5_1_6", title: "Посуда из нержавеющей стали", content: "Сервизы, чайники, чашки из металла." },
@@ -456,7 +456,6 @@ const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)'
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 
-// --- ПЛОСКИЙ СТАНДАРТНЫЙ КОМПОНЕНТ ДЕРЕВА АССОРТИМЕНТА ---
 function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
     const [isOpen, setIsOpen] = useState(false);
     const hasChildren = node.children && node.children.length > 0;
@@ -502,7 +501,6 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
                 </span>
             </div>
             
-            {/* INLINE-РАСКРЫТИЕ (БЕЗ ВСПЛЫВАЮЩИХ ОКОН И МОДАЛОК) */}
             {isOpen && (
                 <div style={{ marginTop: '8px' }}>
                     {node.desc && (
@@ -569,16 +567,13 @@ function ShiftContent() {
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
-  // --- СОСТОЯНИЯ ДЛЯ АТТЕСТАЦИОННОГО ТЕСТА ---
   const [activeUrgentTest, setActiveUrgentTest] = useState<any>(null);
   const [urgentTestStep, setUrgentTestStep] = useState(0);
   const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
   const [testResultModal, setTestResultModal] = useState<{show: boolean, score: number, isPassed: boolean, title: string}>({show: false, score: 0, isPassed: false, title: ''});
 
-  // --- ДИНАМИЧЕСКИЙ АССОРТИМЕНТ С СЕРВЕРА ---
   const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
 
-  // ⚠️ СОСТОЯНИЕ ДЛЯ WEB-PUSH УВЕДОМЛЕНИЙ ⚠️
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
 
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
@@ -688,9 +683,17 @@ function ShiftContent() {
       }
   };
 
-  // ⚠️ ФУНКЦИЯ ПОДПИСКИ ПО КЛИКУ ⚠️
+  // ⚠️ УЛУЧШЕННАЯ И КОРРЕКТНАЯ ПРИВЯЗКА ID ПОЛЬЗОВАТЕЛЯ НА ТЕЛЕФОНЕ ⚠️
   const subscribeToPush = async () => {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      
+      // На айфоне читаем ID в миллисекунду клика прямо из локальной памяти устройства
+      const currentId = localStorage.getItem('current_user_id') || 'guest';
+      
+      if (currentId === 'guest' || !currentId) {
+          alert("⚠️ Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве! Пожалуйста, сначала авторизуйтесь под логином сотрудника и попробуйте снова.");
+          return;
+      }
       
       try {
           const permission = await Notification.requestPermission();
@@ -709,7 +712,7 @@ function ShiftContent() {
 
                   const urlBase64ToUint8Array = (base64String: string) => {
                       const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                      const base64 = (base64String + padding).replace(/\\-/g, '+').replace(/_/g, '/');
+                      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
                       const rawData = window.atob(base64);
                       const outputArray = new Uint8Array(rawData.length);
                       for (let i = 0; i < rawData.length; ++i) {
@@ -722,21 +725,25 @@ function ShiftContent() {
                       userVisibleOnly: true,
                       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
                   });
-
-                  // Сохраняем в базу
-                  const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
-                  let subs = await res.json().catch(() => []);
-                  if (!Array.isArray(subs)) subs = [];
-
-                  const exists = subs.find((s: any) => s.sub.endpoint === subscription?.endpoint);
-                  if (!exists) {
-                      subs.push({ userId, sub: subscription });
-                      saveDataToServer('tea_hub_push_subs_v1', subs);
-                  }
               }
+
+              // Загружаем актуальную базу подписок и жестко привязываем токен к текущему сотруднику
+              const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+              let subs = await res.json().catch(() => []);
+              if (!Array.isArray(subs)) subs = [];
+
+              // Удаляем все старые "ошибочные" привязки этого же устройства (например, под именем guest)
+              let filteredSubs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
+
+              // Добавляем чистую, верную запись
+              filteredSubs.push({ userId: currentId, sub: subscription });
+              await saveDataToServer('tea_hub_push_subs_v1', filteredSubs);
+              
+              alert(`🎉 Устройство успешно зарегистрировано и привязано к вашему аккаунту!`);
           }
       } catch (error) {
           console.error('Ошибка подписки на Push:', error);
+          alert("Ошибка привязки устройства: " + error);
       }
   };
 
@@ -748,7 +755,6 @@ function ShiftContent() {
     setIsAdmin(role === 'admin');
     setUserId(currentId);
 
-    // Проверяем статус пушей при загрузке
     if (typeof window !== 'undefined') {
         if (!('Notification' in window)) {
             setPushStatus('unsupported');
@@ -885,7 +891,7 @@ function ShiftContent() {
               return { ...s, modules: updatedModules };
           }
           return s;
-      });
+        });
 
       setDynamicBasics(newList);
       localStorage.setItem('th_cache_basics', JSON.stringify(newList));
@@ -1074,14 +1080,14 @@ function ShiftContent() {
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
-        {/* ⚠️ БАННЕР РАЗРЕШЕНИЯ УВЕДОМЛЕНИЙ ⚠️ */}
-        {pushStatus === 'default' && userId !== 'guest' && (
+        {/* ⚠️ БАННЕР РАЗРЕШЕНИЯ УВЕДОМЛЕНИЙ ДЛЯ ТЕЛЕФОНА И ПК ⚠️ */}
+        {(pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest' && (
             <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
                 <div>
-                    <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Включите важные уведомления</h3>
-                    <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Платформа сможет моментально сообщать вам о новых дедлайнах и учебных материалах.</p>
+                    <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Синхронизация уведомлений устройства</h3>
+                    <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Нажмите кнопку справа, чтобы жестко привязать этот телефон/компьютер к вашему рабочему аккаунту.</p>
                 </div>
-                <button onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>РАЗРЕШИТЬ</button>
+                <button onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>ПРИВЯЗАТЬ</button>
             </div>
         )}
 
@@ -1321,7 +1327,6 @@ function ShiftContent() {
           </section>
         )}
 
-        {/* --- ПЛОСКИЙ СТАНДАРТНЫЙ АССОРТИМЕНТ --- */}
         {(activeTab === 'assortment' || activeTab === 'products') && (
             <section style={{ animation: 'fadeInUp 0.5s ease', maxWidth: '100%' }}>
                 <h2 className="tasks-title" style={{ fontSize: '32px', fontWeight: '900', marginBottom: '15px' }}>
@@ -1339,7 +1344,6 @@ function ShiftContent() {
             </section>
         )}
 
-        {/* --- ОКНО ПРОХОЖДЕНИЯ АТТЕСТАЦИИ --- */}
         {activeUrgentTest && (
            <div style={modalOverlay}>
               <div className="tasks-modal" style={modalContent}>
@@ -1384,7 +1388,6 @@ function ShiftContent() {
            </div>
         )}
 
-        {/* --- МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТОВ АТТЕСТАЦИИ --- */}
         {testResultModal.show && (
             <div style={{...errorOverlayStyle, zIndex: 60000}}>
                 <div className="tasks-modal" style={{...errorModalContent, borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'}}>
@@ -1412,7 +1415,6 @@ function ShiftContent() {
             </div>
         )}
 
-        {/* --- УМНОЕ ОКНО ПРЕДПРОСМОТРА ФАЙЛА --- */}
         {previewFile && (
             <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
                 <div className="tasks-modal" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
@@ -1443,8 +1445,6 @@ function ShiftContent() {
                 </div>
             </div>
         )}
-
-        {/* --- МОДАЛКИ ДЛЯ АДМИНА --- */}
 
         {showRouteForm && (
             <div style={modalOverlay}>
@@ -1614,7 +1614,6 @@ function ShiftContent() {
         )}
       </main>
 
-      {/* --- ГЛОБАЛЬНЫЕ СТИЛИ --- */}
       <style jsx global>{` 
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -1659,7 +1658,6 @@ function ShiftContent() {
             transform: scale(0.98); 
         }
 
-        /* ⚠️ АНИМАЦИЯ НАВЕДЕНИЯ ДЛЯ ДЕДЛАЙНОВ ⚠️ */
         .deadline-card:hover {
             border-color: #ff4d4d !important;
             box-shadow: 0 8px 25px rgba(255, 77, 77, 0.15) !important;
@@ -1669,7 +1667,6 @@ function ShiftContent() {
             border-color: #ff4d4d !important;
         }
 
-        /* АНИМАЦИЯ НАВЕДЕНИЯ И НАЖАТИЯ ДЛЯ ПЛОСКИХ СТРОК АССОРТИМЕНТА */
         .assortment-row {
             transition: all 0.15s ease !important;
         }
