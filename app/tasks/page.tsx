@@ -107,7 +107,6 @@ const INITIAL_ROUTE = [
   { id: "route_5", title: "Чистота и посуда", time: "5 мин", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
 ];
 
-// --- ЭТАЛОННАЯ МАТРИЦА АССОРТИМЕНТА ИЗ WORD-ДОКУМЕНТА ---
 const INITIAL_ASSORTMENT = [
   {
     id: "as_1", title: "1. ЧАЙ (Camellia sinensis)", desc: "Включает ТОЛЬКО чай как растение. Если в смеси >2/3 — чай, иначе — чаеподобный напиток.",
@@ -579,6 +578,9 @@ function ShiftContent() {
   // --- ДИНАМИЧЕСКИЙ АССОРТИМЕНТ С СЕРВЕРА ---
   const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
 
+  // ⚠️ СОСТОЯНИЕ ДЛЯ WEB-PUSH УВЕДОМЛЕНИЙ ⚠️
+  const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
+
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
       if (typeof window !== 'undefined') {
           const cachedFiles = localStorage.getItem('th_cache_files');
@@ -686,6 +688,58 @@ function ShiftContent() {
       }
   };
 
+  // ⚠️ ФУНКЦИЯ ПОДПИСКИ ПО КЛИКУ ⚠️
+  const subscribeToPush = async () => {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      
+      try {
+          const permission = await Notification.requestPermission();
+          setPushStatus(permission);
+          
+          if (permission === 'granted') {
+              const registration = await navigator.serviceWorker.register('/sw.js');
+              let subscription = await registration.pushManager.getSubscription();
+
+              if (!subscription) {
+                  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                  if (!vapidPublicKey) {
+                      console.warn("VAPID ключ не найден в .env");
+                      return;
+                  }
+
+                  const urlBase64ToUint8Array = (base64String: string) => {
+                      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                      const base64 = (base64String + padding).replace(/\\-/g, '+').replace(/_/g, '/');
+                      const rawData = window.atob(base64);
+                      const outputArray = new Uint8Array(rawData.length);
+                      for (let i = 0; i < rawData.length; ++i) {
+                          outputArray[i] = rawData.charCodeAt(i);
+                      }
+                      return outputArray;
+                  };
+
+                  subscription = await registration.pushManager.subscribe({
+                      userVisibleOnly: true,
+                      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+                  });
+
+                  // Сохраняем в базу
+                  const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+                  let subs = await res.json().catch(() => []);
+                  if (!Array.isArray(subs)) subs = [];
+
+                  const exists = subs.find((s: any) => s.sub.endpoint === subscription?.endpoint);
+                  if (!exists) {
+                      subs.push({ userId, sub: subscription });
+                      saveDataToServer('tea_hub_push_subs_v1', subs);
+                  }
+              }
+          }
+      } catch (error) {
+          console.error('Ошибка подписки на Push:', error);
+      }
+  };
+
   useEffect(() => {
     setIsMounted(true);
     
@@ -694,58 +748,16 @@ function ShiftContent() {
     setIsAdmin(role === 'admin');
     setUserId(currentId);
 
-    loadAllData(currentId, true);
-
-    // --- ВЕБ ПУШ: РЕГИСТРАЦИЯ И ПОДПИСКА ---
-    const registerPush = async () => {
-        if ('serviceWorker' in navigator && 'PushManager' in window && currentId !== 'guest') {
-            try {
-                const registration = await navigator.serviceWorker.register('/sw.js');
-                let subscription = await registration.pushManager.getSubscription();
-
-                if (!subscription) {
-                    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-                    if (!vapidPublicKey) {
-                        console.warn("VAPID ключ не найден в .env");
-                        return;
-                    }
-
-                    // Конвертация ключа для подписки
-                    const urlBase64ToUint8Array = (base64String: string) => {
-                        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-                        const rawData = window.atob(base64);
-                        const outputArray = new Uint8Array(rawData.length);
-                        for (let i = 0; i < rawData.length; ++i) {
-                            outputArray[i] = rawData.charCodeAt(i);
-                        }
-                        return outputArray;
-                    };
-
-                    subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-                    });
-
-                    // Сохраняем подписку в нашу базу (чтобы админ мог слать на нее пуши)
-                    const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
-                    let subs = await res.json().catch(() => []);
-                    if (!Array.isArray(subs)) subs = [];
-
-                    const exists = subs.find((s: any) => s.sub.endpoint === subscription?.endpoint);
-                    if (!exists) {
-                        subs.push({ userId: currentId, sub: subscription });
-                        saveDataToServer('tea_hub_push_subs_v1', subs);
-                    }
-                }
-            } catch (error) {
-                console.error('Ошибка Service Worker или Push-подписки:', error);
-            }
+    // Проверяем статус пушей при загрузке
+    if (typeof window !== 'undefined') {
+        if (!('Notification' in window)) {
+            setPushStatus('unsupported');
+        } else {
+            setPushStatus(Notification.permission as any);
         }
-    };
+    }
 
-    // Запускаем через 3 секунды после загрузки, чтобы не мешать основному рендеру и показать запрос разрешения
-    setTimeout(registerPush, 3000);
+    loadAllData(currentId, true);
 
     const urlTab = searchParams.get('tab');
     if (urlTab) setActiveTab(urlTab);
@@ -1062,6 +1074,17 @@ function ShiftContent() {
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
+        {/* ⚠️ БАННЕР РАЗРЕШЕНИЯ УВЕДОМЛЕНИЙ ⚠️ */}
+        {pushStatus === 'default' && userId !== 'guest' && (
+            <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
+                <div>
+                    <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Включите важные уведомления</h3>
+                    <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Платформа сможет моментально сообщать вам о новых дедлайнах и учебных материалах.</p>
+                </div>
+                <button onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>РАЗРЕШИТЬ</button>
+            </div>
+        )}
+
         {activeTab === 'welcome' && (
             <div style={{ animation: 'fadeInUp 0.6s ease' }}>
                 <h1 className="tasks-title" style={{fontSize:'36px', fontWeight:'900', marginBottom:'40px'}}>Центр управления мастером</h1>
