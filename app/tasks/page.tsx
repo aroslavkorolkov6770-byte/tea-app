@@ -575,6 +575,8 @@ function ShiftContent() {
   const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
 
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
+  // ⚠️ СОСТОЯНИЕ ДЛЯ СКРЫТИЯ БАННЕРА ПОСЛЕ ПРИВЯЗКИ ⚠️
+  const [isPushBound, setIsPushBound] = useState(false);
 
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
       if (typeof window !== 'undefined') {
@@ -683,11 +685,9 @@ function ShiftContent() {
       }
   };
 
-  // ⚠️ УЛУЧШЕННАЯ И КОРРЕКТНАЯ ПРИВЯЗКА ID ПОЛЬЗОВАТЕЛЯ НА ТЕЛЕФОНЕ ⚠️
   const subscribeToPush = async () => {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       
-      // На айфоне читаем ID в миллисекунду клика прямо из локальной памяти устройства
       const currentId = localStorage.getItem('current_user_id') || 'guest';
       
       if (currentId === 'guest' || !currentId) {
@@ -727,18 +727,19 @@ function ShiftContent() {
                   });
               }
 
-              // Загружаем актуальную базу подписок и жестко привязываем токен к текущему сотруднику
               const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
               let subs = await res.json().catch(() => []);
               if (!Array.isArray(subs)) subs = [];
 
-              // Удаляем все старые "ошибочные" привязки этого же устройства (например, под именем guest)
               let filteredSubs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
 
-              // Добавляем чистую, верную запись
               filteredSubs.push({ userId: currentId, sub: subscription });
               await saveDataToServer('tea_hub_push_subs_v1', filteredSubs);
               
+              // ⚠️ ПРЯЧЕМ БАННЕР ПОСЛЕ ПРИВЯЗКИ ⚠️
+              localStorage.setItem('tea_hub_push_bound', 'true');
+              setIsPushBound(true);
+
               alert(`🎉 Устройство успешно зарегистрировано и привязано к вашему аккаунту!`);
           }
       } catch (error) {
@@ -761,6 +762,9 @@ function ShiftContent() {
         } else {
             setPushStatus(Notification.permission as any);
         }
+        
+        // ⚠️ ДОСТАЕМ ФЛАГ СКРЫТИЯ БАННЕРА ИЗ ПАМЯТИ ⚠️
+        setIsPushBound(localStorage.getItem('tea_hub_push_bound') === 'true');
     }
 
     loadAllData(currentId, true);
@@ -1080,8 +1084,8 @@ function ShiftContent() {
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
-        {/* ⚠️ БАННЕР РАЗРЕШЕНИЯ УВЕДОМЛЕНИЙ ДЛЯ ТЕЛЕФОНА И ПК ⚠️ */}
-        {(pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest' && (
+        {/* ⚠️ ИСПРАВЛЕННОЕ УСЛОВИЕ ДЛЯ СКРЫТИЯ БАННЕРА ПОСЛЕ ПРИВЯЗКИ ⚠️ */}
+        {!isPushBound && (pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest' && (
             <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
                 <div>
                     <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Синхронизация уведомлений устройства</h3>
