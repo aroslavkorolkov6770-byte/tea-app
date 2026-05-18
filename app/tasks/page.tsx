@@ -575,6 +575,7 @@ function ShiftContent() {
   const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
 
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
+  const [isPushBound, setIsPushBound] = useState(false);
 
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
       if (typeof window !== 'undefined') {
@@ -683,6 +684,67 @@ function ShiftContent() {
       }
   };
 
+  const subscribeToPush = async () => {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      
+      const currentId = localStorage.getItem('current_user_id') || 'guest';
+      
+      if (currentId === 'guest' || !currentId) {
+          alert("⚠️ Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве!");
+          return;
+      }
+      
+      try {
+          const permission = await Notification.requestPermission();
+          setPushStatus(permission);
+          
+          if (permission === 'granted') {
+              const registration = await navigator.serviceWorker.register('/sw.js');
+              let subscription = await registration.pushManager.getSubscription();
+
+              if (!subscription) {
+                  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                  if (!vapidPublicKey) {
+                      console.warn("VAPID ключ не найден в .env");
+                      return;
+                  }
+
+                  const urlBase64ToUint8Array = (base64String: string) => {
+                      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                      const rawData = window.atob(base64);
+                      const outputArray = new Uint8Array(rawData.length);
+                      for (let i = 0; i < rawData.length; ++i) {
+                          outputArray[i] = rawData.charCodeAt(i);
+                      }
+                      return outputArray;
+                  };
+
+                  subscription = await registration.pushManager.subscribe({
+                      userVisibleOnly: true,
+                      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+                  });
+              }
+
+              const res = await fetch('/api/storage?key=tea_hub_push_subs_v1');
+              let subs = await res.json().catch(() => []);
+              if (!Array.isArray(subs)) subs = [];
+
+              let filteredSubs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
+              filteredSubs.push({ userId: currentId, sub: subscription });
+              await saveDataToServer('tea_hub_push_subs_v1', filteredSubs);
+              
+              localStorage.setItem('tea_hub_push_bound', 'true');
+              setIsPushBound(true);
+
+              alert(`🎉 Устройство успешно зарегистрировано и привязано к вашему аккаунту!`);
+          }
+      } catch (error) {
+          console.error('Ошибка подписки на Push:', error);
+          alert("Ошибка привязки устройства: " + error);
+      }
+  };
+
   useEffect(() => {
     setIsMounted(true);
     
@@ -697,6 +759,7 @@ function ShiftContent() {
         } else {
             setPushStatus(Notification.permission as any);
         }
+        setIsPushBound(localStorage.getItem('tea_hub_push_bound') === 'true');
     }
 
     loadAllData(currentId, true);
@@ -747,9 +810,15 @@ function ShiftContent() {
       if (f.target === userId) {
           isForMe = true;
       } 
-      // 4. Если отправлено "Всем", показываем ТОЛЬКО если задача была создана ПОСЛЕ того, как аккаунт был зарегистрирован
+      // 4. Если отправлено "Всем"
       else if (!f.target || f.target === 'Все') {
-          isForMe = taskCreatedAt >= userCreatedAt;
+          // ИСКЛЮЧЕНИЕ: Если это обычный файл (не тест и не дедлайн), показываем ВСЕГДА
+          if (!f.isTest && !(f.id && f.id.startsWith('deadline_'))) {
+              isForMe = true;
+          } else {
+              // Если это тест или дедлайн - только если создан ПОСЛЕ регистрации аккаунта
+              isForMe = taskCreatedAt >= userCreatedAt;
+          }
       }
 
       const isPassed = f.isTest && passedTests.includes(f.id);
@@ -1042,6 +1111,17 @@ function ShiftContent() {
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
+        {/* ЧИСТЫЙ БАННЕР ПРИВЯЗКИ, ИСЧЕЗАЮЩИЙ ПОСЛЕ КЛИКА */}
+        {(!isPushBound && (pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest') && (
+            <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
+                <div>
+                    <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Синхронизация уведомлений устройства</h3>
+                    <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Нажмите кнопку справа, чтобы жестко привязать это устройство к вашему рабочему аккаунту.</p>
+                </div>
+                <button onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>ПРИВЯЗАТЬ</button>
+            </div>
+        )}
+
         {activeTab === 'welcome' && (
             <div style={{ animation: 'fadeInUp 0.6s ease' }}>
                 <h1 className="tasks-title" style={{fontSize:'36px', fontWeight:'900', marginBottom:'40px'}}>Центр управления мастером</h1>
@@ -1131,7 +1211,7 @@ function ShiftContent() {
                       {visibleUrgentFiles.length > 0 ? (
                           <div className="premium-cards-container"> 
                               {visibleUrgentFiles.map((file) => (
-                                  file.id.startsWith('deadline_') ? (
+                                  file.id && file.id.startsWith('deadline_') ? (
                                       <div key={file.id} className="premium-card deadline-card" style={{ borderColor: '#ff4d4d', borderWidth: '1px' }}>
                                           <div onClick={(e) => { e.stopPropagation(); handleDismissTask(file.id); }} style={{ position: 'absolute', top: '15px', right: '15px', cursor: 'pointer', color: '#ff4d4d', fontWeight: 'bold', fontSize: '18px', zIndex: 10 }}>✕</div>
                                           <span style={{fontSize:'12px', color:'#ff4d4d', fontWeight:'900', marginBottom: '8px', display: 'inline-block'}}>⚠️ ДЕДЛАЙН</span>
