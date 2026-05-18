@@ -22,7 +22,6 @@ const sectionTitle: React.CSSProperties = { fontSize: '22px', fontWeight: '900',
 const actionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const adminCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
 const userCardStyle: React.CSSProperties = { background: '#111', padding: '25px', borderRadius: '25px', border: '1px solid #222', transition: '0.3s' };
-const scheduleItem: React.CSSProperties = { display: 'flex', gap: '20px', alignItems: 'center', padding: '15px', background: '#0d0d0d', borderRadius: '20px', border: '1px solid #1a1a1a' };
 const dateBox: React.CSSProperties = { color: '#000', padding: '8px', borderRadius: '10px', fontSize: '13px', fontWeight: '900', textAlign: 'center', minWidth: '42px' };
 const calNavBtn: React.CSSProperties = { cursor: 'pointer', opacity: 0.5, fontSize: '16px' };
 const calendarGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center' };
@@ -263,13 +262,56 @@ export default function AdminDashboard() {
       }
   };
 
+  // 📧 ФУНКЦИЯ ДЛЯ ОТПРАВКИ EMAIL (РАБОТАЕТ ЧЕРЕЗ НОВЫЙ БЭКЕНД) 📧
+  const sendEmailNotification = async (targetUserId: string, subject: string, text: string) => {
+      try {
+          let emailsToSend: string[] = [];
+
+          if (targetUserId === 'Все') {
+              users.filter(u => u.role === 'staff').forEach(u => {
+                  const email = userProfiles[u.id]?.email || u.email;
+                  if (email) emailsToSend.push(email);
+              });
+          } else {
+              const targetUser = users.find(u => u.id === targetUserId);
+              const email = userProfiles[targetUserId]?.email || targetUser?.email;
+              if (email) emailsToSend.push(email);
+          }
+
+          if (emailsToSend.length === 0) {
+              console.log("Нет email адресов для отправки. Email-уведомление пропущено.");
+              return false;
+          }
+
+          const to = emailsToSend.join(', ');
+
+          const res = await fetch('/api/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ to, subject, text })
+          });
+
+          if (res.ok) {
+              console.log("Email успешно отправлен на адреса:", to);
+              return true;
+          } else {
+              console.error("Ошибка ответа от API отправки Email:", await res.text());
+              return false;
+          }
+      } catch (e) {
+          console.error("Ошибка при запросе к /api/send-email:", e);
+          return false;
+      }
+  };
+
+  // 🔔 ФУНКЦИЯ ДЛЯ ОТПРАВКИ WEB-PUSH 🔔
   const sendPushNotification = async (targetUserId: string, payload: { title: string, body: string, url?: string }) => {
       try {
           const subsRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`, { cache: 'no-store' });
           const subs = await subsRes.json().catch(() => []);
           
           if (!Array.isArray(subs) || subs.length === 0) {
-              alert("⚠️ ПРЕДУПРЕЖДЕНИЕ: База подписок пуста! Ни один сотрудник еще не нажал кнопку 'Разрешить' на своем устройстве. Пуш никому не отправлен.");
+              console.log("⚠️ ПРЕДУПРЕЖДЕНИЕ: База подписок пуста! Пуш не отправлен.");
               return false;
           }
 
@@ -278,11 +320,9 @@ export default function AdminDashboard() {
               : subs.filter((s: any) => s.userId === targetUserId);
 
           if (targetSubs.length === 0) {
-              alert(`⚠️ ПРЕДУПРЕЖДЕНИЕ: Для пользователя (${targetUserId}) не найдено ни одного привязанного устройства в базе.`);
+              console.log(`⚠️ ПРЕДУПРЕЖДЕНИЕ: У пользователя (${targetUserId}) нет привязанных устройств.`);
               return false;
           }
-
-          console.log(`Найдено ${targetSubs.length} устройств для отправки. Отправляем запрос на API...`);
 
           const apiRes = await fetch('/api/push', {
               method: 'POST',
@@ -293,18 +333,14 @@ export default function AdminDashboard() {
               })
           });
 
-          const responseData = await apiRes.json();
           if (!apiRes.ok) {
-              alert(`❌ СЕРВЕРНАЯ ОШИБКА: Сервер не смог отправить пуш. Причина: ${responseData.error || 'Неизвестно'}`);
+              console.log("СЕРВЕРНАЯ ОШИБКА Push API");
               return false;
           }
 
-          console.log("Успех! Пуш-сигнал отправлен.");
           return true;
-
       } catch (e) {
           console.error("Ошибка при отправке Web Push:", e);
-          alert("❌ СЕТЕВАЯ ОШИБКА: Запрос к /api/push упал (возможно, сервер не запущен или нет интернета).");
           return false;
       }
   };
@@ -368,13 +404,15 @@ export default function AdminDashboard() {
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
               
-              await sendPushNotification('Все', {
+              const pushSent = await sendPushNotification('Все', {
                   title: '📚 Новый учебный материал',
                   body: `В базу добавлен файл: ${selectedFile.name}`,
                   url: '/tasks?tab=edu'
               });
               
-              setShowSuccessModal({ show: true, title: 'МАТЕРИАЛ ОТПРАВЛЕН', text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников в разделе обучения.` });
+              const emailSent = await sendEmailNotification('Все', '📚 Новый учебный материал', `Администратор добавил новый файл в базу знаний: ${selectedFile.name}`);
+
+              setShowSuccessModal({ show: true, title: 'МАТЕРИАЛ ОТПРАВЛЕН', text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников. ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
               setSelectedFile(null);
           } finally {
               setIsProcessing(false);
@@ -487,10 +525,12 @@ export default function AdminDashboard() {
                   url: '/tasks?tab=edu'
               });
               
-              if (pushSent) {
-                  setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача успешно сохранена и Push отправлен.` });
+              const emailSent = await sendEmailNotification(deadlineTarget, '⚠️ Внимание: Новый дедлайн!', `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`);
+
+              if (pushSent || emailSent) {
+                  setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена и уведомления отправлены.` });
               } else {
-                  setShowSuccessModal({ show: true, title: 'ЗАДАЧА СОХРАНЕНА', text: `Задача сохранена в базу, НО пуш не был отправлен (прочитайте сообщение об ошибке).` });
+                  setShowSuccessModal({ show: true, title: 'ЗАДАЧА СОХРАНЕНА', text: `Задача сохранена в базу, НО уведомления не были отправлены.` });
               }
           } else {
               newNotes[selectedDateKey] = adminNoteText;
@@ -543,9 +583,11 @@ export default function AdminDashboard() {
             body: newNotif.text,
             url: '/tasks?tab=welcome'
         });
+        
+        const emailSent = await sendEmailNotification(selectedStaff, newNotif.title, newNotif.text);
 
-        if (pushSent) {
-            setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление доставлено сотрудникам.' });
+        if (pushSent || emailSent) {
+            setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление доставлено сотрудникам (Push или Email).' });
         }
         setNotifText("");
     } finally {
@@ -598,9 +640,11 @@ export default function AdminDashboard() {
               body: `Вам назначен тест: ${title}`,
               url: '/tasks?tab=edu'
           });
+          
+          const emailSent = await sendEmailNotification(selectedStaff, '🎓 Вам назначена новая аттестация', `Администратор назначил вам новый тест для прохождения: ${title}. Зайдите в Tea Hub, чтобы его выполнить.`);
 
-          if (pushSent) {
-              setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест успешно отправлен.` });
+          if (pushSent || emailSent) {
+              setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест успешно отправлен сотрудникам.` });
           }
       } catch (e) {
           console.error("Ошибка при отправке теста", e);
@@ -658,13 +702,15 @@ export default function AdminDashboard() {
           setUrgentFiles(updatedFiles);
           await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
           
-          await sendPushNotification(selectedStaff, {
+          const pushSent = await sendPushNotification(selectedStaff, {
               title: '🎓 Новая аттестация',
               body: `Вам назначен тест: ${testFormData.title}`,
               url: '/tasks?tab=edu'
           });
+          
+          const emailSent = await sendEmailNotification(selectedStaff, '🎓 Вам назначена новая аттестация', `Администратор назначил вам новый тест для прохождения: ${testFormData.title}. Зайдите в Tea Hub, чтобы его выполнить.`);
 
-          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" успешно отправлен.` });
+          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" успешно отправлен. ${pushSent || emailSent ? '(Уведомления ушли)' : ''}` });
           setShowTestEditor(false);
       } catch (e) {
           console.error("Ошибка при отправке теста", e);
@@ -866,7 +912,7 @@ export default function AdminDashboard() {
                         {interactionTab === 'notif' ? (
                             <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                 <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Текст:</div>
-                                <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите text сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} disabled={isProcessing} />
+                                <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 }} placeholder="Введите текст сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} disabled={isProcessing} />
                                 <button onClick={handleSendNotification} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1 }}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
                             </div>
                         ) : (
@@ -952,7 +998,6 @@ export default function AdminDashboard() {
                         {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => <div key={d} style={calDayHead}>{d}</div>)}
                         {Array.from({length: shiftStartDay}).map((_, i) => <div key={`empty-${i}`} />)}
                         
-                        {/* ⚠️ ИСПРАВЛЕНИЕ: ПРОВЕРКА НА ДЕДЛАЙН ДЛЯ КРАСНОЙ ТОЧКИ ⚠️ */}
                         {Array.from({length: daysInMonth}).map((_, i) => {
                             const dayNumber = i + 1;
                             const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${dayNumber}`;
@@ -1048,7 +1093,6 @@ export default function AdminDashboard() {
                 </div>
 
                 {(() => {
-                    // Извлекаем данные профиля
                     const pData = userProfiles[selectedProfileUser.id] || {};
                     const routeLen = usersStats[selectedProfileUser.id]?.route || 0;
                     const basicsLen = usersStats[selectedProfileUser.id]?.basics || 0;
@@ -1349,7 +1393,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ⚠️ ОБНОВЛЕННЫЙ САЙДБАР КАЛЕНДАРЯ ДЛЯ АДМИНА ⚠️ */}
       {selectedDateKey && (
         <div style={noteOverlayStyle} onClick={closeNotePanel}>
           <div style={noteSidebarStyle} onClick={e => e.stopPropagation()}>
@@ -1359,7 +1402,6 @@ export default function AdminDashboard() {
             </div>
             <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '20px', color: '#ccc' }}>Дата: {formattedSelectedDate()}</p>
             
-            {/* ПЕРЕКЛЮЧАТЕЛЬ ТИПА СОБЫТИЯ (С ПЛАВНОЙ АНИМАЦИЕЙ) */}
             <div style={{ position: 'relative', display: 'flex', background: '#111', borderRadius: '14px', marginBottom: '20px', padding: '4px', border: '1px solid #222' }}>
                 <div style={{ 
                     position: 'absolute', 
@@ -1386,7 +1428,6 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* ВЫБОР СОТРУДНИКА ЕСЛИ ЭТО ДЕДЛАЙН */}
             {noteType === 'deadline' && (
                 <div style={{ marginBottom: '15px', animation: 'fadeInUp 0.3s ease' }}>
                     <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Кому назначить:</div>
@@ -1445,7 +1486,6 @@ export default function AdminDashboard() {
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 
-        /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
         @media (max-width: 768px) {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
             .admin-main { padding: 90px 15px 50px 15px !important; }
@@ -1480,7 +1520,6 @@ export default function AdminDashboard() {
                 padding-top: 20px !important;
             }
 
-            /* Панель Центра взаимодействия */
             .interaction-center-tabs { flex-direction: column; }
             .interaction-center-tabs > div { border-left: none !important; border-bottom: 1px solid #222; }
             .interaction-center-row { flex-direction: column; align-items: stretch !important; gap: 15px !important; }
