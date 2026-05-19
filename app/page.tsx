@@ -95,7 +95,8 @@ export default function Home() {
                <span style={{ color: '#444' }}>|</span>
                <button onClick={() => setActiveDoc('cookies')} className="doc-link" style={docLinkStyle}>Соглашение с файлами cookie</button>
            </div>
-           <p style={{ marginTop: '50px', color: '#444', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase' }}>© 2024 TEA MASTER STORE | HUB СОТРУДНИКА</p>
+           {/* ИСПРАВЛЕННЫЙ КОПИРАЙТ ПО ГОСТ Р 7.0.1—2003 */}
+           <p style={{ marginTop: '50px', color: '#444', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase' }}>© Корольков Я.Д., 2026 | HUB СОТРУДНИКА</p>
         </footer>
       </div>
 

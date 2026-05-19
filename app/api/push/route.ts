@@ -1,47 +1,38 @@
 import { NextResponse } from 'next/server';
-const webpush = require('web-push');
+import nodemailer from 'nodemailer';
 
 export async function POST(req: Request) {
-  try {
-    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.replace(/["']/g, '').trim();
-    const privateKey = process.env.VAPID_PRIVATE_KEY?.replace(/["']/g, '').trim();
-    const subject = process.env.VAPID_SUBJECT?.replace(/["']/g, '').trim() || 'mailto:admin@tea-hub.ru';
+    try {
+        // Получаем данные из админки
+        const { to, subject, text } = await req.json();
 
-    if (!publicKey || !privateKey) {
-      return NextResponse.json({ error: 'Ключи VAPID не настроены в .env на сервере' }, { status: 500 });
-    }
+        if (!to || !subject || !text) {
+            return NextResponse.json({ error: 'Не все поля заполнены' }, { status: 400 });
+        }
 
-    webpush.setVapidDetails(subject, publicKey, privateKey);
-
-    const { subscriptions, payload } = await req.json();
-
-    if (!subscriptions || subscriptions.length === 0) {
-      return NextResponse.json({ message: 'Нет устройств для отправки' }, { status: 200 });
-    }
-
-    // Ждем ответа от серверов Apple и Google по каждому устройству
-    const results = await Promise.allSettled(
-      subscriptions.map((sub: any) => webpush.sendNotification(sub, JSON.stringify(payload)))
-    );
-
-    // Ищем, не отклонил ли кто-то наш пуш
-    const failures = results.filter((r: any) => r.status === 'rejected');
-    
-    if (failures.length > 0) {
-        // Достаем точный код ошибки из недр APNs
-        const errorMessages = failures.map((f: any) => {
-             return `Код: ${f.reason?.statusCode || 'N/A'} - ${f.reason?.body || f.reason?.message || 'Неизвестно'}`;
+        // Настраиваем подключение к SMTP серверу (Яндекс или Mail.ru)
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'smtp.yandex.ru',
+            port: Number(process.env.SMTP_PORT) || 465,
+            secure: true, 
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+            },
         });
-        
-        console.error("ОШИБКИ ОТ APPLE/GOOGLE:", errorMessages);
-        
-        return NextResponse.json({ 
-            error: `Apple (или Google) отклонил пуш! ${errorMessages.join(' | ')}` 
-        }, { status: 500 });
-    }
 
-    return NextResponse.json({ success: true, message: 'Пуши успешно доставлены на сервера Apple и Google!' });
-  } catch (error: any) {
-    return NextResponse.json({ error: `Критическая ошибка сервера: ${error.message || error}` }, { status: 500 });
-  }
+        // Формируем и отправляем письмо
+        await transporter.sendMail({
+            from: `"Tea Hub LMS" <${process.env.SMTP_USER}>`, 
+            to: to, 
+            subject: subject, 
+            text: text, 
+        });
+
+        return NextResponse.json({ success: true });
+        
+    } catch (error: any) {
+        console.error('Ошибка отправки email:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 }
