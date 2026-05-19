@@ -1,16 +1,14 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на server:", err));
+    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 function ProfileContent() {
@@ -22,7 +20,6 @@ function ProfileContent() {
     const [isPassModalOpen, setIsPassModalOpen] = useState(false);
     const [newPass, setNewPass] = useState('');
     
-    // --- СТЕЙТЫ ДЛЯ ОКНА ИНСТРУКЦИИ УВЕДОМЛЕНИЙ (ОБНОВЛЕН ТИП ВКЛАДКИ) ---
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
     const [helpTab, setHelpTab] = useState<'ios' | 'android' | 'desktop' | 'email'>('ios');
     
@@ -171,7 +168,7 @@ function ProfileContent() {
                 const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, pass: newPass.trim() } : u);
                 saveDataToServer('tea_hub_users_v1', updatedUsers);
                 
-                alert("Пароль успешно изменен!");
+                alert("Пароль успешно изменен");
                 setIsPassModalOpen(false);
                 setNewPass('');
             }
@@ -200,7 +197,6 @@ function ProfileContent() {
         <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', overflowX: 'hidden' }}>
             <Navigation />
             
-            {/* БЛОК-РАСПОРКА ДЛЯ САЙДБАРА (КАК НА ДРУГИХ СТРАНИЦАХ) */}
             <div style={{ width: '260px', flexShrink: 0 }} className="sidebar-spacer" />
 
             <main style={{ flex: 1, padding: '120px 20px 140px 20px', maxWidth: '100%', boxSizing: 'border-box' }}>
@@ -211,17 +207,19 @@ function ProfileContent() {
 
                         {isMenuOpen && (
                             <div style={contextMenuStyle}>
-                                <div onClick={handleOpenEdit} style={menuItemStyle}>✎ Настроить данные</div>
-                                <div onClick={handleOpenPassChange} style={menuItemStyle}>🔒 Сменить пароль</div>
-                                <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>✕ Выйти</div>
+                                <div onClick={handleOpenEdit} style={menuItemStyle}>Настроить данные</div>
+                                <div onClick={handleOpenPassChange} style={menuItemStyle}>Сменить пароль</div>
+                                <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>Выйти из аккаунта</div>
                             </div>
                         )}
 
-                        <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
+                        <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #0abab5', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(10, 186, 181, 0.15)' }}>
                             {profile.avatar ? (
                                 <img src={profile.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
                             ) : (
-                                <span style={{ fontSize: '45px' }}>{userRole === 'admin' ? '👑' : '👤'}</span>
+                                <span style={{ fontSize: '28px', fontWeight: '900', color: '#0abab5', letterSpacing: '2px' }}>
+                                    {userRole === 'admin' ? 'ADMIN' : 'USER'}
+                                </span>
                             )}
                         </div>
 
@@ -257,10 +255,10 @@ function ProfileContent() {
 
                             <h3 style={sectionTitle}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
-                                <div title="Старт" style={{ ...badgeStyle, opacity: progress.routeCount >= 1 ? 1 : 0.1 }}>🌱</div>
-                                <div title="План" style={{ ...badgeStyle, opacity: progress.routeCount >= 5 ? 1 : 0.1 }}>🚀</div>
-                                <div title="Теория" style={{ ...badgeStyle, opacity: progress.basicsCount >= 5 ? 1 : 0.1 }}>📚</div>
-                                <div title="Мастер" style={{ ...badgeStyle, opacity: progress.basicsCount >= 10 ? 1 : 0.1 }}>🏮</div>
+                                <div title="Старт" style={{ ...badgeStyle, opacity: progress.routeCount >= 1 ? 1 : 0.2 }}>СТАРТ</div>
+                                <div title="План" style={{ ...badgeStyle, opacity: progress.routeCount >= 5 ? 1 : 0.2 }}>ПЛАН</div>
+                                <div title="Теория" style={{ ...badgeStyle, opacity: progress.basicsCount >= 5 ? 1 : 0.2 }}>ТЕОРИЯ</div>
+                                <div title="Мастер" style={{ ...badgeStyle, opacity: progress.basicsCount >= 10 ? 1 : 0.2 }}>МАСТЕР</div>
                             </div>
                         </div>
                     )}
@@ -268,31 +266,29 @@ function ProfileContent() {
                     <h3 style={sectionTitle}>СВЯЗЬ</h3>
                     <section style={contactCardStyle}>
                         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                            <div style={contactIconStyle}>💬</div>
+                            <div style={contactIconStyle}>@</div>
                             <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{profile.tg || 'telegram не указан'}</div>
-                                <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{profile.email || 'e-mail не указан'}</div>
-                                <div style={{ fontSize: '13px', color: '#555' }}>{profile.phone || 'телефон не указан'}</div>
+                                <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{profile.tg || 'Telegram не указан'}</div>
+                                <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{profile.email || 'E-mail не указан'}</div>
+                                <div style={{ fontSize: '13px', color: '#555' }}>{profile.phone || 'Телефон не указан'}</div>
                             </div>
                         </div>
                     </section>
 
-                    {/* ИНСТРУКЦИЯ ПОДКЛЮЧЕНИЯ УВЕДОМЛЕНИЙ */}
                     <button 
                         onClick={() => setIsHelpModalOpen(true)} 
                         style={notificationHelpBtnStyle as any}
                     >
-                        🔔 ИНСТРУКЦИЯ: КАК ВКЛЮЧИТЬ УВЕДОМЛЕНИЯ
+                        ИНСТРУКЦИЯ: НАСТРОЙКА УВЕДОМЛЕНИЙ
                     </button>
                 </div>
 
-                {/* --- РЕДАКТОР ПРОФИЛЯ --- */}
                 {isEditing && (
                     <div style={overlayStyle}>
                         <div style={modalStyle}>
                             <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px' }}>РЕДАКТОР ПРОФИЛЯ</h2>
                             <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
-                                <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} placeholder="Твое имя" style={inputItemStyle} />
+                                <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} placeholder="Ваше имя" style={inputItemStyle} />
                                 
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                     <input type="file" id="avatar-upload" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
@@ -310,7 +306,6 @@ function ProfileContent() {
                     </div>
                 )}
 
-                {/* --- СМЕНА ПАРОЛЯ --- */}
                 {isPassModalOpen && (
                     <div style={overlayStyle}>
                         <div style={modalStyle}>
@@ -324,140 +319,127 @@ function ProfileContent() {
                     </div>
                 )}
 
-                {/* --- МОДАЛЬНОЕ ОКНО: ИНСТРУКЦИЯ ПО УВЕДОМЛЕНИЯМ --- */}
                 {isHelpModalOpen && (
                     <div style={overlayStyle} onClick={() => setIsHelpModalOpen(false)}>
-                        <div className="custom-scroll" style={{...modalStyle, maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '35px 25px'}} onClick={e => e.stopPropagation()}>
+                        <div className="custom-scroll" style={{...modalStyle, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '40px 35px'}} onClick={e => e.stopPropagation()}>
                             
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                                <h2 style={{ margin: 0, fontWeight: '900', color: '#fff', fontSize: '22px' }}>НАСТРОЙКА УВЕДОМЛЕНИЙ</h2>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                                <h2 style={{ margin: 0, fontWeight: '900', color: '#fff', fontSize: '24px' }}>НАСТРОЙКА УВЕДОМЛЕНИЙ</h2>
                                 <div onClick={() => setIsHelpModalOpen(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
                             </div>
 
-                            {/* НАВИГАЦИОННАЯ СЕТКА ВКЛАДОК (ДОБАВЛЕНА ПОЧТА) */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: '#000', borderRadius: '15px', padding: '4px', marginBottom: '25px', border: '1px solid #222' }}>
-                                <div onClick={() => setHelpTab('ios')} style={tabStyle(helpTab === 'ios') as any}>🍎 iOS</div>
-                                <div onClick={() => setHelpTab('android')} style={tabStyle(helpTab === 'android') as any}>🤖 Android</div>
-                                <div onClick={() => setHelpTab('desktop')} style={tabStyle(helpTab === 'desktop') as any}>💻 ПК</div>
-                                <div onClick={() => setHelpTab('email')} style={tabStyle(helpTab === 'email') as any}>📧 Почта</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: '#000', borderRadius: '15px', padding: '4px', marginBottom: '30px', border: '1px solid #222' }}>
+                                <div onClick={() => setHelpTab('ios')} style={tabStyle(helpTab === 'ios') as any}>iOS</div>
+                                <div onClick={() => setHelpTab('android')} style={tabStyle(helpTab === 'android') as any}>Android</div>
+                                <div onClick={() => setHelpTab('desktop')} style={tabStyle(helpTab === 'desktop') as any}>ПК</div>
+                                <div onClick={() => setHelpTab('email')} style={tabStyle(helpTab === 'email') as any}>Почта</div>
                             </div>
 
-                            {/* ВКЛАДКА IOS */}
                             {helpTab === 'ios' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                    <p style={helpDescStyle as any}>Apple (iPhone/iPad) разрешает получать Push-уведомления с сайтов <b>только если сайт установлен на домашний экран</b>.</p>
+                                    <p style={helpDescStyle as any}>Операционная система iOS разрешает получать Push-уведомления с платформ <b>только в случае установки сайта на домашний экран устройства</b>.</p>
                                     
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>1</div>
-                                        <div style={stepTextStyle as any}>Откройте сайт Tea Hub строго в стандартном браузере <b>Safari</b>.</div>
+                                        <div style={stepTextStyle as any}>Откройте платформу Tea Hub строго в стандартном браузере <b>Safari</b>.</div>
                                     </div>
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}>Нажмите на кнопку <b>«Поделиться»</b> (квадрат со стрелочкой вверх внизу экрана).</div>
+                                        <div style={stepTextStyle as any}>Нажмите на системную кнопку <b>«Поделиться»</b> (иконка квадрата со стрелкой вверх в нижней панели экрана).</div>
                                     </div>
-                                    <div style={imgPlaceholderStyle as any}>🖼️ Скриншот: Кнопка «Поделиться» в Safari</div>
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>3</div>
-                                        <div style={stepTextStyle as any}>В появившемся меню пролистайте вниз и выберите <b>«На экран "Домой"»</b>, затем нажмите «Добавить».</div>
+                                        <div style={stepTextStyle as any}>В появившемся контекстном меню пролистайте вниз, выберите пункт <b>«На экран "Домой"»</b> и подтвердите действие кнопкой «Добавить».</div>
                                     </div>
-                                    <div style={imgPlaceholderStyle as any}>🖼️ Скриншот: Пункт «На экран "Домой"»</div>
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>4</div>
-                                        <div style={stepTextStyle as any}>Закройте Safari, найдите иконку <b>Tea Hub на рабочем столе</b> и откройте её.</div>
+                                        <div style={stepTextStyle as any}>Закройте браузер Safari. Найдите новую иконку <b>Tea Hub на рабочем столе</b> вашего устройства и откройте приложение через нее.</div>
                                     </div>
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>5</div>
-                                        <div style={stepTextStyle as any}>Авторизуйтесь и в меню появится кнопка <b>«Привязать устройство»</b>. Нажмите её и разрешите уведомления.</div>
+                                        <div style={stepTextStyle as any}>Пройдите авторизацию. В главном меню появится системная кнопка <b>«Привязать устройство»</b>. Нажмите её и предоставьте права на отправку уведомлений.</div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* ВКЛАДКА ANDROID */}
                             {helpTab === 'android' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                    <p style={helpDescStyle as any}>На Android уведомления работают проще, но мы настоятельно рекомендуем использовать <b>Google Chrome</b>.</p>
+                                    <p style={helpDescStyle as any}>Для корректной работы системы уведомлений на ОС Android настоятельно рекомендуется использовать браузер <b>Google Chrome</b>.</p>
                                     
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>1</div>
-                                        <div style={stepTextStyle as any}>Зайдите на сайт Tea Hub через Google Chrome (в Яндекс.Браузере могут быть системные сбои).</div>
+                                        <div style={stepTextStyle as any}>Осуществите вход на платформу Tea Hub через браузер Google Chrome.</div>
                                     </div>
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}>Войдите в аккаунт и нажмите появившуюся кнопку <b>«ПРИВЯЗАТЬ УСТРОЙСТВО»</b>.</div>
+                                        <div style={stepTextStyle as any}>Пройдите процедуру авторизации и нажмите на кнопку <b>«Привязать устройство»</b> в верхней части рабочей области.</div>
                                     </div>
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>3</div>
-                                        <div style={stepTextStyle as any}>Браузер спросит: <i>«Разрешить tea-hub.ru отправлять вам уведомления?»</i>. Нажмите <b>«Разрешить»</b>.</div>
+                                        <div style={stepTextStyle as any}>В появившемся системном диалоговом окне выберите <b>«Разрешить»</b>.</div>
                                     </div>
-                                    <div style={imgPlaceholderStyle as any}>🖼️ Скриншот: Плашка «Разрешить уведомления»</div>
 
-                                    <div style={{ marginTop: '25px', padding: '15px', background: 'rgba(255, 77, 77, 0.1)', border: '1px solid rgba(255, 77, 77, 0.3)', borderRadius: '15px' }}>
-                                        <h4 style={{ color: '#ff4d4d', margin: '0 0 10px 0', fontSize: '14px' }}>⚠️ Если вы случайно заблокировали:</h4>
-                                        <p style={{ fontSize: '13px', color: '#ccc', margin: 0, lineHeight: '1.5' }}>Нажмите на значок «Замка» слева от адреса сайта вверху экрана - <b>Разрешения</b> - Уведомления - Разрешить.</p>
+                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: 'rgba(255, 77, 77, 0.05)', border: '1px solid rgba(255, 77, 77, 0.2)', borderRadius: '18px' }}>
+                                        <h4 style={{ color: '#ff4d4d', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>Внимание: Разблокировка уведомлений</h4>
+                                        <p style={{ fontSize: '14px', color: '#ccc', margin: 0, lineHeight: '1.6' }}>Если запрос не появился или был заблокирован: нажмите на иконку настроек (замок) слева от адресной строки браузера ➔ <b>Разрешения</b> ➔ Уведомления ➔ Разрешить.</p>
                                     </div>
                                 </div>
                             )}
 
-                            {/* ВКЛАДКА ПК */}
                             {helpTab === 'desktop' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                    <p style={helpDescStyle as any}>На компьютере (Windows / Mac) включить уведомления можно в 2 клика.</p>
+                                    <p style={helpDescStyle as any}>Активация уведомлений на персональном компьютере (Windows / macOS).</p>
                                     
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>1</div>
-                                        <div style={stepTextStyle as any}>Войдите в свой аккаунт на сайте и нажмите кнопку <b>«ПРИВЯЗАТЬ»</b>. Всплывет окно браузера с запросом прав.</div>
+                                        <div style={stepTextStyle as any}>Пройдите авторизацию в системе и нажмите на кнопку <b>«Привязать устройство»</b> на главной рабочей панели.</div>
                                     </div>
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}>Нажмите <b>«Разрешить» (Allow)</b>.</div>
+                                        <div style={stepTextStyle as any}>В системном окне браузера подтвердите действие, нажав <b>«Разрешить» (Allow)</b>.</div>
                                     </div>
 
-                                    <div style={{ marginTop: '25px', padding: '15px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '15px' }}>
-                                        <h4 style={{ color: '#0abab5', margin: '0 0 10px 0', fontSize: '14px' }}>Где найти ручные настройки:</h4>
-                                        <p style={{ fontSize: '13px', color: '#ccc', margin: 0, lineHeight: '1.5' }}>Если окно не появилось, нажмите на значок <b>«Настройки сайта»</b> (ползунки или замочек слева от адресной строки браузера) и переключите тумблер <b>Уведомления</b> во включенное положение.</p>
+                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '18px' }}>
+                                        <h4 style={{ color: '#0abab5', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>Ручная настройка параметров браузера:</h4>
+                                        <p style={{ fontSize: '14px', color: '#ccc', margin: 0, lineHeight: '1.6' }}>Если диалоговое окно не отображается, кликните на иконку «Настройки сайта» (замок слева от адресной строки) и переведите параметр <b>Уведомления</b> в активное положение.</p>
                                     </div>
-                                    <div style={imgPlaceholderStyle as any}>🖼️ Скриншот: Значок замка и тумблер «Уведомления»</div>
                                 </div>
                             )}
 
-                            {/* 📧 НОВАЯ ВКЛАДКА: EMAIL РАССЫЛКА 📧 */}
                             {helpTab === 'email' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                    <p style={helpDescStyle as any}>Настройка получения важных рабочих уведомлений, дедлайнов и назначенных аттестаций прямо на ваш почтовый ящик.</p>
+                                    <p style={helpDescStyle as any}>Настройка дублирования важных системных уведомлений, дедлайнов и назначенных аттестаций на ваш персональный почтовый адрес.</p>
                                     
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>1</div>
-                                        <div style={stepTextStyle as any}>Убедитесь, что к вашему рабочему аккаунту привязан актуальный e-mail адрес.</div>
+                                        <div style={stepTextStyle as any}>Убедитесь, что в карточке вашего профиля корректно заполнен E-mail адрес.</div>
                                     </div>
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}><b>Путь привязки:</b> В самом верху этой страницы нажмите на меню из трех точек <b>«•••»</b> ➔ выберите пункт <b>«✎ Настроить данные»</b> ➔ введите адрес в поле <b>«E-mail адрес»</b> ➔ нажмите <b>«Сохранить изменения»</b>.</div>
+                                        <div style={stepTextStyle as any}><b>Алгоритм привязки:</b> В верхней части текущей страницы нажмите на системное меню <b>«•••»</b> ➔ выберите <b>«Настроить данные»</b> ➔ заполните поле <b>«E-mail адрес»</b> ➔ нажмите <b>«Сохранить изменения»</b>.</div>
                                     </div>
-                                    {/* ЗАГЛУШКА ПОД СКРИНШОТ НАСТРОЙКИ EMAIL */}
-                                    {/* <img src="/email-step1.jpg" style={screenshotStyle} alt="Привязка Email" /> */}
-                                    <div style={imgPlaceholderStyle as any}>🖼️ Скриншот: Поле «E-mail адрес» в редакторе данных профиля</div>
 
-                                    <div style={{ marginTop: '25px', padding: '20px', background: 'rgba(255, 118, 117, 0.1)', border: '1px solid rgba(255, 118, 117, 0.3)', borderRadius: '15px' }}>
-                                        <h4 style={{ color: '#ff7675', margin: '0 0 10px 0', fontSize: '14px', fontWeight: '900' }}>⚠️ ПРЕДУПРЕЖДЕНИЕ О СПАМЕ:</h4>
-                                        <p style={{ fontSize: '13px', color: '#ccc', margin: '0 0 12px 0', lineHeight: '1.5' }}>
-                                            Почтовые сервисы (Яндекс, Mail.ru, Gmail) часто с подозрением относятся к автоматическим письмам от новых платформ. Из-за этого наши уведомления первое время могут по ошибке попадать в папку <b>«Спам»</b>.
+                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: 'rgba(255, 118, 117, 0.05)', border: '1px solid rgba(255, 118, 117, 0.2)', borderRadius: '18px' }}>
+                                        <h4 style={{ color: '#ff7675', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>ВАЖНО: ФИЛЬТРЫ СПАМА</h4>
+                                        <p style={{ fontSize: '14px', color: '#ccc', margin: '0 0 12px 0', lineHeight: '1.6' }}>
+                                            Системы защиты почтовых провайдеров (Яндекс, Mail.ru, Gmail) могут по умолчанию направлять автоматические сервисные письма в папку <b>«Спам»</b> или «Рассылки».
                                         </p>
-                                        <p style={{ fontSize: '13px', color: '#0abab5', margin: 0, fontWeight: 'bold', lineHeight: '1.5' }}>
-                                            🙏 Просьба: если вы обнаружили наше письмо в спаме, обязательно откройте его и нажмите кнопку <b>«Это не спам»</b> (или «Переместить во Входящие»). Это обучит почтовый фильтр, и все последующие тесты и регламенты будут приходить вовремя!
+                                        <p style={{ fontSize: '14px', color: '#0abab5', margin: 0, fontWeight: 'bold', lineHeight: '1.6' }}>
+                                            Если вы обнаружили системное письмо в директории спама, обязательно откройте его и нажмите системную кнопку <b>«Это не спам»</b> (или «Переместить во Входящие»). Данное действие обучит алгоритмы, и последующие уведомления будут доставляться корректно.
                                         </p>
                                     </div>
                                 </div>
                             )}
 
-                            <button onClick={() => setIsHelpModalOpen(false)} style={{ ...saveButtonStyle, marginTop: '30px' } as any}>ПОНЯТНО, ЗАКРЫТЬ</button>
+                            <button onClick={() => setIsHelpModalOpen(false)} style={{ ...saveButtonStyle, marginTop: '35px' } as any}>ПОНЯТНО, ЗАКРЫТЬ</button>
                         </div>
                     </div>
                 )}
@@ -529,7 +511,6 @@ const menuItemStyle: any = {
 const sectionTitle: any = { fontSize: '12px', fontWeight: '900', color: '#444', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center', textTransform: 'uppercase' };
 const statCardStyle: any = { background: '#161816', padding: '25px 10px', borderRadius: '25px', border: '1px solid #222', display: 'flex', flexDirection: 'column', alignItems: 'center' };
 const statNum: any = { fontSize: '28px', fontWeight: '900', color: '#0abab5' };
-const statCardStyle_green = { background: '#161816', padding: '25px 10px', borderRadius: '25px', border: '1px solid #4CAF50', display: 'flex', flexDirection: 'column', alignItems: 'center' };
 const statLabel: any = { fontSize: '10px', color: '#555', marginTop: '5px', fontWeight: 'bold' };
 
 const progressSectionStyle: any = { background: '#161816', padding: '35px', borderRadius: '35px', border: '1px solid #222', marginBottom: '35px' };
@@ -537,16 +518,17 @@ const labelRow: any = { display: 'flex', justifyContent: 'space-between', margin
 const barBg: any = { width: '100%', height: '10px', background: '#000', borderRadius: '12px', overflow: 'hidden' };
 const barFill: any = { height: '100%', background: '#0abab5', transition: '1.2s cubic-bezier(0.4, 0, 0.2, 1)' };
 const deadlineStyle: any = { marginTop: '25px', paddingTop: '20px', borderTop: '1px solid #222', fontSize: '11px', color: '#555', textAlign: 'center' };
-const badgeStyle: any = { background: '#111', height: '80px', borderRadius: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '35px', border: '1px solid #222', transition: '0.4s' };
+
+const badgeStyle: any = { background: '#111', height: '80px', borderRadius: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', letterSpacing: '1px', border: '1px solid #222', transition: '0.4s' };
+
 const contactCardStyle: any = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
-const contactIconStyle: any = { width: '45px', height: '45px', background: '#000', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
+const contactIconStyle: any = { width: '45px', height: '45px', background: '#000', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: '#555', fontWeight: '900' };
 const overlayStyle: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.98)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px', backdropFilter: 'blur(15px)' };
 const modalStyle: any = { background: '#111', borderRadius: '45px', border: '1px solid #222' };
 const inputItemStyle: any = { width: '100%', padding: '20px', background: '#000', border: '1px solid #222', borderRadius: '18px', color: '#fff', outline: 'none', fontSize: '16px', boxSizing: 'border-box' };
 const saveButtonStyle: any = { width: '100%', padding: '22px', background: '#0abab5', border: 'none', borderRadius: '18px', fontWeight: '900', color: '#000', cursor: 'pointer', marginTop: '20px', fontSize: '15px' };
 const cancelButtonStyle: any = { textAlign: 'center', marginTop: '25px', color: '#444', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' };
 
-// Стили кнопки инструкции
 const notificationHelpBtnStyle = {
     width: '100%',
     padding: '20px',
@@ -561,73 +543,56 @@ const notificationHelpBtnStyle = {
     transition: '0.3s',
 };
 
-// Стили для внутренностей модалки инструкций
 const tabStyle = (isActive: boolean) => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 1,
+    textAlign: 'center',
+    padding: '12px 5px',
     cursor: 'pointer',
     color: isActive ? '#000' : '#888',
     background: isActive ? '#0abab5' : 'transparent',
     fontWeight: '900',
-    fontSize: '13px',
+    fontSize: '14px',
     borderRadius: '10px',
-    transition: '0.2s',
-    padding: '10px 2px'
+    transition: '0.2s'
 });
 
 const helpDescStyle = {
-    fontSize: '14px',
+    fontSize: '15px',
     color: '#ccc',
-    lineHeight: '1.5',
-    marginBottom: '20px',
+    lineHeight: '1.6',
+    marginBottom: '25px',
     padding: '0 5px'
 };
 
 const stepCardStyle = {
     display: 'flex',
-    gap: '15px',
+    gap: '20px',
     alignItems: 'center',
     background: '#161816',
-    padding: '15px',
-    borderRadius: '15px',
+    padding: '20px 25px',
+    borderRadius: '18px',
     border: '1px solid #222',
-    marginBottom: '10px'
+    marginBottom: '15px'
 };
 
 const stepNumStyle = {
-    width: '35px',
-    height: '35px',
+    width: '45px',
+    height: '45px',
     background: 'rgba(10,186,181,0.1)',
     color: '#0abab5',
-    borderRadius: '10px',
+    borderRadius: '12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontWeight: '900',
-    fontSize: '16px',
+    fontSize: '18px',
     flexShrink: 0
 };
 
 const stepTextStyle = {
-    fontSize: '14px',
+    fontSize: '15px',
     color: '#eee',
-    lineHeight: '1.5'
-};
-
-const imgPlaceholderStyle = {
-    width: '100%',
-    height: '140px',
-    background: '#1a1a1a',
-    border: '1px dashed #333',
-    borderRadius: '15px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#555',
-    fontSize: '12px',
-    fontWeight: 'bold',
-    margin: '15px 0 25px 0'
+    lineHeight: '1.6'
 };
 
 export default function ProfilePage() {
