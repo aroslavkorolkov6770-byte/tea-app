@@ -425,11 +425,25 @@ export default function AdminDashboard() {
       setConfirmModal({ show: true, type: 'file', id: id, title: 'УДАЛЕНИЕ МАТЕРИАЛА', text: 'Вы действительно хотите удалить этот учебный материал у всех сотрудников?' });
   };
 
-  const executeConfirmAction = () => {
+  // --- ИЗМЕНЕНО: ОЧИСТКА МЕРТВЫХ ТОКЕНОВ ПРИ УДАЛЕНИИ ---
+  const executeConfirmAction = async () => {
       if (confirmModal.type === 'user') {
           const updatedUsers = users.filter(u => u.id !== confirmModal.id);
           setUsers(updatedUsers);
           saveDataToServer('tea_hub_users_v1', updatedUsers);
+          
+          try {
+              const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
+              const subs = await res.json().catch(() => []);
+              if (Array.isArray(subs)) {
+                  // Вырезаем все устройства, привязанные к удаленному ID
+                  const activeSubs = subs.filter((s: any) => s.userId !== confirmModal.id);
+                  await saveDataToServer('tea_hub_push_subs_v1', activeSubs);
+              }
+          } catch (e) {
+              console.error("Ошибка при удалении push-подписок:", e);
+          }
+
       } else if (confirmModal.type === 'file') {
           const updatedFiles = urgentFiles.filter(f => f.id !== confirmModal.id);
           setUrgentFiles(updatedFiles);
