@@ -27,6 +27,10 @@ function ProfileContent() {
     const [userRole, setUserRole] = useState('staff');
     const [userId, setUserId] = useState('guest');
     
+    // --- СТЕЙТЫ ДЛЯ КНОПКИ PUSH-УВЕДОМЛЕНИЙ ---
+    const [pushBtnText, setPushBtnText] = useState('ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ');
+    const [pushBtnColor, setPushBtnColor] = useState('#0abab5');
+    
     const [profile, setProfile] = useState({
         name: '',
         avatar: '',
@@ -63,7 +67,7 @@ function ProfileContent() {
                 let dlDate = new Date();
                 
                 if (!pData || Array.isArray(pData) || Object.keys(pData).length === 0) {
-                    pData = { avatar: '', tg: role === 'admin' ? '@admin_tea' : '@username', phone: '', email: '', firstLogin: dlDate.toISOString() };
+                    pData = { avatar: '', tg: role === 'admin' ? 'admin_tea' : 'username', phone: '', email: '', firstLogin: dlDate.toISOString() };
                     saveDataToServer(`profile_data_${currentId}`, pData);
                     dlDate.setDate(dlDate.getDate() + 7);
                 } else {
@@ -107,6 +111,18 @@ function ProfileContent() {
                     });
                 }
 
+                // ПРОВЕРКА АКТИВНОЙ ПОДПИСКИ ПРИ ЗАГРУЗКЕ ПРОФИЛЯ
+                if ('serviceWorker' in navigator && 'PushManager' in window) {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        const sub = await registration.pushManager.getSubscription();
+                        if (sub) {
+                            setPushBtnText('ПЕРЕПРИВЯЗАТЬ УСТРОЙСТВО');
+                            setPushBtnColor('#4CAF50');
+                        }
+                    }
+                }
+
                 setIsMounted(true);
             } catch (error) {
                 console.error("Ошибка загрузки профиля:", error);
@@ -116,6 +132,80 @@ function ProfileContent() {
 
         loadProfileData();
     }, []);
+
+    // --- ФУНКЦИЯ ПОДКЛЮЧЕНИЯ/ПЕРЕПРИВЯЗКИ PUSH-УВЕДОМЛЕНИЙ ---
+    const handleSubscribeToPush = async () => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            alert("Ваш браузер не поддерживает Web Push уведомления. Попробуйте Google Chrome.");
+            return;
+        }
+        
+        if (userId === 'guest' || !userId) {
+            alert("⚠️ Перед включением уведомлений нужно войти в аккаунт!");
+            return;
+        }
+
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                alert("❌ Вы заблокировали уведомления в браузере. Разрешите их в настройках сайта.");
+                return;
+            }
+
+            const swUrl = `/sw.js?v=${Date.now()}`;
+            const registration = await navigator.serviceWorker.register(swUrl);
+            let subscription = await registration.pushManager.getSubscription();
+
+            // Если подписка уже есть (призрачная или старая) - отписываемся для жесткой ПЕРЕПРИВЯЗКИ
+            if (subscription) {
+                await subscription.unsubscribe();
+            }
+
+            const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+            if (!vapidPublicKey) {
+                alert("⚠️ Ошибка: VAPID ключ не найден в .env");
+                return;
+            }
+
+            const urlBase64ToUint8Array = (base64String: string) => {
+                const cleanKey = base64String.replace(/["']/g, '').trim();
+                const padding = '='.repeat((4 - cleanKey.length % 4) % 4);
+                const base64 = (cleanKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
+                const rawData = window.atob(base64);
+                const outputArray = new Uint8Array(rawData.length);
+                for (let i = 0; i < rawData.length; ++i) {
+                    outputArray[i] = rawData.charCodeAt(i);
+                }
+                return outputArray;
+            };
+
+            // Подписываем устройство заново, получая чистый токен
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+            });
+
+            // Скачиваем базу подписок
+            const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
+            let subs = await res.json().catch(() => []);
+            if (!Array.isArray(subs)) subs = [];
+
+            // УДАЛЯЕМ старую привязку ИМЕННО ЭТОГО БРАУЗЕРА, если она висела на старом/удаленном аккаунте
+            subs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
+            
+            // Сохраняем новую привязку на текущего пользователя
+            subs.push({ userId: userId, sub: subscription });
+            await saveDataToServer('tea_hub_push_subs_v1', subs);
+            
+            setPushBtnText('ПЕРЕПРИВЯЗАТЬ УСТРОЙСТВО');
+            setPushBtnColor('#4CAF50');
+            alert("✅ Устройство успешно привязано к вашему аккаунту!");
+
+        } catch (error: any) {
+            console.error('Ошибка подписки на Push:', error);
+            alert("Критическая ошибка: " + error.message);
+        }
+    };
 
     const handleOpenEdit = () => {
         setIsMenuOpen(false);
@@ -274,6 +364,27 @@ function ProfileContent() {
                         </div>
                     </section>
 
+                    {/* --- НОВАЯ КНОПКА ПОДКЛЮЧЕНИЯ/ПЕРЕПРИВЯЗКИ --- */}
+                    <button 
+                        onClick={handleSubscribeToPush} 
+                        style={{
+                            width: '100%',
+                            padding: '20px',
+                            marginTop: '30px',
+                            background: `rgba(${pushBtnColor === '#4CAF50' ? '76, 175, 80' : '10, 186, 181'}, 0.1)`,
+                            border: `1px solid ${pushBtnColor}`,
+                            color: pushBtnColor,
+                            borderRadius: '25px',
+                            fontWeight: '900',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            transition: '0.3s',
+                            letterSpacing: '1px'
+                        }}
+                    >
+                        {pushBtnText}
+                    </button>
+
                     <button 
                         onClick={() => setIsHelpModalOpen(true)} 
                         style={notificationHelpBtnStyle as any}
@@ -360,7 +471,7 @@ function ProfileContent() {
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>5</div>
-                                        <div style={stepTextStyle as any}>Пройдите авторизацию. В главном меню появится системная кнопка <b>«Привязать устройство»</b>. Нажмите её и предоставьте права на отправку уведомлений.</div>
+                                        <div style={stepTextStyle as any}>Пройдите авторизацию. В меню профиля нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b> и предоставьте права браузеру.</div>
                                     </div>
                                 </div>
                             )}
@@ -376,7 +487,7 @@ function ProfileContent() {
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}>Пройдите процедуру авторизации и нажмите на кнопку <b>«Привязать устройство»</b> в верхней части рабочей области.</div>
+                                        <div style={stepTextStyle as any}>Пройдите процедуру авторизации, перейдите в профиль и нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div>
                                     </div>
 
                                     <div style={stepCardStyle as any}>
@@ -397,7 +508,7 @@ function ProfileContent() {
                                     
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>1</div>
-                                        <div style={stepTextStyle as any}>Пройдите авторизацию в системе и нажмите на кнопку <b>«Привязать устройство»</b> на главной рабочей панели.</div>
+                                        <div style={stepTextStyle as any}>Пройдите авторизацию в системе, перейдите в раздел Профиль и нажмите на кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div>
                                     </div>
 
                                     <div style={stepCardStyle as any}>
@@ -531,14 +642,14 @@ const cancelButtonStyle: any = { textAlign: 'center', marginTop: '25px', color: 
 const notificationHelpBtnStyle = {
     width: '100%',
     padding: '20px',
-    marginTop: '30px',
+    marginTop: '15px',
     background: 'transparent',
-    border: '1px solid #0abab5',
-    color: '#0abab5',
+    border: '1px solid rgba(255,255,255,0.1)',
+    color: '#888',
     borderRadius: '25px',
     fontWeight: '900',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '13px',
     transition: '0.3s',
 };
 
