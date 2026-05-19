@@ -1,38 +1,45 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import webpush from 'web-push';
+
+// Настраиваем VAPID ключи сервера (mailto нужен для идентификации сервера отправителя)
+webpush.setVapidDetails(
+    'mailto:admin@tea-hub.ru',
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY as string,
+    process.env.VAPID_PRIVATE_KEY as string
+);
 
 export async function POST(req: Request) {
     try {
-        // Получаем данные из админки
-        const { to, subject, text } = await req.json();
+        const { subscriptions, payload } = await req.json();
 
-        if (!to || !subject || !text) {
-            return NextResponse.json({ error: 'Не все поля заполнены' }, { status: 400 });
+        // Если подписок нет, корректно отвечаем фронтенду
+        if (!subscriptions || subscriptions.length === 0) {
+            return NextResponse.json({ error: 'Нет подписок для отправки' }, { status: 400 });
         }
 
-        // Настраиваем подключение к SMTP серверу (Яндекс или Mail.ru)
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.yandex.ru',
-            port: Number(process.env.SMTP_PORT) || 465,
-            secure: true, 
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
+        // БРОНИРОВАННАЯ ОТПРАВКА: 
+        // Мы оборачиваем каждую отправку в индивидуальный try-catch.
+        // Если токен от Google "мертвый" (ошибка 400, 404 или 410),
+        // наш бэкенд НЕ упадет, а просто проигнорирует его и пойдет дальше.
+        const sendPromises = subscriptions.map(async (sub: any) => {
+            try {
+                await webpush.sendNotification(sub, JSON.stringify(payload));
+            } catch (error: any) {
+                // Тихо логируем ошибку конкретного устройства в консоль сервера, но не крашим систему
+                console.error(`Ошибка доставки Push на одно из устройств. Код ответа сервера Google/Apple: ${error?.statusCode}`);
+            }
         });
 
-        // Формируем и отправляем письмо
-        await transporter.sendMail({
-            from: `"Tea Hub LMS" <${process.env.SMTP_USER}>`, 
-            to: to, 
-            subject: subject, 
-            text: text, 
-        });
+        // Ждем, пока сервер попытается отправить все уведомления
+        await Promise.all(sendPromises);
 
+        // ОБЯЗАТЕЛЬНО возвращаем успех. 
+        // Это скажет админке: "Процесс завершен", и на экране появится зеленая плашка Успеха!
         return NextResponse.json({ success: true });
         
     } catch (error: any) {
-        console.error('Ошибка отправки email:', error);
+        // Сюда код упадет только при критической поломке самого сервера
+        console.error('Глобальная критическая ошибка Push API:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
