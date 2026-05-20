@@ -491,7 +491,7 @@ const INITIAL_ASSORTMENT = [
     ]
   },
   {
-    id: "as_3", title: "3. ЧАЕПОДОБНЫЕ НАПИТКИ", desc: "Высушенные листья, цветы, кора и корни различных растений, не являющихся Camellia sinensis (менее ⅔ чая в составе).",
+    id: "as_3", title: "3. ЧАЕПОДОБНЫЕ НАПИТКИ", desc: "Высушенные растения, не являющиеся Camellia sinensis (менее ⅔ чая в составе).",
     children: [
       {
         id: "as_3_1", title: "3.1 Весовые чаеподобные напитки", desc: "Травяные и фруктовые сборы, продающиеся на развес.",
@@ -792,6 +792,9 @@ function ShiftContent() {
   const [testAnswers, setTestAnswers] = useState<number[]>([]);
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
 
+  // Стейт для кастомного алерта при клике на заблокированный тест
+  const [lockedTestAlert, setLockedTestAlert] = useState({show: false, message: ''});
+
   const [testResultModal, setTestResultModal] = useState<{
       show: boolean, score: number, isPassed: boolean, title: string, 
       mistakes: Array<{q: string, userAns: string, correctAns: string}>
@@ -816,7 +819,6 @@ function ShiftContent() {
           const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
           const cachedDismissed = localStorage.getItem(`th_dismissed_tasks_${currentUserId}`);
           
-          // ЗАПРОС К КЭШУ V2 ДЛЯ АССОРТИМЕНТА
           const cachedAssortment = localStorage.getItem('th_cache_assortment_matrix_v2');
 
           if (cachedFiles) setUrgentFiles(JSON.parse(cachedFiles));
@@ -838,7 +840,6 @@ function ShiftContent() {
               fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_TESTS}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_ROUTE}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              // ФЕТЧИМ БАЗУ V2
               fetch(`/api/storage${cacheBuster}&key=tea_hub_assortment_matrix_v2`).then(r => r.json()).catch(() => null)
           ]);
 
@@ -1520,7 +1521,7 @@ function ShiftContent() {
                               if (isUnlocked) {
                                   setSelectedTest(test); 
                               } else {
-                                  alert(`🔒 Для начала пройдите Тест ${idx}`);
+                                  setLockedTestAlert({show: true, message: `Для разблокировки этого этапа сначала необходимо успешно сдать Тест ${idx}`});
                               }
                           }} 
                           className="premium-card" 
@@ -1806,6 +1807,22 @@ function ShiftContent() {
                             </div>
                         )}
                     </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- КАСТОМНЫЙ АЛЕРТ ДЛЯ ЗАБЛОКИРОВАННОГО ТЕСТА --- */}
+        {lockedTestAlert.show && (
+            <div style={{...errorOverlayStyle, zIndex: 70000} as any} onClick={() => setLockedTestAlert({show: false, message: ''})}>
+                <div className="tasks-modal" style={errorModalContent as any} onClick={e => e.stopPropagation()}>
+                    <div style={{ fontSize: '60px', marginBottom: '15px' }}>🔒</div>
+                    <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900', textTransform: 'uppercase' }}>ДОСТУП ЗАКРЫТ</h2>
+                    <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.5', marginBottom: '25px', fontWeight: 'bold' }}>
+                        {lockedTestAlert.message}
+                    </p>
+                    <button onClick={() => setLockedTestAlert({show: false, message: ''})} style={{...errorBtnStyle, background: '#333', color: '#fff', marginTop: 0} as any}>
+                        ПОНЯТНО
+                    </button>
                 </div>
             </div>
         )}
