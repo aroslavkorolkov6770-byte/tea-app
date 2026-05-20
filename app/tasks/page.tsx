@@ -46,7 +46,7 @@ const INITIAL_BASICS = [
         { id: "m3_2", title: "Би Ло Чунь", t1: "Сбор почек.", t2: "Аромат фруктовых деревьев.", t3: "Ворсистость листа.", quiz: [{q: "Какая форма у Би Ло Чунь?", o: ["Плоский", "Спираль", "Связанный"], c: 1}] },
         { id: "m3_3", title: "Убийство зелени", t1: "Остановка ферментации.", t2: "Температурный удар.", t3: "Сохранение цвета.", quiz: [{q: "Какова цель этого этапа?", o: ["Усилить цвет", "Высушить лист", "Остановить окисление"], c: 2}] },
         { id: "m3_4", title: "Японская Сенча", t1: "Обработка паром.", t2: "Морской вкус.", t3: "Отличие от Китая.", quiz: [{q: "Основной метод фиксации в Японии?", o: ["Прожарка", "Пар", "Копчение"], c: 1}] },
-        { id: "m3_5", title: "Температура воды", t1: "Почему нельзя кипяток.", t2: "Раскрытие нежности.", t3: "Оптимально 75-80C.", quiz: [{q: "Какая температура оптимальна?", o: ["95-100°C", "60-65°C", "75-80°C"], c: 2}] },
+        { id: "m3_5", title: "Температура воды", t1: "Почему нельзя кипяток.", t2: "Ракpытие нежности.", t3: "Оптимально 75-80C.", quiz: [{q: "Какая температура оптимальна?", o: ["95-100°C", "60-65°C", "75-80°C"], c: 2}] },
   ]},
   { id: "sec_4", title: "04. Белый чай", modules: [
         { id: "m4_1", title: "Бай Хао Инь Чжэнь", t1: "Высший сорт.", t2: "Только почки.", t3: "Ворсистость.", quiz: [{q: "Из чего делают этот чай?", o: ["Только почки", "Почка и лист", "Крупные листья"], c: 0}] },
@@ -99,7 +99,6 @@ const INITIAL_BASICS = [
   ]},
 ];
 
-// НОВЫЙ БЛОК ТЕОРИИ (ИЗ ФАЙЛА)
 const INITIAL_ROUTE = [
   {
     id: "route_1", title: "Гигиена", time: "5 мин",
@@ -346,8 +345,8 @@ const INITIAL_ASSORTMENT = [
               {
                 id: "as_2_1_1_1", title: "Плантационный",
                 children: [
-                  { id: "as_k_1", title: "Моносорта", content: "Зерна 100% арабики из одного конкретного region произрастания." },
-                  { id: "as_k_2", title: "Эспрессо-смеси", content: "Специально подобранные смеси (арабика/робуста) для идеального эспрессо." },
+                  { id: "as_k_1", title: "Моносорта", content: "Зерна 100% арабики из одного конкретного региона произрастания." },
+                  { id: "as_k_2", title: "Эспрессо-смеси", content: "Специально подобраные смеси (арабика/робуста) для идеального эспрессо." },
                   { id: "as_k_3", title: "Купажи", content: "Авторские смеси различных сортов для получения уникального профиля чашки." }
                 ]
               },
@@ -587,7 +586,10 @@ const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, 
 const modalContent: React.CSSProperties = { background: '#000', padding: '60px', borderRadius: '50px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
 const modalContentSmall: React.CSSProperties = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #333' };
 const theoryBlock: React.CSSProperties = { background: '#0d0d0d', padding: '30px', borderRadius: '25px', border: '1px solid #222' };
-const theoryLabel: React.CSSProperties = { fontSize: '11px', fontWeight: '900', color: '#0abab5', letterSpacing: '2px', marginBottom: '15px' };
+
+// УЛУЧШЕННЫЙ ШРИФТ ПОДЗАГОЛОВКОВ: убраны широкие отступы, увеличен размер, естественный регистр букв
+const theoryLabel: React.CSSProperties = { fontSize: '15px', fontWeight: '800', color: '#0abab5', letterSpacing: '0.5px', marginBottom: '12px' };
+
 const theoryText: React.CSSProperties = { fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0 };
 const checkKnowledgeBtn: React.CSSProperties = { width: '100%', padding: '25px', background: 'transparent', border: '2px solid #0abab5', color: '#0abab5', borderRadius: '20px', fontWeight: '900', fontSize: '18px', cursor: 'pointer', transition: '0.3s' };
 const quizBox: React.CSSProperties = { borderTop: '1px solid #222', paddingTop: '40px', marginTop: '10px' };
@@ -680,7 +682,6 @@ function ShiftContent() {
   const [userId, setUserId] = useState<string>('');
   
   const [showRouteForm, setShowRouteForm] = useState(false);
-  // ОБНОВЛЕНО: стейт теперь вмещает 3 заголовка и 3 текста для теории
   const [routeFormData, setRouteFormData] = useState({ 
       id: '', title: '', time: '5 мин', 
       h1: '', t1: '', 
@@ -790,7 +791,6 @@ function ShiftContent() {
           setDynamicBasics(finalBasics);
           localStorage.setItem('th_cache_basics', JSON.stringify(finalBasics));
 
-          // ОБНОВЛЕНО: Жесткая проверка структуры, чтобы перезаписать старый "План" на новую "Теорию"
           let finalRoute = sRouteData;
           if (!Array.isArray(finalRoute) || finalRoute.length < 25 || !finalRoute[0].h1) {
               finalRoute = INITIAL_ROUTE;
@@ -1360,7 +1360,7 @@ function ShiftContent() {
                <>
                   <div style={{ marginBottom: '60px', width: '100%', boxSizing: 'border-box' }}>
                       <div className="tasks-flex-space" style={flexSpace}>
-                          <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>⚠️ Срочно к прохождению</h2>
+                          <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>Срочно к прохождению</h2>
                       </div>
                       {visibleUrgentFiles.length > 0 ? (
                           <div className="premium-cards-container"> 
@@ -1648,17 +1648,18 @@ function ShiftContent() {
                     <input style={adminIn} placeholder="Название темы (напр. Гигиена)" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
                     
                     <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                        {/* ЖЕСТКАЯ ФИКСАЦИЯ РАЗМЕРОВ РЕДАКТОРА (resize: 'none') */}
                         <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '15px', border: '1px solid #222'}}>
                             <input style={{...adminIn, marginBottom: '10px'}} placeholder="Заголовок 1 (напр. Обязательное мытьё рук)" value={routeFormData.h1} onChange={e => setRouteFormData({...routeFormData, h1: e.target.value})} />
-                            <textarea style={{...adminIn, height: '80px', marginBottom: 0}} placeholder="Текст карточки 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
+                            <textarea style={{...adminIn, height: '80px', marginBottom: 0, resize: 'none'}} placeholder="Текст карточки 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
                         </div>
                         <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '15px', border: '1px solid #222'}}>
                             <input style={{...adminIn, marginBottom: '10px'}} placeholder="Заголовок 2 (напр. Использование перчаток)" value={routeFormData.h2} onChange={e => setRouteFormData({...routeFormData, h2: e.target.value})} />
-                            <textarea style={{...adminIn, height: '80px', marginBottom: 0}} placeholder="Текст карточки 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
+                            <textarea style={{...adminIn, height: '80px', marginBottom: 0, resize: 'none'}} placeholder="Текст карточки 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
                         </div>
                         <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '15px', border: '1px solid #222'}}>
                             <input style={{...adminIn, marginBottom: '10px'}} placeholder="Заголовок 3 (напр. Правила туалета)" value={routeFormData.h3} onChange={e => setRouteFormData({...routeFormData, h3: e.target.value})} />
-                            <textarea style={{...adminIn, height: '80px', marginBottom: 0}} placeholder="Текст карточки 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
+                            <textarea style={{...adminIn, height: '80px', marginBottom: 0, resize: 'none'}} placeholder="Текст карточки 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
                         </div>
                     </div>
                     
@@ -1711,10 +1712,11 @@ function ShiftContent() {
                     <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{moduleFormData.id ? 'РЕДАКТОР УРОКА' : 'НОВЫЙ УРОК'}</h2>
                     <input style={adminIn} placeholder="Введите название..." value={moduleFormData.title} onChange={e => setModuleFormData({...moduleFormData, title: e.target.value})} />
                     
+                    {/* ЖЕСТКАЯ ФИКСАЦИЯ РАЗМЕРОВ РЕДАКТОРА (resize: 'none') */}
                     <div className="tasks-theory-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', margin: '20px 0'}}>
-                        <textarea style={{...adminIn, height: '120px'}} placeholder="Теория 1" value={moduleFormData.t1} onChange={e => setModuleFormData({...moduleFormData, t1: e.target.value})} />
-                        <textarea style={{...adminIn, height: '120px'}} placeholder="Теория 2" value={moduleFormData.t2} onChange={e => setModuleFormData({...moduleFormData, t2: e.target.value})} />
-                        <textarea style={{...adminIn, height: '120px'}} placeholder="Теория 3" value={moduleFormData.t3} onChange={e => setModuleFormData({...moduleFormData, t3: e.target.value})} />
+                        <textarea style={{...adminIn, height: '120px', resize: 'none'}} placeholder="Теория 1" value={moduleFormData.t1} onChange={e => setModuleFormData({...moduleFormData, t1: e.target.value})} />
+                        <textarea style={{...adminIn, height: '120px', resize: 'none'}} placeholder="Теория 2" value={moduleFormData.t2} onChange={e => setModuleFormData({...moduleFormData, t2: e.target.value})} />
+                        <textarea style={{...adminIn, height: '120px', resize: 'none'}} placeholder="Теория 3" value={moduleFormData.t3} onChange={e => setModuleFormData({...moduleFormData, t3: e.target.value})} />
                     </div>
 
                     <div style={{borderTop: '1px solid #222', paddingTop: '30px'}}>
@@ -1768,7 +1770,7 @@ function ShiftContent() {
                         <div className="tasks-theory-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'20px', marginBottom:'50px'}}>
                             {[selectedModule.t1, selectedModule.t2, selectedModule.t3].map((t, i) => (
                                 <div key={i} className="tasks-theory-block" style={theoryBlock}>
-                                    <h3 style={theoryLabel}>ТЕОРИЯ {i+1}</h3>
+                                    <h3 style={theoryLabel}>Теория 0{i+1}</h3>
                                     <p style={theoryText}>{t || "Информация раздела."}</p>
                                 </div>
                             ))}
@@ -1803,15 +1805,15 @@ function ShiftContent() {
                  <div style={{animation: 'fadeInUp 0.3s ease'}}>
                      <div className="tasks-theory-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'20px', marginBottom:'50px'}}>
                          <div className="tasks-theory-block" style={theoryBlock}>
-                             <h3 style={theoryLabel}>{selectedRouteStep.h1?.toUpperCase() || 'КАРТОЧКА 1'}</h3>
+                             <h3 style={theoryLabel}>{selectedRouteStep.h1 || 'Карточка 1'}</h3>
                              <p style={theoryText}>{selectedRouteStep.t1}</p>
                          </div>
                          <div className="tasks-theory-block" style={theoryBlock}>
-                             <h3 style={theoryLabel}>{selectedRouteStep.h2?.toUpperCase() || 'КАРТОЧКА 2'}</h3>
+                             <h3 style={theoryLabel}>{selectedRouteStep.h2 || 'Карточка 2'}</h3>
                              <p style={theoryText}>{selectedRouteStep.t2}</p>
                          </div>
                          <div className="tasks-theory-block" style={theoryBlock}>
-                             <h3 style={theoryLabel}>{selectedRouteStep.h3?.toUpperCase() || 'КАРТОЧКА 3'}</h3>
+                             <h3 style={theoryLabel}>{selectedRouteStep.h3 || 'Карточка 3'}</h3>
                              <p style={theoryText}>{selectedRouteStep.t3}</p>
                          </div>
                      </div>
@@ -1931,12 +1933,7 @@ function ShiftContent() {
             .tasks-big-val { font-size: 38px !important; flex-wrap: wrap; }
             .tasks-chart-container { height: 160px !important; margin-top: 25px !important; }
 
-            .tasks-modal { 
-                padding: 30px 20px !important; 
-                border-radius: 25px !important; 
-                width: 95% !important; 
-                max-height: 90vh !important; 
-            }
+            .tasks-modal { \n                padding: 30px 20px !important; \n                border-radius: 25px !important; \n                width: 95% !important; \n                max-height: 90vh !important; \n            }
             .tasks-theory-block { padding: 20px !important; border-radius: 20px !important; }
             
             .tasks-modal-header { flex-direction: column; align-items: flex-start !important; gap: 15px; margin-bottom: 25px !important; }
