@@ -486,7 +486,6 @@ function ShiftContent() {
   });
   const [routeToDelete, setRouteToDelete] = useState<string | null>(null);
 
-  // --- СТЕЙТЫ ДЛЯ ТЕСТОВ (РЕДАКТОР) ---
   const [showTestForm, setShowTestForm] = useState(false);
   const [testFormData, setTestFormData] = useState({
       id: '', title: '', subtitle: '', theory: '',
@@ -497,7 +496,7 @@ function ShiftContent() {
   const [dynamicTests, setDynamicTests] = useState<any[]>([]);
   const [dynamicRoute, setDynamicRoute] = useState<any[]>([]);
   const [completedRoute, setCompletedRoute] = useState<string[]>([]);
-  const [completedTests, setCompletedTests] = useState<string[]>([]); // Заменяет completedBasics
+  const [completedTests, setCompletedTests] = useState<string[]>([]); 
   
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   const [passedTests, setPassedTests] = useState<string[]>([]);
@@ -506,9 +505,8 @@ function ShiftContent() {
 
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
   
-  // СТЕЙТЫ ДЛЯ ПРОХОЖДЕНИЯ ТЕСТОВ
-  const [selectedTest, setSelectedTest] = useState<any>(null); // Превью-экран
-  const [activeTestSession, setActiveTestSession] = useState<any>(null); // Активный тест
+  const [selectedTest, setSelectedTest] = useState<any>(null); 
+  const [activeTestSession, setActiveTestSession] = useState<any>(null); 
   const [currentQuizStep, setCurrentQuizStep] = useState(0);
   const [testAnswers, setTestAnswers] = useState<number[]>([]);
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
@@ -580,7 +578,6 @@ function ShiftContent() {
               localStorage.setItem(`th_cache_passed_tests_${currentUserId}`, JSON.stringify(pTestsRes));
           }
 
-          // ЖЕСТКАЯ ПРОВЕРКА НА НОВУЮ БАЗУ ТЕСТОВ
           let finalTests = sTestsData;
           if (!Array.isArray(finalTests) || finalTests.length < 9 || !finalTests[0].subtitle) {
               finalTests = INITIAL_TESTS;
@@ -611,7 +608,6 @@ function ShiftContent() {
   };
 
   const subscribeToPush = async () => {
-      //... (Без изменений)
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
           alert("Браузер не поддерживает Web Push уведомления.");
           return;
@@ -831,7 +827,6 @@ function ShiftContent() {
     setSelectedRouteStep(null);
   };
 
-  // --- ЛОГИКА ПРОХОЖДЕНИЯ ОСНОВНОГО ТЕСТА ---
   const handleTestAnswer = (idx: number) => {
     if (activeAnswer !== null) return; 
     
@@ -891,7 +886,6 @@ function ShiftContent() {
           
           saveDataToServer('tea_hub_test_results_v1', [newResult, ...results]);
 
-          // УВЕДОМЛЕНИЕ АДМИНУ
           const notifRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_notifications_v1`);
           let notifs = await notifRes.json().catch(() => []);
           if (!Array.isArray(notifs)) notifs = [];
@@ -990,7 +984,6 @@ function ShiftContent() {
               saveDataToServer(`th_passed_tests_${userId}`, newPassed);
           }
           
-          // Для срочных тестов пока оставляем старую модалку
           setTestResultModal({ show: true, score, isPassed, title: activeUrgentTest.name, mistakes: [] });
 
           setActiveUrgentTest(null);
@@ -1234,17 +1227,23 @@ function ShiftContent() {
               <div className="premium-cards-container">
                  {dynamicTests.map((test, idx) => {
                     const isDone = completedTests.includes(test.id);
-                    // Тест разблокирован если он первый, ИЛИ если админ, ИЛИ если предыдущий тест сдан
-                    const isUnlocked = idx === 0 || isAdmin || completedTests.includes(dynamicTests[idx - 1].id);
+                    // ИСКЛЮЧИЛИ isAdmin ИЗ БЛОКИРОВКИ, ЧТОБЫ АДМИН ВИДЕЛ ЗАМОЧКИ КАК СОТРУДНИК
+                    const isUnlocked = idx === 0 || completedTests.includes(dynamicTests[idx - 1].id);
                     
                     return (
                       <div 
                           key={test.id} 
-                          onClick={() => { if (isUnlocked || isAdmin) setSelectedTest(test); }} 
+                          onClick={() => { 
+                              if (isUnlocked) {
+                                  setSelectedTest(test); 
+                              } else {
+                                  alert(`🔒 Для начала пройдите Тест ${idx}`);
+                              }
+                          }} 
                           className="premium-card" 
                           style={{ borderColor: isUnlocked ? '#222' : '#111', cursor: isUnlocked ? 'pointer' : 'not-allowed' }}
                       >
-                         {!isUnlocked && !isAdmin && (
+                         {!isUnlocked && (
                              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', borderRadius: '14px', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}>
                                  <span style={{ fontSize: '40px' }}>🔒</span>
                              </div>
@@ -1411,7 +1410,7 @@ function ShiftContent() {
             </div>
         )}
 
-        {/* --- СРОЧНАЯ АТТЕСТАЦИЯ (БЕЗ ИЗМЕНЕНИЙ ЛОГИКИ, НО С ANTI-CHEAT) --- */}
+        {/* --- СРОЧНАЯ АТТЕСТАЦИЯ (ANTI-CHEAT) --- */}
         {activeUrgentTest && (
            <div style={modalOverlay}>
               <div className="tasks-modal" style={modalContent}>
