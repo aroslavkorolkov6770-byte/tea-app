@@ -336,29 +336,310 @@ const INITIAL_ROUTE = [
 
 const INITIAL_ASSORTMENT = [
   {
-    id: "as_1", title: "1. ЧАЙ (Camellia sinensis)", desc: "Включает ТОЛЬКО чай как растение.",
+    id: "as_1", title: "1. ЧАЙ (Camellia sinensis)", desc: "Настоящий чай — только из листьев чайного куста (Camellia sinensis). Критерий: если в смеси более ⅔ чайного листа — это чай; если меньше — чаеподобный напиток.",
     children: [
       {
-        id: "as_1_1", title: "1.1 Весовой чай",
+        id: "as_1_1", title: "1.1 Весовой чай", desc: "Чай на развес без фабричной упаковки. Покупатель выбирает сорт и количество; минимальный отпуск — 50 г.",
         children: [
           {
-            id: "as_1_1_1", title: "Классический (без добавок)",
+            id: "as_1_1_1", title: "Классический (без добавок)", desc: "Чистый чай без каких-либо добавок, ароматизаторов или вкусовых компонентов. Вкус определяется только сортом, регионом и степенью ферментации.",
             children: [
               {
-                id: "as_1_1_1_ch", title: "Китай (по степени ферментации)",
+                id: "as_1_1_1_ch", title: "Китай (по степени ферментации)", desc: "Чаи китайского производства, упорядоченные от минимальной ферментации (белый) до максимальной (пуэр шу). Каждый тип имеет уникальный вкусовой профиль.",
                 children: [
-                  { id: "as_c1", title: "Белый чай", content: "Минимальная ферментация. Настой прозрачный, легкий цветочный аромат." },
-                  { id: "as_c3", title: "Зелёный чай", content: "Остановка ферментации фиксацией зелени. Свежий, травянистый профиль." },
-                  { id: "as_c5", title: "Улун", content: "Полуферментированный чай. Бывает светлой и тёмной скрутки." },
-                  { id: "as_c6", title: "Красный чай", content: "Полностью ферментированный (в Европе — черный). Ноты меда, хлеба, сухофруктов." },
-                  { id: "as_c7", title: "Пуэр шу (тёмный)", content: "Прошел форсированную постферментацию. Плотный древесно-землистый вкус." },
-                  { id: "as_c8", title: "Пуэр шэн (зелёный)", content: "Естественная ферментация. Вкус меняется с возрастом от дерзкого к глубокому." }
+                  { id: "as_c1", title: "Белый чай", content: "Минимально обработанный; нежный, травянистый вкус, низкое содержание кофеина." },
+                  { id: "as_c2", title: "Жёлтый чай", content: "Редкий сорт с мягкой томлением листа; мягче зелёного, без горечи." },
+                  { id: "as_c3", title: "Зелёный чай", content: "Неферментированный, фиксированный нагревом; свежий, растительный, с умеренным кофеином." },
+                  { id: "as_c4", title: "Зелёный жасминовый", content: "Зелёный чай, ароматизированный цветами жасмина; цветочный, освежающий." },
+                  { id: "as_c5", title: "Улун", content: "Частично ферментированный; вкусовой спектр — от зелёного до красного в зависимости от степени выдержки." },
+                  { id: "as_c6", title: "Красный чай", content: "Полностью ферментированный (в Европе — черный); насыщенный, с нотами солода, сухофруктов или шоколада." },
+                  { id: "as_c7", title: "Пуэр шу (тёмный)", content: "Ускоренно ферментированный (технология Во Дуй); густой, землистый, древесный профиль." },
+                  { id: "as_c8", title: "Пуэр шэн (зелёный)", content: "Чай естественного старения; в молодости терпкий и свежий, с годами становится мягче и глубже." },
+                  { id: "as_c9", title: "Связанный чай", content: "Чайные листья (чаще зелёные), связанные вручную вокруг сухого цветка; раскрывается при заваривании." }
+                ]
+              },
+              {
+                id: "as_1_1_1_in", title: "Индия", desc: "Чёрный (красный) чай из Индии. Отличается крепостью и терпкостью.",
+                children: [
+                  { id: "as_i1", title: "Дарджилинг", content: "Выращивается в Гималаях; утончённый, мускатный вкус, часто называют «чайным шампанским»." },
+                  { id: "as_i2", title: "Ассам", content: "Выращивается в низинах; крепкий, солодовый вкус, идеален для утреннего чаепития." },
+                  { id: "as_i3", title: "Прочие регионы", content: "Нилгири и другие индийские сорта." }
+                ]
+              },
+              { id: "as_c_cey", title: "Цейлон (Шри-Ланка)", desc: "Островной чёрный чай. Обладает ярким медно-красным настоем и классической терпкостью, хорошо сочетается с лимоном.", content: "Островной чёрный чай. Обладает ярким медно-красным настоем и классической терпкостью, хорошо сочетается с лимоном." },
+              { id: "as_c_oth", title: "Прочие страны", desc: "Японский чай (матча, сенча с характерным морским/водорослевым профилем), чаи из Вьетнама, Кении, Грузии, Краснодарского края.", content: "Японский чай (матча, сенча с характерным морским/водорослевым профилем), чаи из Вьетнама, Кении, Грузии, Краснодарского края." }
+            ]
+          },
+          {
+            id: "as_1_1_2", title: "С добавками", desc: "Чай с добавлением ароматизаторов или натуральных компонентов для создания новых вкусовых профилей.",
+            children: [
+              {
+                id: "as_add_1", title: "С ароматизаторами", desc: "Содержат пищевые ароматизаторы, часто дополнены кусочками фруктов или лепестками.",
+                children: [
+                  { id: "as_a1", title: "На основе чёрного чая", content: "Чёрный чай с ароматизаторами (ягоды, шоколад, цитрус)." },
+                  { id: "as_a2", title: "На основе зелёного чая", content: "Зелёный чай с фруктовыми или цветочными ароматизаторами." },
+                  { id: "as_a3", title: "На основе улуна", content: "Улуны с ароматизаторами (например, молочный улун с добавками)." },
+                  { id: "as_a4", title: "На основе пуэра", content: "Шу пуэры с добавлением вишни, земляники или шоколадных нот." },
+                  { id: "as_a5", title: "На основе купажей", content: "Смеси чёрного и зелёного чая с ароматизаторами (например, «1001 ночь»)." }
+                ]
+              },
+              { id: "as_add_2", title: "С натуральными добавками (без ароматизаторов)", desc: "Чай, смешанный только с натуральными сухими ягодами, фруктами, травами или специями, без использования химических ароматизаторов.", content: "Чай, смешанный только с натуральными сухими ягодами, фруктами, травами или специями, без использования химических ароматизаторов." }
+            ]
+          }
+        ]
+      },
+      {
+        id: "as_1_2", title: "1.2 Прессованный чай", desc: "Чай, спрессованный в формы (блин, точа, кирпич) для удобства транспортировки и длительного хранения. В таком виде он продолжает медленно ферментироваться.",
+        children: [
+          { id: "as_p_1", title: "Белый прессованный", content: "Чаще всего прессуют сорта Бай Му Дань или Шоу Мэй. Со временем вкус становится медовым и более плотным." },
+          { id: "as_p_2", title: "Зелёный прессованный", content: "Прессованный зелёный чай; встречается редко, сохраняет свежесть при правильном хранении." },
+          { id: "as_p_3", title: "Улун прессованный", content: "Обычно это старые выдержанные улуны (Лао Ча), спрессованные для дальнейшей ферментации." },
+          { id: "as_p_4", title: "Красный прессованный", content: "Красный чай в форме блина или кирпича; вкус становится более округлым." },
+          { id: "as_p_5", title: "Пуэр шу (прессованный)", content: "Самая популярная форма тёмного пуэра. Отличается плотностью и мягкостью выдержанного вкуса." },
+          { id: "as_p_6", title: "Пуэр шэн (зелёный прессованный)", content: "Сырой пуэр в блинах; форма прессовки идеально подходит для его многолетнего созревания." }
+        ]
+      },
+      {
+        id: "as_1_3", title: "1.3 Фасованный чай", desc: "Чай, упакованный на фабрике производителя в фирменную тару. Не продаётся на развес.",
+        children: [
+          {
+            id: "as_1_3_1", title: "По брендам (Бренд 1, Бренд 2 и т.д.)", desc: "Группировка фасованного чая по конкретным торговым маркам.",
+            children: [
+              { id: "as_f_1", title: "Подарочная упаковка", content: "Чай в жестяных банках, тубах, шкатулках или наборах с красивым оформлением." },
+              { id: "as_f_2", title: "Заварной (листовой фасованный)", content: "Классический листовой чай в фабричных картонных пачках или фольге." },
+              { id: "as_f_3", title: "Порционный (пакетированный)", content: "Чай в саше, пакетиках или пирамидках для быстрого разового заваривания." }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "as_2", title: "2. КОФЕ", desc: "Ассортимент кофейных зёрен и продуктов на их основе.",
+    children: [
+      {
+        id: "as_2_1", title: "2.1 Весовой кофе (классификация по обжарщику/производителю)", desc: "Кофе в зёрнах, продающийся на развес. Обжарка только средняя, чтобы подчеркнуть вкус, а не скрыть дефекты.",
+        children: [
+          {
+            id: "as_2_1_1", title: "По обжарщикам", desc: "Группировка кофе по компаниям, производящим обжарку.",
+            children: [
+              {
+                id: "as_2_1_1_1", title: "Плантационный", desc: "Классический зерновой кофе без ароматизаторов, с естественным вкусовым профилем.",
+                children: [
+                  { id: "as_k_1", title: "Моносорта", content: "100% арабика из одного конкретного региона (например, Эфиопия, Колумбия); обладает уникальным местным вкусом (терруаром)." },
+                  { id: "as_k_2", title: "Эспрессо-смеси", content: "Смеси (часто арабика + робуста), специально подобранные для получения плотного эспрессо с хорошей пенкой (кремой)." },
+                  { id: "as_k_3", title: "Купажи", content: "Авторские смеси арабики из разных стран для достижения сбалансированного, сложного вкуса." }
+                ]
+              },
+              {
+                id: "as_2_1_1_2", title: "Ароматизированный", desc: "Кофейные зёрна, пропитанные пищевыми ароматизаторами после обжарки.",
+                children: [
+                  { id: "as_k_4", title: "Моносорта", content: "Ароматизатор наносится на базу из одного сорта (например, Ирландский крем на бразильской арабике)." },
+                  { id: "as_k_5", title: "Купажи", content: "Ароматизированные смеси различных сортов кофе." }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "as_2_2", title: "2.2 Фасованный кофе", desc: "Кофе в фабричной закрытой упаковке.",
+        children: [
+          {
+            id: "as_2_2_1", title: "По брендам (Бренд 1, Бренд 2 и т.д.)", desc: "Фасованный кофе, сгруппированный по торговым маркам.",
+            children: [
+              { id: "as_f_k_1", title: "Подарочная упаковка", content: "Фасованный кофе в красивых тубах или подарочных наборах." },
+              {
+                id: "as_f_k_2", title: "Зерновой", desc: "Цельные зёрна кофе в фабричных пачках.",
+                children: [
+                  { id: "fk_1", title: "Моносорта", content: "Заводская фасовка плантационной арабики одного сорта." },
+                  { id: "fk_2", title: "Эспрессо-смеси", content: "Заводские бленды для эспрессо." },
+                  { id: "fk_3", title: "Купажи", content: "Готовые фабричные смеси зернового кофе." },
+                  { id: "fk_4", title: "Ароматизированный", content: "Заводской ароматизированный кофе в зёрнах." }
+                ]
+              },
+              {
+                id: "as_f_k_3", title: "Молотый", desc: "Фабрично смолотый кофе, готовый к завариванию в турке, чашке или кофеварке.",
+                children: [
+                  { id: "fm_1", title: "Моносорта", content: "Молотый кофе одного сорта." },
+                  { id: "fm_2", title: "Эспрессо-смеси", content: "Молотые смеси для приготовления эспрессо." },
+                  { id: "fm_3", title: "Купажи", content: "Готовые купажи молотого кофе." },
+                  { id: "fm_4", title: "Ароматизированный", content: "Ароматизированный молотый кофе." }
+                ]
+              },
+              {
+                id: "as_f_k_4", title: "Растворимый", desc: "Кофе, прошедший технологическую обработку для мгновенного растворения в воде.",
+                children: [
+                  { id: "fr_1", title: "Порошок (спрей-драйд)", content: "Мелкий порошок, полученный распылительной сушкой. Самый дешёвый вид растворимого кофе." },
+                  { id: "fr_2", title: "Гранула (агломерированный)", content: "Порошок, сбитый паром в гранулы." },
+                  { id: "fr_3", title: "Кристалл (сублимированный / фриз-драйд)", content: "Кофе, замороженный и высушенный в вакууме. Наиболее полно сохраняет вкус и аромат." }
+                ]
+              },
+              {
+                id: "as_f_k_5", title: "Порционный", desc: "Фасовка, рассчитанная строго на одну порцию напитка.",
+                children: [
+                  { id: "fp_1", title: "Чалды (дрип-пакеты)", content: "Бумажные фильтры с молотым кофе для заваривания проливом прямо в чашке." },
+                  { id: "fp_2", title: "Капсулы", content: "Пластиковые или алюминиевые капсулы для кофемашин систем Nespresso, Dolce Gusto и др." },
+                  { id: "fp_3", title: "Пакетики", content: "Обычный растворимый или молотый кофе в одноразовых саше." },
+                  { id: "fp_4", title: "3 в 1", content: "Смесь растворимого кофе, сахара и сухих сливок в одном пакетике." }
                 ]
               }
             ]
           }
         ]
       }
+    ]
+  },
+  {
+    id: "as_3", title: "3. ЧАЕПОДОБНЫЕ НАПИТКИ", desc: "Высушенные листья, цветы, кора и корни различных растений, не являющихся Camellia sinensis (менее ⅔ чая в составе).",
+    children: [
+      {
+        id: "as_3_1", title: "3.1 Весовые чаеподобные напитки", desc: "Травяные и фруктовые сборы, продающиеся на развес.",
+        children: [
+          {
+            id: "as_3_1_1", title: "Этнические", desc: "Традиционные напитки разных народов мира, имеющие свою культуру потребления.",
+            children: [
+              { id: "et_1", title: "Иван-чай", content: "Традиционный русский напиток из листьев кипрея. Не содержит кофеина, обладает медово-цветочным вкусом." },
+              { id: "et_2", title: "Матэ", content: "Латиноамериканский тонизирующий напиток из листьев падуба парагвайского. Пьётся из калебаса через бомбилью." },
+              { id: "et_3", title: "Ройбуш (ройбос)", content: "Африканский напиток из кустарника. Сладковатый древесный вкус, богат антиоксидантами, без кофеина." },
+              { id: "et_4", title: "Прочие", content: "Кудин (горькая китайская трава), лапачо (из коры муравьиного дерева), ханибуш (медовый куст)." }
+            ]
+          },
+          {
+            id: "as_3_1_2", title: "Травяные", desc: "Сборы из полезных и ароматных трав.",
+            children: [
+              { id: "tr_1", title: "Натуральные", content: "Моно-травы без добавок: марокканская мята, чабрец, ромашка, лемонграсс." },
+              { id: "tr_2", title: "Ароматизированные", content: "Травяные сборы с добавлением ароматизаторов для усиления запаха (например, купажи для SPA)." }
+            ]
+          },
+          { id: "as_3_1_3", title: "Фруктовые", desc: "Смеси на основе гибискуса (каркадэ) с добавлением сушёных ягод, яблок, цукатов и шиповника (например, «Наглый фрукт»). Дают кисло-сладкий красный настой.", content: "Смеси на основе гибискуса (каркадэ) с добавлением сушёных ягод, яблок, цукатов и шиповника (например, «Наглый фрукт»). Дают кисло-сладкий красный настой." },
+          {
+            id: "as_3_1_4", title: "Растительные добавки к чаю", desc: "Чистые цветы и травы, которые покупатели добавляют в чай для изменения вкуса.",
+            children: [
+              { id: "rd_1", title: "Цветы хризантемы", content: "Дают освежающий цветочный вкус, традиционно завариваются вместе с пуэрами." },
+              { id: "rd_2", title: "Бутоны роз", content: "Придают мягкую сладость и нежный аромат; часто добавляются в красные чаи и улуны." },
+              { id: "rd_3", title: "Лепестки василька", content: "Используются в основном для эстетического украшения чайных смесей." },
+              { id: "rd_4", title: "Цветы жасмина", content: "Натуральный ароматизатор; добавляют свежую, яркую цветочную ноту зелёному чаю." }
+            ]
+          },
+          { id: "as_3_1_5", title: "Какао и цикорий", desc: "Натуральный какао-порошок для варки и напитки на основе жареного корня цикория (заменитель кофе без кофеина).", content: "Натуральный какао-порошок для варки и напитки на основе жареного корня цикория (заменитель кофе без кофеина)." }
+        ]
+      },
+      { id: "as_3_2", title: "3.2 Фасованные чаеподобные напитки", desc: "Травяные, фруктовые сборы и этнические напитки в фабричной упаковке (пачки или пакетики).", content: "Травяные, фруктовые сборы и этнические напитки в фабричной упаковке (пачки или пакетики)." }
+    ]
+  },
+  {
+    id: "as_4", title: "4. СЛАДОСТИ И ДЕСЕРТЫ К ЧАЮ И КОФЕ", desc: "Готовые к употреблению съедобные продукты, не требующие особых температурных условий хранения. Предназначены для допродажи к основному ассортименту.",
+    children: [
+      {
+        id: "as_4_1", title: "4.1 Длительного хранения (≥8 месяцев)", desc: "Продукты с большим сроком годности.",
+        children: [
+          {
+            id: "as_4_1_1", title: "Сахар", desc: "Специализированный сахар для напитков.",
+            children: [
+              { id: "sh_1", title: "Тростниковый", content: "Коричневый нерафинированный сахар, обладающий лёгким карамельным вкусом." },
+              { id: "sh_2", title: "Карамельный (леденцовый)", content: "Крупные прозрачные или коричневые кристаллы, часто продаются на деревянных палочках для размешивания." }
+            ]
+          },
+          { id: "as_4_1_2", title: "Мёд", desc: "Натуральный пчелиный мёд различных сортов (липовый, гречишный, разнотравье) в стеклянной таре.", content: "Натуральный пчелиный мёд различных сортов (липовый, гречишный, разнотравье) в стеклянной таре." },
+          { id: "as_4_1_3", title: "Сиропы", desc: "Сладкие густые добавки для кофе и кофейных коктейлей (карамель, ваниль, лесной орех и т.д.).", content: "Сладкие густые добавки для кофе и кофейных коктейлей (карамель, ваниль, лесной орех и т.д.)." },
+          { id: "as_4_1_4", title: "Варенье, конфитюр, джемы", desc: "Ягодные и фруктовые десерты в банках, отлично дополняющие чаепитие.", content: "Ягодные и фруктовые десерты в банках, отлично дополняющие чаепитие." }
+        ]
+      },
+      {
+        id: "as_4_2", title: "4.2 Скоропортящиеся (<8 месяцев)", desc: "Кондитерские изделия со средним сроком хранения.",
+        children: [
+          { id: "sp_1", title: "Выпечка", content: "Фасованные имбирные пряники, печенье, бискотти." },
+          { id: "sp_2", title: "Нуга", content: "Сладкая масса с добавлением орехов, цукатов или шоколада." },
+          { id: "sp_3", title: "Шоколадные изделия", content: "Маленькие шоколадки для кофе с собой (10–25 г), шоколадные плитки, конфеты, драже." },
+          { id: "sp_4", title: "Марципан", content: "Десерты из миндальной пасты, марципановые батончики и конфеты." }
+        ]
+      }
+    ]
+  },
+  {
+    id: "as_5", title: "5. ПОСУДА И АКСЕССУАРЫ", desc: "Инвентарь для заваривания, хранения и проведения чайных и кофейных церемоний.",
+    children: [
+      {
+        id: "as_5_1", title: "5.1 Для чая (по материалам)", desc: "Чайная посуда, сгруппированная по материалу изготовления.",
+        children: [
+          { id: "as_5_1_1", title: "Посуда из глины", content: "Исинская глина. Пористый материал, который 'дышит' и впитывает эфирные масла. Идеален для пуэров и улунов; используется строго под один тип чая." },
+          { id: "as_5_1_2", title: "Посуда из керамики", content: "Глазурованная глина. Не впитывает запахи, универсальна в использовании. Долго держит тепло." },
+          { id: "as_5_1_3", title: "Посуда из фарфора", content: "Тонкий, звонкий материал. Идеален для зелёных, белых и жёлтых чаёв. Белизна фарфора позволяет оценить чистый цвет настоя." },
+          { id: "as_5_1_4", title: "Посуда из стекла", content: "Жаропрочное стекло. Не удерживает тепло, но позволяет любоваться процессом заваривания, особенно связанного чая и светлых сортов." },
+          { id: "as_5_1_5", title: "Посуда из чугуна", content: "Тяжёлая посуда, которая максимально долго сохраняет тепло. Внутри обычно покрыта эмалью от ржавчины." },
+          { id: "as_5_1_6", title: "Посуда из нержавеющей стали", content: "Практичная, неубиваемая металлическая посуда; чаще используется для заведений общепита." },
+          {
+            id: "as_5_1_7", title: "Принадлежности для чайной церемонии", desc: "Специфический инвентарь для китайского чаепития (Пин Ча / Гунфу Ча).",
+            children: [
+              { id: "pr_1", title: "Ча Бань", content: "Чайная доска с поддоном для слива воды. Центр чайного пространства." },
+              { id: "pr_2", title: "Ча Хэ", content: "Чайная коробочка, в которой гостям демонстрируют сухой лист для знакомства с ароматом перед завариванием." },
+              { id: "pr_3", title: "Ча Цзюй", content: "Набор чайных инструментов (щипцы для пиал, игла для носика чайника, кисточка для ухода за посудой, лопатка для насыпания)." },
+              { id: "pr_4", title: "Пин Мин Бэй и Вэн Сян Бэй", content: "Чайные пары с подставкой. Пин Мин Бэй (низкая широкая чаша) — для вкуса; Вэн Сян Бэй (высокая узкая) — для наслаждения ароматом." },
+              { id: "pr_5", title: "Прочие", content: "Чайные полотенца (чабу), ситечки на подставке." }
+            ]
+          },
+          {
+            id: "as_5_1_8", title: "Аксессуары для чая", desc: "Вспомогательный инвентарь.",
+            children: [
+              { id: "ak_1", title: "Банки для хранения", content: "Жестяные, стеклянные с бугельным замком или керамические ёмкости для защиты чая от света и воздуха." },
+              { id: "ak_2", title: "Ситечки", content: "Металлические, бамбуковые или тканевые фильтры для удержания чаинок при переливании настоя." },
+              { id: "ak_3", title: "Ножи и шила для пуэра", content: "Острые инструменты для аккуратного расслаивания прессованного блина, чтобы не ломать лист." },
+              { id: "ak_4", title: "Прочие", content: "Мерные ложки, термометры для воды." }
+            ]
+          }
+        ]
+      },
+      {
+        id: "as_5_2", title: "5.2 Для кофе", desc: "Инвентарь для помола, варки и подачи кофе.",
+        children: [
+          { id: "cf_1", title: "Мельницы", content: "Ручные кофемолки с жерновами для настройки правильного помола под конкретный способ заваривания." },
+          { id: "cf_2", title: "Турки (джезвы)", content: "Сосуды с широким дном и узким горлышком для варки кофе по-восточному. Лучшие — медные с внутренним лужением." },
+          { id: "cf_3", title: "Кофеварки гейзерные", content: "Мока-поты. Вода закипает в нижней части и под давлением пара проходит через кофе вверх. Даёт плотный, насыщенный напиток." },
+          { id: "cf_4", title: "Френч-прессы", content: "Стеклянные колбы с поршнем-фильтром. Позволяют настаивать кофе (крупный помол) и отжимать гущу вниз." },
+          {
+            id: "cf_5", title: "Кофейные пары и чашки", desc: "Посуда под конкретный объём кофейного напитка.",
+            children: [
+              { id: "cp_1", title: "Эспрессо (50–70 мл)", content: "Маленькие чашки с толстыми стенками для сохранения температуры и плотной кофейной пенки (кремы)." },
+              { id: "cp_2", title: "Чёрный кофе (80–100 мл)", content: "Средние чашки для классических порций лунго или двойного эспрессо." },
+              { id: "cp_3", title: "Американо (>100 мл)", content: "Большие кружки для американо или напитков с молоком." }
+            ]
+          },
+          { id: "cf_6", title: "Прочие", content: "Темперы (для трамбовки кофе в холдере), питчеры (молочники из стали для взбивания пены), весы бариста." }
+        ]
+      },
+      {
+        id: "as_5_3", title: "5.3 Для матэ", desc: "Традиционная южноамериканская посуда.",
+        children: [
+          { id: "mt_1", title: "Калебасы", content: "Сосуды из высушенной тыквы-горлянки (реже из дерева или керамики), в которых заваривается матэ." },
+          { id: "mt_2", title: "Бомбильи", content: "Металлические трубочки с фильтром-ситечком на конце, через которые пьют настой со дна калебаса." },
+          { id: "mt_3", title: "Термосы", content: "Специальные термосы со специальным узким носиком для направленного пролива воды в калебас без размывания «горки» матэ." }
+        ]
+      }
+    ]
+  },
+  {
+    id: "as_6", title: "6. ПОДАРОЧНАЯ УПАКОВКА", desc: "Упаковочные материалы, продающиеся за отдельную плату для оформления покупок.",
+    children: [
+      { id: "pu_1", title: "Пакеты и сумки", content: "Красивые бумажные, крафтовые или плотные полиэтиленовые пакеты с тематическим дизайном." },
+      { id: "pu_2", title: "Коробки и корзины", content: "Подарочные картонные коробки, деревянные шкатулки, плетёные корзины для сборки наборов из нескольких позиций." },
+      {
+        id: "pu_3", title: "Упаковка для прессованного чая", desc: "Специальные форматы под размер прессованных блинов и кирпичей.",
+        children: [
+          { id: "pup_1", title: "Картонные и жестяные коробки", content: "Жёсткая упаковка для защиты блина от повреждений." },
+          { id: "pup_2", title: "Пакеты/сумки для бин ча (блинов)", content: "Бумажные или тканевые чехлы под круглую форму блина (обычно 357 г)." },
+          { id: "pup_3", title: "Пакеты/сумки для чжуан ча (кирпичей)", content: "Прямоугольные пакеты под форму кирпича." }
+        ]
+      }
+    ]
+  },
+  {
+    id: "as_7", title: "7. СОПУТСТВУЮЩИЕ ТОВАРЫ", desc: "Продукция, дополняющая ассортимент без нарушения концепции магазина. Расширяет средний чек.",
+    children: [
+      { id: "st_1", title: "Сувениры фэн-шуй", content: "Декоративные фигурки: жабы, драконы, черепахи, хотеи, писающие мальчики. Фигурки, меняющие цвет от кипятка — популярный чайный подарок." },
+      { id: "st_2", title: "Книги на чайную тематику", content: "Литература для углубления в чайную культуру: Похлёбкин, Вингородский, «Чайный канон» Лю Юя." },
+      { id: "st_3", title: "Аромамасла и аксессуары", content: "Аромалампы и эфирные масла. Создают атмосферу в доме, органично дополняют покупку чая." },
+      { id: "st_4", title: "Го (вейчи, бадук)", content: "Классическая китайская настольная игра (камни на доске), тесно связанная с чайной традицией." }
     ]
   }
 ];
@@ -446,7 +727,7 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
             </div>
             
             {isOpen && (
-                <div style={{ marginTop: '8px' }}>
+                <div style={{ marginTop: '8px', animation: 'fadeInUp 0.2s ease' }}>
                     {node.desc && (
                         <div style={{ padding: '12px 18px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1a1a1a' }}>
                             {node.desc}
@@ -534,7 +815,9 @@ function ShiftContent() {
           const cachedProgTests = localStorage.getItem(`th_prog_tests_${currentUserId}`);
           const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
           const cachedDismissed = localStorage.getItem(`th_dismissed_tasks_${currentUserId}`);
-          const cachedAssortment = localStorage.getItem('th_cache_assortment_matrix');
+          
+          // ЗАПРОС К КЭШУ V2 ДЛЯ АССОРТИМЕНТА
+          const cachedAssortment = localStorage.getItem('th_cache_assortment_matrix_v2');
 
           if (cachedFiles) setUrgentFiles(JSON.parse(cachedFiles));
           if (cachedRoute) setDynamicRoute(JSON.parse(cachedRoute));
@@ -555,7 +838,8 @@ function ShiftContent() {
               fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_TESTS}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_ROUTE}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=tea_hub_assortment_matrix_v1`).then(r => r.json()).catch(() => null)
+              // ФЕТЧИМ БАЗУ V2
+              fetch(`/api/storage${cacheBuster}&key=tea_hub_assortment_matrix_v2`).then(r => r.json()).catch(() => null)
           ]);
 
           if (Array.isArray(sFiles)) {
@@ -595,12 +879,12 @@ function ShiftContent() {
           localStorage.setItem('th_cache_route', JSON.stringify(finalRoute));
 
           let finalAssortment = sAssortment;
-          if (!Array.isArray(finalAssortment) || finalAssortment.length === 0) {
+          if (!Array.isArray(finalAssortment) || finalAssortment.length === 0 || !finalAssortment[0].desc) {
               finalAssortment = INITIAL_ASSORTMENT;
-              saveDataToServer('tea_hub_assortment_matrix_v1', finalAssortment);
+              saveDataToServer('tea_hub_assortment_matrix_v2', finalAssortment);
           }
           setAssortmentMatrix(finalAssortment);
-          localStorage.setItem('th_cache_assortment_matrix', JSON.stringify(finalAssortment));
+          localStorage.setItem('th_cache_assortment_matrix_v2', JSON.stringify(finalAssortment));
 
       } catch (e) {
           console.error("Ошибка синхронизации с сервером", e);
@@ -1227,7 +1511,6 @@ function ShiftContent() {
               <div className="premium-cards-container">
                  {dynamicTests.map((test, idx) => {
                     const isDone = completedTests.includes(test.id);
-                    // ИСКЛЮЧИЛИ isAdmin ИЗ БЛОКИРОВКИ, ЧТОБЫ АДМИН ВИДЕЛ ЗАМОЧКИ КАК СОТРУДНИК
                     const isUnlocked = idx === 0 || completedTests.includes(dynamicTests[idx - 1].id);
                     
                     return (
@@ -1299,8 +1582,8 @@ function ShiftContent() {
 
         {/* --- ПРЕВЬЮ ЭКРАН ТЕСТА --- */}
         {selectedTest && !activeTestSession && !showTestForm && (
-           <div style={modalOverlay} onClick={() => setSelectedTest(null)}>
-              <div className="tasks-modal" style={modalContentSmall} onClick={e => e.stopPropagation()}>
+           <div style={modalOverlay as any} onClick={() => setSelectedTest(null)}>
+              <div className="tasks-modal" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'25px'}}>
                     <div>
                         <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase'}}>ПРЕДПРОСМОТР</span>
@@ -1320,32 +1603,32 @@ function ShiftContent() {
                      </div>
                  </div>
 
-                 <button onClick={() => { setActiveTestSession(selectedTest); setSelectedTest(null); }} style={saveBtn}>ПРИСТУПИТЬ К ТЕСТУ</button>
+                 <button onClick={() => { setActiveTestSession(selectedTest); setSelectedTest(null); }} style={saveBtn as any}>ПРИСТУПИТЬ К ТЕСТУ</button>
               </div>
            </div>
         )}
 
         {/* --- АКТИВНАЯ СЕССИЯ ТЕСТА (ANTI-CHEAT) --- */}
         {activeTestSession && (
-           <div style={modalOverlay}>
-              <div className="tasks-modal" style={{...modalContent, maxWidth: '800px'}}>
+           <div style={modalOverlay as any}>
+              <div className="tasks-modal" style={{...modalContent, maxWidth: '800px'} as any}>
                  <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
                     <div onClick={() => {
                         if (confirm("Вы уверены, что хотите прервать тест? Прогресс будет потерян.")) {
                             setActiveTestSession(null); setCurrentQuizStep(0); setActiveAnswer(null); setTestAnswers([]);
                         }
-                    }} style={{...backLink, margin:0, color: '#ff4d4d'}}>← ПРЕРВАТЬ</div>
+                    }} style={{...backLink, margin:0, color: '#ff4d4d'} as any}>← ПРЕРВАТЬ</div>
                     <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(activeTestSession.title)}</h2>
                     <div className="desktop-spacer" style={{width:'80px'}} />
                  </div>
                  
                  <div 
                     className="anti-cheat"
-                    style={{ animation: 'fadeInUp 0.3s ease', userSelect: 'none', WebkitUserSelect: 'none' }}
+                    style={{ animation: 'fadeInUp 0.3s ease', userSelect: 'none', WebkitUserSelect: 'none' } as any}
                     onContextMenu={(e) => e.preventDefault()}
                     onCopy={(e) => e.preventDefault()}
                  >
-                    <div style={quizBox}>
+                    <div style={quizBox as any}>
                         <h4 style={{color:'#0abab5', marginBottom:'20px', fontWeight:'900'}}>ВОПРОС {currentQuizStep + 1} / {activeTestSession.quiz?.length || 1}</h4>
                         <p style={{fontSize:'22px', fontWeight:'800', marginBottom:'30px'}}>{activeTestSession.quiz?.[currentQuizStep]?.q}</p>
                         <div style={{display:'grid', gap:'15px'}}>
@@ -1367,8 +1650,8 @@ function ShiftContent() {
 
         {/* --- МОДАЛКА РЕЗУЛЬТАТОВ ОСНОВНОГО ТЕСТА С ОШИБКАМИ --- */}
         {testResultModal.show && (
-            <div style={{...errorOverlayStyle, zIndex: 60000}}>
-                <div className="tasks-modal custom-scroll" style={{...errorModalContent, maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'}}>
+            <div style={{...errorOverlayStyle, zIndex: 60000} as any}>
+                <div className="tasks-modal custom-scroll" style={{...errorModalContent, maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
                     <div style={{ fontSize: '70px', marginBottom: '15px' }}>
                         {testResultModal.isPassed ? '🏆' : '❌'}
                     </div>
@@ -1403,7 +1686,7 @@ function ShiftContent() {
                         </div>
                     )}
                     
-                    <button onClick={() => setTestResultModal({show: false, score: 0, isPassed: false, title: '', mistakes: []})} style={{...errorBtnStyle, background: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', color: testResultModal.isPassed ? '#000' : '#fff', marginTop: 0}}>
+                    <button onClick={() => setTestResultModal({show: false, score: 0, isPassed: false, title: '', mistakes: []})} style={{...errorBtnStyle, background: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', color: testResultModal.isPassed ? '#000' : '#fff', marginTop: 0} as any}>
                         {testResultModal.isPassed ? 'ОТЛИЧНО' : 'ПОНЯТНО'}
                     </button>
                 </div>
@@ -1412,21 +1695,21 @@ function ShiftContent() {
 
         {/* --- СРОЧНАЯ АТТЕСТАЦИЯ (ANTI-CHEAT) --- */}
         {activeUrgentTest && (
-           <div style={modalOverlay}>
-              <div className="tasks-modal" style={modalContent}>
+           <div style={modalOverlay as any}>
+              <div className="tasks-modal" style={modalContent as any}>
                  <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
-                    <div onClick={() => {setActiveUrgentTest(null); setUrgentTestStep(0); setActiveAnswer(null); setUrgentTestAnswers([]);}} style={{...backLink, margin:0}}>← ОТЛОЖИТЬ</div>
+                    <div onClick={() => {setActiveUrgentTest(null); setUrgentTestStep(0); setActiveAnswer(null); setUrgentTestAnswers([]);}} style={{...backLink, margin:0} as any}>← ОТЛОЖИТЬ</div>
                     <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(activeUrgentTest.name)}</h2>
                     <div className="desktop-spacer" style={{width:'80px'}} />
                  </div>
                  
                  <div 
                     className="anti-cheat"
-                    style={{ animation: 'fadeInUp 0.3s ease', userSelect: 'none', WebkitUserSelect: 'none' }}
+                    style={{ animation: 'fadeInUp 0.3s ease', userSelect: 'none', WebkitUserSelect: 'none' } as any}
                     onContextMenu={(e) => e.preventDefault()}
                     onCopy={(e) => e.preventDefault()}
                  >
-                    <div style={quizBox}>
+                    <div style={quizBox as any}>
                         <h4 style={{color:'#0abab5', marginBottom:'20px', fontWeight:'900'}}>ВОПРОС {urgentTestStep + 1} / {activeUrgentTest.quiz?.length || 1}</h4>
                         <p style={{fontSize:'22px', fontWeight:'800', marginBottom:'30px'}}>{activeUrgentTest.quiz?.[urgentTestStep]?.q}</p>
                         <div style={{display:'grid', gap:'15px'}}>
@@ -1448,48 +1731,48 @@ function ShiftContent() {
 
         {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ --- */}
         {showTestForm && (
-            <div style={{...modalOverlay, alignItems: 'flex-start'}}>
-                <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '900px', margin: '0 auto'}}>
+            <div style={{...modalOverlay, alignItems: 'flex-start'} as any}>
+                <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '900px', margin: '0 auto'} as any}>
                     <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{testFormData.id ? 'РЕДАКТОР ТЕСТА' : 'НОВЫЙ ТЕСТ'}</h2>
                     
                     <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '30px'}}>
-                        <input style={{...adminIn, marginBottom: 0}} placeholder="Название теста" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
-                        <input style={{...adminIn, marginBottom: 0}} placeholder="Подзаголовок (описание)" value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
-                        <input style={{...adminIn, marginBottom: 0}} placeholder="Разделы теории (через запятую)" value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
+                        <input style={{...adminIn, marginBottom: 0} as any} placeholder="Название теста" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
+                        <input style={{...adminIn, marginBottom: 0} as any} placeholder="Подзаголовок (описание)" value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
+                        <input style={{...adminIn, marginBottom: 0} as any} placeholder="Разделы теории (через запятую)" value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
                     </div>
 
                     <div style={{borderTop: '1px solid #222', paddingTop: '30px'}}>
                         <h3 style={{fontSize: '20px', color: '#0abab5', marginBottom: '25px', fontWeight: '900'}}>ВОПРОСЫ ({testFormData.quiz.length})</h3>
                         {testFormData.quiz.map((q, qIdx) => (
                             <div key={qIdx} style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
-                                {testFormData.quiz.length > 1 && <div onClick={() => removeTestQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'}}>✕</div>}
-                                <input style={{...adminIn, fontWeight: 'bold'}} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
+                                {testFormData.quiz.length > 1 && <div onClick={() => removeTestQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'} as any}>✕</div>}
+                                <input style={{...adminIn, fontWeight: 'bold'} as any} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
                                 <div className="tasks-quiz-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                     {[0,1,2,3].map(i => (
                                         <div key={i} style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                             <label style={{display:'flex', gap:'5px', cursor:'pointer', color: q.c === i ? '#0abab5' : '#fff', fontWeight: 'bold'}}><input type="radio" checked={q.c === i} onChange={() => updateTestQuestion(qIdx, 'c', i)} /> Правильный: Вариант {i+1}</label>
-                                            <input style={{...adminIn, marginBottom: 0, borderColor: q.c === i ? '#0abab5' : '#222'}} placeholder={`Текст варианта ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
+                                            <input style={{...adminIn, marginBottom: 0, borderColor: q.c === i ? '#0abab5' : '#222'} as any} placeholder={`Текст варианта ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         ))}
-                        <button onClick={addTestQuestion} style={{...adminActionBtn, width: '100%', padding: '15px', background: 'transparent'}}>+ ДОБАВИТЬ ВОПРОС</button>
+                        <button onClick={addTestQuestion} style={{...adminActionBtn, width: '100%', padding: '15px', background: 'transparent'} as any}>+ ДОБАВИТЬ ВОПРОС</button>
                     </div>
-                    <button onClick={handleSaveTestForm} style={{...saveBtn, marginTop: '30px'}}>СОХРАНИТЬ ТЕСТ</button>
+                    <button onClick={handleSaveTestForm} style={{...saveBtn, marginTop: '30px'} as any}>СОХРАНИТЬ ТЕСТ</button>
                     <div onClick={() => setShowTestForm(false)} style={{ textAlign: 'center', marginTop: '25px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ОТМЕНА</div>
                 </div>
             </div>
         )}
 
         {testToDelete && (
-            <div style={{...errorOverlayStyle, zIndex: 50000}}>
-                <div className="tasks-modal" style={errorModalContent}>
+            <div style={{...errorOverlayStyle, zIndex: 50000} as any}>
+                <div className="tasks-modal" style={errorModalContent as any}>
                     <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
                     <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ТЕСТ?</h2>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={handleDeleteTest} style={{...errorBtnStyle, flex: 1}}>УДАЛИТЬ</button>
-                        <button onClick={() => setTestToDelete(null)} style={{...errorBtnStyle, background: '#333', flex: 1}}>ОТМЕНА</button>
+                        <button onClick={handleDeleteTest} style={{...errorBtnStyle, flex: 1} as any}>УДАЛИТЬ</button>
+                        <button onClick={() => setTestToDelete(null)} style={{...errorBtnStyle, background: '#333', flex: 1} as any}>ОТМЕНА</button>
                     </div>
                 </div>
             </div>
@@ -1522,6 +1805,77 @@ function ShiftContent() {
                                 Нет данных для отображения (загружено в старой версии)
                             </div>
                         )}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- МОДАЛКА ПРОСМОТРА ТЕОРИИ --- */}
+        {selectedRouteStep && !showRouteForm && (
+           <div style={modalOverlay as any}>
+              <div className="tasks-modal" style={modalContent as any}>
+                 <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
+                    <div onClick={() => setSelectedRouteStep(null)} style={{...backLink, margin:0} as any}>← НАЗАД</div>
+                    <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(selectedRouteStep.title)}</h2>
+                    <div className="desktop-spacer" style={{width:'80px'}} />
+                 </div>
+                 <div style={{animation: 'fadeInUp 0.3s ease'}}>
+                     <div className="tasks-theory-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'20px', marginBottom:'50px'}}>
+                         <div className="tasks-theory-block" style={theoryBlock as any}>
+                             <h3 style={theoryLabel as any}>{selectedRouteStep.h1 || 'Карточка 1'}</h3>
+                             <p style={theoryText as any}>{selectedRouteStep.t1}</p>
+                         </div>
+                         <div className="tasks-theory-block" style={theoryBlock as any}>
+                             <h3 style={theoryLabel as any}>{selectedRouteStep.h2 || 'Карточка 2'}</h3>
+                             <p style={theoryText as any}>{selectedRouteStep.t2}</p>
+                         </div>
+                         <div className="tasks-theory-block" style={theoryBlock as any}>
+                             <h3 style={theoryLabel as any}>{selectedRouteStep.h3 || 'Карточка 3'}</h3>
+                             <p style={theoryText as any}>{selectedRouteStep.t3}</p>
+                         </div>
+                     </div>
+                     <button onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn as any}>Я ИЗУЧИЛ ЭТУ ТЕМУ</button>
+                 </div>
+              </div>
+           </div>
+        )}
+
+        {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ --- */}
+        {showRouteForm && (
+            <div style={modalOverlay as any}>
+                <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '600px'} as any}>
+                    <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{routeFormData.id ? 'РЕДАКТОР ТЕМЫ' : 'НОВАЯ ТЕМА'}</h2>
+                    <input style={adminIn as any} placeholder="Название темы (напр. Гигиена)" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
+                    
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                        <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '15px', border: '1px solid #222'}}>
+                            <input style={{...adminIn, marginBottom: '10px'} as any} placeholder="Заголовок 1 (напр. Обязательное мытьё рук)" value={routeFormData.h1} onChange={e => setRouteFormData({...routeFormData, h1: e.target.value})} />
+                            <textarea style={{...adminIn, height: '80px', marginBottom: 0, resize: 'none'} as any} placeholder="Текст карточки 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
+                        </div>
+                        <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '15px', border: '1px solid #222'}}>
+                            <input style={{...adminIn, marginBottom: '10px'} as any} placeholder="Заголовок 2 (напр. Использование перчаток)" value={routeFormData.h2} onChange={e => setRouteFormData({...routeFormData, h2: e.target.value})} />
+                            <textarea style={{...adminIn, height: '80px', marginBottom: 0, resize: 'none'} as any} placeholder="Текст карточки 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
+                        </div>
+                        <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '15px', border: '1px solid #222'}}>
+                            <input style={{...adminIn, marginBottom: '10px'} as any} placeholder="Заголовок 3 (напр. Правила туалета)" value={routeFormData.h3} onChange={e => setRouteFormData({...routeFormData, h3: e.target.value})} />
+                            <textarea style={{...adminIn, height: '80px', marginBottom: 0, resize: 'none'} as any} placeholder="Текст карточки 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
+                        </div>
+                    </div>
+                    
+                    <button onClick={handleSaveRoute} style={{...saveBtn, marginTop: '25px'} as any}>СОХРАНИТЬ ТЕМУ</button>
+                    <div onClick={() => setShowRouteForm(false)} style={{ textAlign: 'center', marginTop: '25px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ОТМЕНА</div>
+                </div>
+            </div>
+        )}
+
+        {routeToDelete && (
+            <div style={errorOverlayStyle as any}>
+                <div className="tasks-modal" style={errorModalContent as any}>
+                    <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                    <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ТЕМУ?</h2>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={handleDeleteRoute} style={{...errorBtnStyle, flex: 1} as any}>УДАЛИТЬ</button>
+                        <button onClick={() => setRouteToDelete(null)} style={{...errorBtnStyle, background: '#333', flex: 1} as any}>ОТМЕНА</button>
                     </div>
                 </div>
             </div>
