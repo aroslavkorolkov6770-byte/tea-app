@@ -47,7 +47,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Проверка, если уже авторизован - кидаем внутрь
     const auth = localStorage.getItem('isLoggedIn') || sessionStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
     if (auth === 'true') {
@@ -106,7 +105,6 @@ export default function LoginPage() {
         let users = await res.json().catch(() => []);
         
         if (!Array.isArray(users) || users.length === 0) {
-            // Для примера создадим админа и одного "пустого" сотрудника, которого создал админ
             users = [
                 { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер', isRegistered: true },
                 { id: 'u_staff_new', login: '1', pass: '1', role: 'staff', name: '', isRegistered: false }
@@ -117,10 +115,10 @@ export default function LoginPage() {
         const foundUser = users.find((u: any) => u.login === login.trim() && u.pass === pass.trim());
 
         if (foundUser) {
-          // ЛОГИКА ПЕРВОГО ВХОДА: Если админ создал аккаунт, но юзер еще не заполнил данные
-          if (foundUser.isRegistered === false) {
+          // ИСПРАВЛЕННАЯ СТРОГАЯ ПРОВЕРКА ПЕРВОГО ВХОДА СЛУЖАЩЕГО
+          if (foundUser.role !== 'admin' && !foundUser.isRegistered) {
               setInfoMessage("Уведомление от платформы: Для начала пройдите регистрацию и заполните ваши данные.");
-              setIsLoginMode(false); // Перекидываем на вкладку регистрации
+              setIsLoginMode(false); 
               return;
           }
 
@@ -141,7 +139,7 @@ export default function LoginPage() {
   };
 
   const handleRegister = async () => {
-      // 1. ЖЕСТКАЯ ПРОВЕРКА ВСЕХ ПОЛЕЙ
+      // Жесткая проверка заполнения абсолютно всех полей на фронтенде
       if (!regName.trim() || !login.trim() || !pass.trim() || !email.trim() || !regTg.trim() || !regPhone.trim()) {
           setErrorMessage("ОШИБКА: Пожалуйста, заполните абсолютно все поля. Это обязательно для активации аккаунта!");
           return;
@@ -169,11 +167,9 @@ export default function LoginPage() {
 
           const existingUser = users[foundUserIndex];
 
-          // Обновляем пользователя: записываем имя и ставим флаг завершенной регистрации
           users[foundUserIndex] = { ...existingUser, name: regName.trim(), isRegistered: true };
           saveDataToServer('tea_hub_users_v1', users);
 
-          // Создаем профиль
           const initialProfile = {
               avatar: '',
               tg: regTg.trim(),
@@ -200,11 +196,9 @@ export default function LoginPage() {
   return (
     <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif' }}>
       
-      {/* ФОН */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url("https://u.9111s.ru/uploads/202402/17/a0254a12ef37da5aaf5c5646a30baab8.webp")', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: -2, backgroundColor: '#000' }} />
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: -1 }} />
 
-      {/* КНОПКА НАЗАД */}
       <Link href="/" style={{ position: 'absolute', top: '30px', left: '40px', color: '#0abab5', textDecoration: 'none', fontWeight: '900', fontSize: '14px', letterSpacing: '1px' }}>
           ← НА ГЛАВНУЮ
       </Link>
