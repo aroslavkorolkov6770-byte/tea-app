@@ -12,7 +12,6 @@ export const metadata: Metadata = {
     statusBarStyle: "black",
     title: "Tea Hub",
   },
-  // --- ДОБАВЛЕНО: ЗАПРЕТ НА ИНДЕКСАЦИЮ ПОИСКОВИКАМИ ---
   robots: {
     index: false,
     follow: false,
@@ -31,14 +30,13 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+        {/* ФИКС ДЛЯ МОБИЛОК: предотвращает зум и сдвиги экрана */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </head>
-      <body style={{ backgroundColor: '#0d0f0d', overscrollBehavior: 'none' }}>
+      {/* ФИКС: Запрещаем горизонтальную прокрутку на уровне всего приложения */}
+      <body style={{ backgroundColor: '#0d0f0d', overscrollBehavior: 'none', overflowX: 'hidden', margin: 0, padding: 0 }}>
         {children}
-        
-        {/* Глобальный подвал платформы */}
         <Footer />
-        
-        {/* Вызываем нашу новую плашку */}
         <CookieBanner />
       </body>
     </html>
