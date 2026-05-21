@@ -19,7 +19,7 @@ const saveDataToServer = (key: string, data: any) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка保存 на сервер:", err));
+    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 export default function LoginPage() {
@@ -138,13 +138,11 @@ export default function LoginPage() {
   };
 
   const handleRegister = async () => {
-      // 1. Проверка заполнения абсолютно всех полей
       if (!regName.trim() || !login.trim() || !pass.trim() || !email.trim() || !regTg.trim() || !regPhone.trim()) {
           setErrorMessage("ОШИБКА: Пожалуйста, заполните абсолютно все поля. Это обязательно для активации аккаунта!");
           return;
       }
 
-      // 2. Строгая проверка валидности формата Email адреса
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
           setErrorMessage("ОШИБКА: Неверный формат E-mail адреса! Убедитесь в правильности знака @ и доменной зоны (например, ivan@mail.ru).");
@@ -200,7 +198,7 @@ export default function LoginPage() {
   if (!isMounted) return null;
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }}>
+    <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box', overflowX: 'hidden', maxWidth: '100vw' }}>
       
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url("https://u.9111s.ru/uploads/202402/17/a0254a12ef37da5aaf5c5646a30baab8.webp")', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: -2, backgroundColor: '#000' }} />
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: -1 }} />
@@ -228,14 +226,13 @@ export default function LoginPage() {
             <input type="text" placeholder="Ваше Имя (для профиля)" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
         )}
         
-        <input type="text" placeholder="Логин (выданный администратором)" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
+        <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
         <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
         
         {!isLoginMode && (
             <div style={{ animation: 'fadeInUp 0.3s ease' }}>
                 <input type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
                 <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
-                {/* ФИЛЬТРАЦИЯ: Разрешаем ввод только цифр */}
                 <input type="text" placeholder="Номер телефона (только цифры)" value={regPhone} onChange={(e)=>setRegPhone(e.target.value.replace(/\D/g, ''))} style={inputS} />
             </div>
         )}
@@ -284,9 +281,9 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* --- МОДАЛЬНОЕ ОКНО ОШИБКИ --- */}
+      {/* --- МОДАЛЬНОЕ ОКНО ОШИБКИ (БЕЗ ШИРИНЫ В 100%) --- */}
       {errorMessage && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40000 }} onClick={() => setErrorMessage("")}>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40000 }} onClick={() => setErrorMessage("")}>
               <div style={{ background: '#111', padding: '40px 30px', borderRadius: '30px', width: '90%', maxWidth: '380px', border: '1px solid #333', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)', animation: 'scaleIn 0.2s ease' }} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
                   <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
@@ -297,6 +294,12 @@ export default function LoginPage() {
       )}
 
       <style jsx global>{`
+        html, body {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          overflow-x: hidden !important;
+        }
         @keyframes scaleIn { 
           from { transform: scale(0.9); opacity: 0; } 
           to { transform: scale(1); opacity: 1; } 
