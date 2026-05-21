@@ -14,7 +14,6 @@ const setAppCookie = (name: string, value: string, days: number | null = 7) => {
     }
 };
 
-// ИСПРАВЛЕНИЕ 1: Сделали функцию асинхронной (async/await), чтобы данные 100% доходили до базы
 const saveDataToServer = async (key: string, data: any) => {
     try {
         await fetch('/api/storage', {
@@ -106,7 +105,6 @@ export default function LoginPage() {
     }
 
     try {
-        // ИСПРАВЛЕНИЕ 2: Запрос к серверу с обходом кэша браузера
         const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_users_v1`);
         let users = await res.json().catch(() => []);
         
@@ -161,7 +159,6 @@ export default function LoginPage() {
       }
 
       try {
-          // ИСПРАВЛЕНИЕ 3: Всегда запрашиваем свежую базу без кэша
           const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_users_v1`);
           let users = await res.json().catch(() => []);
           if (!Array.isArray(users)) users = [];
@@ -179,8 +176,6 @@ export default function LoginPage() {
           const existingUser = users[foundUserIndex];
 
           users[foundUserIndex] = { ...existingUser, name: regName.trim(), isRegistered: true };
-          
-          // ИСПРАВЛЕНИЕ 4: Обязательно ждем завершения сохранения в базу (await)
           await saveDataToServer('tea_hub_users_v1', users);
 
           const initialProfile = {
@@ -235,7 +230,7 @@ export default function LoginPage() {
             <input type="text" placeholder="Ваше Имя (для профиля)" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
         )}
         
-        <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
+        <input type="text" placeholder="Логин (выданный администратором)" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
         <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
         
         {!isLoginMode && (
@@ -347,7 +342,7 @@ const inputS = {
     border: '1px solid #333', 
     color: '#fff', 
     outline: 'none', 
-    fontSize: '14px', 
+    fontSize: '16px', // ИСПРАВЛЕНО: 16px предотвращает зум на iOS
     boxSizing: 'border-box' as any,
     transition: '0.2s ease'
 };
@@ -388,7 +383,7 @@ const teaGuardCheckboxStyle = (isVerified: boolean) => ({
     height: '32px',
     background: isVerified ? 'transparent' : '#000',
     border: isVerified ? '2px solid #0abab5' : '2px solid #444',
-    borderRadius: '8px',
+    borderRadius: '6px',
     cursor: isVerified ? 'default' : 'pointer',
     display: 'flex',
     alignItems: 'center',
