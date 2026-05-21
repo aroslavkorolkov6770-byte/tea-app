@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import CookieBanner from "./components/CookieBanner";
+import Footer from "./components/Footer";
 
 export const metadata: Metadata = {
   title: "Master HUB",
@@ -33,6 +34,9 @@ export default function RootLayout({
       </head>
       <body style={{ backgroundColor: '#0d0f0d', overscrollBehavior: 'none' }}>
         {children}
+        
+        {/* Глобальный подвал платформы */}
+        <Footer />
         
         {/* Вызываем нашу новую плашку */}
         <CookieBanner />
