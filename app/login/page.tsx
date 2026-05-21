@@ -14,12 +14,17 @@ const setAppCookie = (name: string, value: string, days: number | null = 7) => {
     }
 };
 
-const saveDataToServer = (key: string, data: any) => {
-    fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
+// ИСПРАВЛЕНИЕ 1: Сделали функцию асинхронной (async/await), чтобы данные 100% доходили до базы
+const saveDataToServer = async (key: string, data: any) => {
+    try {
+        await fetch('/api/storage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, data })
+        });
+    } catch (err) {
+        console.error("Ошибка сохранения на сервер:", err);
+    }
 };
 
 export default function LoginPage() {
@@ -101,7 +106,8 @@ export default function LoginPage() {
     }
 
     try {
-        const res = await fetch('/api/storage?key=tea_hub_users_v1');
+        // ИСПРАВЛЕНИЕ 2: Запрос к серверу с обходом кэша браузера
+        const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_users_v1`);
         let users = await res.json().catch(() => []);
         
         if (!Array.isArray(users) || users.length === 0) {
@@ -109,7 +115,7 @@ export default function LoginPage() {
                 { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер', isRegistered: true },
                 { id: 'u_staff_new', login: '1', pass: '1', role: 'staff', name: '', isRegistered: false }
             ];
-            saveDataToServer('tea_hub_users_v1', users);
+            await saveDataToServer('tea_hub_users_v1', users);
         }
 
         const foundUser = users.find((u: any) => u.login === login.trim() && u.pass === pass.trim());
@@ -155,7 +161,8 @@ export default function LoginPage() {
       }
 
       try {
-          const res = await fetch('/api/storage?key=tea_hub_users_v1');
+          // ИСПРАВЛЕНИЕ 3: Всегда запрашиваем свежую базу без кэша
+          const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_users_v1`);
           let users = await res.json().catch(() => []);
           if (!Array.isArray(users)) users = [];
 
@@ -172,7 +179,9 @@ export default function LoginPage() {
           const existingUser = users[foundUserIndex];
 
           users[foundUserIndex] = { ...existingUser, name: regName.trim(), isRegistered: true };
-          saveDataToServer('tea_hub_users_v1', users);
+          
+          // ИСПРАВЛЕНИЕ 4: Обязательно ждем завершения сохранения в базу (await)
+          await saveDataToServer('tea_hub_users_v1', users);
 
           const initialProfile = {
               avatar: '',
@@ -181,7 +190,7 @@ export default function LoginPage() {
               email: email.trim(),
               firstLogin: new Date().toISOString()
           };
-          saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
+          await saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
 
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
@@ -281,7 +290,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* --- МОДАЛЬНОЕ ОКНО ОШИБКИ (БЕЗ ШИРИНЫ В 100%) --- */}
+      {/* --- МОДАЛЬНОЕ ОКНО ОШИБКИ --- */}
       {errorMessage && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40000 }} onClick={() => setErrorMessage("")}>
               <div style={{ background: '#111', padding: '40px 30px', borderRadius: '30px', width: '90%', maxWidth: '380px', border: '1px solid #333', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)', animation: 'scaleIn 0.2s ease' }} onClick={e => e.stopPropagation()}>
