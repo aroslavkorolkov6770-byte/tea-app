@@ -51,22 +51,10 @@ export default function Navigation() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
-
-  // Состояния для формы входа и регистрации
-  const [isLoginMode, setIsLoginMode] = useState(true);
-  const [login, setLogin] = useState("");
-  const [pass, setPass] = useState("");
-  
-  // Дополнительные поля для регистрации
-  const [regName, setRegName] = useState("");
-  const [email, setEmail] = useState("");
-  const [regTg, setRegTg] = useState("");
-  const [regPhone, setRegPhone] = useState("");
 
   const [searchDbProducts, setSearchDbProducts] = useState<any[]>([]);
   const [searchDbBasics, setSearchDbBasics] = useState<any[]>(FALLBACK_BASICS);
@@ -75,25 +63,6 @@ export default function Navigation() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-  // --- СОСТОЯНИЕ ДЛЯ ФИРМЕННОГО УВЕДОМЛЕНИЯ ОБ ОШИБКЕ ---
-  const [errorMessage, setErrorMessage] = useState("");
-
-  // --- СОСТОЯНИЯ ДЛЯ ИМИТАЦИИ TeaGuard ---
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
-  const [isCaptchaLoading, setIsCaptchaLoading] = useState(false);
-
-  const handleCaptchaClick = () => {
-      if (isCaptchaVerified || isCaptchaLoading) return;
-      
-      setIsCaptchaLoading(true);
-      setTimeout(() => {
-          setIsCaptchaLoading(false);
-          setIsCaptchaVerified(true);
-          setErrorMessage(""); 
-      }, 1200);
-  };
 
   useEffect(() => {
     // На мобилках по умолчанию закрываем меню при загрузке страницы
@@ -138,154 +107,6 @@ export default function Navigation() {
     const syncInterval = setInterval(loadServerData, 5000);
     return () => clearInterval(syncInterval);
   }, []);
-
-  const handleLogin = async () => {
-    if (failedAttempts >= 3 && !isCaptchaVerified) {
-        setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
-        return;
-    }
-
-    try {
-        const res = await fetch('/api/storage?key=tea_hub_users_v1');
-        let users = await res.json().catch(() => []);
-        
-        if (!Array.isArray(users) || users.length === 0) {
-            users = [
-                { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' },
-                { id: 'u_staff', login: '1', pass: '1', role: 'staff', name: 'Ярик' }
-            ];
-            saveDataToServer('tea_hub_users_v1', users);
-        }
-
-        const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
-
-        if (foundUser) {
-          // --- ЧЕСТНОЕ СОХРАНЕНИЕ С УЧЕТОМ COOKIE БАННЕРА ---
-          const hasConsent = localStorage.getItem('cookieConsent') === 'true';
-
-          if (hasConsent) {
-              localStorage.setItem('isLoggedIn', 'true');
-              localStorage.setItem('userRole', foundUser.role);
-              localStorage.setItem('current_user_id', foundUser.id);
-              localStorage.setItem('current_user_name', foundUser.name);
-
-              setAppCookie('isLoggedIn', 'true', 7);
-              setAppCookie('userRole', foundUser.role, 7);
-              setAppCookie('current_user_id', foundUser.id, 7);
-              setAppCookie('current_user_name', foundUser.name, 7);
-          } else {
-              sessionStorage.setItem('isLoggedIn', 'true');
-              sessionStorage.setItem('userRole', foundUser.role);
-              sessionStorage.setItem('current_user_id', foundUser.id);
-              sessionStorage.setItem('current_user_name', foundUser.name);
-
-              setAppCookie('isLoggedIn', 'true', null);
-              setAppCookie('userRole', foundUser.role, null);
-              setAppCookie('current_user_id', foundUser.id, null);
-              setAppCookie('current_user_name', foundUser.name, null);
-          }
-          
-          setFailedAttempts(0); 
-          setIsCaptchaVerified(false);
-          
-          setIsLoggedIn(true);
-          setUserRole(foundUser.role);
-          setShowLoginModal(false);
-          
-          if (foundUser.role === 'admin') router.push('/admin');
-          else router.push('/tasks?tab=welcome');
-        } else {
-          const newFails = failedAttempts + 1;
-          setFailedAttempts(newFails);
-          if (isCaptchaVerified) setIsCaptchaVerified(false);
-          setErrorMessage("Неправильно введен логин или пароль!");
-        }
-    } catch (error) {
-        console.error("Ошибка связи с сервером:", error);
-        setErrorMessage("Не удалось подключиться к базе данных.");
-    }
-  };
-
-  const handleRegister = async () => {
-      if (!regName.trim() || !login.trim() || !pass.trim()) {
-          setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
-          return;
-      }
-
-      if (failedAttempts >= 3 && !isCaptchaVerified) {
-          setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
-          return;
-      }
-
-      try {
-          const res = await fetch('/api/storage?key=tea_hub_users_v1');
-          let users = await res.json().catch(() => []);
-          if (!Array.isArray(users)) users = [];
-
-          const foundUserIndex = users.findIndex((u: any) => u.login === login.trim() && u.pass === pass.trim());
-
-          if (foundUserIndex === -1) {
-              const newFails = failedAttempts + 1;
-              setFailedAttempts(newFails);
-              if (isCaptchaVerified) setIsCaptchaVerified(false);
-              setErrorMessage("Неправильно введен логин или пароль! Убедитесь, что администратор выдал вам доступы.");
-              return;
-          }
-
-          const existingUser = users[foundUserIndex];
-
-          users[foundUserIndex] = { ...existingUser, name: regName.trim() };
-          saveDataToServer('tea_hub_users_v1', users);
-
-          const initialProfile = {
-              avatar: '',
-              tg: regTg.trim(),
-              phone: regPhone.trim(),
-              email: email.trim(),
-              firstLogin: new Date().toISOString()
-          };
-          saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
-
-          // --- ЧЕСТНОЕ СОХРАНЕНИЕ С УЧЕТОМ COOKIE БАННЕРА ---
-          const hasConsent = localStorage.getItem('cookieConsent') === 'true';
-
-          if (hasConsent) {
-              localStorage.setItem('isLoggedIn', 'true');
-              localStorage.setItem('userRole', existingUser.role);
-              localStorage.setItem('current_user_id', existingUser.id);
-              localStorage.setItem('current_user_name', regName.trim());
-
-              setAppCookie('isLoggedIn', 'true', 7);
-              setAppCookie('userRole', existingUser.role, 7);
-              setAppCookie('current_user_id', existingUser.id, 7);
-              setAppCookie('current_user_name', regName.trim(), 7);
-          } else {
-              sessionStorage.setItem('isLoggedIn', 'true');
-              sessionStorage.setItem('userRole', existingUser.role);
-              sessionStorage.setItem('current_user_id', existingUser.id);
-              sessionStorage.setItem('current_user_name', regName.trim());
-
-              setAppCookie('isLoggedIn', 'true', null);
-              setAppCookie('userRole', existingUser.role, null);
-              setAppCookie('current_user_id', existingUser.id, null);
-              setAppCookie('current_user_name', regName.trim(), null);
-          }
-
-          setFailedAttempts(0); 
-          setIsCaptchaVerified(false);
-          
-          setIsLoggedIn(true);
-          setUserRole(existingUser.role);
-          setShowLoginModal(false);
-          
-          if (existingUser.role === 'admin') router.push('/admin');
-          else router.push('/tasks?tab=welcome');
-
-      } catch (error) {
-          console.error("Ошибка при регистрации:", error);
-          setErrorMessage("Не удалось подключиться к базе данных для регистрации.");
-      }
-  };
 
   const handleLogout = () => {
     // ВЫЧИЩАЕМ ВСЁ, НЕЗАВИСИМО ОТ ТОГО, ГДЕ ОНО БЫЛО
@@ -421,7 +242,7 @@ export default function Navigation() {
     <>
       {!isLoggedIn ? (
         <header style={guestHeader} className="guest-header">
-           <div onClick={() => setShowLoginModal(true)} style={loginBtn}>ВХОД</div>
+           <Link href="/login" style={{ textDecoration: 'none' }}><div style={loginBtn}>ВХОД</div></Link>
         </header>
       ) : (
         <>
@@ -533,115 +354,10 @@ export default function Navigation() {
         </>
       )}
 
-      {/* --- МОДАЛЬНОЕ ОКНО ОШИБКИ (ФИРМЕННОЕ) --- */}
-      {errorMessage && (
-          <div style={{...modalOverlay, zIndex: 40000} as any} onClick={() => setErrorMessage("")}>
-              <div className="modal-content-custom" style={{
-                  background: '#111',
-                  padding: '40px 30px',
-                  borderRadius: '30px',
-                  width: '90%',
-                  maxWidth: '380px',
-                  border: '1px solid #333',
-                  textAlign: 'center',
-                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
-                  boxSizing: 'border-box',
-                  animation: 'scaleIn 0.2s ease'
-              }} onClick={e => e.stopPropagation()}>
-                  <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
-                  <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
-                  <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{errorMessage}</p>
-                  <div onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ЗАКРЫТЬ</div>
-              </div>
-          </div>
-      )}
-
-      {/* --- МОДАЛЬНОЕ ОКНО ВХОДА И РЕГИСТРАЦИИ --- */}
-      {showLoginModal && (
-        <div style={modalOverlay}>
-          <div className="modal-content-custom" style={{ ...modalContent, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{color:'#fff', textAlign:'center', marginBottom:'25px', fontWeight: '900', letterSpacing: '1px', fontSize: '18px'}}>
-                {isLoginMode ? 'ВХОД В СИСТЕМУ' : 'АКТИВАЦИЯ АККАУНТА'}
-            </h2>
-            
-            {!isLoginMode && (
-                <input type="text" placeholder="Ваше Имя (для профиля)" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
-            )}
-            
-            <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
-            <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
-            
-            {!isLoginMode && (
-                <>
-                    <input type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
-                    <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
-                    <input type="text" placeholder="Номер телефона" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)} style={inputS} />
-                </>
-            )}
-
-            {failedAttempts >= 3 && (
-                <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '15px', marginTop: '5px' }}>
-                    <div style={teaGuardContainerStyle as any}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                            <div onClick={handleCaptchaClick} style={teaGuardCheckboxStyle(isCaptchaVerified) as any}>
-                                {isCaptchaLoading && <div className="captcha-spinner"></div>}
-                                {isCaptchaVerified && <span style={{ color: '#0abab5', fontSize: '24px', fontWeight: 'bold' }}>✓</span>}
-                            </div>
-                            <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>Я человек</span>
-                        </div>
-                        
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                <rect x="9" y="11" width="6" height="5" rx="1" stroke="#0abab5" strokeWidth="1.5"/>
-                                <path d="M10 11V9a2 2 0 014 0v2" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round"/>
-                                <circle cx="12" cy="13.5" r="1" fill="#0abab5"/>
-                            </svg>
-                            <div style={{ color: '#fff', fontSize: '11px', fontWeight: '900', marginTop: '4px', letterSpacing: '0.5px' }}>TeaGuard</div>
-                            <div style={{ color: '#666', fontSize: '9px', marginTop: '2px' }}>by Tea Hub</div>
-                        </div>
-                    </div>
-                </div>
-            )}
-            
-            {isLoginMode ? (
-                <div onClick={handleLogin} style={modalLoginBtn}>ВОЙТИ</div>
-            ) : (
-                <div onClick={handleRegister} style={modalLoginBtn}>ЗАРЕГИСТРИРОВАТЬСЯ</div>
-            )}
-            
-            <div 
-                onClick={() => { setIsLoginMode(!isLoginMode); setFailedAttempts(0); setIsCaptchaVerified(false); setIsCaptchaLoading(false); }} 
-                style={{...closeText, color: '#0abab5', marginTop: '15px', textDecoration: 'underline'}}
-            >
-                {isLoginMode ? 'Регистрация' : 'Вход'}
-            </div>
-
-            <div onClick={()=> { setShowLoginModal(false); setIsLoginMode(true); setFailedAttempts(0); setIsCaptchaVerified(false); setIsCaptchaLoading(false); }} style={closeText}>ОТМЕНА</div>
-          </div>
-        </div>
-      )}
-      
       <style jsx global>{`
          @keyframes slideInRight {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
-        }
-        @keyframes scaleIn { 
-          from { transform: scale(0.9); opacity: 0; } 
-          to { transform: scale(1); opacity: 1; } 
-        }
-        
-        @keyframes captchaSpin {
-          100% { transform: rotate(360deg); }
-        }
-        .captcha-spinner {
-          width: 18px;
-          height: 18px;
-          border: 3px solid #333;
-          border-top-color: #0abab5;
-          border-radius: 50%;
-          animation: captchaSpin 1s linear infinite;
         }
 
         body {
@@ -818,89 +534,3 @@ const profileDropdown: any = { position: 'absolute', top: '65px', right: 0, back
 const notifOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.4)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };
 const notifSidebarStyle = { width: '350px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.4s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.5)', overflowY: 'auto' };
 const notifItemStyle = { background: '#0d0d0d', padding: '20px', borderRadius: '18px', border: '1px solid #1a1a1a', marginBottom: '10px' };
-const modalOverlay: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)', boxSizing: 'border-box' };
-
-const modalContent: any = { 
-    background: '#000', 
-    padding: '40px 35px', 
-    borderRadius: '35px', 
-    width: '90%', 
-    maxWidth: '440px', 
-    maxHeight: '95vh', 
-    overflowY: 'auto',
-    border: '1px solid #222', 
-    display: 'flex', 
-    flexDirection: 'column', 
-    alignItems: 'center', 
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', 
-    boxSizing: 'border-box',
-    className: 'custom-scroll' 
-};
-
-// --- СТИЛИ ДЛЯ ИМИТАЦИИ TeaGuard ---
-const teaGuardContainerStyle = {
-    background: '#161816',
-    border: '1px solid #333',
-    borderRadius: '12px',
-    width: '100%',
-    height: '78px',
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 20px',
-    justifyContent: 'space-between',
-    boxShadow: '0px 4px 10px rgba(0,0,0,0.3)',
-    boxSizing: 'border-box'
-};
-
-const teaGuardCheckboxStyle = (isVerified: boolean) => ({
-    width: '32px',
-    height: '32px',
-    background: isVerified ? 'transparent' : '#000',
-    border: isVerified ? '2px solid #0abab5' : '2px solid #444',
-    borderRadius: '6px',
-    cursor: isVerified ? 'default' : 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: '0.2s ease',
-    boxShadow: isVerified ? '0 0 10px rgba(10,186,181,0.2)' : 'none'
-});
-
-const inputS: any = { 
-    width: '100%', 
-    padding: '14px 20px', 
-    marginBottom: '12px', 
-    borderRadius: '14px', 
-    background: '#0d0d0d', 
-    border: '1px solid #222', 
-    color: '#fff', 
-    outline: 'none', 
-    fontSize: '14px', 
-    textAlign: 'center', 
-    boxSizing: 'border-box' 
-};
-
-const modalLoginBtn: any = { 
-    width: '100%', 
-    padding: '14px', 
-    background: '#0ABAB5', 
-    color: '#000', 
-    textAlign: 'center', 
-    borderRadius: '14px', 
-    fontWeight: '900', 
-    cursor: 'pointer', 
-    fontSize: '15px', 
-    textTransform: 'uppercase', 
-    marginTop: '15px', 
-    boxSizing: 'border-box' 
-};
-
-const closeText: any = { 
-    color: '#444', 
-    textAlign: 'center', 
-    marginTop: '20px', 
-    cursor: 'pointer', 
-    fontSize: '12px', 
-    fontWeight: '800', 
-    textTransform: 'uppercase' 
-};
