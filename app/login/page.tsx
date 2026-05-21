@@ -19,7 +19,7 @@ const saveDataToServer = (key: string, data: any) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
+    }).catch(err => console.error("Ошибка保存 на сервер:", err));
 };
 
 export default function LoginPage() {
@@ -115,7 +115,6 @@ export default function LoginPage() {
         const foundUser = users.find((u: any) => u.login === login.trim() && u.pass === pass.trim());
 
         if (foundUser) {
-          // ИСПРАВЛЕННАЯ СТРОГАЯ ПРОВЕРКА ПЕРВОГО ВХОДА СЛУЖАЩЕГО
           if (foundUser.role !== 'admin' && !foundUser.isRegistered) {
               setInfoMessage("Уведомление от платформы: Для начала пройдите регистрацию и заполните ваши данные.");
               setIsLoginMode(false); 
@@ -139,9 +138,16 @@ export default function LoginPage() {
   };
 
   const handleRegister = async () => {
-      // Жесткая проверка заполнения абсолютно всех полей на фронтенде
+      // 1. Проверка заполнения абсолютно всех полей
       if (!regName.trim() || !login.trim() || !pass.trim() || !email.trim() || !regTg.trim() || !regPhone.trim()) {
           setErrorMessage("ОШИБКА: Пожалуйста, заполните абсолютно все поля. Это обязательно для активации аккаунта!");
+          return;
+      }
+
+      // 2. Строгая проверка валидности формата Email адреса
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+          setErrorMessage("ОШИБКА: Неверный формат E-mail адреса! Убедитесь в правильности знака @ и доменной зоны (например, ivan@mail.ru).");
           return;
       }
 
@@ -194,7 +200,7 @@ export default function LoginPage() {
   if (!isMounted) return null;
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }}>
       
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url("https://u.9111s.ru/uploads/202402/17/a0254a12ef37da5aaf5c5646a30baab8.webp")', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: -2, backgroundColor: '#000' }} />
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: -1 }} />
@@ -203,7 +209,7 @@ export default function LoginPage() {
           ← НА ГЛАВНУЮ
       </Link>
 
-      <div className="login-box" style={{ background: '#0a0a0a', padding: '50px 40px', borderRadius: '35px', width: '100%', maxWidth: '440px', border: '1px solid #222', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', animation: 'scaleIn 0.4s ease' }}>
+      <div className="login-box" style={{ background: '#0a0a0a', padding: '50px 40px', borderRadius: '35px', width: '100%', maxWidth: '390px', border: '1px solid #222', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', animation: 'scaleIn 0.4s ease', boxSizing: 'border-box' }}>
         
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
             <h1 style={{ margin: 0, color: '#fff', fontSize: '28px', fontWeight: '900', letterSpacing: '1px' }}>TEA <span style={{color: '#0abab5'}}>HUB</span></h1>
@@ -229,7 +235,8 @@ export default function LoginPage() {
             <div style={{ animation: 'fadeInUp 0.3s ease' }}>
                 <input type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
                 <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
-                <input type="text" placeholder="Номер телефона" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)} style={inputS} />
+                {/* ФИЛЬТРАЦИЯ: Разрешаем ввод только цифр */}
+                <input type="text" placeholder="Номер телефона (только цифры)" value={regPhone} onChange={(e)=>setRegPhone(e.target.value.replace(/\D/g, ''))} style={inputS} />
             </div>
         )}
 
@@ -305,6 +312,13 @@ export default function LoginPage() {
           width: 18px; height: 18px; border: 3px solid #333;
           border-top-color: #0abab5; border-radius: 50%;
           animation: captchaSpin 1s linear infinite;
+        }
+
+        @media (max-width: 768px) {
+            .login-box {
+                padding: 35px 20px !important;
+                max-width: 100% !important;
+            }
         }
       `}</style>
     </div>
