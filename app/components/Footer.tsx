@@ -7,7 +7,6 @@ export default function Footer() {
   return (
     <>
       <footer style={footerStyle as any}>
-         <h2 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', marginBottom: '25px', letterSpacing: '1px' }}>О НАС</h2>
          <div style={docsContainer}>
              <button onClick={() => setActiveDoc('privacy')} className="doc-link" style={docLinkStyle}>Политика конфиденциальности</button>
              <span style={{ color: '#333' }}>|</span>
