@@ -77,7 +77,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         setIsMobileHistoryOpen(false); 
     };
 
-    // ИСПРАВЛЕННЫЙ БАГ: Полная точечная очистка истории без сохранения старых сессий
     const clearHistory = () => {
         const newSession: ChatSession = {
             id: `chat_${Date.now()}`,
@@ -92,14 +91,12 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         setIsMobileHistoryOpen(false);
     };
 
-    // ФУНКЦИЯ УДАЛЕНИЯ ОДНОГО КОНКРЕТНОГО ДИАЛОГА
     const deleteSession = (sessionId: string, e: React.MouseEvent) => {
-        e.stopPropagation(); // Чтобы при клике на крестик не активировался сам чат
+        e.stopPropagation(); 
         
         const filtered = sessions.filter((s: ChatSession) => s.id !== sessionId);
         
         if (filtered.length === 0) {
-            // Если удалили абсолютно все чаты, создаем один чистый лист
             const newSession: ChatSession = {
                 id: `chat_${Date.now()}`,
                 title: "Новый диалог",
@@ -110,7 +107,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             setActiveSessionId(newSession.id);
         } else {
             saveSessions(filtered);
-            // Если удалили чат, в котором сейчас находились, переключаем на первый доступный
             if (activeSessionId === sessionId) {
                 setActiveSessionId(filtered[0].id);
             }
@@ -141,14 +137,58 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         setIsTyping(true);
 
         // ====================================================================
-        // 👉 ЗДЕСЬ ПОДКЛЮЧАТЬ ИИ (API ЗАПРОС К БЭКЕНДУ)
+        // 👉 ИНТЕГРАЦИЯ С НЕЙРОСЕТЬЮ ЧЕРЕЗ API КЛЮЧ
         // ====================================================================
+        const API_KEY = "AQVNzhpYabnxJaiNjp1Ls0sdWpST5-END1v7t6G1";
+        
+        // ВНИМАНИЕ: Замените этот URL на URL вашей нейросети (провайдера)
+        const API_URL = "https://api.openai.com/v1/chat/completions"; 
 
-        setTimeout(() => {
+        try {
+            // Вытаскиваем историю сообщений текущей сессии для контекста ИИ
+            const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
+            const historyMessages = currentSession ? currentSession.messages.map(m => ({
+                role: m.role,
+                content: m.content
+            })) : [];
+
+            // Формируем финальный массив сообщений (добавляем системный промпт)
+            const apiMessages = [
+                { 
+                    role: "system", 
+                    content: "Ты — внутренний ИИ-ассистент сети чайных магазинов TeaMaster. Твоя задача — профессионально консультировать продавцов по товарной матрице и стандартам сервиса. Не придумывай факты. Отвечай кратко и по делу." 
+                },
+                ...historyMessages
+            ];
+
+            // Выполняем запрос к ИИ
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Если используете YandexGPT, замените 'Bearer' на 'Api-Key' 
+                    'Authorization': `Bearer ${API_KEY}` 
+                },
+                body: JSON.stringify({
+                    model: "gpt-3.5-turbo", // Укажите правильное имя вашей модели
+                    messages: apiMessages,
+                    temperature: 0.3 // Делает ответы более точными и строгими
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Ошибка API: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // Извлекаем текст ответа (стандарт для большинства API)
+            const aiText = data.choices && data.choices[0] ? data.choices[0].message.content : "Получен пустой ответ от ИИ.";
+
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
                 role: 'ai',
-                content: `Я ИИ-ассистент. В данный момент я нахожусь на стадии разработки и подключения к вашей базе данных.\n\nВаш запрос: "${text}" сохранен в историю.`,
+                content: aiText,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
@@ -156,8 +196,25 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 s.id === activeSessionId ? { ...s, messages: [...s.messages, aiMsg] } : s
             );
             saveSessions(finalSessions);
-            setIsTyping(false);
-        }, 1500); 
+
+        } catch (error) {
+            console.error("Ошибка при запросе к ИИ:", error);
+            
+            // Сообщение об ошибке в интерфейсе
+            const errorMsg: Message = {
+                id: `msg_${Date.now() + 1}`,
+                role: 'ai',
+                content: "⚠️ Возникла ошибка при подключении к нейросети. Проверьте правильность URL сервера или доступность API-ключа.",
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            const finalSessions = updatedSessions.map((s: ChatSession) => 
+                s.id === activeSessionId ? { ...s, messages: [...s.messages, errorMsg] } : s
+            );
+            saveSessions(finalSessions);
+        } finally {
+            setIsTyping(false); // Отключаем анимацию "печатает..."
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -200,7 +257,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                                 <div className="ai-session-title">
                                     {s.title}
                                 </div>
-                                {/* Кнопка удаления отдельного диалога */}
                                 <button className="ai-session-del-btn" onClick={(e) => deleteSession(s.id, e)}>✕</button>
                             </div>
                         ))}
@@ -350,7 +406,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     transition: 0.3s ease;
                 }
 
-                /* СТИЛИ ДЛЯ ПУНКТОВ ИСТОРИИ (С КРАСНЫМ КОНТУРОМ И КРЕСТИКОМ) */
                 .ai-session-item {
                     position: relative;
                     padding: 14px 15px; 
