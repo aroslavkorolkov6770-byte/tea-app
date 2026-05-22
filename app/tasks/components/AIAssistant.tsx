@@ -139,10 +139,15 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         // ====================================================================
         // 👉 ИНТЕГРАЦИЯ С НЕЙРОСЕТЬЮ ЧЕРЕЗ API КЛЮЧ
         // ====================================================================
-        const API_KEY = "AQVNzhpYabnxJaiNjp1Ls0sdWpST5-END1v7t6G1";
+        const API_KEY = process.env.NEXT_PUBLIC_AI_API_KEY;
+
+        if (!API_KEY) {
+    console.error("API ключ не найден в переменных окружения!");
+    return;
+}
         
         // ВНИМАНИЕ: Замените этот URL на URL вашей нейросети (провайдера)
-        const API_URL = "https://api.openai.com/v1/chat/completions"; 
+        const API_URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"; 
 
         try {
             // Вытаскиваем историю сообщений текущей сессии для контекста ИИ
@@ -167,10 +172,10 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 headers: {
                     'Content-Type': 'application/json',
                     // Если используете YandexGPT, замените 'Bearer' на 'Api-Key' 
-                    'Authorization': `Bearer ${API_KEY}` 
+                    'Authorization': 'Api-Key ' + API_KEY
                 },
                 body: JSON.stringify({
-                    model: "gpt-3.5-turbo", // Укажите правильное имя вашей модели
+                    model: "Allice AI LLM Flash", // Укажите правильное имя вашей модели
                     messages: apiMessages,
                     temperature: 0.3 // Делает ответы более точными и строгими
                 })
