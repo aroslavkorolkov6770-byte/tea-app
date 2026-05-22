@@ -72,6 +72,9 @@ export default function Education({
     const [urgentTestStep, setUrgentTestStep] = useState(0);
     const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
 
+    // НОВОЕ СОСТОЯНИЕ: Для модального окна Нормативных документов
+    const [showDocsModal, setShowDocsModal] = useState(false);
+
     // --- ЛОГИКА ФИЛЬТРАЦИИ ФАЙЛОВ ---
     const handleDismissTask = (id: string) => {
         const newDismissed = [...dismissedTasks, id];
@@ -107,6 +110,10 @@ export default function Education({
         return isForMe && !isPassed && !isDismissed;
     });
 
+    // --- РАЗДЕЛЕНИЕ НА ТЕСТЫ/ДЕДЛАЙНЫ И ДОКУМЕНТЫ ---
+    const urgentTasks = visibleUrgentFiles.filter((f: any) => f.id?.startsWith('deadline_') || f.isTest);
+    const normativeDocs = visibleUrgentFiles.filter((f: any) => !(f.id?.startsWith('deadline_') || f.isTest));
+
     const handleDownloadFile = (file: any) => {
         if (!file.data) {
             alert("Этот файл был загружен в старой версии платформы и содержит только название.");
@@ -125,7 +132,7 @@ export default function Education({
         if (!routeFormData.title.trim()) return;
         let newList = [...dynamicRoute];
         if (routeFormData.id) {
-            newList = newList.map(r => r.id === routeFormData.id ? routeFormData : r);
+            newList = newList.map((r: any) => r.id === routeFormData.id ? routeFormData : r);
         } else {
             newList.push({ ...routeFormData, id: 'route_' + Date.now() });
         }
@@ -191,7 +198,7 @@ export default function Education({
 
         let newList = [...dynamicTests];
         if (testFormData.id) {
-            newList = newList.map(t => t.id === testFormData.id ? newTest : t);
+            newList = newList.map((t: any) => t.id === testFormData.id ? newTest : t);
         } else {
             newList.push(newTest);
         }
@@ -355,13 +362,13 @@ export default function Education({
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
             {/* --- СРОЧНО К ПРОХОЖДЕНИЮ --- */}
-            <div style={{ marginBottom: '60px', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ marginBottom: '40px', width: '100%', boxSizing: 'border-box' }}>
                 <div className="tasks-flex-space" style={flexSpace}>
                     <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>Срочно к прохождению</h2>
                 </div>
-                {visibleUrgentFiles.length > 0 ? (
+                {urgentTasks.length > 0 ? (
                     <div className="premium-cards-container"> 
-                        {visibleUrgentFiles.map((file: any) => (
+                        {urgentTasks.map((file: any) => (
                             file.id && file.id.startsWith('deadline_') ? (
                                 <div key={file.id} className="premium-card deadline-card" style={{ borderColor: '#ff4d4d', borderWidth: '1px' }}>
                                     <div onClick={(e) => { e.stopPropagation(); handleDismissTask(file.id); }} style={{ position: 'absolute', top: '15px', right: '15px', cursor: 'pointer', color: '#ff4d4d', fontWeight: 'bold', fontSize: '18px', zIndex: 10 }}>✕</div>
@@ -372,7 +379,7 @@ export default function Education({
                                         <div style={{ color: '#555', fontSize: '11px', fontWeight: 'bold' }}>Назначено: {file.date}</div>
                                     </div>
                                 </div>
-                            ) : file.isTest ? (
+                            ) : (
                                 <div key={file.id} className="premium-card" onClick={() => setActiveUrgentTest(file)}>
                                     <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px'}}>🎓 АТТЕСТАЦИЯ</span>
                                     <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(file.name)}</h4>
@@ -380,24 +387,24 @@ export default function Education({
                                         <div style={cardFooter}><span>Пройти тестирование</span><span style={{color: '#0abab5'}}>{file.quiz?.length || 0} вопр.</span></div>
                                     </div>
                                 </div>
-                            ) : (
-                                <div key={file.id} className="premium-card">
-                                    <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginBottom: '8px', opacity: 0.8 }}>{file.date}</div>
-                                    <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', wordBreak: 'break-word', color: '#fff' }}>📄 {file.name}</h4>
-                                    <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px' }}>{file.size}</div>
-                                    <div style={{ display: 'flex', gap: '15px', marginTop: 'auto' }}>
-                                        <div onClick={() => setPreviewFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>ОТКРЫТЬ</div>
-                                        <div onClick={() => handleDownloadFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>СКАЧАТЬ ↓</div>
-                                    </div>
-                                </div>
                             )
                         ))}
                     </div>
                 ) : (
-                    <div style={{ marginTop: '20px', color: '#666', fontSize: '14px', background: '#111', padding: '30px', borderRadius: '30px', border: '1px dashed #222', textAlign: 'center' }}>
+                    <div style={{ color: '#666', fontSize: '14px', background: '#111', padding: '30px', borderRadius: '30px', border: '1px dashed #222', textAlign: 'center' }}>
                         У вас нет срочных заданий.
                     </div>
                 )}
+            </div>
+
+            {/* --- КНОПКА "НОРМАТИВНЫЕ ДОКУМЕНТЫ" --- */}
+            <div style={{ marginBottom: '60px', width: '100%', boxSizing: 'border-box' }}>
+                <button 
+                    onClick={() => setShowDocsModal(true)} 
+                    className="normative-docs-btn"
+                >
+                    📚 Нормативные документы <span className="doc-count-badge">{normativeDocs.length}</span>
+                </button>
             </div>
 
             {/* --- БЛОК 1: ТЕОРИЯ --- */}
@@ -496,6 +503,38 @@ export default function Education({
                   );
                })}
             </div>
+
+            {/* --- МОДАЛЬНОЕ ОКНО "НОРМАТИВНЫЕ ДОКУМЕНТЫ" --- */}
+            {showDocsModal && (
+                <div style={modalOverlay as any} onClick={() => setShowDocsModal(false)}>
+                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '1000px', maxHeight: '85vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+                        <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'30px'}}>
+                            <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', margin:0}}>📚 Нормативные документы</h2>
+                            <div onClick={() => setShowDocsModal(false)} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
+                        </div>
+
+                        {normativeDocs.length > 0 ? (
+                            <div className="premium-cards-container">
+                                {normativeDocs.map((file: any) => (
+                                    <div key={file.id} className="premium-card">
+                                        <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: '900', marginBottom: '8px', opacity: 0.8 }}>{file.date || 'Документ'}</div>
+                                        <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', wordBreak: 'break-word', color: '#fff' }}>📄 {file.name}</h4>
+                                        <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px' }}>{file.size}</div>
+                                        <div style={{ display: 'flex', gap: '15px', marginTop: 'auto' }}>
+                                            <div onClick={() => setPreviewFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>ОТКРЫТЬ</div>
+                                            <div onClick={() => handleDownloadFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', cursor: 'pointer' }}>СКАЧАТЬ ↓</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ color: '#666', fontSize: '15px', background: '#111', padding: '40px', borderRadius: '30px', border: '1px dashed #333', textAlign: 'center' }}>
+                                Нет доступных нормативных документов.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* --- ПРЕВЬЮ ЭКРАН ТЕСТА --- */}
             {selectedTest && !activeTestSession && !showTestForm && (
@@ -662,9 +701,9 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- ПРЕДПРОСМОТР ФАЙЛА ИЗ ДЕДЛАЙНОВ --- */}
+            {/* --- ПРЕДПРОСМОТР ЛЮБОГО ФАЙЛА --- */}
             {previewFile && (
-                <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
+                <div style={{...modalOverlay, zIndex: 20000} as any} onClick={() => setPreviewFile(null)}>
                     <div className="tasks-modal" style={{ ...modalContentSmall, maxWidth: '80%', height: '85vh', padding: '25px', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
                         <div className="tasks-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
                             <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile?.name}</h2>
@@ -773,13 +812,42 @@ export default function Education({
                 </div>
             )}
             
-            {/* ГЛОБАЛЬНЫЕ СТИЛИ КОМПОНЕНТА (Именно они возвращают визуальное оформление) */}
+            {/* ГЛОБАЛЬНЫЕ СТИЛИ КОМПОНЕНТА */}
             <style jsx global>{`
                 .anti-cheat { user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
                 .test-answer-btn { padding: 20px 30px; background: #111; color: #fff; border-radius: 18px; cursor: pointer; border: 1px solid #222; font-weight: 800; margin-bottom: 12px; transition: all 0.2s ease; }
                 .test-answer-btn:hover { border-color: #0abab5; background: rgba(10, 186, 181, 0.05); transform: translateY(-2px); }
                 .test-answer-btn.selected { background: #0abab5 !important; color: #000 !important; border-color: #0abab5 !important; transform: scale(0.98); }
                 
+                .normative-docs-btn {
+                    width: 100%;
+                    padding: 22px;
+                    background: #111;
+                    color: #fff;
+                    border: 1px solid #222;
+                    border-radius: 20px;
+                    font-size: 18px;
+                    font-weight: 900;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    gap: 12px;
+                    transition: 0.3s;
+                }
+                .normative-docs-btn:hover {
+                    border-color: #0abab5;
+                    box-shadow: 0 5px 25px rgba(10,186,181,0.15);
+                    transform: translateY(-2px);
+                }
+                .doc-count-badge {
+                    background: #0abab5;
+                    color: #000;
+                    padding: 2px 10px;
+                    border-radius: 20px;
+                    font-size: 14px;
+                }
+
                 @media (min-width: 769px) {
                     .premium-cards-container {
                         display: grid;
@@ -854,6 +922,11 @@ export default function Education({
                     .tasks-modal-header { flex-direction: column; align-items: flex-start !important; gap: 15px; margin-bottom: 25px !important; }
                     .tasks-modal-header h2 { font-size: 20px !important; padding: 0 !important; text-align: left !important; }
                     .desktop-spacer { display: none !important; }
+                    
+                    .normative-docs-btn {
+                        padding: 16px;
+                        font-size: 15px;
+                    }
                 }
             `}</style>
         </section>
