@@ -24,7 +24,10 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const [isTyping, setIsTyping] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    // Состояние для мобильной шторки истории
+    const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
+    
+    const chatContainerRef = useRef<HTMLDivElement>(null);
     const currentUserId = userId || 'guest';
 
     // --- БЫСТРЫЕ ПОДСКАЗКИ (CHIPS) ---
@@ -49,9 +52,11 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         }
     }, [currentUserId]);
 
-    // --- АВТОСКРОЛЛ ВНИЗ ПРИ НОВОМ СООБЩЕНИИ ---
+    // --- ИСПРАВЛЕННЫЙ АВТОСКРОЛЛ (Без прыжков страницы) ---
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
     }, [sessions, activeSessionId, isTyping]);
 
     // --- ФУНКЦИИ УПРАВЛЕНИЯ СЕССИЯМИ ---
@@ -69,12 +74,14 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         };
         saveSessions([newSession, ...sessions]);
         setActiveSessionId(newSession.id);
+        setIsMobileHistoryOpen(false); // закрываем шторку на мобильных при создании нового
     };
 
     const clearHistory = () => {
         localStorage.removeItem(`th_ai_history_${currentUserId}`);
         setSessions([]);
         setShowClearConfirm(false);
+        setIsMobileHistoryOpen(false);
         createNewSession();
     };
 
@@ -89,15 +96,13 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        // Обновляем UI: добавляем сообщение пользователя
         let updatedSessions = sessions.map(s => {
             if (s.id === activeSessionId) {
-                // Если это первое сообщение, меняем заголовок сессии
-                const newTitle = s.messages.length === 0 ? text.slice(0, 20) + "..." : s.title;
+                const newTitle = s.messages.length === 0 ? text.slice(0, 25) + "..." : s.title;
                 return { ...s, title: newTitle, messages: [...s.messages, userMsg], updatedAt: Date.now() };
             }
             return s;
-        }).sort((a, b) => b.updatedAt - a.updatedAt); // Сортируем: новые сверху
+        }).sort((a, b) => b.updatedAt - a.updatedAt); 
 
         saveSessions(updatedSessions);
         setInputValue("");
@@ -106,9 +111,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         // ====================================================================
         // 👉 ЗДЕСЬ ПОДКЛЮЧАТЬ ИИ (API ЗАПРОС К БЭКЕНДУ)
         // ====================================================================
-        // Тебе нужно отправить `userMsg.content` (и историю `s.messages`) на свой сервер.
-        // Пример того, как это должно выглядеть в реальности:
-        // 
+        // Пример:
         // try {
         //     const response = await fetch('/api/ai-chat', {
         //         method: 'POST',
@@ -117,17 +120,15 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         //     });
         //     const data = await response.json();
         //     const aiText = data.answer;
-        // } catch (e) {
-        //     // обработка ошибки
-        // }
+        // } catch (e) { console.error(e); }
         // ====================================================================
 
-        // ⏳ ИМИТАЦИЯ ЗАДЕРЖКИ ОТВЕТА ИИ (ПОКА НЕТ РЕАЛЬНОГО API)
+        // ⏳ ИМИТАЦИЯ ЗАДЕРЖКИ ОТВЕТА ИИ
         setTimeout(() => {
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
                 role: 'ai',
-                content: `Это демонстрационный ответ ИИ. В будущем здесь будет ответ от вашей дообученной нейросети на вопрос: "${text}". \n\nВам нужно раскомментировать код API-запроса в компоненте AIAssistant.`,
+                content: `Я ИИ-ассистент. В данный момент я нахожусь на стадии разработки и подключения к вашей базе данных.\n\nВаш запрос: "${text}" сохранен в историю.`,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
@@ -149,32 +150,34 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const activeSession = sessions.find(s => s.id === activeSessionId);
 
     return (
-        <section style={{ animation: 'fadeInUp 0.5s ease', height: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column' }}>
-            <h2 className="tasks-title" style={{ fontSize: '32px', fontWeight: '900', marginBottom: '20px', color: '#fff' }}>
-                ИИ-Помощник <span style={{ color: '#0abab5' }}>TeaMaster</span>
-            </h2>
-
-            <div className="ai-container" style={{ display: 'flex', flex: 1, background: '#111', borderRadius: '30px', border: '1px solid #222', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+        <section className="ai-monolithic-section" style={{ animation: 'fadeInUp 0.5s ease' }}>
+            
+            <div className="ai-monolithic-container">
                 
                 {/* --- БОКОВАЯ ПАНЕЛЬ: ИСТОРИЯ СЕССИЙ --- */}
-                <div className="ai-sidebar custom-scroll" style={{ width: '280px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
+                {/* На мобилках показываем затемнение, если шторка открыта */}
+                {isMobileHistoryOpen && (
+                    <div className="ai-mobile-overlay" onClick={() => setIsMobileHistoryOpen(false)}></div>
+                )}
+                
+                <div className={`ai-sidebar custom-scroll ${isMobileHistoryOpen ? 'open' : ''}`}>
                     <div style={{ padding: '20px' }}>
                         <button 
                             onClick={createNewSession}
-                            style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid #0abab5', color: '#0abab5', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                            style={{ width: '100%', padding: '14px', background: 'transparent', border: '1px solid #0abab5', color: '#0abab5', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
                             <span style={{ fontSize: '18px' }}>+</span> НОВЫЙ ДИАЛОГ
                         </button>
                     </div>
 
                     <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px' }}>
-                        <div style={{ fontSize: '11px', color: '#666', fontWeight: '900', letterSpacing: '1px', marginBottom: '10px', paddingLeft: '10px' }}>ИСТОРИЯ ЗАПРОСОВ</div>
+                        <div style={{ fontSize: '11px', color: '#666', fontWeight: '900', letterSpacing: '1px', marginBottom: '15px', paddingLeft: '10px' }}>ИСТОРИЯ ЗАПРОСОВ</div>
                         {sessions.map(s => (
                             <div 
                                 key={s.id} 
-                                onClick={() => setActiveSessionId(s.id)}
+                                onClick={() => { setActiveSessionId(s.id); setIsMobileHistoryOpen(false); }}
                                 style={{ 
-                                    padding: '12px 15px', 
+                                    padding: '14px 15px', 
                                     marginBottom: '8px', 
                                     borderRadius: '12px', 
                                     cursor: 'pointer',
@@ -190,10 +193,10 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         ))}
                     </div>
 
-                    <div style={{ padding: '20px', borderTop: '1px solid #222' }}>
+                    <div style={{ padding: '20px', borderTop: '1px solid #1a1a1a' }}>
                         <button 
                             onClick={() => setShowClearConfirm(true)}
-                            style={{ width: '100%', padding: '10px', background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+                            style={{ width: '100%', padding: '12px', background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', transition: '0.2s' }}
                         >
                             ОЧИСТИТЬ ИСТОРИЮ
                         </button>
@@ -201,24 +204,31 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 </div>
 
                 {/* --- ГЛАВНЫЙ ЭКРАН: ОКНО ЧАТА --- */}
-                <div className="ai-chat-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#111' }}>
+                <div className="ai-chat-area">
                     
+                    {/* Мобильная шапка (появляется только на телефонах) */}
+                    <div className="ai-mobile-header">
+                        <div style={{ fontWeight: '900', color: '#fff', fontSize: '16px' }}>TeaMaster <span style={{ color: '#0abab5' }}>AI</span></div>
+                        <button onClick={() => setIsMobileHistoryOpen(true)} className="ai-history-btn">
+                            🕒 История
+                        </button>
+                    </div>
+
                     {/* Список сообщений */}
-                    <div className="ai-messages custom-scroll" style={{ flex: 1, overflowY: 'auto', padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div className="ai-messages custom-scroll" ref={chatContainerRef}>
                         
                         {activeSession?.messages.length === 0 ? (
-                            <div style={{ margin: 'auto', textAlign: 'center', maxWidth: '500px' }}>
-                                <div style={{ fontSize: '60px', marginBottom: '20px' }}>🤖</div>
-                                <h3 style={{ color: '#fff', fontSize: '20px', fontWeight: '900', marginBottom: '10px' }}>Я TeaMaster AI. Чем могу помочь?</h3>
-                                <p style={{ color: '#666', fontSize: '14px', marginBottom: '30px', lineHeight: '1.5' }}>
+                            <div className="ai-empty-state">
+                                <div style={{ fontSize: '50px', marginBottom: '20px' }}>🤖</div>
+                                <h3 style={{ color: '#fff', fontSize: '22px', fontWeight: '900', marginBottom: '10px' }}>TeaMaster AI</h3>
+                                <p style={{ color: '#666', fontSize: '15px', marginBottom: '30px', lineHeight: '1.5' }}>
                                     Задайте любой вопрос по регламентам, стандартам сервиса или товарной матрице компании.
                                 </p>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+                                <div className="quick-prompts-container">
                                     {quickPrompts.map((prompt, idx) => (
                                         <div 
                                             key={idx} 
                                             onClick={() => handleSendMessage(prompt)}
-                                            style={{ background: '#1a1a1a', border: '1px solid #333', padding: '10px 15px', borderRadius: '20px', color: '#0abab5', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' }}
                                             className="quick-prompt"
                                         >
                                             {prompt}
@@ -228,72 +238,50 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                             </div>
                         ) : (
                             activeSession?.messages.map(msg => (
-                                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', maxWidth: '80%', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
-                                        <div style={{ 
-                                            width: '35px', height: '35px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                                            background: msg.role === 'user' ? '#0abab5' : '#222',
-                                            fontSize: '18px'
-                                        }}>
+                                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: '20px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', maxWidth: '85%', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
+                                        <div className={`ai-avatar ${msg.role}`}>
                                             {msg.role === 'user' ? '👤' : '🤖'}
                                         </div>
-                                        <div style={{ 
-                                            padding: '15px 20px', 
-                                            borderRadius: '20px', 
-                                            background: msg.role === 'user' ? 'rgba(10,186,181,0.1)' : '#1a1a1a',
-                                            border: msg.role === 'user' ? '1px solid rgba(10,186,181,0.3)' : '1px solid #333',
-                                            color: '#fff',
-                                            fontSize: '15px',
-                                            lineHeight: '1.5',
-                                            borderBottomRightRadius: msg.role === 'user' ? '4px' : '20px',
-                                            borderBottomLeftRadius: msg.role === 'ai' ? '4px' : '20px',
-                                            whiteSpace: 'pre-wrap'
-                                        }}>
+                                        <div className={`ai-bubble ${msg.role}`}>
                                             {msg.content}
                                         </div>
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#555', marginTop: '5px', padding: '0 45px' }}>{msg.timestamp}</div>
+                                    <div style={{ fontSize: '11px', color: '#555', marginTop: '6px', padding: msg.role === 'user' ? '0 52px 0 0' : '0 0 0 52px' }}>
+                                        {msg.timestamp}
+                                    </div>
                                 </div>
                             ))
                         )}
 
                         {/* Индикатор печати ИИ */}
                         {isTyping && (
-                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', maxWidth: '80%' }}>
-                                <div style={{ width: '35px', height: '35px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#222', fontSize: '18px' }}>🤖</div>
-                                <div style={{ padding: '15px 20px', borderRadius: '20px', background: '#1a1a1a', border: '1px solid #333', borderBottomLeftRadius: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', maxWidth: '85%', marginBottom: '20px' }}>
+                                <div className="ai-avatar ai">🤖</div>
+                                <div className="ai-bubble ai" style={{ padding: '15px 25px' }}>
                                     <div className="typing-indicator">
                                         <span></span><span></span><span></span>
                                     </div>
                                 </div>
                             </div>
                         )}
-                        <div ref={messagesEndRef} />
                     </div>
 
                     {/* Поле ввода сообщения */}
-                    <div style={{ padding: '20px', borderTop: '1px solid #222', background: '#0a0a0a' }}>
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', background: '#111', border: '1px solid #333', borderRadius: '20px', padding: '5px' }}>
+                    <div className="ai-input-wrapper">
+                        <div className="ai-input-box">
                             <textarea
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Задайте вопрос нейросети..."
-                                className="custom-scroll"
-                                style={{
-                                    flex: 1, background: 'transparent', border: 'none', color: '#fff', padding: '15px', fontSize: '15px', outline: 'none', resize: 'none', maxHeight: '150px', minHeight: '50px', fontFamily: 'inherit'
-                                }}
+                                placeholder="Спросить TeaMaster AI..."
+                                className="custom-scroll ai-textarea"
                                 rows={1}
                             />
                             <button 
                                 onClick={() => handleSendMessage(inputValue)}
                                 disabled={!inputValue.trim() || isTyping}
-                                style={{
-                                    margin: '10px', width: '40px', height: '40px', borderRadius: '14px', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (!inputValue.trim() || isTyping) ? 'not-allowed' : 'pointer',
-                                    background: (!inputValue.trim() || isTyping) ? '#222' : '#0abab5',
-                                    color: (!inputValue.trim() || isTyping) ? '#555' : '#000',
-                                    transition: '0.2s'
-                                }}
+                                className="ai-send-btn"
                             >
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -301,7 +289,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                                 </svg>
                             </button>
                         </div>
-                        <div style={{ textAlign: 'center', fontSize: '11px', color: '#555', marginTop: '10px' }}>
+                        <div className="ai-footer-text">
                             ИИ может допускать ошибки. Проверяйте важную информацию по регламентам.
                         </div>
                     </div>
@@ -311,7 +299,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             {/* --- МОДАЛЬНОЕ ОКНО ОЧИСТКИ ИСТОРИИ --- */}
             {showClearConfirm && (
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', zIndex: 50000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
-                    <div style={{ background: '#111', padding: '40px', borderRadius: '30px', border: '1px solid #333', textAlign: 'center', maxWidth: '400px' }}>
+                    <div style={{ background: '#111', padding: '40px', borderRadius: '30px', border: '1px solid #333', textAlign: 'center', maxWidth: '400px', width: '90%' }}>
                         <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
                         <h2 style={{ fontSize: '22px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ИСТОРИЮ?</h2>
                         <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '30px', lineHeight: '1.5' }}>
@@ -326,24 +314,257 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             )}
 
             <style jsx global>{`
-                .quick-prompt:hover { background: rgba(10,186,181,0.1) !important; border-color: #0abab5 !important; }
+                /* Монолитный контейнер */
+                .ai-monolithic-section {
+                    /* Компенсируем паддинги главного <main> чтобы чат прилип к краям */
+                    margin: -20px -60px -60px -60px;
+                    height: calc(100vh - 100px);
+                    display: flex;
+                    flex-direction: column;
+                }
                 
-                .typing-indicator { display: flex; gap: 4px; padding: 5px 0; }
+                .ai-monolithic-container {
+                    display: flex;
+                    flex: 1;
+                    background: transparent;
+                    height: 100%;
+                }
+
+                /* Боковая панель */
+                .ai-sidebar {
+                    width: 300px;
+                    border-right: 1px solid #1a1a1a;
+                    display: flex;
+                    flex-direction: column;
+                    background: transparent;
+                    transition: 0.3s ease;
+                }
+
+                /* Основная зона чата */
+                .ai-chat-area {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    background: transparent;
+                    position: relative;
+                }
+
+                .ai-mobile-header {
+                    display: none;
+                }
+
+                /* Область сообщений */
+                .ai-messages {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 40px;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .ai-empty-state {
+                    margin: auto;
+                    text-align: center;
+                    max-width: 550px;
+                }
+
+                /* Быстрые подсказки */
+                .quick-prompts-container {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                    justify-content: center;
+                }
+
+                .quick-prompt {
+                    background: #111;
+                    border: 1px solid #222;
+                    padding: 12px 18px;
+                    border-radius: 20px;
+                    color: #0abab5;
+                    font-size: 14px;
+                    font-weight: 800;
+                    cursor: pointer;
+                    transition: 0.2s;
+                }
+
+                .quick-prompt:hover {
+                    background: rgba(10,186,181,0.05);
+                    border-color: #0abab5;
+                    transform: translateY(-2px);
+                }
+
+                /* Бабблы сообщений */
+                .ai-avatar {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    font-size: 20px;
+                }
+                .ai-avatar.user { background: #0abab5; color: #000; }
+                .ai-avatar.ai { background: #161816; border: 1px solid #333; }
+
+                .ai-bubble {
+                    padding: 16px 22px;
+                    border-radius: 20px;
+                    font-size: 15px;
+                    line-height: 1.6;
+                    white-space: pre-wrap;
+                }
+                .ai-bubble.user {
+                    background: rgba(10,186,181,0.1);
+                    border: 1px solid rgba(10,186,181,0.3);
+                    color: #fff;
+                    border-bottom-right-radius: 6px;
+                }
+                .ai-bubble.ai {
+                    background: #111;
+                    border: 1px solid #222;
+                    color: #ddd;
+                    border-bottom-left-radius: 6px;
+                }
+
+                /* Зона ввода */
+                .ai-input-wrapper {
+                    padding: 20px 40px 30px 40px;
+                    background: transparent;
+                }
+
+                .ai-input-box {
+                    position: relative;
+                    display: flex;
+                    align-items: flex-end;
+                    background: #111;
+                    border: 1px solid #222;
+                    border-radius: 24px;
+                    padding: 6px;
+                    transition: 0.2s;
+                }
+                .ai-input-box:focus-within {
+                    border-color: #0abab5;
+                    box-shadow: 0 0 15px rgba(10,186,181,0.1);
+                }
+
+                .ai-textarea {
+                    flex: 1;
+                    background: transparent;
+                    border: none;
+                    color: #fff;
+                    padding: 16px 20px;
+                    font-size: 16px; /* 16px предотвращает зум на iOS! */
+                    outline: none;
+                    resize: none;
+                    max-height: 150px;
+                    min-height: 56px;
+                    font-family: inherit;
+                }
+
+                .ai-send-btn {
+                    margin: 8px;
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 16px;
+                    border: none;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: 0.2s;
+                }
+                .ai-send-btn:not(:disabled) {
+                    background: #0abab5;
+                    color: #000;
+                    cursor: pointer;
+                }
+                .ai-send-btn:not(:disabled):hover {
+                    transform: scale(1.05);
+                }
+                .ai-send-btn:disabled {
+                    background: #1a1a1a;
+                    color: #555;
+                    cursor: not-allowed;
+                }
+
+                .ai-footer-text {
+                    text-align: center;
+                    font-size: 12px;
+                    color: #555;
+                    margin-top: 12px;
+                }
+
+                /* Индикатор печати */
+                .typing-indicator { display: flex; gap: 4px; padding: 2px 0; }
                 .typing-indicator span {
                     width: 8px; height: 8px; background: #0abab5; border-radius: 50%;
                     animation: bounce 1.4s infinite ease-in-out both;
                 }
                 .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
                 .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-                
                 @keyframes bounce {
                     0%, 80%, 100% { transform: scale(0); }
                     40% { transform: scale(1); }
                 }
 
+                .ai-mobile-overlay { display: none; }
+
+                /* --- МОБИЛЬНАЯ АДАПТАЦИЯ --- */
                 @media (max-width: 768px) {
-                    .ai-container { flex-direction: column !important; }
-                    .ai-sidebar { width: 100% !important; border-right: none !important; border-bottom: 1px solid #222; max-height: 200px; }
+                    .ai-monolithic-section {
+                        /* Компенсация паддингов мобильного <main> */
+                        margin: -10px -15px -50px -15px;
+                        height: calc(100vh - 70px); 
+                    }
+
+                    .ai-mobile-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 15px 20px;
+                        border-bottom: 1px solid #1a1a1a;
+                        background: #0a0a0a;
+                    }
+
+                    .ai-history-btn {
+                        background: rgba(10,186,181,0.1);
+                        color: #0abab5;
+                        border: 1px solid rgba(10,186,181,0.3);
+                        padding: 8px 16px;
+                        border-radius: 10px;
+                        font-weight: 800;
+                        font-size: 13px;
+                    }
+
+                    /* Шторка истории на мобильных */
+                    .ai-sidebar {
+                        position: fixed;
+                        top: 0;
+                        left: -300px; /* спрятано */
+                        width: 280px !important;
+                        height: 100vh;
+                        background: #000;
+                        z-index: 10006;
+                        box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+                    }
+                    .ai-sidebar.open {
+                        left: 0;
+                    }
+
+                    .ai-mobile-overlay {
+                        display: block;
+                        position: fixed;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        background: rgba(0,0,0,0.7);
+                        z-index: 10005;
+                        backdrop-filter: blur(4px);
+                    }
+
+                    .ai-messages { padding: 20px 15px; }
+                    .ai-input-wrapper { padding: 15px; }
+                    .quick-prompt { font-size: 13px; padding: 10px 14px; }
+                    .ai-bubble { font-size: 14px; padding: 12px 16px; }
                 }
             `}</style>
         </section>
