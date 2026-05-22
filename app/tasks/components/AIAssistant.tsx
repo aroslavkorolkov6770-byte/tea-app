@@ -38,7 +38,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         "Сценарий общения, если гость грубит"
     ];
 
-    // --- ЗАГРУЗКА ИСТОРИИ ИЗ LOCALSTORAGE (Имитация БД) ---
+    // --- ЗАГРУЗКА ИСТОРИИ ИЗ LOCALSTORAGE ---
     useEffect(() => {
         const savedSessions = localStorage.getItem(`th_ai_history_${currentUserId}`);
         if (savedSessions) {
@@ -52,7 +52,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         }
     }, [currentUserId]);
 
-    // --- ИСПРАВЛЕННЫЙ АВТОСКРОЛЛ (Без прыжков страницы) ---
+    // --- АВТОСКРОЛЛ ---
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -74,15 +74,47 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         };
         saveSessions([newSession, ...sessions]);
         setActiveSessionId(newSession.id);
-        setIsMobileHistoryOpen(false); // закрываем шторку на мобильных при создании нового
+        setIsMobileHistoryOpen(false); 
     };
 
+    // ИСПРАВЛЕННЫЙ БАГ: Полная точечная очистка истории без сохранения старых сессий
     const clearHistory = () => {
-        localStorage.removeItem(`th_ai_history_${currentUserId}`);
-        setSessions([]);
+        const newSession: ChatSession = {
+            id: `chat_${Date.now()}`,
+            title: "Новый диалог",
+            messages: [],
+            updatedAt: Date.now()
+        };
+        setSessions([newSession]);
+        localStorage.setItem(`th_ai_history_${currentUserId}`, JSON.stringify([newSession]));
+        setActiveSessionId(newSession.id);
         setShowClearConfirm(false);
         setIsMobileHistoryOpen(false);
-        createNewSession();
+    };
+
+    // ФУНКЦИЯ УДАЛЕНИЯ ОДНОГО КОНКРЕТНОГО ДИАЛОГА
+    const deleteSession = (sessionId: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Чтобы при клике на крестик не активировался сам чат
+        
+        const filtered = sessions.filter((s: ChatSession) => s.id !== sessionId);
+        
+        if (filtered.length === 0) {
+            // Если удалили абсолютно все чаты, создаем один чистый лист
+            const newSession: ChatSession = {
+                id: `chat_${Date.now()}`,
+                title: "Новый диалог",
+                messages: [],
+                updatedAt: Date.now()
+            };
+            saveSessions([newSession]);
+            setActiveSessionId(newSession.id);
+        } else {
+            saveSessions(filtered);
+            // Если удалили чат, в котором сейчас находились, переключаем на первый доступный
+            if (activeSessionId === sessionId) {
+                setActiveSessionId(filtered[0].id);
+            }
+        }
     };
 
     // --- ОТПРАВКА СООБЩЕНИЯ И ИНТЕГРАЦИЯ ИИ ---
@@ -96,13 +128,13 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        let updatedSessions = sessions.map(s => {
+        let updatedSessions = sessions.map((s: ChatSession) => {
             if (s.id === activeSessionId) {
                 const newTitle = s.messages.length === 0 ? text.slice(0, 25) + "..." : s.title;
                 return { ...s, title: newTitle, messages: [...s.messages, userMsg], updatedAt: Date.now() };
             }
             return s;
-        }).sort((a, b) => b.updatedAt - a.updatedAt); 
+        }).sort((a: ChatSession, b: ChatSession) => b.updatedAt - a.updatedAt); 
 
         saveSessions(updatedSessions);
         setInputValue("");
@@ -111,19 +143,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         // ====================================================================
         // 👉 ЗДЕСЬ ПОДКЛЮЧАТЬ ИИ (API ЗАПРОС К БЭКЕНДУ)
         // ====================================================================
-        // Пример:
-        // try {
-        //     const response = await fetch('/api/ai-chat', {
-        //         method: 'POST',
-        //         headers: { 'Content-Type': 'application/json' },
-        //         body: JSON.stringify({ prompt: text, history: currentSessionHistory })
-        //     });
-        //     const data = await response.json();
-        //     const aiText = data.answer;
-        // } catch (e) { console.error(e); }
-        // ====================================================================
 
-        // ⏳ ИМИТАЦИЯ ЗАДЕРЖКИ ОТВЕТА ИИ
         setTimeout(() => {
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
@@ -132,7 +152,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
-            const finalSessions = updatedSessions.map(s => 
+            const finalSessions = updatedSessions.map((s: ChatSession) => 
                 s.id === activeSessionId ? { ...s, messages: [...s.messages, aiMsg] } : s
             );
             saveSessions(finalSessions);
@@ -147,7 +167,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         }
     };
 
-    const activeSession = sessions.find(s => s.id === activeSessionId);
+    const activeSession = sessions.find((s: ChatSession) => s.id === activeSessionId);
 
     return (
         <section className="ai-monolithic-section" style={{ animation: 'fadeInUp 0.5s ease' }}>
@@ -155,7 +175,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             <div className="ai-monolithic-container">
                 
                 {/* --- БОКОВАЯ ПАНЕЛЬ: ИСТОРИЯ СЕССИЙ --- */}
-                {/* На мобилках показываем затемнение, если шторка открыта */}
                 {isMobileHistoryOpen && (
                     <div className="ai-mobile-overlay" onClick={() => setIsMobileHistoryOpen(false)}></div>
                 )}
@@ -172,23 +191,17 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
                     <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px' }}>
                         <div style={{ fontSize: '11px', color: '#666', fontWeight: '900', letterSpacing: '1px', marginBottom: '15px', paddingLeft: '10px' }}>ИСТОРИЯ ЗАПРОСОВ</div>
-                        {sessions.map(s => (
+                        {sessions.map((s: ChatSession) => (
                             <div 
                                 key={s.id} 
                                 onClick={() => { setActiveSessionId(s.id); setIsMobileHistoryOpen(false); }}
-                                style={{ 
-                                    padding: '14px 15px', 
-                                    marginBottom: '8px', 
-                                    borderRadius: '12px', 
-                                    cursor: 'pointer',
-                                    background: activeSessionId === s.id ? '#1a1a1a' : 'transparent',
-                                    border: activeSessionId === s.id ? '1px solid #333' : '1px solid transparent',
-                                    transition: '0.2s'
-                                }}
+                                className={`ai-session-item ${activeSessionId === s.id ? 'active' : ''}`}
                             >
-                                <div style={{ color: activeSessionId === s.id ? '#0abab5' : '#aaa', fontSize: '14px', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div className="ai-session-title">
                                     {s.title}
                                 </div>
+                                {/* Кнопка удаления отдельного диалога */}
+                                <button className="ai-session-del-btn" onClick={(e) => deleteSession(s.id, e)}>✕</button>
                             </div>
                         ))}
                     </div>
@@ -206,7 +219,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 {/* --- ГЛАВНЫЙ ЭКРАН: ОКНО ЧАТА --- */}
                 <div className="ai-chat-area">
                     
-                    {/* Мобильная шапка (появляется только на телефонах) */}
+                    {/* Мобильная шапка */}
                     <div className="ai-mobile-header">
                         <div style={{ fontWeight: '900', color: '#fff', fontSize: '16px' }}>TeaMaster <span style={{ color: '#0abab5' }}>AI</span></div>
                         <button onClick={() => setIsMobileHistoryOpen(true)} className="ai-history-btn">
@@ -237,7 +250,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                                 </div>
                             </div>
                         ) : (
-                            activeSession?.messages.map(msg => (
+                            activeSession?.messages.map((msg: Message) => (
                                 <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: '20px' }}>
                                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', maxWidth: '85%', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
                                         <div className={`ai-avatar ${msg.role}`}>
@@ -314,9 +327,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             )}
 
             <style jsx global>{`
-                /* Монолитный контейнер */
                 .ai-monolithic-section {
-                    /* Компенсируем паддинги главного <main> чтобы чат прилип к краям */
                     margin: -20px -60px -60px -60px;
                     height: calc(100vh - 100px);
                     display: flex;
@@ -330,7 +341,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     height: 100%;
                 }
 
-                /* Боковая панель */
                 .ai-sidebar {
                     width: 300px;
                     border-right: 1px solid #1a1a1a;
@@ -340,7 +350,57 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     transition: 0.3s ease;
                 }
 
-                /* Основная зона чата */
+                /* СТИЛИ ДЛЯ ПУНКТОВ ИСТОРИИ (С КРАСНЫМ КОНТУРОМ И КРЕСТИКОМ) */
+                .ai-session-item {
+                    position: relative;
+                    padding: 14px 15px; 
+                    margin-bottom: 8px; 
+                    borderRadius: '12px'; 
+                    cursor: pointer;
+                    border: 1px solid transparent;
+                    transition: all 0.2s ease;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-radius: 12px;
+                }
+                .ai-session-item.active {
+                    background: #1a1a1a;
+                    border-color: #333;
+                }
+                .ai-session-item:hover {
+                    border-color: #ff4d4d !important;
+                    box-shadow: 0 0 10px rgba(255, 77, 77, 0.15);
+                    background: rgba(255, 77, 77, 0.02);
+                }
+                .ai-session-title {
+                    color: #aaa; 
+                    font-size: 14px; 
+                    font-weight: bold; 
+                    white-space: nowrap; 
+                    overflow: hidden; 
+                    text-overflow: ellipsis;
+                    flex: 1;
+                    padding-right: 10px;
+                }
+                .ai-session-item.active .ai-session-title {
+                    color: #0abab5;
+                }
+                .ai-session-del-btn {
+                    background: transparent;
+                    border: none;
+                    color: #ff4d4d;
+                    font-size: 14px;
+                    cursor: pointer;
+                    opacity: 0;
+                    transition: opacity 0.2s ease;
+                    padding: 0 5px;
+                    font-weight: bold;
+                }
+                .ai-session-item:hover .ai-session-del-btn {
+                    opacity: 1;
+                }
+
                 .ai-chat-area {
                     flex: 1;
                     display: flex;
@@ -353,7 +413,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     display: none;
                 }
 
-                /* Область сообщений */
                 .ai-messages {
                     flex: 1;
                     overflow-y: auto;
@@ -368,7 +427,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     max-width: 550px;
                 }
 
-                /* Быстрые подсказки */
                 .quick-prompts-container {
                     display: flex;
                     flex-wrap: wrap;
@@ -394,7 +452,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     transform: translateY(-2px);
                 }
 
-                /* Бабблы сообщений */
                 .ai-avatar {
                     width: 40px;
                     height: 40px;
@@ -428,7 +485,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     border-bottom-left-radius: 6px;
                 }
 
-                /* Зона ввода */
                 .ai-input-wrapper {
                     padding: 20px 40px 30px 40px;
                     background: transparent;
@@ -455,7 +511,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     border: none;
                     color: #fff;
                     padding: 16px 20px;
-                    font-size: 16px; /* 16px предотвращает зум на iOS! */
+                    font-size: 16px; 
                     outline: none;
                     resize: none;
                     max-height: 150px;
@@ -495,7 +551,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     margin-top: 12px;
                 }
 
-                /* Индикатор печати */
                 .typing-indicator { display: flex; gap: 4px; padding: 2px 0; }
                 .typing-indicator span {
                     width: 8px; height: 8px; background: #0abab5; border-radius: 50%;
@@ -503,17 +558,11 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 }
                 .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
                 .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-                @keyframes bounce {
-                    0%, 80%, 100% { transform: scale(0); }
-                    40% { transform: scale(1); }
-                }
 
                 .ai-mobile-overlay { display: none; }
 
-                /* --- МОБИЛЬНАЯ АДАПТАЦИЯ --- */
                 @media (max-width: 768px) {
                     .ai-monolithic-section {
-                        /* Компенсация паддингов мобильного <main> */
                         margin: -10px -15px -50px -15px;
                         height: calc(100vh - 70px); 
                     }
@@ -537,11 +586,10 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         font-size: 13px;
                     }
 
-                    /* Шторка истории на мобильных */
                     .ai-sidebar {
                         position: fixed;
                         top: 0;
-                        left: -300px; /* спрятано */
+                        left: -300px; 
                         width: 280px !important;
                         height: 100vh;
                         background: #000;
