@@ -10,7 +10,6 @@ const setAppCookie = (name: string, value: string, days: number | null = 7) => {
         date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
         document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
     } else {
-        // Если days = null, создается сессионная cookie (уничтожается при закрытии вкладки)
         document.cookie = `${name}=${encodeURIComponent(value)};path=/`;
     }
 };
@@ -52,7 +51,7 @@ export default function Navigation() {
   const [regTg, setRegTg] = useState("");
   const [regPhone, setRegPhone] = useState("");
 
-  // --- ИСПРАВЛЕННЫЕ СОСТОЯНИЯ ДЛЯ ПОИСКА ПО АКТУАЛЬНЫМ БАЗАМ ---
+  // Базы для поиска
   const [searchDbRoutes, setSearchDbRoutes] = useState<any[]>([]);
   const [searchDbTests, setSearchDbTests] = useState<any[]>([]);
   const [searchDbAssortment, setSearchDbAssortment] = useState<any[]>([]);
@@ -61,17 +60,13 @@ export default function Navigation() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // --- СОСТОЯНИЕ ДЛЯ ФИРМЕННОГО УВЕДОМЛЕНИЯ ОБ ОШИБКЕ ---
   const [errorMessage, setErrorMessage] = useState("");
-
-  // --- СОСТОЯНИЯ ДЛЯ ИМИТАЦИИ TeaGuard ---
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [isCaptchaLoading, setIsCaptchaLoading] = useState(false);
 
   const handleCaptchaClick = () => {
       if (isCaptchaVerified || isCaptchaLoading) return;
-      
       setIsCaptchaLoading(true);
       setTimeout(() => {
           setIsCaptchaLoading(false);
@@ -81,12 +76,10 @@ export default function Navigation() {
   };
 
   useEffect(() => {
-    // На мобилках по умолчанию закрываем меню при загрузке страницы
     if (typeof window !== 'undefined' && window.innerWidth <= 768) {
         setIsSidebarOpen(false);
     }
 
-    // ЧЕСТНАЯ ПРОВЕРКА АВТОРИЗАЦИИ: ищем и в Local, и в Session
     const auth = localStorage.getItem('isLoggedIn') || sessionStorage.getItem('isLoggedIn');
     const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
     if (auth === 'true') {
@@ -104,7 +97,6 @@ export default function Navigation() {
                 setNotifications(myNotifs);
             }
 
-            // --- ИСПРАВЛЕННЫЙ ФЕТЧИНГ: ТОЛЬКО АКТУАЛЬНЫЕ БАЗЫ ПЛАТФОРМЫ ---
             const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v2').then(r => r.json()).catch(() => []);
             if (Array.isArray(rRes) && rRes.length > 0) setSearchDbRoutes(rRes);
 
@@ -134,25 +126,15 @@ export default function Navigation() {
         const res = await fetch('/api/storage?key=tea_hub_users_v1');
         let users = await res.json().catch(() => []);
         
-        if (!Array.isArray(users) || users.length === 0) {
-            users = [
-                { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' },
-                { id: 'u_staff', login: '1', pass: '1', role: 'staff', name: 'Ярик' }
-            ];
-            saveDataToServer('tea_hub_users_v1', users);
-        }
-
         const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
         if (foundUser) {
           const hasConsent = localStorage.getItem('cookieConsent') === 'true';
-
           if (hasConsent) {
               localStorage.setItem('isLoggedIn', 'true');
               localStorage.setItem('userRole', foundUser.role);
               localStorage.setItem('current_user_id', foundUser.id);
               localStorage.setItem('current_user_name', foundUser.name);
-
               setAppCookie('isLoggedIn', 'true', 7);
               setAppCookie('userRole', foundUser.role, 7);
               setAppCookie('current_user_id', foundUser.id, 7);
@@ -162,7 +144,6 @@ export default function Navigation() {
               sessionStorage.setItem('userRole', foundUser.role);
               sessionStorage.setItem('current_user_id', foundUser.id);
               sessionStorage.setItem('current_user_name', foundUser.name);
-
               setAppCookie('isLoggedIn', 'true', null);
               setAppCookie('userRole', foundUser.role, null);
               setAppCookie('current_user_id', foundUser.id, null);
@@ -171,7 +152,6 @@ export default function Navigation() {
           
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
-          
           setIsLoggedIn(true);
           setUserRole(foundUser.role);
           setShowLoginModal(false);
@@ -195,97 +175,50 @@ export default function Navigation() {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
       }
-
-      if (failedAttempts >= 3 && !isCaptchaVerified) {
-          setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
-          return;
-      }
-
       try {
           const res = await fetch('/api/storage?key=tea_hub_users_v1');
           let users = await res.json().catch(() => []);
-          if (!Array.isArray(users)) users = [];
-
           const foundUserIndex = users.findIndex((u: any) => u.login === login.trim() && u.pass === pass.trim());
-
           if (foundUserIndex === -1) {
-              const newFails = failedAttempts + 1;
-              setFailedAttempts(newFails);
-              if (isCaptchaVerified) setIsCaptchaVerified(false);
-              setErrorMessage("Неправильно введен логин или пароль! Убедитесь, что администратор выдал вам доступы.");
+              setErrorMessage("Неправильно введен логин или пароль!");
               return;
           }
-
           const existingUser = users[foundUserIndex];
-
           users[foundUserIndex] = { ...existingUser, name: regName.trim() };
           saveDataToServer('tea_hub_users_v1', users);
-
-          const initialProfile = {
-              avatar: '',
-              tg: regTg.trim(),
-              phone: regPhone.trim(),
-              email: email.trim(),
-              firstLogin: new Date().toISOString()
-          };
-          saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
-
+          
           const hasConsent = localStorage.getItem('cookieConsent') === 'true';
-
           if (hasConsent) {
               localStorage.setItem('isLoggedIn', 'true');
               localStorage.setItem('userRole', existingUser.role);
               localStorage.setItem('current_user_id', existingUser.id);
               localStorage.setItem('current_user_name', regName.trim());
-
               setAppCookie('isLoggedIn', 'true', 7);
-              setAppCookie('userRole', existingUser.role, 7);
-              setAppCookie('current_user_id', existingUser.id, 7);
-              setAppCookie('current_user_name', regName.trim(), 7);
           } else {
               sessionStorage.setItem('isLoggedIn', 'true');
               sessionStorage.setItem('userRole', existingUser.role);
               sessionStorage.setItem('current_user_id', existingUser.id);
               sessionStorage.setItem('current_user_name', regName.trim());
-
               setAppCookie('isLoggedIn', 'true', null);
-              setAppCookie('userRole', existingUser.role, null);
-              setAppCookie('current_user_id', existingUser.id, null);
-              setAppCookie('current_user_name', regName.trim(), null);
           }
 
-          setFailedAttempts(0); 
-          setIsCaptchaVerified(false);
-          
           setIsLoggedIn(true);
           setUserRole(existingUser.role);
           setShowLoginModal(false);
-          
           if (existingUser.role === 'admin') router.push('/admin');
           else router.push('/tasks?tab=welcome');
-
       } catch (error) {
-          console.error("Ошибка при регистрации:", error);
           setErrorMessage("Не удалось подключиться к базе данных для регистрации.");
       }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('current_user_id');
-    localStorage.removeItem('current_user_name');
-
-    sessionStorage.removeItem('isLoggedIn');
-    sessionStorage.removeItem('userRole');
-    sessionStorage.removeItem('current_user_id');
-    sessionStorage.removeItem('current_user_name');
-
+    localStorage.clear();
+    sessionStorage.clear();
     deleteAppCookie('isLoggedIn');
     deleteAppCookie('userRole');
     deleteAppCookie('current_user_id');
     deleteAppCookie('current_user_name');
-    
     setIsLoggedIn(false);
     router.push('/');
   };
@@ -329,7 +262,7 @@ export default function Navigation() {
     }
   };
 
-  // --- ИСПРАВЛЕННАЯ ЛОГИКА ПОИСКА С ПЕРЕДАЧЕЙ ПАРАМЕТРОВ (Deep Links) ---
+  // --- ИСПРАВЛЕННАЯ ЛОГИКА ПОИСКА (ГЕНЕРИРУЕМ ТОЧНЫЕ DEEP LINKS) ---
   const handleSearch = (val: string) => {
     setSearchQuery(val);
     if (!val.trim()) {
@@ -341,7 +274,7 @@ export default function Navigation() {
     const q = val.toLowerCase();
     const results: any[] = [];
 
-    // 1. Поиск по Теории
+    // 1. Поиск по Теории (добавлен точный параметр routeId)
     searchDbRoutes.forEach((route: any) => {
       const rText = [route.title, route.h1, route.t1, route.h2, route.t2, route.h3, route.t3].filter(Boolean).join(" ").toLowerCase();
       if (rText.includes(q)) {
@@ -349,7 +282,7 @@ export default function Navigation() {
       }
     });
 
-    // 2. Поиск по Тестам
+    // 2. Поиск по Тестам (добавлен точный параметр testId)
     searchDbTests.forEach((test: any) => {
       const tText = [test.title, test.subtitle, test.theory, ...(test.quiz ? test.quiz.map((qz:any) => qz.q) : [])].filter(Boolean).join(" ").toLowerCase();
       if (tText.includes(q)) {
@@ -357,16 +290,14 @@ export default function Navigation() {
       }
     });
 
-    // 3. Рекурсивный поиск по Ассортименту
+    // 3. Поиск по Ассортименту (добавлен точный параметр assortmentId)
     const searchAssortment = (nodes: any[]) => {
         nodes.forEach(node => {
             const aText = [node.title, node.desc, node.content].filter(Boolean).join(" ").toLowerCase();
             if (aText.includes(q)) {
                 results.push({ id: `a_${node.id}`, title: node.title, subtitle: `Ассортимент`, link: `/tasks?tab=assortment&assortmentId=${node.id}` });
             }
-            if (node.children) {
-                searchAssortment(node.children);
-            }
+            if (node.children) searchAssortment(node.children);
         });
     };
     searchAssortment(searchDbAssortment);
@@ -378,10 +309,7 @@ export default function Navigation() {
   const handleResultClick = (link: string) => {
     setIsSearchOpen(false);
     setSearchQuery('');
-    
-    if (window.innerWidth <= 768) {
-        setIsSidebarOpen(false);
-    }
+    if (window.innerWidth <= 768) setIsSidebarOpen(false);
     router.push(link);
   };
 
@@ -408,7 +336,6 @@ export default function Navigation() {
                 <span style={logoText}>Меню</span>
                 <div onClick={() => setIsSidebarOpen(false)} className="mobile-close-btn" style={{ marginLeft: 'auto', fontSize: '24px', cursor: 'pointer', color: '#ff4d4d' }}>✕</div>
              </div>
-             
              <nav style={sideNav}>
                 {sideItems.map(item => {
                     const isActive = (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === item.id;
@@ -424,7 +351,6 @@ export default function Navigation() {
           <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '0', transition: '0.3s ease' }} className="nav-topbar">
              <div style={searchBox} className="search-box-container">
                 {!isSidebarOpen && <div onClick={() => setIsSidebarOpen(true)} className="desktop-hamburger" style={{ cursor: 'pointer', fontSize: '20px', marginRight: '10px' }}>☰</div>}
-                
                 <div onClick={() => setIsSidebarOpen(true)} className="mobile-hamburger" style={{ cursor: 'pointer', fontSize: '24px' }}>☰</div>
                 
                 <span style={{opacity: 0.5}}>🔍</span>
@@ -635,9 +561,6 @@ export default function Navigation() {
             border-radius: 10px;
         }
 
-        /* =================================================================
-           АНИМАЦИИ НАВЕДЕНИЯ И КЛИКА ДЛЯ БОКОВОГО МЕНЮ (NAVIGATION)
-        ================================================================= */
         .nav-item {
             display: flex;
             align-items: center;
@@ -652,29 +575,20 @@ export default function Navigation() {
             transition: all 0.2s ease;
             cursor: pointer;
         }
-
-        /* Активный пункт меню */
         .nav-item.active {
             color: #fff;
             background: #111;
         }
-
-        /* Эффект наведения (сдвиг вправо + легкая подсветка) */
         .nav-item:hover {
             color: #0abab5;
             background: rgba(10, 186, 181, 0.05);
             transform: translateX(6px);
         }
-
-        /* Эффект нажатия (вдавливание) */
         .nav-item:active {
             transform: scale(0.96) translateX(0);
             background: rgba(10, 186, 181, 0.15);
         }
 
-        /* =================================================================
-           АНИМАЦИИ ДЛЯ ВЫПАДАЮЩЕГО МЕНЮ ПРОФИЛЯ
-        ================================================================= */
         .drop-item {
             display: block;
             padding: 20px;
@@ -686,14 +600,12 @@ export default function Navigation() {
             transition: 0.2s ease;
             cursor: pointer;
         }
-
         .drop-item:hover {
             background: #1a1a1a;
             color: #0abab5;
-            padding-left: 28px; /* Сдвигаем текст */
+            padding-left: 28px;
         }
 
-        /* Кнопка "Выйти" - красная при наведении */
         .logout-item:hover {
             color: #ff4d4d !important;
             background: rgba(255, 77, 77, 0.1) !important;
@@ -708,14 +620,11 @@ export default function Navigation() {
             transform: scale(1.1);
         }
 
-        /* КЛАССЫ СКРЫТЫЕ НА ДЕСКТОПЕ ПО УМОЛЧАНИЮ */
         .sidebar-mobile-overlay { display: none; }
         .mobile-hamburger { display: none; }
         .mobile-close-btn { display: none; }
 
-        /* --- ПРАВИЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ТЕЛЕФОНОВ (до 768px) --- */
         @media (max-width: 768px) {
-            /* Шапка и Навигация */
             .nav-topbar {
                 left: 0 !important;
                 padding: 0 15px !important;
@@ -740,7 +649,6 @@ export default function Navigation() {
             }
             .mobile-close-btn { display: block !important; }
 
-            /* Строка поиска */
             .search-box-container {
                 width: auto !important;
                 flex: 1;
@@ -748,19 +656,16 @@ export default function Navigation() {
                 margin-right: 15px;
             }
 
-            /* Кнопка "Вход" для неавторизованных */
             .guest-header {
                 right: 15px !important;
                 top: 15px !important;
             }
 
-            /* Всплывающие модальные окна */
             .modal-content-custom {
                 padding: 30px 20px !important;
                 width: 95% !important;
             }
 
-            /* Панель уведомлений */
             .notif-sidebar-custom {
                 width: 100% !important;
                 border-left: none !important;
@@ -812,7 +717,6 @@ const modalContent: any = {
     className: 'custom-scroll' 
 };
 
-// --- СТИЛИ ДЛЯ ИМИТАЦИИ TeaGuard ---
 const teaGuardContainerStyle = {
     background: '#161816',
     border: '1px solid #333',
@@ -850,7 +754,7 @@ const inputS: any = {
     border: '1px solid #222', 
     color: '#fff', 
     outline: 'none', 
-    fontSize: '14px', 
+    fontSize: '16px', 
     textAlign: 'center', 
     boxSizing: 'border-box' 
 };
