@@ -681,9 +681,26 @@ const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)'
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 
-function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
-    const [isOpen, setIsOpen] = useState(false);
+// --- ИЗМЕНЕНИЕ 2: Компонент AssortmentNode теперь понимает цель поиска ---
+function AssortmentNode({ node, depth = 0, targetId }: { node: any, depth?: number, targetId?: string | null }) {
+    // Функция для рекурсивного поиска: есть ли нужный элемент внутри этой папки?
+    const hasTargetInChildren = (n: any, t: string): boolean => {
+        if (n.id === t) return true;
+        if (n.children) return n.children.some((c: any) => hasTargetInChildren(c, t));
+        return false;
+    };
+
+    const shouldBeOpen = targetId ? hasTargetInChildren(node, targetId) : false;
+    const [isOpen, setIsOpen] = useState(shouldBeOpen);
+    const isTarget = targetId === node.id;
     const hasChildren = node.children && node.children.length > 0;
+
+    // Раскрываем папку автоматически, если поиск ищет что-то внутри
+    useEffect(() => {
+        if (targetId && hasTargetInChildren(node, targetId)) {
+            setIsOpen(true);
+        }
+    }, [targetId, node]);
 
     return (
         <div style={{ 
@@ -704,7 +721,9 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
                     color: '#fff', 
                     borderRadius: '10px', 
                     cursor: 'pointer', 
-                    border: '1px solid #222',
+                    // ИЗМЕНЕНИЕ 3: Яркая подсветка найденного элемента
+                    border: isTarget ? '1px solid #0abab5' : '1px solid #222',
+                    boxShadow: isTarget ? '0 0 15px rgba(10,186,181,0.2)' : 'none',
                     transition: 'all 0.15s ease'
                 }}
             >
@@ -735,7 +754,7 @@ function AssortmentNode({ node, depth = 0 }: { node: any, depth?: number }) {
                     )}
 
                     {hasChildren && node.children.map((child: any) => (
-                        <AssortmentNode key={child.id} node={child} depth={depth + 1} />
+                        <AssortmentNode key={child.id} node={child} depth={depth + 1} targetId={targetId} />
                     ))}
                     
                     {!hasChildren && node.content && (
@@ -792,7 +811,6 @@ function ShiftContent() {
   const [testAnswers, setTestAnswers] = useState<number[]>([]);
   const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
 
-  // Стейт для кастомного алерта при клике на заблокированный тест
   const [lockedTestAlert, setLockedTestAlert] = useState({show: false, message: ''});
 
   const [testResultModal, setTestResultModal] = useState<{
@@ -984,6 +1002,50 @@ function ShiftContent() {
         window.removeEventListener('focus', focusHandler);
     };
   }, [searchParams]);
+
+  // --- ИЗМЕНЕНИЕ 1: Ловец Deep Links (Автооткрытие модалок при поиске) ---
+  const lastHandledParams = React.useRef("");
+  useEffect(() => {
+      if (!isMounted) return;
+      const currentParams = searchParams.toString();
+      
+      // Запускаем только если параметры в URL изменились
+      if (lastHandledParams.current === currentParams) return; 
+      // Ждем пока базы загрузятся с сервера
+      if (dynamicRoute.length === 0 && dynamicTests.length === 0) return; 
+
+      let handled = false;
+      
+      // Авто-открытие Теории
+      const rId = searchParams.get('routeId');
+      if (rId && dynamicRoute.length > 0) {
+          const step = dynamicRoute.find(r => r.id === rId);
+          if (step) {
+              setSelectedRouteStep(step);
+              handled = true;
+          }
+      }
+
+      // Авто-открытие Теста
+      const tId = searchParams.get('testId');
+      if (tId && dynamicTests.length > 0) {
+          const testIdx = dynamicTests.findIndex(t => t.id === tId);
+          if (testIdx !== -1) {
+              // Проверяем блокировку перед автооткрытием
+              const isUnlocked = testIdx === 0 || completedTests.includes(dynamicTests[testIdx - 1].id);
+              if (isUnlocked) {
+                  setSelectedTest(dynamicTests[testIdx]);
+              } else {
+                  setLockedTestAlert({show: true, message: `Для разблокировки этого этапа сначала необходимо успешно сдать Тест ${testIdx}`});
+              }
+              handled = true;
+          }
+      }
+      
+      if (handled) {
+          lastHandledParams.current = currentParams;
+      }
+  }, [searchParams, dynamicRoute, dynamicTests, completedTests, isMounted]);
 
   const handleDismissTask = (id: string) => {
       const newDismissed = [...dismissedTasks, id];
@@ -1313,6 +1375,8 @@ function ShiftContent() {
   const pathArea = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY} L ${endX} ${startY} Z`;
   const pathLine = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY}`;
 
+  const assortmentId = searchParams.get('assortmentId');
+
   return (
     <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
       <Navigation />
@@ -1575,7 +1639,7 @@ function ShiftContent() {
                 
                 <div style={{ marginTop: '10px' }}>
                     {assortmentMatrix.map((rootNode: any) => (
-                        <AssortmentNode key={rootNode.id} node={rootNode} depth={0} />
+                        <AssortmentNode key={rootNode.id} node={rootNode} depth={0} targetId={assortmentId} />
                     ))}
                 </div>
             </section>

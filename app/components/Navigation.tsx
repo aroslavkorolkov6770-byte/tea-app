@@ -28,22 +28,6 @@ const saveDataToServer = (key: string, data: any) => {
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
-// --- РЕЗЕРВНЫЕ БАЗЫ ДЛЯ ПОИСКА (ЕСЛИ СЕРВЕР ПУСТОЙ) ---
-const FALLBACK_ROUTE = [
-  { id: "route_1", title: "О компании и бренде", content: "Мы — Tea Master Store. Наша цель: сделать чайную культуру доступной." },
-  { id: "route_2", title: "Работа с кассой", content: "Открытие смены в 09:50. Работа в системе учета." },
-  { id: "route_3", title: "Как рассказывать о чае", content: "Не грузи гостя терминами. Спрашивай о чувствах." },
-  { id: "route_4", title: "Стандарты сервиса", content: "Подача пиалы двумя руками. Улыбка — это база." },
-  { id: "route_5", title: "Чистота и посуда", content: "Гайвани — до блеска. Чабань всегда должна быть сухой." }
-];
-
-const FALLBACK_BASICS = [
-  { id: "sec_1", title: "01. История и Бренд", modules: [ { id: "m1_1", title: "Философия Tea Master", t1: "Мастер — это лицо бренда.", t2: "Важно понимать психологию гостя.", t3: "Эстетика в деталях." } ] },
-  { id: "sec_2", title: "02. Ботаника чая", modules: [ { id: "m2_1", title: "Camellia Sinensis", t1: "Это вечнозеленый куст.", t2: "Существует два основных подвида.", t3: "Китайская и ассамская разновидности." } ] },
-  { id: "sec_3", title: "03. Зеленый чай", modules: [ { id: "m3_1", title: "Лунцзин", t1: "История сорта.", t2: "Технология плоской прожарки." } ] },
-  { id: "sec_5", title: "05. Улуны", modules: [ { id: "m5_1", title: "Те Гуань Инь", t1: "Железная Бодхисаттва Милосердия.", t2: "Светлый улун." }, { id: "m5_4", title: "Габа чаи", t1: "Ферментация в азотной среде.", t2: "Повышенное содержание ГАМК." } ] }
-];
-
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
@@ -68,9 +52,10 @@ export default function Navigation() {
   const [regTg, setRegTg] = useState("");
   const [regPhone, setRegPhone] = useState("");
 
-  const [searchDbProducts, setSearchDbProducts] = useState<any[]>([]);
-  const [searchDbBasics, setSearchDbBasics] = useState<any[]>(FALLBACK_BASICS);
-  const [searchDbRoutes, setSearchDbRoutes] = useState<any[]>(FALLBACK_ROUTE);
+  // --- ИСПРАВЛЕННЫЕ СОСТОЯНИЯ ДЛЯ ПОИСКА ПО АКТУАЛЬНЫМ БАЗАМ ---
+  const [searchDbRoutes, setSearchDbRoutes] = useState<any[]>([]);
+  const [searchDbTests, setSearchDbTests] = useState<any[]>([]);
+  const [searchDbAssortment, setSearchDbAssortment] = useState<any[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -111,7 +96,6 @@ export default function Navigation() {
 
     const loadServerData = async () => {
         try {
-            // ЧЕСТНЫЙ ПОИСК ID: ищем и в Local, и в Session
             const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
             
             const notifsRes = await fetch('/api/storage?key=tea_hub_notifications_v1').then(r => r.json()).catch(() => []);
@@ -120,14 +104,15 @@ export default function Navigation() {
                 setNotifications(myNotifs);
             }
 
-            const pRes = await fetch('/api/storage?key=tea_master_unified_v1').then(r => r.json()).catch(() => []);
-            if (Array.isArray(pRes)) setSearchDbProducts(pRes);
-
-            const bRes = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1').then(r => r.json()).catch(() => []);
-            if (Array.isArray(bRes) && bRes.length > 0) setSearchDbBasics(bRes);
-
-            const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v1').then(r => r.json()).catch(() => []);
+            // --- ИСПРАВЛЕННЫЙ ФЕТЧИНГ: ТОЛЬКО АКТУАЛЬНЫЕ БАЗЫ ПЛАТФОРМЫ ---
+            const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v2').then(r => r.json()).catch(() => []);
             if (Array.isArray(rRes) && rRes.length > 0) setSearchDbRoutes(rRes);
+
+            const tRes = await fetch('/api/storage?key=tea_hub_dynamic_tests_v1').then(r => r.json()).catch(() => []);
+            if (Array.isArray(tRes) && tRes.length > 0) setSearchDbTests(tRes);
+
+            const aRes = await fetch('/api/storage?key=tea_hub_assortment_matrix_v2').then(r => r.json()).catch(() => []);
+            if (Array.isArray(aRes) && aRes.length > 0) setSearchDbAssortment(aRes);
 
         } catch (e) {
             console.error("Ошибка синхронизации Navigation:", e);
@@ -160,7 +145,6 @@ export default function Navigation() {
         const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
 
         if (foundUser) {
-          // --- ЧЕСТНОЕ СОХРАНЕНИЕ С УЧЕТОМ COOKIE БАННЕРА ---
           const hasConsent = localStorage.getItem('cookieConsent') === 'true';
 
           if (hasConsent) {
@@ -246,7 +230,6 @@ export default function Navigation() {
           };
           saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
 
-          // --- ЧЕСТНОЕ СОХРАНЕНИЕ С УЧЕТОМ COOKIE БАННЕРА ---
           const hasConsent = localStorage.getItem('cookieConsent') === 'true';
 
           if (hasConsent) {
@@ -288,7 +271,6 @@ export default function Navigation() {
   };
 
   const handleLogout = () => {
-    // ВЫЧИЩАЕМ ВСЁ, НЕЗАВИСИМО ОТ ТОГО, ГДЕ ОНО БЫЛО
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userRole');
     localStorage.removeItem('current_user_id');
@@ -326,7 +308,6 @@ export default function Navigation() {
     }
   };
 
-  // --- НОВАЯ ФУНКЦИЯ ДЛЯ ОЧИСТКИ ВСЕХ УВЕДОМЛЕНИЙ ---
   const clearAllNotifications = async () => {
     try {
         const res = await fetch('/api/storage?key=tea_hub_notifications_v1');
@@ -335,15 +316,12 @@ export default function Navigation() {
         if (Array.isArray(allNotifs)) {
             const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
             
-            // Фильтруем базу: оставляем только те уведомления, которые НЕ предназначены нам
             const updated = allNotifs.filter((n: any) => {
                 const isMyNotif = n.target === 'Все' || n.target === currentUserId || !n.target;
-                return !isMyNotif; // Если это мое уведомление - удаляем его из базы
+                return !isMyNotif; 
             });
             
             saveDataToServer('tea_hub_notifications_v1', updated);
-            
-            // Сразу очищаем список на экране, не дожидаясь авто-синхронизации
             setNotifications([]);
         }
     } catch (e) {
@@ -351,6 +329,7 @@ export default function Navigation() {
     }
   };
 
+  // --- ИСПРАВЛЕННАЯ ЛОГИКА ПОИСКА С ПЕРЕДАЧЕЙ ПАРАМЕТРОВ (Deep Links) ---
   const handleSearch = (val: string) => {
     setSearchQuery(val);
     if (!val.trim()) {
@@ -362,39 +341,35 @@ export default function Navigation() {
     const q = val.toLowerCase();
     const results: any[] = [];
 
-    searchDbProducts.forEach((p: any) => {
-      const allText = [
-        p.name, p.type, p.category, p.strength,
-        p.summary, p.desc, p.info, p.region,
-        p.brewGuide, p.advice, p.analogsDiff,
-        ...(p.quiz ? p.quiz.map((qItem: any) => qItem.q + " " + qItem.o.join(" ")) : [])
-      ].filter(Boolean).join(" ").toLowerCase();
-
-      if (allText.includes(q)) {
-        results.push({ id: `p_${p.id}`, title: p.name, subtitle: `Каталог • ${p.type} (${p.category})`, link: `/search?productId=${p.id}` });
-      }
-    });
-
-    searchDbBasics.forEach((sec: any) => {
-      const secText = [sec.title, sec.desc].filter(Boolean).join(" ").toLowerCase();
-      if (secText.includes(q)) {
-        results.push({ id: `e_${sec.id}`, title: sec.title, subtitle: `Обучение • Раздел`, link: `/tasks?tab=edu&sectionId=${sec.id}` });
-      }
-      
-      sec.modules?.forEach((m: any) => {
-        const mText = JSON.stringify(m).toLowerCase();
-        if (mText.includes(q)) {
-          results.push({ id: `m_${m.id}`, title: m.title, subtitle: `Обучение • Урок`, link: `/tasks?tab=edu&sectionId=${sec.id}&moduleId=${m.id}` });
-        }
-      });
-    });
-
+    // 1. Поиск по Теории
     searchDbRoutes.forEach((route: any) => {
-      const rText = [route.title, route.content].filter(Boolean).join(" ").toLowerCase();
+      const rText = [route.title, route.h1, route.t1, route.h2, route.t2, route.h3, route.t3].filter(Boolean).join(" ").toLowerCase();
       if (rText.includes(q)) {
-        results.push({ id: `r_${route.id}`, title: route.title, subtitle: `План обучения`, link: `/tasks?tab=edu&routeId=${route.id}` });
+        results.push({ id: `r_${route.id}`, title: route.title, subtitle: `Теория`, link: `/tasks?tab=edu&routeId=${route.id}` });
       }
     });
+
+    // 2. Поиск по Тестам
+    searchDbTests.forEach((test: any) => {
+      const tText = [test.title, test.subtitle, test.theory, ...(test.quiz ? test.quiz.map((qz:any) => qz.q) : [])].filter(Boolean).join(" ").toLowerCase();
+      if (tText.includes(q)) {
+        results.push({ id: `t_${test.id}`, title: test.title, subtitle: `Тестирование`, link: `/tasks?tab=edu&testId=${test.id}` });
+      }
+    });
+
+    // 3. Рекурсивный поиск по Ассортименту
+    const searchAssortment = (nodes: any[]) => {
+        nodes.forEach(node => {
+            const aText = [node.title, node.desc, node.content].filter(Boolean).join(" ").toLowerCase();
+            if (aText.includes(q)) {
+                results.push({ id: `a_${node.id}`, title: node.title, subtitle: `Ассортимент`, link: `/tasks?tab=assortment&assortmentId=${node.id}` });
+            }
+            if (node.children) {
+                searchAssortment(node.children);
+            }
+        });
+    };
+    searchAssortment(searchDbAssortment);
 
     setSearchResults(results.slice(0, 6)); 
     setIsSearchOpen(true);
@@ -648,7 +623,6 @@ export default function Navigation() {
             margin: 0;
             padding: 0;
             overflow-x: hidden !important;
-            width: 100vw;
         }
         * {
             box-sizing: border-box;
@@ -766,13 +740,12 @@ export default function Navigation() {
             }
             .mobile-close-btn { display: block !important; }
 
-            /* Строка поиска - ФИКС ДЛЯ МОБИЛОК (Адаптивность) */
+            /* Строка поиска */
             .search-box-container {
                 width: auto !important;
-                flex: 1 !important;
-                padding: 8px 12px !important;
-                margin-right: 10px !important;
-                max-width: none !important;
+                flex: 1;
+                padding: 10px 15px !important;
+                margin-right: 15px;
             }
 
             /* Кнопка "Вход" для неавторизованных */
@@ -783,9 +756,8 @@ export default function Navigation() {
 
             /* Всплывающие модальные окна */
             .modal-content-custom {
-                padding: 25px 15px !important;
+                padding: 30px 20px !important;
                 width: 95% !important;
-                max-width: 95% !important;
             }
 
             /* Панель уведомлений */
