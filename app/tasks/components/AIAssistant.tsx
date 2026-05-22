@@ -166,29 +166,21 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 ...historyMessages
             ];
 
-            // Выполняем запрос к ИИ
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // Если используете YandexGPT, замените 'Bearer' на 'Api-Key' 
-                    'Authorization': 'Api-Key ' + API_KEY
-                },
-                body: JSON.stringify({
-                    model: "Allice AI LLM Flash", // Укажите правильное имя вашей модели
-                    messages: apiMessages,
-                    temperature: 0.3 // Делает ответы более точными и строгими
-                })
-            });
+            // Запрос к нашему собственному API роуту
+const response = await fetch('/api/ai-chat', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        messages: apiMessages // Отправляем историю на наш сервер
+    })
+});
 
-            if (!response.ok) {
-                throw new Error(`Ошибка API: ${response.status}`);
-            }
-
-            const data = await response.json();
-            
-            // Извлекаем текст ответа (стандарт для большинства API)
-            const aiText = data.choices && data.choices[0] ? data.choices[0].message.content : "Получен пустой ответ от ИИ.";
+const data = await response.json();
+// Обрати внимание: формат ответа Яндекса может отличаться от OpenAI, 
+// проверь через console.log(data), где именно лежит текст ответа.
+const aiText = data.result?.alternatives[0]?.message?.text || "Ошибка ответа ИИ";
 
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
