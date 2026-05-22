@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
@@ -681,7 +681,7 @@ const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)'
 const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
 
-// --- ИЗМЕНЕНИЕ 2: Компонент AssortmentNode теперь понимает цель поиска ---
+// --- ИЗМЕНЕННЫЙ КОМПОНЕНТ РЕКУРСИВНОГО АССОРТИМЕНТА (с targetId) ---
 function AssortmentNode({ node, depth = 0, targetId }: { node: any, depth?: number, targetId?: string | null }) {
     // Функция для рекурсивного поиска: есть ли нужный элемент внутри этой папки?
     const hasTargetInChildren = (n: any, t: string): boolean => {
@@ -721,7 +721,7 @@ function AssortmentNode({ node, depth = 0, targetId }: { node: any, depth?: numb
                     color: '#fff', 
                     borderRadius: '10px', 
                     cursor: 'pointer', 
-                    // ИЗМЕНЕНИЕ 3: Яркая подсветка найденного элемента
+                    // ИЗМЕНЕНИЕ: Яркая подсветка найденного элемента
                     border: isTarget ? '1px solid #0abab5' : '1px solid #222',
                     boxShadow: isTarget ? '0 0 15px rgba(10,186,181,0.2)' : 'none',
                     transition: 'all 0.15s ease'
@@ -769,7 +769,10 @@ function AssortmentNode({ node, depth = 0, targetId }: { node: any, depth?: numb
 }
 
 function ShiftContent() {
+  // Добавлен useRouter для очистки URL
   const searchParams = useSearchParams();
+  const router = useRouter(); 
+  
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('welcome');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -1003,7 +1006,7 @@ function ShiftContent() {
     };
   }, [searchParams]);
 
-  // --- ИЗМЕНЕНИЕ 1: Ловец Deep Links (Автооткрытие модалок при поиске) ---
+  // --- ИЗМЕНЕНИЕ: Ловец Deep Links (Автооткрытие модалок и очистка URL) ---
   const lastHandledParams = React.useRef("");
   useEffect(() => {
       if (!isMounted) return;
@@ -1012,7 +1015,7 @@ function ShiftContent() {
       // Запускаем только если параметры в URL изменились
       if (lastHandledParams.current === currentParams) return; 
       // Ждем пока базы загрузятся с сервера
-      if (dynamicRoute.length === 0 && dynamicTests.length === 0) return; 
+      if (dynamicRoute.length === 0 && dynamicTests.length === 0 && assortmentMatrix.length === 0) return; 
 
       let handled = false;
       
@@ -1041,11 +1044,32 @@ function ShiftContent() {
               handled = true;
           }
       }
+
+      // Ассортимент обрабатывается внутри компонента AssortmentNode
+      const aId = searchParams.get('assortmentId');
+      if (aId && assortmentMatrix.length > 0) {
+          handled = true;
+      }
       
       if (handled) {
           lastHandledParams.current = currentParams;
       }
-  }, [searchParams, dynamicRoute, dynamicTests, completedTests, isMounted]);
+  }, [searchParams, dynamicRoute, dynamicTests, assortmentMatrix, completedTests, isMounted]);
+
+  // --- ФУНКЦИИ ОЧИСТКИ URL ПРИ ЗАКРЫТИИ ---
+  const closeRouteModal = () => {
+      setSelectedRouteStep(null);
+      if (searchParams.has('routeId')) {
+          router.replace('/tasks?tab=edu'); // Очищаем адресную строку
+      }
+  };
+
+  const closeTestModal = () => {
+      setSelectedTest(null);
+      if (searchParams.has('testId')) {
+          router.replace('/tasks?tab=edu'); // Очищаем адресную строку
+      }
+  };
 
   const handleDismissTask = (id: string) => {
       const newDismissed = [...dismissedTasks, id];
@@ -1171,7 +1195,7 @@ function ShiftContent() {
         localStorage.setItem(`th_prog_route_${userId}`, JSON.stringify(newProg));
         saveDataToServer(`prog_route_${userId}`, newProg);
     }
-    setSelectedRouteStep(null);
+    closeRouteModal(); // Закрываем и чистим URL
   };
 
   const handleTestAnswer = (idx: number) => {
@@ -1647,7 +1671,7 @@ function ShiftContent() {
 
         {/* --- ПРЕВЬЮ ЭКРАН ТЕСТА --- */}
         {selectedTest && !activeTestSession && !showTestForm && (
-           <div style={modalOverlay as any} onClick={() => setSelectedTest(null)}>
+           <div style={modalOverlay as any} onClick={closeTestModal}>
               <div className="tasks-modal" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'25px'}}>
                     <div>
@@ -1655,7 +1679,7 @@ function ShiftContent() {
                         <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', marginTop:'5px', marginBottom:'15px'}}>{selectedTest.title}</h2>
                         <p style={{fontSize:'14px', color:'#0abab5', fontWeight:'bold', margin:0, lineHeight:'1.4'}}>{selectedTest.subtitle}</p>
                     </div>
-                    <div onClick={() => setSelectedTest(null)} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold', paddingLeft:'15px'}}>✕</div>
+                    <div onClick={closeTestModal} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold', paddingLeft:'15px'}}>✕</div>
                  </div>
                  
                  <div style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '30px'}}>
@@ -1681,6 +1705,7 @@ function ShiftContent() {
                     <div onClick={() => {
                         if (confirm("Вы уверены, что хотите прервать тест? Прогресс будет потерян.")) {
                             setActiveTestSession(null); setCurrentQuizStep(0); setActiveAnswer(null); setTestAnswers([]);
+                            closeTestModal(); // Очищаем URL при прерывании
                         }
                     }} style={{...backLink, margin:0, color: '#ff4d4d'} as any}>← ПРЕРВАТЬ</div>
                     <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(activeTestSession.title)}</h2>
@@ -1751,7 +1776,7 @@ function ShiftContent() {
                         </div>
                     )}
                     
-                    <button onClick={() => setTestResultModal({show: false, score: 0, isPassed: false, title: '', mistakes: []})} style={{...errorBtnStyle, background: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', color: testResultModal.isPassed ? '#000' : '#fff', marginTop: 0} as any}>
+                    <button onClick={() => { setTestResultModal({show: false, score: 0, isPassed: false, title: '', mistakes: []}); closeTestModal(); }} style={{...errorBtnStyle, background: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', color: testResultModal.isPassed ? '#000' : '#fff', marginTop: 0} as any}>
                         {testResultModal.isPassed ? 'ОТЛИЧНО' : 'ПОНЯТНО'}
                     </button>
                 </div>
@@ -1896,7 +1921,7 @@ function ShiftContent() {
            <div style={modalOverlay as any}>
               <div className="tasks-modal" style={modalContent as any}>
                  <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
-                    <div onClick={() => setSelectedRouteStep(null)} style={{...backLink, margin:0} as any}>← НАЗАД</div>
+                    <div onClick={closeRouteModal} style={{...backLink, margin:0} as any}>← НАЗАД</div>
                     <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(selectedRouteStep.title)}</h2>
                     <div className="desktop-spacer" style={{width:'80px'}} />
                  </div>

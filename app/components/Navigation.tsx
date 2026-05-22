@@ -10,6 +10,7 @@ const setAppCookie = (name: string, value: string, days: number | null = 7) => {
         date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
         document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
     } else {
+        // Если days = null, создается сессионная cookie (уничтожается при закрытии вкладки)
         document.cookie = `${name}=${encodeURIComponent(value)};path=/`;
     }
 };
@@ -262,7 +263,6 @@ export default function Navigation() {
     }
   };
 
-  // --- ИСПРАВЛЕННАЯ ЛОГИКА ПОИСКА (ГЕНЕРИРУЕМ ТОЧНЫЕ DEEP LINKS) ---
   const handleSearch = (val: string) => {
     setSearchQuery(val);
     if (!val.trim()) {
@@ -274,7 +274,6 @@ export default function Navigation() {
     const q = val.toLowerCase();
     const results: any[] = [];
 
-    // 1. Поиск по Теории (добавлен точный параметр routeId)
     searchDbRoutes.forEach((route: any) => {
       const rText = [route.title, route.h1, route.t1, route.h2, route.t2, route.h3, route.t3].filter(Boolean).join(" ").toLowerCase();
       if (rText.includes(q)) {
@@ -282,7 +281,6 @@ export default function Navigation() {
       }
     });
 
-    // 2. Поиск по Тестам (добавлен точный параметр testId)
     searchDbTests.forEach((test: any) => {
       const tText = [test.title, test.subtitle, test.theory, ...(test.quiz ? test.quiz.map((qz:any) => qz.q) : [])].filter(Boolean).join(" ").toLowerCase();
       if (tText.includes(q)) {
@@ -290,7 +288,6 @@ export default function Navigation() {
       }
     });
 
-    // 3. Поиск по Ассортименту (добавлен точный параметр assortmentId)
     const searchAssortment = (nodes: any[]) => {
         nodes.forEach(node => {
             const aText = [node.title, node.desc, node.content].filter(Boolean).join(" ").toLowerCase();
@@ -340,7 +337,12 @@ export default function Navigation() {
                 {sideItems.map(item => {
                     const isActive = (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === item.id;
                     return (
-                        <Link key={item.id} href={item.id} className={`nav-item ${isActive ? 'active' : ''}`}>
+                        <Link 
+                            key={item.id} 
+                            href={item.id} 
+                            className={`nav-item ${isActive ? 'active' : ''}`}
+                            onClick={() => { if (typeof window !== 'undefined' && window.innerWidth <= 768) setIsSidebarOpen(false); }}
+                        >
                             <span>{item.label}</span>
                         </Link>
                     );
@@ -688,7 +690,7 @@ const sideNav: any = { display: 'flex', flexDirection: 'column', gap: '8px', fle
 
 const topBarStyle: any = { position: 'fixed', top: 0, right: 0, height: '90px', background: 'rgba(13, 15, 13, 0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 50px', zIndex: 1000, boxSizing: 'border-box' };
 const searchBox: any = { position: 'relative', background: '#111', padding: '12px 25px', borderRadius: '18px', display: 'flex', alignItems: 'center', gap: '15px', width: '450px', maxWidth: '40vw', border: '1px solid #222', boxSizing: 'border-box' };
-const searchInput: any = { background: 'none', border: 'none', color: '#fff', outline: 'none', width: '100%', fontSize: '14px', fontWeight: '500' };
+const searchInput: any = { background: 'none', border: 'none', color: '#fff', outline: 'none', width: '100%', fontSize: '16px', fontWeight: '500' };
 const searchDropdownStyle: any = { position: 'absolute', top: '55px', left: 0, width: '100%', background: '#111', border: '1px solid #222', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.8)', zIndex: 10005, display: 'flex', flexDirection: 'column' };
 const searchResultItem: any = { padding: '16px 20px', borderBottom: '1px solid #1a1a1a', cursor: 'pointer', transition: '0.2s' };
 const topActions: any = { display: 'flex', alignItems: 'center', gap: '30px' };
