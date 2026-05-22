@@ -403,7 +403,7 @@ export default function Education({
                     onClick={() => setShowDocsModal(true)} 
                     className="normative-docs-btn"
                 >
-                    📚 Нормативные документы <span className="doc-count-badge">{normativeDocs.length}</span>
+                     Нормативные документы <span className="doc-count-badge">{normativeDocs.length}</span>
                 </button>
             </div>
 
