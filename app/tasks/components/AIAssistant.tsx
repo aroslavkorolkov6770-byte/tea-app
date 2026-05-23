@@ -29,7 +29,8 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
     const quickPrompts = [
         "Как правильно заваривать Те Гуань Инь?",
-        "Что делать, если сломалась кофемашина?"
+        "Что делать, если сломалась кофемашина?",
+        "Сценарий общения, если гость грубит"
     ];
 
     useEffect(() => {
@@ -97,7 +98,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     };
 
     const handleSendMessage = async (text: string) => {
-        console.log("▶️ Функция handleSendMessage запущена! Текст:", text);
+        console.log("▶️ Запуск запроса к ИИ. Текст:", text);
         
         if (!text.trim() || !activeSessionId) return;
 
@@ -127,7 +128,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 text: m.content
             })) : [];
 
-            // Отправляем запрос на НАШ внутренний API (route.ts)
+            // Отправляем запрос на наш API-роут (route.ts)
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -135,17 +136,17 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             });
 
             const data = await response.json();
-            console.log("▶️ Сырой ответ JSON:", data);
+            console.log("▶️ Ответ от Яндекса:", data);
 
             if (!response.ok) {
-                throw new Error(`HTTP Ошибка ${response.status}: ${JSON.stringify(data)}`);
+                throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
             }
             if (data.error) {
-                throw new Error(`Ошибка от Яндекса/Сервера: ${JSON.stringify(data.error)}`);
+                throw new Error(JSON.stringify(data));
             }
 
-            // 👉 ДОСТАЕМ ТЕКСТ ПО-НОВОМУ
-            const aiText = data.output_text || "Нет текста ответа";
+            // 👉 В новом API Яндекса ответ лежит напрямую в поле output_text
+            const aiText = data.output_text || "Пустой ответ от ИИ";
 
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
@@ -160,14 +161,12 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             saveSessions(finalSessions);
 
         } catch (error: any) {
-            console.error("❌ ПОЙМАНА ОШИБКА:", error);
+            console.error("❌ ОШИБКА:", error);
             
-            const errorContent = `🚨 СИСТЕМНАЯ ОШИБКА API:\n\n${error.message}\n\nПожалуйста, скопируй этот текст и покажи мне.`;
-
             const errorMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
                 role: 'ai',
-                content: errorContent,
+                content: `🚨 СИСТЕМНАЯ ОШИБКА:\n\n${error.message}`,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
@@ -194,8 +193,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         <section className="ai-monolithic-section" style={{ animation: 'fadeInUp 0.5s ease' }}>
             
             <div className="ai-monolithic-container">
-                
-                {/* --- БОКОВАЯ ПАНЕЛЬ: ИСТОРИЯ СЕССИЙ --- */}
                 {isMobileHistoryOpen && (
                     <div className="ai-mobile-overlay" onClick={() => setIsMobileHistoryOpen(false)}></div>
                 )}
@@ -236,10 +233,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     </div>
                 </div>
 
-                {/* --- ГЛАВНЫЙ ЭКРАН: ОКНО ЧАТА --- */}
                 <div className="ai-chat-area">
-                    
-                    {/* Мобильная шапка */}
                     <div className="ai-mobile-header">
                         <div style={{ fontWeight: '900', color: '#fff', fontSize: '16px' }}>TeaMaster <span style={{ color: '#0abab5' }}>AI</span></div>
                         <button onClick={() => setIsMobileHistoryOpen(true)} className="ai-history-btn">
@@ -247,9 +241,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         </button>
                     </div>
 
-                    {/* Список сообщений */}
                     <div className="ai-messages custom-scroll" ref={chatContainerRef}>
-                        
                         {activeSession?.messages.length === 0 ? (
                             <div className="ai-empty-state">
                                 <div style={{ fontSize: '50px', marginBottom: '20px' }}>🤖</div>
@@ -276,7 +268,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                                         <div className={`ai-avatar ${msg.role}`}>
                                             {msg.role === 'user' ? '👤' : '🤖'}
                                         </div>
-                                        {/* Если ошибка, подсвечиваем баббл красным */}
                                         <div className={`ai-bubble ${msg.role}`} style={msg.content.includes('🚨 СИСТЕМНАЯ ОШИБКА') ? { border: '1px solid #ff4d4d', background: 'rgba(255,77,77,0.1)' } : {}}>
                                             {msg.content}
                                         </div>
@@ -288,7 +279,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                             ))
                         )}
 
-                        {/* Индикатор печати ИИ */}
                         {isTyping && (
                             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', maxWidth: '85%', marginBottom: '20px' }}>
                                 <div className="ai-avatar ai">🤖</div>
@@ -301,7 +291,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         )}
                     </div>
 
-                    {/* Поле ввода сообщения */}
                     <div className="ai-input-wrapper">
                         <div className="ai-input-box">
                             <textarea
@@ -330,7 +319,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 </div>
             </div>
 
-            {/* --- МОДАЛЬНОЕ ОКНО ОЧИСТКИ ИСТОРИИ --- */}
             {showClearConfirm && (
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', zIndex: 50000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
                     <div style={{ background: '#111', padding: '40px', borderRadius: '30px', border: '1px solid #333', textAlign: 'center', maxWidth: '400px', width: '90%' }}>
