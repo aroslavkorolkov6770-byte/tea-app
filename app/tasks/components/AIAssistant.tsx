@@ -136,28 +136,14 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         setInputValue("");
         setIsTyping(true);
 
-        // ====================================================================
-        // 👉 ИНТЕГРАЦИЯ С НЕЙРОСЕТЬЮ ЧЕРЕЗ API КЛЮЧ
-        // ====================================================================
-        const API_KEY = process.env.NEXT_PUBLIC_AI_API_KEY;
-
-        if (!API_KEY) {
-    console.error("API ключ не найден в переменных окружения!");
-    return;
-}
-        
-        // ВНИМАНИЕ: Замените этот URL на URL вашей нейросети (провайдера)
-        const API_URL = "gpt://b1g1k18evi08k4r17n9h/aliceai-llm-flash/latest"; 
-
         try {
-           // Вытаскиваем историю сообщений текущей сессии для контекста ИИ
+            // 1. Формируем сообщения строго под формат Яндекса (role и text)
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
             const historyMessages = currentSession ? currentSession.messages.map(m => ({
-                role: m.role === 'ai' ? 'assistant' : 'user', // Заменяем 'ai' на 'assistant' для Яндекса
-                text: m.content // Заменяем content на text
+                role: m.role === 'ai' ? 'assistant' : 'user',
+                text: m.content
             })) : [];
 
-            // Формируем финальный массив сообщений (добавляем системный промпт)
             const apiMessages = [
                 { 
                     role: "system", 
@@ -166,21 +152,26 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 ...historyMessages
             ];
 
-            // Запрос к нашему собственному API роуту
-const response = await fetch('/api/ai-chat', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-        messages: apiMessages // Отправляем историю на наш сервер
-    })
-});
+            // 2. Отправляем запрос на НАШ внутренний API (route.ts)
+            const response = await fetch('/api/ai-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: apiMessages })
+            });
 
-const data = await response.json();
-// Обрати внимание: формат ответа Яндекса может отличаться от OpenAI, 
-// проверь через console.log(data), где именно лежит текст ответа.
-const aiText = data.result?.alternatives[0]?.message?.text || "Ошибка ответа ИИ";
+            // 3. Получаем и проверяем ответ
+            const data = await response.json();
+            
+            // 👉 ЭТА СТРОЧКА ПОКАЖЕТ РЕАЛЬНУЮ ОШИБКУ В КОНСОЛИ
+            console.log("Ответ от сервера:", data); 
+
+            // Если Яндекс вернул ошибку, перехватываем её
+            if (data.error) {
+                throw new Error(JSON.stringify(data.error));
+            }
+
+            // Достаем текст из сложной структуры ответа YandexGPT
+            const aiText = data.result?.alternatives[0]?.message?.text || "Получен пустой ответ от ИИ.";
 
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
@@ -195,13 +186,12 @@ const aiText = data.result?.alternatives[0]?.message?.text || "Ошибка от
             saveSessions(finalSessions);
 
         } catch (error) {
-            console.error("Ошибка при запросе к ИИ:", error);
+            console.error("Детальная ошибка при запросе к ИИ:", error);
             
-            // Сообщение об ошибке в интерфейсе
             const errorMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
                 role: 'ai',
-                content: "⚠️ Возникла ошибка при подключении к нейросети. Проверьте правильность URL сервера или доступность API-ключа.",
+                content: "⚠️ Возникла ошибка при подключении к нейросети. Проверьте консоль браузера (F12) для деталей.",
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
@@ -210,7 +200,7 @@ const aiText = data.result?.alternatives[0]?.message?.text || "Ошибка от
             );
             saveSessions(finalSessions);
         } finally {
-            setIsTyping(false); // Отключаем анимацию "печатает..."
+            setIsTyping(false); 
         }
     };
 
