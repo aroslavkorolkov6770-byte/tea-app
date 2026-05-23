@@ -17,7 +17,7 @@ export async function POST(request: Request) {
             },
             body: JSON.stringify({
                 // Указан ПРАВИЛЬНЫЙ Folder ID в пути к модели
-                modelUri: "gpt://b1g1k18evi08k4r17n9h/yandexgpt", 
+                modelUri: "gpt://b1g1k18evi08k4r17n9h/yandexgpt-lite", 
                 completionOptions: {
                     stream: false,
                     temperature: 0.3,
