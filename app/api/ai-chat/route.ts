@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
     const body = await request.json();
-    const { messages } = body; // Получаем историю переписки
+    const { messages } = body; 
 
-    // ВАЖНО: Ключ теперь на сервере, он не попадет в браузер!
     const API_KEY = process.env.NEXT_PUBLIC_AI_API_KEY; 
 
     try {
@@ -13,10 +12,12 @@ export async function POST(request: Request) {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Api-Key ${API_KEY}`,
-                'x-folder-id': 'ajehp9b04amed51v0004' // Обязательно укажи свой Folder ID
+                // Указан ПРАВИЛЬНЫЙ Folder ID, к которому привязан ключ
+                'x-folder-id': 'fvt57g2r89qkgi1p7cb3' 
             },
             body: JSON.stringify({
-                modelUri: "gpt://ajehp9b04amed51v0004/yandexgpt-lite", // Укажи актуальный URI модели
+                // Указан ПРАВИЛЬНЫЙ Folder ID в пути к модели
+                modelUri: "gpt://fvt57g2r89qkgi1p7cb3/yandexgpt-lite", 
                 completionOptions: {
                     stream: false,
                     temperature: 0.3,
