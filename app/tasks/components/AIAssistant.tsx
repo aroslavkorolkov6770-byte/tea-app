@@ -147,7 +147,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 }
         
         // ВНИМАНИЕ: Замените этот URL на URL вашей нейросети (провайдера)
-        const API_URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"; 
+        const API_URL = "gpt://b1g1k18evi08k4r17n9h/aliceai-llm-flash/latest"; 
 
         try {
            // Вытаскиваем историю сообщений текущей сессии для контекста ИИ
