@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 
+// --- ТИПЫ ДАННЫХ ДЛЯ ЧАТА ---
 interface Message {
     id: string;
     role: 'user' | 'ai';
@@ -106,6 +107,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
+        // Сохраняем "чистое" сообщение в интерфейс, чтобы юзер не видел наши махинации с кодом
         let updatedSessions = sessions.map((s: ChatSession) => {
             if (s.id === activeSessionId) {
                 const newTitle = s.messages.length === 0 ? text.slice(0, 25) + "..." : s.title;
@@ -119,13 +121,54 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         setIsTyping(true);
 
         try {
-            const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
-            const apiMessages = currentSession ? currentSession.messages.map(m => ({
-                role: m.role === 'ai' ? 'assistant' : 'user',
-                // Для нового Responses API Яндекса возвращаем поле content, а не text
-                content: m.content
-            })) : [];
+            // =========================================================================
+            // 💡 МАГИЯ КОДА: СОБИРАЕМ АКТУАЛЬНЫЕ МАТЕРИАЛЫ С САЙТА НА ЛЕТУ
+            // =========================================================================
+            const routeCache = JSON.parse(localStorage.getItem('th_cache_route') || '[]');
+            const testsCache = JSON.parse(localStorage.getItem('th_cache_tests') || '[]');
+            
+            let siteContext = "";
+            if (routeCache.length > 0 || testsCache.length > 0) {
+                siteContext += "=== СЕКРЕТНЫЙ КОНТЕКСТ (БАЗА ЗНАНИЙ КОМПАНИИ ИЗ ПАНЕЛИ АДМИНА) ===\n";
+                
+                if (routeCache.length > 0) {
+                    siteContext += "РАЗДЕЛ 'ТЕОРИЯ' (Правила и регламенты):\n";
+                    routeCache.forEach((route: any, idx: number) => {
+                        siteContext += `\nТема ${idx + 1}: ${route.title}\n`;
+                        if (route.h1) siteContext += `- ${route.h1}: ${route.t1}\n`;
+                        if (route.h2) siteContext += `- ${route.h2}: ${route.t2}\n`;
+                        if (route.h3) siteContext += `- ${route.h3}: ${route.t3}\n`;
+                    });
+                }
 
+                if (testsCache.length > 0) {
+                    siteContext += "\nРАЗДЕЛ 'ТЕСТЫ' (Материалы для обучения):\n";
+                    testsCache.forEach((test: any) => {
+                        siteContext += `Тест: ${test.title} (${test.subtitle}). База: ${test.theory}\n`;
+                    });
+                }
+                siteContext += "\n=== КОНЕЦ БАЗЫ ЗНАНИЙ ===\nОпирайся СТРОГО на этот текст. Не придумывай ничего от себя. Если вопрос пользователя связан с текстом выше, отвечай по нему.\n\n";
+            }
+
+            // =========================================================================
+
+            const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
+            
+            const apiMessages = currentSession ? currentSession.messages.map((m, index) => {
+                let finalContent = m.content;
+                
+                // Незаметно подклеиваем собранный контекст ТОЛЬКО к самому последнему вопросу
+                if (index === currentSession.messages.length - 1 && m.role === 'user') {
+                    finalContent = `${siteContext}ВОПРОС ПОЛЬЗОВАТЕЛЯ:\n${m.content}`;
+                }
+
+                return {
+                    role: m.role === 'ai' ? 'assistant' : 'user',
+                    content: finalContent
+                };
+            }) : [];
+
+            // Отправляем запрос на наш API-роут (route.ts)
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -157,19 +200,15 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
         } catch (error: any) {
             console.error("❌ ОШИБКА:", error);
-            
             const errorMsg: Message = {
-                id: `msg_${Date.now() + 1}`,
-                role: 'ai',
+                id: `msg_${Date.now() + 1}`, role: 'ai',
                 content: `🚨 СИСТЕМНАЯ ОШИБКА:\n\n${error.message}`,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
-
             const finalSessions = updatedSessions.map((s: ChatSession) => 
                 s.id === activeSessionId ? { ...s, messages: [...s.messages, errorMsg] } : s
             );
             saveSessions(finalSessions);
-
         } finally {
             setIsTyping(false); 
         }
