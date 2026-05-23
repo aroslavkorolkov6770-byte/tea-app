@@ -13,11 +13,11 @@ export async function POST(request: Request) {
                 'Content-Type': 'application/json',
                 'Authorization': `Api-Key ${API_KEY}`,
                 // Указан ПРАВИЛЬНЫЙ Folder ID, к которому привязан ключ
-                'x-folder-id': 'fvt57g2r89qkgi1p7cb3' 
+                'x-folder-id': 'b1g1k18evi08k4r17n9h' 
             },
             body: JSON.stringify({
                 // Указан ПРАВИЛЬНЫЙ Folder ID в пути к модели
-                modelUri: "gpt://fvt57g2r89qkgi1p7cb3/yandexgpt-lite", 
+                modelUri: "gpt://b1g1k18evi08k4r17n9h/yandexgpt-lite", 
                 completionOptions: {
                     stream: false,
                     temperature: 0.3,
