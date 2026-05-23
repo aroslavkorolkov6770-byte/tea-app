@@ -107,7 +107,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        // Сохраняем "чистое" сообщение в интерфейс, чтобы юзер не видел наши махинации с кодом
         let updatedSessions = sessions.map((s: ChatSession) => {
             if (s.id === activeSessionId) {
                 const newTitle = s.messages.length === 0 ? text.slice(0, 25) + "..." : s.title;
@@ -121,9 +120,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         setIsTyping(true);
 
         try {
-            // =========================================================================
-            // 💡 СБОР КОНТЕКСТА С САЙТА ДЛЯ ЯНДЕКСА
-            // =========================================================================
             const routeCache = JSON.parse(localStorage.getItem('th_cache_route') || '[]');
             const testsCache = JSON.parse(localStorage.getItem('th_cache_tests') || '[]');
             
@@ -150,14 +146,11 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 siteContext += "\n=== КОНЕЦ БАЗЫ ЗНАНИЙ ===\nОпирайся СТРОГО на этот текст. Не придумывай ничего от себя. Если вопрос пользователя связан с текстом выше, отвечай по нему.\n\n";
             }
 
-            // =========================================================================
-
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
             
             const apiMessages = currentSession ? currentSession.messages.map((m, index) => {
                 let finalContent = m.content;
                 
-                // Подклеиваем контекст только к самому последнему вопросу пользователя
                 if (index === currentSession.messages.length - 1 && m.role === 'user') {
                     finalContent = `${siteContext}ВОПРОС ПОЛЬЗОВАТЕЛЯ:\n${m.content}`;
                 }
@@ -168,7 +161,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 };
             }) : [];
 
-            // Отправляем запрос на наш API
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -185,12 +177,11 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             }
 
             // =========================================================================
-            // 💡 ВЫТАСКИВАЕМ ОТВЕТ ИЗ ЛЮБОЙ СТРУКТУРЫ ИЛИ ВЫВОДИМ СЫРОЙ КОД
+            // 💡 БЕРЕМ ТЕКСТ ИЗ ПРАВИЛЬНОЙ СТРУКТУРЫ ЯНДЕКСА
             // =========================================================================
-            let aiText = data.output_text || data.text || data.message?.text || data.message?.content?.text || data.choices?.[0]?.message?.content;
+            let aiText = data.output?.[0]?.content?.[0]?.text || data.output_text || data.text || data.message?.text || data.message?.content?.text || data.choices?.[0]?.message?.content;
 
             if (!aiText) {
-                // Если Яндекс вернул структуру, которую мы не ждали, выведем ее целиком в чат!
                 aiText = `🚨 СЫРОЙ ОТВЕТ ЯНДЕКСА:\n${JSON.stringify(data, null, 2)}`;
             }
 
