@@ -122,7 +122,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
         try {
             // =========================================================================
-            // 💡 МАГИЯ КОДА: СОБИРАЕМ АКТУАЛЬНЫЕ МАТЕРИАЛЫ С САЙТА НА ЛЕТУ
+            // 💡 СБОР КОНТЕКСТА С САЙТА ДЛЯ ЯНДЕКСА
             // =========================================================================
             const routeCache = JSON.parse(localStorage.getItem('th_cache_route') || '[]');
             const testsCache = JSON.parse(localStorage.getItem('th_cache_tests') || '[]');
@@ -157,7 +157,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             const apiMessages = currentSession ? currentSession.messages.map((m, index) => {
                 let finalContent = m.content;
                 
-                // Незаметно подклеиваем собранный контекст ТОЛЬКО к самому последнему вопросу
+                // Подклеиваем контекст только к самому последнему вопросу пользователя
                 if (index === currentSession.messages.length - 1 && m.role === 'user') {
                     finalContent = `${siteContext}ВОПРОС ПОЛЬЗОВАТЕЛЯ:\n${m.content}`;
                 }
@@ -168,7 +168,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 };
             }) : [];
 
-            // Отправляем запрос на наш API-роут (route.ts)
+            // Отправляем запрос на наш API
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -184,7 +184,15 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 throw new Error(JSON.stringify(data));
             }
 
-            const aiText = data.output_text || "Пустой ответ от ИИ";
+            // =========================================================================
+            // 💡 ВЫТАСКИВАЕМ ОТВЕТ ИЗ ЛЮБОЙ СТРУКТУРЫ ИЛИ ВЫВОДИМ СЫРОЙ КОД
+            // =========================================================================
+            let aiText = data.output_text || data.text || data.message?.text || data.message?.content?.text || data.choices?.[0]?.message?.content;
+
+            if (!aiText) {
+                // Если Яндекс вернул структуру, которую мы не ждали, выведем ее целиком в чат!
+                aiText = `🚨 СЫРОЙ ОТВЕТ ЯНДЕКСА:\n${JSON.stringify(data, null, 2)}`;
+            }
 
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
@@ -302,7 +310,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                                         <div className={`ai-avatar ${msg.role}`}>
                                             {msg.role === 'user' ? '👤' : '🤖'}
                                         </div>
-                                        <div className={`ai-bubble ${msg.role}`} style={msg.content.includes('🚨 СИСТЕМНАЯ ОШИБКА') ? { border: '1px solid #ff4d4d', background: 'rgba(255,77,77,0.1)' } : {}}>
+                                        <div className={`ai-bubble ${msg.role}`} style={msg.content.includes('🚨 СИСТЕМНАЯ ОШИБКА') || msg.content.includes('🚨 СЫРОЙ ОТВЕТ') ? { border: '1px solid #ff4d4d', background: 'rgba(255,77,77,0.1)' } : {}}>
                                             {msg.content}
                                         </div>
                                     </div>
@@ -390,7 +398,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 .ai-avatar { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 20px; }
                 .ai-avatar.user { background: #0abab5; color: #000; }
                 .ai-avatar.ai { background: #161816; border: 1px solid #333; }
-                .ai-bubble { padding: 16px 22px; border-radius: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
+                .ai-bubble { padding: 16px 22px; border-radius: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
                 .ai-bubble.user { background: rgba(10,186,181,0.1); border: 1px solid rgba(10,186,181,0.3); color: #fff; border-bottom-right-radius: 6px; }
                 .ai-bubble.ai { background: #111; border: 1px solid #222; color: #ddd; border-bottom-left-radius: 6px; }
                 .ai-input-wrapper { padding: 20px 40px 30px 40px; background: transparent; }
