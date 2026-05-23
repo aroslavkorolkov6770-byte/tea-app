@@ -150,11 +150,11 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         const API_URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"; 
 
         try {
-            // Вытаскиваем историю сообщений текущей сессии для контекста ИИ
+           // Вытаскиваем историю сообщений текущей сессии для контекста ИИ
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
             const historyMessages = currentSession ? currentSession.messages.map(m => ({
-                role: m.role,
-                text: m.content // Яндексу нужно поле text
+                role: m.role === 'ai' ? 'assistant' : 'user', // Заменяем 'ai' на 'assistant' для Яндекса
+                text: m.content // Заменяем content на text
             })) : [];
 
             // Формируем финальный массив сообщений (добавляем системный промпт)
