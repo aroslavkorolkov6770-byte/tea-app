@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 
-// --- ТИПЫ ДАННЫХ ДЛЯ ЧАТА ---
 interface Message {
     id: string;
     role: 'user' | 'ai';
@@ -98,8 +97,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     };
 
     const handleSendMessage = async (text: string) => {
-        console.log("▶️ Запуск запроса к ИИ. Текст:", text);
-        
         if (!text.trim() || !activeSessionId) return;
 
         const userMsg: Message = {
@@ -125,10 +122,10 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
             const apiMessages = currentSession ? currentSession.messages.map(m => ({
                 role: m.role === 'ai' ? 'assistant' : 'user',
-                text: m.content
+                // Для нового Responses API Яндекса возвращаем поле content, а не text
+                content: m.content
             })) : [];
 
-            // Отправляем запрос на наш API-роут (route.ts)
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -136,7 +133,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             });
 
             const data = await response.json();
-            console.log("▶️ Ответ от Яндекса:", data);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
@@ -145,7 +141,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 throw new Error(JSON.stringify(data));
             }
 
-            // 👉 В новом API Яндекса ответ лежит напрямую в поле output_text
             const aiText = data.output_text || "Пустой ответ от ИИ";
 
             const aiMsg: Message = {
