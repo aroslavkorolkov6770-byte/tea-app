@@ -154,14 +154,14 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
             const historyMessages = currentSession ? currentSession.messages.map(m => ({
                 role: m.role,
-                content: m.content
+                text: m.content // Яндексу нужно поле text
             })) : [];
 
             // Формируем финальный массив сообщений (добавляем системный промпт)
             const apiMessages = [
                 { 
                     role: "system", 
-                    content: "Ты — внутренний ИИ-ассистент сети чайных магазинов TeaMaster. Твоя задача — профессионально консультировать продавцов по товарной матрице и стандартам сервиса. Не придумывай факты. Отвечай кратко и по делу." 
+                    text: "Ты — внутренний ИИ-ассистент сети чайных магазинов TeaMaster. Твоя задача — профессионально консультировать продавцов по товарной матрице и стандартам сервиса. Не придумывай факты. Отвечай кратко и по делу." 
                 },
                 ...historyMessages
             ];
