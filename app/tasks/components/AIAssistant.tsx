@@ -33,9 +33,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     // --- БЫСТРЫЕ ПОДСКАЗКИ (CHIPS) ---
     const quickPrompts = [
         "Как правильно заваривать Те Гуань Инь?",
-        "Что делать, если сломалась кофемашина?",
-        "Какой штраф за опоздание на смену?",
-        "Сценарий общения, если гость грубит"
+        "Что делать, если сломалась кофемашина?"
     ];
 
     // --- ЗАГРУЗКА ИСТОРИИ ИЗ LOCALSTORAGE ---
@@ -97,14 +95,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         const filtered = sessions.filter((s: ChatSession) => s.id !== sessionId);
         
         if (filtered.length === 0) {
-            const newSession: ChatSession = {
-                id: `chat_${Date.now()}`,
-                title: "Новый диалог",
-                messages: [],
-                updatedAt: Date.now()
-            };
-            saveSessions([newSession]);
-            setActiveSessionId(newSession.id);
+            createNewSession();
         } else {
             saveSessions(filtered);
             if (activeSessionId === sessionId) {
@@ -113,9 +104,17 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         }
     };
 
-    // --- ОТПРАВКА СООБЩЕНИЯ И ИНТЕГРАЦИЯ ИИ ---
+    // ====================================================================
+    // 🚨 ЖЕСТКИЙ РЕЖИМ ОТЛАДКИ В handleSendMessage
+    // ====================================================================
     const handleSendMessage = async (text: string) => {
-        if (!text.trim() || !activeSessionId) return;
+        // 1. ПРОВЕРЯЕМ, РАБОТАЕТ ЛИ ВООБЩЕ КНОПКА
+        console.log("▶️ Функция handleSendMessage запущена! Текст:", text);
+        
+        if (!text.trim() || !activeSessionId) {
+            console.log("⚠️ Остановка: пустой текст или нет активной сессии");
+            return;
+        }
 
         const userMsg: Message = {
             id: `msg_${Date.now()}`,
@@ -137,7 +136,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         setIsTyping(true);
 
         try {
-            // 1. Формируем сообщения строго под формат Яндекса (role и text)
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
             const historyMessages = currentSession ? currentSession.messages.map(m => ({
                 role: m.role === 'ai' ? 'assistant' : 'user',
@@ -147,31 +145,42 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             const apiMessages = [
                 { 
                     role: "system", 
-                    text: "Ты — внутренний ИИ-ассистент сети чайных магазинов TeaMaster. Твоя задача — профессионально консультировать продавцов по товарной матрице и стандартам сервиса. Не придумывай факты. Отвечай кратко и по делу." 
+                    text: "Ты — ИИ-ассистент TeaMaster. Отвечай кратко." 
                 },
                 ...historyMessages
             ];
 
-            // 2. Отправляем запрос на НАШ внутренний API (route.ts)
+            console.log("▶️ Отправляем запрос на /api/ai-chat. Данные:", apiMessages);
+
+            // 2. ОТПРАВЛЯЕМ ЗАПРОС И ЖДЕМ ОТВЕТ
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ messages: apiMessages })
             });
 
-            // 3. Получаем и проверяем ответ
+            console.log("▶️ Получен HTTP статус от сервера:", response.status);
+
             const data = await response.json();
             
-            // 👉 ЭТА СТРОЧКА ПОКАЖЕТ РЕАЛЬНУЮ ОШИБКУ В КОНСОЛИ
-            console.log("Ответ от сервера:", data); 
+            // 3. ВЫВОДИМ СЫРОЙ ОТВЕТ СЕРВЕРА ПРЯМО В АЛЕРТ
+            console.log("▶️ Сырой ответ JSON:", data);
 
-            // Если Яндекс вернул ошибку, перехватываем её
-            if (data.error) {
-                throw new Error(JSON.stringify(data.error));
+            // 4. ПРОВЕРЯЕМ НА НАЛИЧИЕ ОШИБОК В ОТВЕТЕ
+            if (!response.ok) {
+                throw new Error(`HTTP Ошибка ${response.status}: ${JSON.stringify(data)}`);
             }
 
-            // Достаем текст из сложной структуры ответа YandexGPT
-            const aiText = data.result?.alternatives[0]?.message?.text || "Получен пустой ответ от ИИ.";
+            if (data.error) {
+                throw new Error(`Ошибка от Яндекса/Сервера: ${JSON.stringify(data.error)}`);
+            }
+
+            if (!data.result) {
+                throw new Error(`В ответе нет поля 'result'. Вот что пришло: ${JSON.stringify(data)}`);
+            }
+
+            // Достаем текст
+            const aiText = data.result?.alternatives?.[0]?.message?.text || "Нет текста в alternatives[0]";
 
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
@@ -185,13 +194,19 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             );
             saveSessions(finalSessions);
 
-        } catch (error) {
-            console.error("Детальная ошибка при запросе к ИИ:", error);
-            
+        } catch (error: any) {
+            // ==========================================================
+            // 🚨 ВЫВОДИМ ОШИБКУ ЖЕСТКО В ЧАТ, ЧТОБЫ ТЫ МОГ ЕЁ СКОПИРОВАТЬ
+            // ==========================================================
+            console.error("❌ ПОЙМАНА ОШИБКА:", error);
+            alert(`Критическая ошибка!\nПосмотри в чат, там выведен полный лог.`);
+
+            const errorContent = `🚨 СИСТЕМНАЯ ОШИБКА API:\n\n${error.message}\n\nПожалуйста, скопируй этот текст и покажи мне.`;
+
             const errorMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
                 role: 'ai',
-                content: "⚠️ Возникла ошибка при подключении к нейросети. Проверьте консоль браузера (F12) для деталей.",
+                content: errorContent,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
@@ -199,6 +214,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 s.id === activeSessionId ? { ...s, messages: [...s.messages, errorMsg] } : s
             );
             saveSessions(finalSessions);
+
         } finally {
             setIsTyping(false); 
         }
@@ -276,9 +292,9 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         {activeSession?.messages.length === 0 ? (
                             <div className="ai-empty-state">
                                 <div style={{ fontSize: '50px', marginBottom: '20px' }}>🤖</div>
-                                <h3 style={{ color: '#fff', fontSize: '22px', fontWeight: '900', marginBottom: '10px' }}>TeaMaster AI</h3>
+                                <h3 style={{ color: '#fff', fontSize: '22px', fontWeight: '900', marginBottom: '10px' }}>TeaMaster AI (Debug)</h3>
                                 <p style={{ color: '#666', fontSize: '15px', marginBottom: '30px', lineHeight: '1.5' }}>
-                                    Задайте любой вопрос по регламентам, стандартам сервиса или товарной матрице компании.
+                                    Отправь любой текст. Если будет ошибка, она появится здесь красным цветом.
                                 </p>
                                 <div className="quick-prompts-container">
                                     {quickPrompts.map((prompt, idx) => (
@@ -299,7 +315,8 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                                         <div className={`ai-avatar ${msg.role}`}>
                                             {msg.role === 'user' ? '👤' : '🤖'}
                                         </div>
-                                        <div className={`ai-bubble ${msg.role}`}>
+                                        {/* Если ошибка, подсвечиваем баббл красным */}
+                                        <div className={`ai-bubble ${msg.role}`} style={msg.content.includes('🚨 СИСТЕМНАЯ ОШИБКА') ? { border: '1px solid #ff4d4d', background: 'rgba(255,77,77,0.1)' } : {}}>
                                             {msg.content}
                                         </div>
                                     </div>
