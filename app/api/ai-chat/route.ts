@@ -6,24 +6,22 @@ export async function POST(request: Request) {
 
     const API_KEY = process.env.NEXT_PUBLIC_AI_API_KEY; 
 
+    // Склеиваем историю в один текст, чтобы Ассистент с файлами понимал весь контекст
+    const inputText = messages.map((m: any) => `${m.role === 'user' ? 'Сотрудник' : 'ИИ'}: ${m.text}`).join('\n\n');
+
     try {
-        const response = await fetch("https://llm.api.cloud.yandex.net/foundationModels/v1/completion", {
+        const response = await fetch("https://ai.api.cloud.yandex.net/v1/responses", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Api-Key ${API_KEY}`,
-                // Указан ПРАВИЛЬНЫЙ Folder ID, к которому привязан ключ
-                'x-folder-id': 'b1g1k18evi08k4r17n9h' 
+                'Authorization': `Bearer ${API_KEY}`, // В новом API используется формат Bearer
+                'OpenAI-Project': 'b1g1k18evi08k4r17n9h' 
             },
             body: JSON.stringify({
-                // Указан ПРАВИЛЬНЫЙ Folder ID в пути к модели
-                modelUri: "gpt://b1g1k18evi08k4r17n9h/yandexgpt-lite", 
-                completionOptions: {
-                    stream: false,
-                    temperature: 0.3,
-                    maxTokens: 2000
+                prompt: {
+                    id: 'fvt57g2r89qkgi1p7cb3'
                 },
-                messages: messages
+                input: inputText
             })
         });
 

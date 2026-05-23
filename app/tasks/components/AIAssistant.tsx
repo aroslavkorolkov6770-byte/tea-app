@@ -17,26 +17,21 @@ interface ChatSession {
 }
 
 export default function AIAssistant({ userId }: { userId?: string }) {
-    // --- СОСТОЯНИЯ ---
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
     const [isTyping, setIsTyping] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
-    
-    // Состояние для мобильной шторки истории
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const currentUserId = userId || 'guest';
 
-    // --- БЫСТРЫЕ ПОДСКАЗКИ (CHIPS) ---
     const quickPrompts = [
         "Как правильно заваривать Те Гуань Инь?",
         "Что делать, если сломалась кофемашина?"
     ];
 
-    // --- ЗАГРУЗКА ИСТОРИИ ИЗ LOCALSTORAGE ---
     useEffect(() => {
         const savedSessions = localStorage.getItem(`th_ai_history_${currentUserId}`);
         if (savedSessions) {
@@ -50,14 +45,12 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         }
     }, [currentUserId]);
 
-    // --- АВТОСКРОЛЛ ---
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [sessions, activeSessionId, isTyping]);
 
-    // --- ФУНКЦИИ УПРАВЛЕНИЯ СЕССИЯМИ ---
     const saveSessions = (newSessions: ChatSession[]) => {
         setSessions(newSessions);
         localStorage.setItem(`th_ai_history_${currentUserId}`, JSON.stringify(newSessions));
@@ -91,7 +84,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
     const deleteSession = (sessionId: string, e: React.MouseEvent) => {
         e.stopPropagation(); 
-        
         const filtered = sessions.filter((s: ChatSession) => s.id !== sessionId);
         
         if (filtered.length === 0) {
@@ -104,17 +96,10 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         }
     };
 
-    // ====================================================================
-    // 🚨 ЖЕСТКИЙ РЕЖИМ ОТЛАДКИ В handleSendMessage
-    // ====================================================================
     const handleSendMessage = async (text: string) => {
-        // 1. ПРОВЕРЯЕМ, РАБОТАЕТ ЛИ ВООБЩЕ КНОПКА
         console.log("▶️ Функция handleSendMessage запущена! Текст:", text);
         
-        if (!text.trim() || !activeSessionId) {
-            console.log("⚠️ Остановка: пустой текст или нет активной сессии");
-            return;
-        }
+        if (!text.trim() || !activeSessionId) return;
 
         const userMsg: Message = {
             id: `msg_${Date.now()}`,
@@ -137,50 +122,30 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
         try {
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === activeSessionId);
-            const historyMessages = currentSession ? currentSession.messages.map(m => ({
+            const apiMessages = currentSession ? currentSession.messages.map(m => ({
                 role: m.role === 'ai' ? 'assistant' : 'user',
                 text: m.content
             })) : [];
 
-            const apiMessages = [
-                { 
-                    role: "system", 
-                    text: "Ты — ИИ-ассистент TeaMaster. Отвечай кратко." 
-                },
-                ...historyMessages
-            ];
-
-            console.log("▶️ Отправляем запрос на /api/ai-chat. Данные:", apiMessages);
-
-            // 2. ОТПРАВЛЯЕМ ЗАПРОС И ЖДЕМ ОТВЕТ
+            // Отправляем запрос на НАШ внутренний API (route.ts)
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ messages: apiMessages })
             });
 
-            console.log("▶️ Получен HTTP статус от сервера:", response.status);
-
             const data = await response.json();
-            
-            // 3. ВЫВОДИМ СЫРОЙ ОТВЕТ СЕРВЕРА ПРЯМО В АЛЕРТ
             console.log("▶️ Сырой ответ JSON:", data);
 
-            // 4. ПРОВЕРЯЕМ НА НАЛИЧИЕ ОШИБОК В ОТВЕТЕ
             if (!response.ok) {
                 throw new Error(`HTTP Ошибка ${response.status}: ${JSON.stringify(data)}`);
             }
-
             if (data.error) {
                 throw new Error(`Ошибка от Яндекса/Сервера: ${JSON.stringify(data.error)}`);
             }
 
-            if (!data.result) {
-                throw new Error(`В ответе нет поля 'result'. Вот что пришло: ${JSON.stringify(data)}`);
-            }
-
-            // Достаем текст
-            const aiText = data.result?.alternatives?.[0]?.message?.text || "Нет текста в alternatives[0]";
+            // 👉 ДОСТАЕМ ТЕКСТ ПО-НОВОМУ
+            const aiText = data.output_text || "Нет текста ответа";
 
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
@@ -195,12 +160,8 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             saveSessions(finalSessions);
 
         } catch (error: any) {
-            // ==========================================================
-            // 🚨 ВЫВОДИМ ОШИБКУ ЖЕСТКО В ЧАТ, ЧТОБЫ ТЫ МОГ ЕЁ СКОПИРОВАТЬ
-            // ==========================================================
             console.error("❌ ПОЙМАНА ОШИБКА:", error);
-            alert(`Критическая ошибка!\nПосмотри в чат, там выведен полный лог.`);
-
+            
             const errorContent = `🚨 СИСТЕМНАЯ ОШИБКА API:\n\n${error.message}\n\nПожалуйста, скопируй этот текст и покажи мне.`;
 
             const errorMsg: Message = {
@@ -292,9 +253,9 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         {activeSession?.messages.length === 0 ? (
                             <div className="ai-empty-state">
                                 <div style={{ fontSize: '50px', marginBottom: '20px' }}>🤖</div>
-                                <h3 style={{ color: '#fff', fontSize: '22px', fontWeight: '900', marginBottom: '10px' }}>TeaMaster AI (Debug)</h3>
+                                <h3 style={{ color: '#fff', fontSize: '22px', fontWeight: '900', marginBottom: '10px' }}>TeaMaster AI</h3>
                                 <p style={{ color: '#666', fontSize: '15px', marginBottom: '30px', lineHeight: '1.5' }}>
-                                    Отправь любой текст. Если будет ошибка, она появится здесь красным цветом.
+                                    Задайте любой вопрос по регламентам, стандартам сервиса или товарной матрице компании.
                                 </p>
                                 <div className="quick-prompts-container">
                                     {quickPrompts.map((prompt, idx) => (
@@ -387,287 +348,50 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             )}
 
             <style jsx global>{`
-                .ai-monolithic-section {
-                    margin: -20px -60px -60px -60px;
-                    height: calc(100vh - 100px);
-                    display: flex;
-                    flex-direction: column;
-                }
-                
-                .ai-monolithic-container {
-                    display: flex;
-                    flex: 1;
-                    background: transparent;
-                    height: 100%;
-                }
-
-                .ai-sidebar {
-                    width: 300px;
-                    border-right: 1px solid #1a1a1a;
-                    display: flex;
-                    flex-direction: column;
-                    background: transparent;
-                    transition: 0.3s ease;
-                }
-
-                .ai-session-item {
-                    position: relative;
-                    padding: 14px 15px; 
-                    margin-bottom: 8px; 
-                    borderRadius: '12px'; 
-                    cursor: pointer;
-                    border: 1px solid transparent;
-                    transition: all 0.2s ease;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    border-radius: 12px;
-                }
-                .ai-session-item.active {
-                    background: #1a1a1a;
-                    border-color: #333;
-                }
-                .ai-session-item:hover {
-                    border-color: #ff4d4d !important;
-                    box-shadow: 0 0 10px rgba(255, 77, 77, 0.15);
-                    background: rgba(255, 77, 77, 0.02);
-                }
-                .ai-session-title {
-                    color: #aaa; 
-                    font-size: 14px; 
-                    font-weight: bold; 
-                    white-space: nowrap; 
-                    overflow: hidden; 
-                    text-overflow: ellipsis;
-                    flex: 1;
-                    padding-right: 10px;
-                }
-                .ai-session-item.active .ai-session-title {
-                    color: #0abab5;
-                }
-                .ai-session-del-btn {
-                    background: transparent;
-                    border: none;
-                    color: #ff4d4d;
-                    font-size: 14px;
-                    cursor: pointer;
-                    opacity: 0;
-                    transition: opacity 0.2s ease;
-                    padding: 0 5px;
-                    font-weight: bold;
-                }
-                .ai-session-item:hover .ai-session-del-btn {
-                    opacity: 1;
-                }
-
-                .ai-chat-area {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    background: transparent;
-                    position: relative;
-                }
-
-                .ai-mobile-header {
-                    display: none;
-                }
-
-                .ai-messages {
-                    flex: 1;
-                    overflow-y: auto;
-                    padding: 40px;
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .ai-empty-state {
-                    margin: auto;
-                    text-align: center;
-                    max-width: 550px;
-                }
-
-                .quick-prompts-container {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 12px;
-                    justify-content: center;
-                }
-
-                .quick-prompt {
-                    background: #111;
-                    border: 1px solid #222;
-                    padding: 12px 18px;
-                    border-radius: 20px;
-                    color: #0abab5;
-                    font-size: 14px;
-                    font-weight: 800;
-                    cursor: pointer;
-                    transition: 0.2s;
-                }
-
-                .quick-prompt:hover {
-                    background: rgba(10,186,181,0.05);
-                    border-color: #0abab5;
-                    transform: translateY(-2px);
-                }
-
-                .ai-avatar {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 12px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    flex-shrink: 0;
-                    font-size: 20px;
-                }
+                .ai-monolithic-section { margin: -20px -60px -60px -60px; height: calc(100vh - 100px); display: flex; flex-direction: column; }
+                .ai-monolithic-container { display: flex; flex: 1; background: transparent; height: 100%; }
+                .ai-sidebar { width: 300px; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; background: transparent; transition: 0.3s ease; }
+                .ai-session-item { position: relative; padding: 14px 15px; margin-bottom: 8px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s ease; display: flex; justify-content: space-between; align-items: center; border-radius: 12px; }
+                .ai-session-item.active { background: #1a1a1a; border-color: #333; }
+                .ai-session-item:hover { border-color: #ff4d4d !important; box-shadow: 0 0 10px rgba(255, 77, 77, 0.15); background: rgba(255, 77, 77, 0.02); }
+                .ai-session-title { color: #aaa; font-size: 14px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; padding-right: 10px; }
+                .ai-session-item.active .ai-session-title { color: #0abab5; }
+                .ai-session-del-btn { background: transparent; border: none; color: #ff4d4d; font-size: 14px; cursor: pointer; opacity: 0; transition: opacity 0.2s ease; padding: 0 5px; font-weight: bold; }
+                .ai-session-item:hover .ai-session-del-btn { opacity: 1; }
+                .ai-chat-area { flex: 1; display: flex; flex-direction: column; background: transparent; position: relative; }
+                .ai-mobile-header { display: none; }
+                .ai-messages { flex: 1; overflow-y: auto; padding: 40px; display: flex; flex-direction: column; }
+                .ai-empty-state { margin: auto; text-align: center; max-width: 550px; }
+                .quick-prompts-container { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+                .quick-prompt { background: #111; border: 1px solid #222; padding: 12px 18px; border-radius: 20px; color: #0abab5; font-size: 14px; font-weight: 800; cursor: pointer; transition: 0.2s; }
+                .quick-prompt:hover { background: rgba(10,186,181,0.05); border-color: #0abab5; transform: translateY(-2px); }
+                .ai-avatar { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 20px; }
                 .ai-avatar.user { background: #0abab5; color: #000; }
                 .ai-avatar.ai { background: #161816; border: 1px solid #333; }
-
-                .ai-bubble {
-                    padding: 16px 22px;
-                    border-radius: 20px;
-                    font-size: 15px;
-                    line-height: 1.6;
-                    white-space: pre-wrap;
-                }
-                .ai-bubble.user {
-                    background: rgba(10,186,181,0.1);
-                    border: 1px solid rgba(10,186,181,0.3);
-                    color: #fff;
-                    border-bottom-right-radius: 6px;
-                }
-                .ai-bubble.ai {
-                    background: #111;
-                    border: 1px solid #222;
-                    color: #ddd;
-                    border-bottom-left-radius: 6px;
-                }
-
-                .ai-input-wrapper {
-                    padding: 20px 40px 30px 40px;
-                    background: transparent;
-                }
-
-                .ai-input-box {
-                    position: relative;
-                    display: flex;
-                    align-items: flex-end;
-                    background: #111;
-                    border: 1px solid #222;
-                    border-radius: 24px;
-                    padding: 6px;
-                    transition: 0.2s;
-                }
-                .ai-input-box:focus-within {
-                    border-color: #0abab5;
-                    box-shadow: 0 0 15px rgba(10,186,181,0.1);
-                }
-
-                .ai-textarea {
-                    flex: 1;
-                    background: transparent;
-                    border: none;
-                    color: #fff;
-                    padding: 16px 20px;
-                    font-size: 16px; 
-                    outline: none;
-                    resize: none;
-                    max-height: 150px;
-                    min-height: 56px;
-                    font-family: inherit;
-                }
-
-                .ai-send-btn {
-                    margin: 8px;
-                    width: 44px;
-                    height: 44px;
-                    border-radius: 16px;
-                    border: none;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: 0.2s;
-                }
-                .ai-send-btn:not(:disabled) {
-                    background: #0abab5;
-                    color: #000;
-                    cursor: pointer;
-                }
-                .ai-send-btn:not(:disabled):hover {
-                    transform: scale(1.05);
-                }
-                .ai-send-btn:disabled {
-                    background: #1a1a1a;
-                    color: #555;
-                    cursor: not-allowed;
-                }
-
-                .ai-footer-text {
-                    text-align: center;
-                    font-size: 12px;
-                    color: #555;
-                    margin-top: 12px;
-                }
-
+                .ai-bubble { padding: 16px 22px; border-radius: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
+                .ai-bubble.user { background: rgba(10,186,181,0.1); border: 1px solid rgba(10,186,181,0.3); color: #fff; border-bottom-right-radius: 6px; }
+                .ai-bubble.ai { background: #111; border: 1px solid #222; color: #ddd; border-bottom-left-radius: 6px; }
+                .ai-input-wrapper { padding: 20px 40px 30px 40px; background: transparent; }
+                .ai-input-box { position: relative; display: flex; align-items: flex-end; background: #111; border: 1px solid #222; border-radius: 24px; padding: 6px; transition: 0.2s; }
+                .ai-input-box:focus-within { border-color: #0abab5; box-shadow: 0 0 15px rgba(10,186,181,0.1); }
+                .ai-textarea { flex: 1; background: transparent; border: none; color: #fff; padding: 16px 20px; font-size: 16px; outline: none; resize: none; max-height: 150px; min-height: 56px; font-family: inherit; }
+                .ai-send-btn { margin: 8px; width: 44px; height: 44px; border-radius: 16px; border: none; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+                .ai-send-btn:not(:disabled) { background: #0abab5; color: #000; cursor: pointer; }
+                .ai-send-btn:not(:disabled):hover { transform: scale(1.05); }
+                .ai-send-btn:disabled { background: #1a1a1a; color: #555; cursor: not-allowed; }
+                .ai-footer-text { text-align: center; font-size: 12px; color: #555; margin-top: 12px; }
                 .typing-indicator { display: flex; gap: 4px; padding: 2px 0; }
-                .typing-indicator span {
-                    width: 8px; height: 8px; background: #0abab5; border-radius: 50%;
-                    animation: bounce 1.4s infinite ease-in-out both;
-                }
+                .typing-indicator span { width: 8px; height: 8px; background: #0abab5; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
                 .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
                 .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-
                 .ai-mobile-overlay { display: none; }
-
                 @media (max-width: 768px) {
-                    .ai-monolithic-section {
-                        margin: -10px -15px -50px -15px;
-                        height: calc(100vh - 70px); 
-                    }
-
-                    .ai-mobile-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 15px 20px;
-                        border-bottom: 1px solid #1a1a1a;
-                        background: #0a0a0a;
-                    }
-
-                    .ai-history-btn {
-                        background: rgba(10,186,181,0.1);
-                        color: #0abab5;
-                        border: 1px solid rgba(10,186,181,0.3);
-                        padding: 8px 16px;
-                        border-radius: 10px;
-                        font-weight: 800;
-                        font-size: 13px;
-                    }
-
-                    .ai-sidebar {
-                        position: fixed;
-                        top: 0;
-                        left: -300px; 
-                        width: 280px !important;
-                        height: 100vh;
-                        background: #000;
-                        z-index: 10006;
-                        box-shadow: 10px 0 30px rgba(0,0,0,0.8);
-                    }
-                    .ai-sidebar.open {
-                        left: 0;
-                    }
-
-                    .ai-mobile-overlay {
-                        display: block;
-                        position: fixed;
-                        top: 0; left: 0; right: 0; bottom: 0;
-                        background: rgba(0,0,0,0.7);
-                        z-index: 10005;
-                        backdrop-filter: blur(4px);
-                    }
-
+                    .ai-monolithic-section { margin: -10px -15px -50px -15px; height: calc(100vh - 70px); }
+                    .ai-mobile-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #1a1a1a; background: #0a0a0a; }
+                    .ai-history-btn { background: rgba(10,186,181,0.1); color: #0abab5; border: 1px solid rgba(10,186,181,0.3); padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 13px; }
+                    .ai-sidebar { position: fixed; top: 0; left: -300px; width: 280px !important; height: 100vh; background: #000; z-index: 10006; box-shadow: 10px 0 30px rgba(0,0,0,0.8); }
+                    .ai-sidebar.open { left: 0; }
+                    .ai-mobile-overlay { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10005; backdrop-filter: blur(4px); }
                     .ai-messages { padding: 20px 15px; }
                     .ai-input-wrapper { padding: 15px; }
                     .quick-prompt { font-size: 13px; padding: 10px 14px; }
