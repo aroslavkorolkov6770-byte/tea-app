@@ -37,32 +37,31 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
-    // 1. АГРЕССИВНЫЙ ПОИСК УЧЕТНОЙ ЗАПИСИ
+    // 1. АГРЕССИВНЫЙ ПОИСК УЧЕТНОЙ ЗАПИСИ (С ИГНОРИРОВАНИЕМ 'guest')
     // =========================================================================
     useEffect(() => {
         const determineUser = () => {
-            // 1. Если ID передали напрямую в компонент (идеальный вариант)
-            if (userId && userId.trim() !== '') return userId.trim();
+            // 💡 ИГНОРИРУЕМ СЛОВО 'guest', которое ошибочно присылает page.tsx
+            if (userId && userId !== 'guest' && userId.trim() !== '') {
+                return String(userId).replace(/[^a-zA-Z0-9_-]/g, '_');
+            }
             
-            // 2. Ищем во всех возможных ключах localStorage
-            const keysToTry = ['th_current_user', 'currentUser', 'user', 'profile', 'auth', 'user-info', 'account'];
+            // Ищем во всех возможных ключах localStorage
+            const keysToTry = ['th_current_user', 'currentUser', 'user', 'profile', 'auth', 'user-info', 'account', 'userRole'];
             
             for (const key of keysToTry) {
                 const data = localStorage.getItem(key);
                 if (data) {
                     try {
                         const parsed = JSON.parse(data);
-                        // Ищем хоть какую-то уникальную зацепку
                         const foundId = parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || parsed.token;
-                        if (foundId) return String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_'); // Очищаем от спецсимволов
+                        if (foundId) return String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_');
                     } catch {
-                        // Если это просто текст, а не JSON
-                        return String(data).replace(/[^a-zA-Z0-9_-]/g, '_');
+                        if (data !== 'guest') return String(data).replace(/[^a-zA-Z0-9_-]/g, '_');
                     }
                 }
             }
 
-            // 3. Ищем в sessionStorage (иногда данные лежат там)
             for (const key of keysToTry) {
                 const data = sessionStorage.getItem(key);
                 if (data) {
@@ -71,19 +70,23 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         const foundId = parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || parsed.token;
                         if (foundId) return String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_');
                     } catch {
-                        return String(data).replace(/[^a-zA-Z0-9_-]/g, '_');
+                        if (data !== 'guest') return String(data).replace(/[^a-zA-Z0-9_-]/g, '_');
                     }
                 }
             }
 
-            // Если ничего не нашли — выдаем эту заглушку (мы увидим ее в интерфейсе)
-            return 'SHARED_GUEST_ACCOUNT';
+            // Если вообще ничего не найдено, создаем уникальный ID для браузера
+            let deviceId = localStorage.getItem('th_device_id');
+            if (!deviceId) {
+                deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('th_device_id', deviceId);
+            }
+            return deviceId;
         };
 
         const activeUser = determineUser();
         setCurrentUserId(activeUser);
 
-        // Загрузка истории
         const loadHistory = async () => {
             let serverDataFound = false;
             try {
@@ -272,8 +275,27 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
             if (data.error) throw new Error(JSON.stringify(data));
 
-            let aiText = data.output?.[0]?.content?.[0]?.text || data.output_text || data.text || data.message?.text || data.message?.content?.text || data.choices?.[0]?.message?.content;
-            if (!aiText) aiText = `🚨 СЫРОЙ ОТВЕТ ЯНДЕКСА:\n${JSON.stringify(data, null, 2)}`;
+            // =========================================================================
+            // 💡 ИСПРАВЛЕНИЕ ЯНДЕКСА: УМНЫЙ ПОИСК ТЕКСТА В МАССИВЕ
+            // =========================================================================
+            let aiText = "";
+            if (Array.isArray(data.output)) {
+                // Ищем в массиве блок, который является финальным сообщением, а не отчетом о поиске
+                const msgObj = data.output.find((o: any) => o.type === 'message' && o.content);
+                if (msgObj && Array.isArray(msgObj.content) && msgObj.content[0]?.text) {
+                    aiText = msgObj.content[0].text;
+                }
+            }
+            
+            // Если структура другая, используем запасные варианты
+            if (!aiText) {
+                aiText = data.output_text || data.text || data.message?.text || data.message?.content?.text || data.choices?.[0]?.message?.content;
+            }
+
+            // Если ничего не помогло, выводим сырой код (но теперь это маловероятно)
+            if (!aiText) {
+                aiText = `🚨 СЫРОЙ ОТВЕТ ЯНДЕКСА:\n${JSON.stringify(data, null, 2)}`;
+            }
 
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
@@ -374,7 +396,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         ))}
                     </div>
 
-                    {/* 💡 ИНДИКАТОР ТЕКУЩЕГО АККАУНТА (Для дебага) */}
                     <div style={{ padding: '10px 20px', fontSize: '10px', color: '#444', textAlign: 'center', borderTop: '1px solid #1a1a1a' }}>
                         Аккаунт: {currentUserId}
                     </div>
