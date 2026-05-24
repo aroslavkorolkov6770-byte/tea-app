@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 
+// --- ТИПЫ ДАННЫХ ДЛЯ ЧАТА ---
 interface Message {
     id: string;
     role: 'user' | 'ai';
@@ -24,8 +25,8 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
     
+    // Стейт для привязки к конкретной учетке
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    const [isDataLoaded, setIsDataLoaded] = useState(false); // 💡 Флаг готовности данных
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -36,77 +37,63 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
-    // ОПРЕДЕЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
+    // 1. СТАРАЯ НАДЕЖНАЯ СИСТЕМА, НО С ПРИВЯЗКОЙ К УЧЕТКЕ
     // =========================================================================
     useEffect(() => {
-        if (userId) {
-            setCurrentUserId(userId);
-            return;
-        }
-
-        const authUser = localStorage.getItem('th_current_user') || localStorage.getItem('currentUser') || localStorage.getItem('user');
-        
-        if (authUser) {
-            try {
-                const parsed = JSON.parse(authUser);
-                setCurrentUserId(parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || 'unknown_user');
-            } catch {
-                setCurrentUserId(authUser);
+        // Вычисляем, кто сейчас сидит за компьютером
+        const determineUser = () => {
+            if (userId) return userId;
+            
+            const authData = localStorage.getItem('th_current_user') || localStorage.getItem('currentUser') || localStorage.getItem('user');
+            if (authData) {
+                try {
+                    const parsed = JSON.parse(authData);
+                    // Берем уникальный идентификатор (логин, email или роль)
+                    return parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || 'unknown_user';
+                } catch {
+                    return authData;
+                }
             }
-        } else {
-            let deviceId = localStorage.getItem('th_device_id');
-            if (!deviceId) {
-                deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('th_device_id', deviceId);
-            }
-            setCurrentUserId(deviceId);
-        }
-    }, [userId]);
+            return 'guest_account';
+        };
 
-    // =========================================================================
-    // ЗАГРУЗКА ИСТОРИИ (СИНХРОНИЗАЦИЯ)
-    // =========================================================================
-    useEffect(() => {
-        if (!currentUserId) return;
+        const activeUser = determineUser();
+        setCurrentUserId(activeUser);
 
+        // СТАРЫЙ АЛГОРИТМ ЗАГРУЗКИ: Грузим с сервера, если пусто - берем локалку
         const loadHistory = async () => {
+            let serverDataFound = false;
             try {
-                // Жесткий антикэш запрос на сервер
-                const res = await fetch(`/api/storage?key=th_ai_history_${currentUserId}&t=${Date.now()}`, {
-                    cache: 'no-store'
-                });
-                
+                const res = await fetch(`/api/storage?key=th_ai_history_${activeUser}&t=${Date.now()}`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (Array.isArray(data)) {
+                    if (Array.isArray(data) && data.length > 0) {
                         setSessions(data);
-                        setActiveSessionId(data.length > 0 ? data[0].id : null);
-                        setIsDataLoaded(true);
-                        return; 
+                        setActiveSessionId(data[0].id);
+                        serverDataFound = true;
                     }
                 }
             } catch (e) {
-                console.warn("Ошибка сервера, берем локальную копию", e);
+                console.warn("Сервер недоступен, читаем из памяти браузера");
             }
 
-            // Fallback
-            const savedSessions = localStorage.getItem(`th_ai_history_${currentUserId}`);
-            if (savedSessions) {
-                try {
-                    const parsed = JSON.parse(savedSessions);
-                    if (Array.isArray(parsed)) {
-                        setSessions(parsed);
-                        if (parsed.length > 0) setActiveSessionId(parsed[0].id);
-                    }
-                } catch(e) {}
+            if (!serverDataFound) {
+                const savedSessions = localStorage.getItem(`th_ai_history_${activeUser}`);
+                if (savedSessions) {
+                    try {
+                        const parsed = JSON.parse(savedSessions);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            setSessions(parsed);
+                            setActiveSessionId(parsed[0].id);
+                        }
+                    } catch(e) {}
+                }
             }
-            setIsDataLoaded(true);
         };
 
         loadHistory();
-    }, [currentUserId]);
+    }, [userId]); // Срабатывает только при смене пользователя
 
-    // Автоскролл
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -114,26 +101,24 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     }, [sessions, activeSessionId, isTyping]);
 
     // =========================================================================
-    // СОХРАНЕНИЕ НА СЕРВЕР
+    // 2. СТАРОЕ НАДЕЖНОЕ СОХРАНЕНИЕ
     // =========================================================================
-    const saveSessions = async (newSessions: ChatSession[]) => {
-        if (!currentUserId || !isDataLoaded) return; // Запрещаем перезаписывать до загрузки
-
+    const saveSessions = (newSessions: ChatSession[]) => {
         setSessions(newSessions);
+        if (!currentUserId) return;
+
+        // 1. Моментально сохраняем в браузере (как было раньше)
         localStorage.setItem(`th_ai_history_${currentUserId}`, JSON.stringify(newSessions));
         
-        try {
-            await fetch('/api/storage', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    key: `th_ai_history_${currentUserId}`,
-                    data: newSessions 
-                })
-            });
-        } catch (e) {
-            console.error("Ошибка сохранения на сервер", e);
-        }
+        // 2. Фоном отправляем копию на сервер (чтобы не тормозить чат)
+        fetch('/api/storage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                key: `th_ai_history_${currentUserId}`,
+                data: newSessions 
+            })
+        }).catch(err => console.error("Ошибка сохранения на сервер", err));
     };
 
     // =========================================================================
@@ -184,7 +169,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     // ОТПРАВКА СООБЩЕНИЯ
     // =========================================================================
     const handleSendMessage = async (text: string) => {
-        if (!text.trim() || !currentUserId || !isDataLoaded) return;
+        if (!text.trim() || !currentUserId) return;
 
         let currentActiveId = activeSessionId;
         let currentSessions = [...sessions];
@@ -306,8 +291,8 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
     const activeSession = sessions.find((s: ChatSession) => s.id === activeSessionId);
 
-    if (!currentUserId || !isDataLoaded) {
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'transparent', color: '#0abab5' }}>Синхронизация чата...</div>;
+    if (!currentUserId) {
+        return null;
     }
 
     return (
