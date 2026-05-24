@@ -14,8 +14,14 @@ export default function Footer() {
              <span style={{ color: '#333' }}>|</span>
              <button onClick={() => setActiveDoc('cookies')} className="doc-link" style={docLinkStyle}>Соглашение с файлами cookie</button>
          </div>
+
+         {/* --- БЛОК СЛУЖБЫ ПОДДЕРЖКИ (ЗАГОТОВКА ПОЧТЫ) --- */}
+         <div style={{ marginTop: '25px', color: '#888', fontSize: '13px', fontWeight: '500' }}>
+             Служба технической поддержки: <a href="mailto:support@teahub-example.ru" style={{ color: '#0abab5', textDecoration: 'none', fontWeight: 'bold' }}>support@teahub-example.ru</a>
+         </div>
+
          {/* СТРОГИЙ КОПИРАЙТ ПО ГОСТ Р 7.0.1—2003 */}
-         <p style={{ marginTop: '40px', color: '#444', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>© Корольков Я.Д., 2026 | HUB СОТРУДНИКА</p>
+         <p style={{ marginTop: '15px', color: '#444', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>© Корольков Я.Д., 2026 | HUB СОТРУДНИКА</p>
       </footer>
 
       {/* ГЛОБАЛЬНЫЕ МОДАЛЬНЫЕ ОКНА ЮРИДИЧЕСКИХ ДОКУМЕНТОВ */}
