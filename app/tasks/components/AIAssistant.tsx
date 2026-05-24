@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 
-// --- ТИПЫ ДАННЫХ ДЛЯ ЧАТА ---
 interface Message {
     id: string;
     role: 'user' | 'ai';
@@ -25,8 +24,8 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
     
-    // Стейт для точной идентификации текущего пользователя
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [isDataLoaded, setIsDataLoaded] = useState(false); // 💡 Флаг готовности данных
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +36,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
-    // 0. ОПРЕДЕЛЕНИЕ УНИКАЛЬНОГО ПОЛЬЗОВАТЕЛЯ (ИЗОЛЯЦИЯ ЧАТОВ)
+    // ОПРЕДЕЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
     // =========================================================================
     useEffect(() => {
         if (userId) {
@@ -50,7 +49,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         if (authUser) {
             try {
                 const parsed = JSON.parse(authUser);
-                // 💡 Расширенный поиск уникального ID пользователя
                 setCurrentUserId(parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || 'unknown_user');
             } catch {
                 setCurrentUserId(authUser);
@@ -66,51 +64,49 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     }, [userId]);
 
     // =========================================================================
-    // 1. ЗАГРУЗКА ИЗ БАЗЫ ДАННЫХ (СИНХРОНИЗАЦИЯ С АНТИ-КЭШЕМ)
+    // ЗАГРУЗКА ИСТОРИИ (СИНХРОНИЗАЦИЯ)
     // =========================================================================
     useEffect(() => {
         if (!currentUserId) return;
 
         const loadHistory = async () => {
             try {
-                // 💡 ЖЕСТКИЙ АНТИ-КЭШ: Добавляем t=Date.now() и заголовки no-store
+                // Жесткий антикэш запрос на сервер
                 const res = await fetch(`/api/storage?key=th_ai_history_${currentUserId}&t=${Date.now()}`, {
-                    cache: 'no-store',
-                    headers: {
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache',
-                        'Expires': '0'
-                    }
+                    cache: 'no-store'
                 });
                 
                 if (res.ok) {
                     const data = await res.json();
-                    
-                    // 💡 Убрали проверку data.length > 0, чтобы сервер мог прислать "пустоту"
                     if (Array.isArray(data)) {
                         setSessions(data);
                         setActiveSessionId(data.length > 0 ? data[0].id : null);
-                        return; // Успешно загрузили с сервера, выходим
+                        setIsDataLoaded(true);
+                        return; 
                     }
                 }
             } catch (e) {
-                console.warn("Не удалось загрузить с сервера, пробуем из кэша", e);
+                console.warn("Ошибка сервера, берем локальную копию", e);
             }
 
-            // Fallback (локальная копия)
+            // Fallback
             const savedSessions = localStorage.getItem(`th_ai_history_${currentUserId}`);
             if (savedSessions) {
-                const parsed = JSON.parse(savedSessions);
-                if (Array.isArray(parsed)) {
-                    setSessions(parsed);
-                    if (parsed.length > 0) setActiveSessionId(parsed[0].id);
-                }
+                try {
+                    const parsed = JSON.parse(savedSessions);
+                    if (Array.isArray(parsed)) {
+                        setSessions(parsed);
+                        if (parsed.length > 0) setActiveSessionId(parsed[0].id);
+                    }
+                } catch(e) {}
             }
+            setIsDataLoaded(true);
         };
 
         loadHistory();
     }, [currentUserId]);
 
+    // Автоскролл
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -118,10 +114,10 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     }, [sessions, activeSessionId, isTyping]);
 
     // =========================================================================
-    // 2. СОХРАНЕНИЕ НА СЕРВЕР
+    // СОХРАНЕНИЕ НА СЕРВЕР
     // =========================================================================
     const saveSessions = async (newSessions: ChatSession[]) => {
-        if (!currentUserId) return;
+        if (!currentUserId || !isDataLoaded) return; // Запрещаем перезаписывать до загрузки
 
         setSessions(newSessions);
         localStorage.setItem(`th_ai_history_${currentUserId}`, JSON.stringify(newSessions));
@@ -136,7 +132,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 })
             });
         } catch (e) {
-            console.error("Ошибка синхронизации истории с сервером", e);
+            console.error("Ошибка сохранения на сервер", e);
         }
     };
 
@@ -165,7 +161,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const deleteSession = (sessionId: string, e: React.MouseEvent) => {
         e.stopPropagation(); 
         const filtered = sessions.filter((s: ChatSession) => s.id !== sessionId);
-        
         saveSessions(filtered);
         
         if (activeSessionId === sessionId) {
@@ -185,8 +180,11 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         return b.updatedAt - a.updatedAt;
     });
 
+    // =========================================================================
+    // ОТПРАВКА СООБЩЕНИЯ
+    // =========================================================================
     const handleSendMessage = async (text: string) => {
-        if (!text.trim() || !currentUserId) return;
+        if (!text.trim() || !currentUserId || !isDataLoaded) return;
 
         let currentActiveId = activeSessionId;
         let currentSessions = [...sessions];
@@ -308,8 +306,8 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
     const activeSession = sessions.find((s: ChatSession) => s.id === activeSessionId);
 
-    if (!currentUserId) {
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'transparent', color: '#0abab5' }}>Загрузка чата...</div>;
+    if (!currentUserId || !isDataLoaded) {
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'transparent', color: '#0abab5' }}>Синхронизация чата...</div>;
     }
 
     return (
