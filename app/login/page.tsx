@@ -40,6 +40,9 @@ export default function LoginPage() {
   const [regTg, setRegTg] = useState("");
   const [regPhone, setRegPhone] = useState("");
 
+  // 💡 НОВОЕ: Состояние для галочки согласия
+  const [isConsentGiven, setIsConsentGiven] = useState(false);
+
   // Состояния уведомлений
   const [errorMessage, setErrorMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
@@ -142,6 +145,12 @@ export default function LoginPage() {
   };
 
   const handleRegister = async () => {
+      // 💡 НОВОЕ: Проверка галочки согласия
+      if (!isConsentGiven) {
+          setErrorMessage("ОШИБКА: Для регистрации необходимо дать согласие на обработку персональных данных.");
+          return;
+      }
+
       if (!regName.trim() || !login.trim() || !pass.trim() || !email.trim() || !regTg.trim() || !regPhone.trim()) {
           setErrorMessage("ОШИБКА: Пожалуйста, заполните абсолютно все поля. Это обязательно для активации аккаунта!");
           return;
@@ -238,6 +247,24 @@ export default function LoginPage() {
                 <input type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
                 <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
                 <input type="text" placeholder="Номер телефона (только цифры)" value={regPhone} onChange={(e)=>setRegPhone(e.target.value.replace(/\D/g, ''))} style={inputS} />
+
+                {/* 💡 НОВОЕ: Блок с галочкой согласия */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '5px', marginBottom: '20px' }}>
+                    <div 
+                        onClick={() => setIsConsentGiven(!isConsentGiven)}
+                        style={{ 
+                            width: '24px', height: '24px', flexShrink: 0, 
+                            border: isConsentGiven ? '2px solid #0abab5' : '2px solid #444', 
+                            borderRadius: '6px', background: isConsentGiven ? 'rgba(10,186,181,0.1)' : '#111',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'
+                        }}
+                    >
+                        {isConsentGiven && <span style={{ color: '#0abab5', fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
+                    </div>
+                    <div style={{ color: '#888', fontSize: '12px', lineHeight: '1.4' }}>
+                        Я даю согласие на <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
+                    </div>
+                </div>
             </div>
         )}
 
@@ -277,7 +304,14 @@ export default function LoginPage() {
                 {isLoginMode ? 'Нет аккаунта или первый вход? ' : 'Уже активировали аккаунт? '}
             </span>
             <span 
-                onClick={() => { setIsLoginMode(!isLoginMode); setFailedAttempts(0); setIsCaptchaVerified(false); setIsCaptchaLoading(false); setInfoMessage(""); }} 
+                onClick={() => { 
+                    setIsLoginMode(!isLoginMode); 
+                    setFailedAttempts(0); 
+                    setIsCaptchaVerified(false); 
+                    setIsCaptchaLoading(false); 
+                    setInfoMessage("");
+                    setIsConsentGiven(false); // Сброс галочки при смене режима
+                }} 
                 style={{ color: '#0abab5', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}
             >
                 {isLoginMode ? 'Пройти регистрацию' : 'Войти'}
