@@ -10,7 +10,6 @@ const setAppCookie = (name: string, value: string, days: number | null = 7) => {
         date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
         document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
     } else {
-        // Если days = null, создается сессионная cookie (уничтожается при закрытии вкладки)
         document.cookie = `${name}=${encodeURIComponent(value)};path=/`;
     }
 };
@@ -19,7 +18,6 @@ const deleteAppCookie = (name: string) => {
     document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
 };
 
-// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
         method: 'POST',
@@ -46,11 +44,13 @@ export default function Navigation() {
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
   
-  // Дополнительные поля для регистрации
   const [regName, setRegName] = useState("");
   const [email, setEmail] = useState("");
   const [regTg, setRegTg] = useState("");
   const [regPhone, setRegPhone] = useState("");
+
+  // 💡 НОВОЕ: Состояние для галочки согласия во всплывающем окне
+  const [isConsentGiven, setIsConsentGiven] = useState(false);
 
   // Базы для поиска
   const [searchDbRoutes, setSearchDbRoutes] = useState<any[]>([]);
@@ -172,6 +172,12 @@ export default function Navigation() {
   };
 
   const handleRegister = async () => {
+      // 💡 НОВОЕ: Проверка галочки согласия во всплывающем окне
+      if (!isConsentGiven) {
+          setErrorMessage("ОШИБКА: Для регистрации необходимо дать согласие на обработку персональных данных.");
+          return;
+      }
+
       if (!regName.trim() || !login.trim() || !pass.trim()) {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
@@ -213,25 +219,22 @@ export default function Navigation() {
       }
   };
 
-  // =======================================================================
-  // 💡 ИСПРАВЛЕННАЯ ФУНКЦИЯ ВЫХОДА (СНАЙПЕРСКОЕ УДАЛЕНИЕ ВМЕСТО БОМБЫ)
-  // =======================================================================
   const handleLogout = () => {
-    const keysToRemove = ['isLoggedIn', 'userRole', 'current_user_id', 'current_user_name', 'th_current_user', 'currentUser'];
+    const keysToRemove = [
+        'isLoggedIn', 'userRole', 'current_user_id', 'current_user_name', 
+        'th_current_user', 'currentUser', 'user', 'profile', 'userData', 'account'
+    ];
     
-    // Удаляем только данные авторизации
     keysToRemove.forEach(key => {
         localStorage.removeItem(key);
         sessionStorage.removeItem(key);
     });
 
-    // Удаляем куки авторизации
     deleteAppCookie('isLoggedIn');
     deleteAppCookie('userRole');
     deleteAppCookie('current_user_id');
     deleteAppCookie('current_user_name');
 
-    // Пингуем систему, чтобы чат моментально понял, что мы вышли
     window.dispatchEvent(new Event('storage'));
 
     setIsLoggedIn(false);
@@ -494,6 +497,24 @@ export default function Navigation() {
                     <input type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
                     <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
                     <input type="text" placeholder="Номер телефона" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)} style={inputS} />
+                    
+                    {/* 💡 НОВОЕ: Блок с галочкой согласия */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '5px', marginBottom: '20px', width: '100%' }}>
+                        <div 
+                            onClick={() => setIsConsentGiven(!isConsentGiven)}
+                            style={{ 
+                                width: '24px', height: '24px', flexShrink: 0, 
+                                border: isConsentGiven ? '2px solid #0abab5' : '2px solid #444', 
+                                borderRadius: '6px', background: isConsentGiven ? 'rgba(10,186,181,0.1)' : '#111',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'
+                            }}
+                        >
+                            {isConsentGiven && <span style={{ color: '#0abab5', fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
+                        </div>
+                        <div style={{ color: '#888', fontSize: '12px', lineHeight: '1.4', textAlign: 'left' }}>
+                            Я даю согласие на <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
+                        </div>
+                    </div>
                 </>
             )}
 
@@ -529,13 +550,26 @@ export default function Navigation() {
             )}
             
             <div 
-                onClick={() => { setIsLoginMode(!isLoginMode); setFailedAttempts(0); setIsCaptchaVerified(false); setIsCaptchaLoading(false); }} 
+                onClick={() => { 
+                    setIsLoginMode(!isLoginMode); 
+                    setFailedAttempts(0); 
+                    setIsCaptchaVerified(false); 
+                    setIsCaptchaLoading(false); 
+                    setIsConsentGiven(false); // Сброс галочки при переключении
+                }} 
                 style={{...closeText, color: '#0abab5', marginTop: '15px', textDecoration: 'underline'}}
             >
                 {isLoginMode ? 'Регистрация' : 'Вход'}
             </div>
 
-            <div onClick={()=> { setShowLoginModal(false); setIsLoginMode(true); setFailedAttempts(0); setIsCaptchaVerified(false); setIsCaptchaLoading(false); }} style={closeText}>ОТМЕНА</div>
+            <div onClick={()=> { 
+                setShowLoginModal(false); 
+                setIsLoginMode(true); 
+                setFailedAttempts(0); 
+                setIsCaptchaVerified(false); 
+                setIsCaptchaLoading(false); 
+                setIsConsentGiven(false);
+            }} style={closeText}>ОТМЕНА</div>
           </div>
         </div>
       )}
