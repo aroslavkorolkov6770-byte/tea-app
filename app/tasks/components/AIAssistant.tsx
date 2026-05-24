@@ -25,8 +25,10 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
     
+    // 💡 Стейт для точной идентификации текущего пользователя
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    
     const chatContainerRef = useRef<HTMLDivElement>(null);
-    const currentUserId = userId || 'guest';
 
     const quickPrompts = [
         "Как правильно заваривать Те Гуань Инь?",
@@ -35,28 +37,61 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
+    // 0. ОПРЕДЕЛЕНИЕ УНИКАЛЬНОГО ПОЛЬЗОВАТЕЛЯ (ИЗОЛЯЦИЯ ЧАТОВ)
+    // =========================================================================
+    useEffect(() => {
+        if (userId) {
+            setCurrentUserId(userId);
+            return;
+        }
+
+        // Если пропс не передан, пытаемся найти авторизованного пользователя в кэше
+        const authUser = localStorage.getItem('th_current_user') || localStorage.getItem('currentUser') || localStorage.getItem('user');
+        
+        if (authUser) {
+            try {
+                const parsed = JSON.parse(authUser);
+                // Ищем логин, id или роль. Если структура сложная, берем что есть.
+                setCurrentUserId(parsed.login || parsed.id || parsed.role || 'unknown_user');
+            } catch {
+                setCurrentUserId(authUser);
+            }
+        } else {
+            // Если пользователь вообще не авторизован, выдаем ему уникальный ID устройства, 
+            // чтобы его чат не пересекался с другими неавторизованными гостями.
+            let deviceId = localStorage.getItem('th_device_id');
+            if (!deviceId) {
+                deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('th_device_id', deviceId);
+            }
+            setCurrentUserId(deviceId);
+        }
+    }, [userId]);
+
+    // =========================================================================
     // 1. ЗАГРУЗКА ИЗ БАЗЫ ДАННЫХ (СИНХРОНИЗАЦИЯ)
     // =========================================================================
     useEffect(() => {
+        // Ждем, пока код точно определит, кто именно открыл чат
+        if (!currentUserId) return;
+
         const loadHistory = async () => {
             try {
-                // Запрашиваем историю с сервера (по твоему route.ts)
                 const res = await fetch(`/api/storage?key=th_ai_history_${currentUserId}`);
                 if (res.ok) {
                     const data = await res.json();
                     
-                    // Твой сервер возвращает сразу массив (или пустой массив [])
                     if (Array.isArray(data) && data.length > 0) {
                         setSessions(data);
                         setActiveSessionId(data[0].id);
-                        return; // Успешно загрузили с сервера, выходим
+                        return; 
                     }
                 }
             } catch (e) {
                 console.warn("Не удалось загрузить с сервера, пробуем из кэша", e);
             }
 
-            // Fallback: Если на сервере пусто или ошибка, берем из локального кэша
+            // Fallback (локальная копия для текущего юзера)
             const savedSessions = localStorage.getItem(`th_ai_history_${currentUserId}`);
             if (savedSessions) {
                 const parsed = JSON.parse(savedSessions);
@@ -80,18 +115,18 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     // 2. СОХРАНЕНИЕ НА СЕРВЕР (СИНХРОНИЗАЦИЯ)
     // =========================================================================
     const saveSessions = async (newSessions: ChatSession[]) => {
+        if (!currentUserId) return;
+
         setSessions(newSessions);
-        // Сохраняем в кэш браузера для моментального отображения
         localStorage.setItem(`th_ai_history_${currentUserId}`, JSON.stringify(newSessions));
         
-        // Отправляем на бэкенд в формате, который ждет твой route.ts ({ key, data })
         try {
             await fetch('/api/storage', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     key: `th_ai_history_${currentUserId}`,
-                    data: newSessions // Передаем сам массив, твой сервер сохранит его в JSON
+                    data: newSessions 
                 })
             });
         } catch (e) {
@@ -138,7 +173,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         saveSessions(updated);
     };
 
-    // Сортировка: Сначала булавки, потом по дате обновления
     const sortedSessions = [...sessions].sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
@@ -146,7 +180,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     });
 
     const handleSendMessage = async (text: string) => {
-        if (!text.trim()) return;
+        if (!text.trim() || !currentUserId) return;
 
         let currentActiveId = activeSessionId;
         let currentSessions = [...sessions];
@@ -267,6 +301,11 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     };
 
     const activeSession = sessions.find((s: ChatSession) => s.id === activeSessionId);
+
+    // Если хук еще не определил пользователя, не рендерим интерфейс, чтобы избежать моргания
+    if (!currentUserId) {
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'transparent', color: '#0abab5' }}>Загрузка чата...</div>;
+    }
 
     return (
         <section className="ai-monolithic-section" style={{ animation: 'fadeInUp 0.5s ease' }}>
