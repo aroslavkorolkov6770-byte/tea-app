@@ -27,6 +27,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     
     // Стейт для жесткой привязки
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [isScanning, setIsScanning] = useState(true); // Флаг сканирования
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -37,120 +38,129 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
-    // 1. ИДЕАЛЬНАЯ ПРИВЯЗКА (ЛОГИН/ПОЧТА/ТЕЛЕФОН) И МИГРАЦИЯ ЧАТОВ
+    // 1. УМНЫЙ РАДАР: ЖДЕМ АВТОРИЗАЦИЮ (РЕШЕНИЕ ПРОБЛЕМЫ ПЕРЕЗАХОДОВ)
     // =========================================================================
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const determineUser = () => {
-            // 1. ПРОВЕРКА НА АДМИНА
-            if (localStorage.getItem('userRole') === 'admin') {
+        let attempts = 0;
+
+        const scanAuthMemory = () => {
+            // 1. АДМИН (Самый высокий приоритет)
+            if (localStorage.getItem('userRole') === 'admin' || userId === 'admin') {
                 return 'admin_master';
             }
 
-            let empId = null;
+            let foundId = null;
 
-            // 2. ПРОВЕРКА ПРОФИЛЯ СОТРУДНИКА (JSON)
-            const profileKeys = ['th_current_user', 'currentUser', 'user', 'profile', 'userData', 'account'];
-            for (const k of profileKeys) {
-                const data = localStorage.getItem(k);
-                if (data && data.startsWith('{')) {
-                    try {
-                        const obj = JSON.parse(data);
-                        empId = obj.id || obj.login || obj.username || obj.email || obj.phone;
-                        if (empId) break;
-                    } catch(e) {}
+            // 2. Ищем прямые ключи логина (игнорируем guest)
+            const flatKeys = ['current_user_id', 'userId', 'login', 'username', 'email', 'phone', 'employee_id'];
+            for (const k of flatKeys) {
+                const val = localStorage.getItem(k);
+                if (val && val !== 'guest' && val !== 'null' && val.trim() !== '') {
+                    foundId = val.trim();
+                    break;
                 }
             }
 
-            // 3. ПРОВЕРКА ОДИНОЧНЫХ КЛЮЧЕЙ (если нет JSON)
-            if (!empId) {
-                const flatKeys = ['current_user_id', 'userId', 'user_id', 'login', 'username', 'email', 'phone'];
-                for (const k of flatKeys) {
-                    const val = localStorage.getItem(k);
-                    if (val && val !== 'guest' && val !== 'null' && val.trim() !== '') {
-                        empId = val.trim();
-                        break;
+            // 3. Ищем в объектах профиля
+            if (!foundId) {
+                const jsonKeys = ['th_current_user', 'currentUser', 'user', 'profile', 'userData'];
+                for (const k of jsonKeys) {
+                    const data = localStorage.getItem(k);
+                    if (data && data.startsWith('{')) {
+                        try {
+                            const obj = JSON.parse(data);
+                            foundId = obj.id || obj.login || obj.email || obj.username || obj.phone;
+                            if (foundId) break;
+                        } catch(e) {}
                     }
                 }
             }
 
-            // 4. ПРОВЕРКА ПРОПСА ИЗ page.tsx
-            if (!empId && userId && userId !== 'guest' && userId.trim() !== '') {
-                empId = userId.trim();
+            // 4. Проверяем пропс
+            if (!foundId && userId && userId !== 'guest' && userId.trim() !== '') {
+                foundId = userId.trim();
             }
 
-            // ЕСЛИ НАШЛИ СОТРУДНИКА — ФОРМИРУЕМ ЕГО УНИКАЛЬНЫЙ КЛЮЧ
-            if (empId) {
-                return 'emp_' + String(empId).replace(/[^a-zA-Z0-9_-]/g, '_');
+            if (foundId) {
+                return 'emp_' + String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_');
             }
 
-            // 5. ФОЛБЭК ДЛЯ ГОСТЯ (генерируется ОДИН раз и сохраняется)
-            let guestId = localStorage.getItem('th_stable_guest_id');
-            if (!guestId) {
-                guestId = 'guest_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('th_stable_guest_id', guestId);
-            }
-            return guestId;
+            return null; // Ничего не нашли, продолжаем искать
         };
 
-        const activeUser = determineUser();
-        setCurrentUserId(activeUser);
+        // Запускаем таймер, который проверяет память каждые 100 миллисекунд
+        const scannerTimer = setInterval(() => {
+            const detectedUser = scanAuthMemory();
 
-        // --- УМНАЯ МИГРАЦИЯ ПРИ СМЕНЕ ЛОГИНА ИЛИ ДАННЫХ ---
-        const lastKnownUser = localStorage.getItem('th_last_known_user');
-        
-        // Если логин поменялся (например, сотрудник обновил профиль)
-        if (lastKnownUser && lastKnownUser !== activeUser && lastKnownUser.startsWith('emp_') && activeUser.startsWith('emp_')) {
-            const oldHistory = localStorage.getItem(`th_ai_history_${lastKnownUser}`);
-            if (oldHistory) {
-                // Переносим локальную историю на новый логин
-                localStorage.setItem(`th_ai_history_${activeUser}`, oldHistory);
-                // Отправляем перенесенную историю на сервер под новым логином
-                fetch('/api/storage', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: `th_ai_history_${activeUser}`, data: JSON.parse(oldHistory) })
-                }).catch(() => {});
-                // Удаляем старый хвост
-                localStorage.removeItem(`th_ai_history_${lastKnownUser}`);
+            if (detectedUser) {
+                // Если радар нашел пользователя (Админа или Сотрудника)
+                clearInterval(scannerTimer);
+                setCurrentUserId(detectedUser);
+                localStorage.setItem('th_last_valid_user', detectedUser); // Запоминаем успешный вход
+                setIsScanning(false);
+                loadHistory(detectedUser);
+            } else {
+                attempts++;
+                // Если прошло 1.5 секунды (15 попыток), а пользователя все еще нет — значит это реально Гость
+                if (attempts >= 15) {
+                    clearInterval(scannerTimer);
+                    
+                    // Пытаемся вспомнить последнего пользователя (если это был просто глюк при перезагрузке)
+                    const lastValid = localStorage.getItem('th_last_valid_user');
+                    if (lastValid) {
+                        setCurrentUserId(lastValid);
+                        setIsScanning(false);
+                        loadHistory(lastValid);
+                    } else {
+                        // Если это чистый браузер — выдаем стабильный ID устройства
+                        let deviceId = localStorage.getItem('th_device_stable_id');
+                        if (!deviceId) {
+                            deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+                            localStorage.setItem('th_device_stable_id', deviceId);
+                        }
+                        setCurrentUserId(deviceId);
+                        setIsScanning(false);
+                        loadHistory(deviceId);
+                    }
+                }
+            }
+        }, 100);
+
+        return () => clearInterval(scannerTimer);
+    }, [userId]); 
+
+    // --- ФУНКЦИЯ ЗАГРУЗКИ ИСТОРИИ ---
+    const loadHistory = async (activeUserKey: string) => {
+        let serverDataFound = false;
+        try {
+            const res = await fetch(`/api/storage?key=th_ai_history_${activeUserKey}&t=${Date.now()}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    setSessions(data);
+                    setActiveSessionId(data[0].id);
+                    serverDataFound = true;
+                }
+            }
+        } catch (e) {
+            console.warn("Сервер недоступен, читаем из памяти браузера");
+        }
+
+        if (!serverDataFound) {
+            const savedSessions = localStorage.getItem(`th_ai_history_${activeUserKey}`);
+            if (savedSessions) {
+                try {
+                    const parsed = JSON.parse(savedSessions);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        setSessions(parsed);
+                        setActiveSessionId(parsed[0].id);
+                    }
+                } catch(e) {}
             }
         }
-        localStorage.setItem('th_last_known_user', activeUser);
-
-        // --- ЗАГРУЗКА ИСТОРИИ ЧАТОВ ---
-        const loadHistory = async () => {
-            let serverDataFound = false;
-            try {
-                const res = await fetch(`/api/storage?key=th_ai_history_${activeUser}&t=${Date.now()}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        setSessions(data);
-                        setActiveSessionId(data[0].id);
-                        serverDataFound = true;
-                    }
-                }
-            } catch (e) {
-                console.warn("Сервер недоступен, читаем из памяти браузера");
-            }
-
-            if (!serverDataFound) {
-                const savedSessions = localStorage.getItem(`th_ai_history_${activeUser}`);
-                if (savedSessions) {
-                    try {
-                        const parsed = JSON.parse(savedSessions);
-                        if (Array.isArray(parsed) && parsed.length > 0) {
-                            setSessions(parsed);
-                            setActiveSessionId(parsed[0].id);
-                        }
-                    } catch(e) {}
-                }
-            }
-        };
-
-        loadHistory();
-    }, [userId]); 
+    };
 
     // Автоскролл
     useEffect(() => {
@@ -361,8 +371,9 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
     const activeSession = sessions.find((s: ChatSession) => s.id === activeSessionId);
 
-    if (!currentUserId) {
-        return null;
+    // Если идет процесс сканирования профиля
+    if (isScanning) {
+        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'transparent', color: '#0abab5', fontWeight: 'bold' }}>Проверка доступа к чату...</div>;
     }
 
     return (
@@ -424,7 +435,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     </div>
 
                     <div style={{ padding: '10px 20px', fontSize: '10px', color: '#444', textAlign: 'center', borderTop: '1px solid #1a1a1a', fontWeight: 'bold' }}>
-                        ID аккаунта: {currentUserId}
+                        Профиль: {currentUserId}
                     </div>
 
                     {sessions.length > 0 && (
