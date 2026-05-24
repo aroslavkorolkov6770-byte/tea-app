@@ -25,7 +25,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
     
-    // Стейт для хранения сгенерированной мульти-привязки
+    // Стейт для жесткой привязки
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -37,148 +37,122 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
-    // 1. СИСТЕМА МУЛЬТИ-ПРИВЯЗКИ И АВТО-МИГРАЦИИ ИСТОРИИ
+    // 1. ИДЕАЛЬНАЯ ПРИВЯЗКА (ЛОГИН/ПОЧТА/ТЕЛЕФОН) И МИГРАЦИЯ ЧАТОВ
     // =========================================================================
     useEffect(() => {
-        const initializeAuthAndHistory = async () => {
-            // --- СБОР ДАННЫХ ДЛЯ КОМБИНИРОВАННОГО КЛЮЧА ---
-            const role = localStorage.getItem('userRole');
-            
-            // Если зашел админ — даем ему перманентный изолированный ключ
-            if (role === 'admin') {
-                const adminKey = 'admin_secure_chat_session';
-                setCurrentUserId(adminKey);
-                await loadHistoryForUser(adminKey);
-                return;
+        if (typeof window === 'undefined') return;
+
+        const determineUser = () => {
+            // 1. ПРОВЕРКА НА АДМИНА
+            if (localStorage.getItem('userRole') === 'admin') {
+                return 'admin_master';
             }
 
-            let userFields: string[] = [];
-            const storageKeys = ['th_current_user', 'currentUser', 'user', 'profile', 'account', 'userData'];
-            
-            // Сканируем JSON-объекты авторизации
-            storageKeys.forEach(key => {
-                const data = localStorage.getItem(key);
+            let empId = null;
+
+            // 2. ПРОВЕРКА ПРОФИЛЯ СОТРУДНИКА (JSON)
+            const profileKeys = ['th_current_user', 'currentUser', 'user', 'profile', 'userData', 'account'];
+            for (const k of profileKeys) {
+                const data = localStorage.getItem(k);
                 if (data && data.startsWith('{')) {
                     try {
-                        const parsed = JSON.parse(data);
-                        if (parsed.id) userFields.push(`id_${parsed.id}`);
-                        if (parsed.login) userFields.push(`login_${parsed.login}`);
-                        if (parsed.username) userFields.push(`username_${parsed.username}`);
-                        if (parsed.email) userFields.push(`email_${parsed.email}`);
-                        if (parsed.phone || parsed.telephone || parsed.phone_number) {
-                            userFields.push(`phone_${parsed.phone || parsed.telephone || parsed.phone_number}`);
-                        }
-                    } catch (e) {}
+                        const obj = JSON.parse(data);
+                        empId = obj.id || obj.login || obj.username || obj.email || obj.phone;
+                        if (empId) break;
+                    } catch(e) {}
                 }
-            });
-
-            // Сканируем плоские ключи в localStorage
-            const flatKeys = ['current_user_id', 'login', 'username', 'email', 'phone', 'telephone'];
-            flatKeys.forEach(key => {
-                const val = localStorage.getItem(key);
-                if (val && val !== 'guest' && val !== 'null' && val !== 'undefined' && val.trim() !== '') {
-                    userFields.push(`${key}_${val.trim()}`);
-                }
-            });
-
-            if (userId && userId !== 'guest' && userId.trim() !== '') {
-                userFields.push(`props_${userId.trim()}`);
             }
 
-            // Очищаем массив от дубликатов и спецсимволов
-            const cleanFields = Array.from(new Set(userFields))
-                .map(f => String(f).replace(/[^a-zA-Z0-9_-]/g, '_'))
-                .filter(Boolean);
-
-            let finalKey = '';
-            if (cleanFields.length > 0) {
-                // Генерируем уникальный мульти-ключ сотрудника
-                finalKey = 'emp_' + cleanFields.join('__');
-            } else {
-                // Стабильный fallback для незалогиненных устройств (без генерации каждый раз)
-                let deviceId = localStorage.getItem('th_permanent_device_chat_id');
-                if (!deviceId) {
-                    deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
-                    localStorage.setItem('th_permanent_device_chat_id', deviceId);
+            // 3. ПРОВЕРКА ОДИНОЧНЫХ КЛЮЧЕЙ (если нет JSON)
+            if (!empId) {
+                const flatKeys = ['current_user_id', 'userId', 'user_id', 'login', 'username', 'email', 'phone'];
+                for (const k of flatKeys) {
+                    const val = localStorage.getItem(k);
+                    if (val && val !== 'guest' && val !== 'null' && val.trim() !== '') {
+                        empId = val.trim();
+                        break;
+                    }
                 }
-                finalKey = deviceId;
             }
 
-            if (finalKey.length > 150) {
-                finalKey = finalKey.substring(0, 150);
+            // 4. ПРОВЕРКА ПРОПСА ИЗ page.tsx
+            if (!empId && userId && userId !== 'guest' && userId.trim() !== '') {
+                empId = userId.trim();
             }
 
-            setCurrentUserId(finalKey);
+            // ЕСЛИ НАШЛИ СОТРУДНИКА — ФОРМИРУЕМ ЕГО УНИКАЛЬНЫЙ КЛЮЧ
+            if (empId) {
+                return 'emp_' + String(empId).replace(/[^a-zA-Z0-9_-]/g, '_');
+            }
 
-            // --- ЛОГИКА МИГРАЦИИ ПРИ СМЕНЕ ЛОГИНА/ДАННЫХ ---
-            const lastActiveKey = localStorage.getItem('th_last_active_user_key');
-            localStorage.setItem('th_last_active_user_key', finalKey);
-
-            await loadHistoryForUser(finalKey, lastActiveKey);
+            // 5. ФОЛБЭК ДЛЯ ГОСТЯ (генерируется ОДИН раз и сохраняется)
+            let guestId = localStorage.getItem('th_stable_guest_id');
+            if (!guestId) {
+                guestId = 'guest_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('th_stable_guest_id', guestId);
+            }
+            return guestId;
         };
 
-        const loadHistoryForUser = async (targetKey: string, previousKey?: string | null) => {
-            let loadedData: ChatSession[] = [];
-            let isLoadedSuccess = false;
+        const activeUser = determineUser();
+        setCurrentUserId(activeUser);
 
+        // --- УМНАЯ МИГРАЦИЯ ПРИ СМЕНЕ ЛОГИНА ИЛИ ДАННЫХ ---
+        const lastKnownUser = localStorage.getItem('th_last_known_user');
+        
+        // Если логин поменялся (например, сотрудник обновил профиль)
+        if (lastKnownUser && lastKnownUser !== activeUser && lastKnownUser.startsWith('emp_') && activeUser.startsWith('emp_')) {
+            const oldHistory = localStorage.getItem(`th_ai_history_${lastKnownUser}`);
+            if (oldHistory) {
+                // Переносим локальную историю на новый логин
+                localStorage.setItem(`th_ai_history_${activeUser}`, oldHistory);
+                // Отправляем перенесенную историю на сервер под новым логином
+                fetch('/api/storage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: `th_ai_history_${activeUser}`, data: JSON.parse(oldHistory) })
+                }).catch(() => {});
+                // Удаляем старый хвост
+                localStorage.removeItem(`th_ai_history_${lastKnownUser}`);
+            }
+        }
+        localStorage.setItem('th_last_known_user', activeUser);
+
+        // --- ЗАГРУЗКА ИСТОРИИ ЧАТОВ ---
+        const loadHistory = async () => {
+            let serverDataFound = false;
             try {
-                const res = await fetch(`/api/storage?key=th_ai_history_${targetKey}&t=${Date.now()}`);
+                const res = await fetch(`/api/storage?key=th_ai_history_${activeUser}&t=${Date.now()}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data) && data.length > 0) {
-                        loadedData = data;
-                        isLoadedSuccess = true;
+                        setSessions(data);
+                        setActiveSessionId(data[0].id);
+                        serverDataFound = true;
                     }
                 }
             } catch (e) {
-                console.warn("Серверная база недоступна, проверка локальных копий");
+                console.warn("Сервер недоступен, читаем из памяти браузера");
             }
 
-            // Если под новым ключом на сервере пусто, проверяем миграцию со старых данных профиля
-            if (!isLoadedSuccess && previousKey && previousKey !== targetKey) {
-                const oldLocalData = localStorage.getItem(`th_ai_history_${previousKey}`);
-                if (oldLocalData) {
+            if (!serverDataFound) {
+                const savedSessions = localStorage.getItem(`th_ai_history_${activeUser}`);
+                if (savedSessions) {
                     try {
-                        const parsedOld = JSON.parse(oldLocalData);
-                        if (Array.isArray(parsedOld) && parsedOld.length > 0) {
-                            loadedData = parsedOld;
-                            isLoadedSuccess = true;
-                            
-                            // Мгновенно синхронизируем перепривязанный чат с сервером под новым именем
-                            localStorage.setItem(`th_ai_history_${targetKey}`, oldLocalData);
-                            fetch('/api/storage', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ key: `th_ai_history_${targetKey}`, data: parsedOld })
-                            }).catch(console.error);
+                        const parsed = JSON.parse(savedSessions);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            setSessions(parsed);
+                            setActiveSessionId(parsed[0].id);
                         }
-                    } catch (e) {}
+                    } catch(e) {}
                 }
-            }
-
-            // Если миграция не сработала, ищем стандартный локальный кэш
-            if (!isLoadedSuccess) {
-                const fallbackLocal = localStorage.getItem(`th_ai_history_${targetKey}`);
-                if (fallbackLocal) {
-                    try {
-                        const parsed = JSON.parse(fallbackLocal);
-                        if (Array.isArray(parsed)) loadedData = parsed;
-                    } catch (e) {}
-                }
-            }
-
-            setSessions(loadedData);
-            if (loadedData.length > 0) {
-                setActiveSessionId(loadedData[0].id);
-            } else {
-                setActiveSessionId(null);
             }
         };
 
-        initializeAuthAndHistory();
-    }, [userId]);
+        loadHistory();
+    }, [userId]); 
 
-    // Автоматический скролл вниз
+    // Автоскролл
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -186,7 +160,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     }, [sessions, activeSessionId, isTyping]);
 
     // =========================================================================
-    // 2. ФУНКЦИИ УПРАВЛЕНИЯ ЧАТОМ И СИНХРОНИЗАЦИИ
+    // 2. СОХРАНЕНИЕ НА СЕРВЕР И В ЛОКАЛКУ
     // =========================================================================
     const saveSessions = (newSessions: ChatSession[]) => {
         setSessions(newSessions);
@@ -201,9 +175,12 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 key: `th_ai_history_${currentUserId}`,
                 data: newSessions 
             })
-        }).catch(err => console.error("Критическая ошибка синхронизации бэкенда:", err));
+        }).catch(err => console.error("Ошибка сохранения на сервер", err));
     };
 
+    // =========================================================================
+    // УПРАВЛЕНИЕ СЕССИЯМИ
+    // =========================================================================
     const createNewSession = () => {
         const newSession: ChatSession = {
             id: `chat_${Date.now()}`,
@@ -246,7 +223,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     });
 
     // =========================================================================
-    // 3. ОБРАБОТКА ОТПРАВКИ СООБЩЕНИЙ И СКАНИРОВАНИЕ ДОКУМЕНТОВ ЯНДЕКСА
+    // ОТПРАВКА ЗАПРОСА В ЯНДЕКС
     // =========================================================================
     const handleSendMessage = async (text: string) => {
         if (!text.trim() || !currentUserId) return;
@@ -307,7 +284,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         siteContext += `Тест: ${test.title} (${test.subtitle}). База: ${test.theory}\n`;
                     });
                 }
-                siteContext += "\n=== КОНЕЦ БАЗЫ ЗНАНИЙ ===\nОпирайся СТРОГО на этот text.\n\n";
+                siteContext += "\n=== КОНЕЦ БАЗЫ ЗНАНИЙ ===\nОпирайся СТРОГО на этот текст.\n\n";
             }
 
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === currentActiveId);
@@ -331,7 +308,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
             if (data.error) throw new Error(JSON.stringify(data));
 
-            // Глубокое сканирование массивов Яндекса при RAG поиске по файлам
             let aiText = "";
             if (Array.isArray(data.output)) {
                 const msgObj = data.output.find((o: any) => o.type === 'message' && o.content);
@@ -361,7 +337,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             saveSessions(finalSessions);
 
         } catch (error: any) {
-            console.error("❌ ОШИБКА ИИ:", error);
+            console.error("❌ ОШИБКА:", error);
             const errorMsg: Message = {
                 id: `msg_${Date.now() + 1}`, role: 'ai',
                 content: `🚨 СИСТЕМНАЯ ОШИБКА:\n\n${error.message}`,
@@ -396,7 +372,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     <div className="ai-mobile-overlay" onClick={() => setIsMobileHistoryOpen(false)}></div>
                 )}
                 
-                {/* --- СЕНДВИЧ ИСТОРИИ ЧАТОВ --- */}
+                {/* --- БОКОВАЯ ПАНЕЛЬ ИСТОРИИ --- */}
                 <div className={`ai-sidebar custom-scroll ${isMobileHistoryOpen ? 'open' : ''}`}>
                     <div style={{ padding: '20px' }}>
                         <button 
@@ -447,9 +423,8 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         ))}
                     </div>
 
-                    {/* ТЕХНИЧЕСКИЙ МОНИТОР ПРИВЯЗКИ КЛЮЧЕЙ */}
-                    <div style={{ padding: '12px 20px', fontSize: '10px', color: '#444', textAlign: 'center', borderTop: '1px solid #1a1a1a', fontWeight: 'bold', wordBreak: 'break-all' }}>
-                        Ключ сессии: {currentUserId}
+                    <div style={{ padding: '10px 20px', fontSize: '10px', color: '#444', textAlign: 'center', borderTop: '1px solid #1a1a1a', fontWeight: 'bold' }}>
+                        ID аккаунта: {currentUserId}
                     </div>
 
                     {sessions.length > 0 && (
@@ -464,7 +439,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     )}
                 </div>
 
-                {/* --- ОКНО ДИАЛОГА ЧАТА --- */}
+                {/* --- ОКНО ДИАЛОГА --- */}
                 <div className="ai-chat-area">
                     <div className="ai-mobile-header">
                         <div style={{ fontWeight: '900', color: '#fff', fontSize: '16px' }}>TeaMaster <span style={{ color: '#0abab5' }}>AI</span></div>
@@ -580,7 +555,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 .ai-session-item:hover .ai-session-actions { opacity: 1; }
                 .ai-session-actions.pinned { opacity: 1; }
 
-                .ai-pin-btn { background: transparent; border: none; cursor: pointer; color: #555; transition: all 0.2s ease; padding: 2px; display: flex; align-items: center; justifyContent: center; }
+                .ai-pin-btn { background: transparent; border: none; cursor: pointer; color: #555; transition: all 0.2s ease; padding: 2px; display: flex; align-items: center; justify-content: center; }
                 .ai-pin-btn:hover { color: #ffd700; transform: scale(1.15); }
                 .ai-pin-btn.active { color: #ffd700; }
 
