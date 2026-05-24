@@ -14,7 +14,7 @@ interface ChatSession {
     title: string;
     messages: Message[];
     updatedAt: number;
-    isPinned?: boolean; 
+    isPinned?: boolean; // Поле для закрепления чатов
 }
 
 export default function AIAssistant({ userId }: { userId?: string }) {
@@ -25,7 +25,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
     
-    // Стейт для привязки к конкретной учетке
+    // Стейт для жесткой привязки к уникальной учетке сотрудника
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -37,56 +37,43 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
-    // 1. АГРЕССИВНЫЙ ПОИСК УЧЕТНОЙ ЗАПИСИ (С ИГНОРИРОВАНИЕМ 'guest')
+    // 1. ОПРЕДЕЛЕНИЕ УНИКАЛЬНОГО ИДЕНТИФИКАТОРА СОТРУДНИКА
     // =========================================================================
     useEffect(() => {
         const determineUser = () => {
-            // 💡 ИГНОРИРУЕМ СЛОВО 'guest', которое ошибочно присылает page.tsx
+            // 1. Если из page.tsx пришел нормальный ID (не guest)
             if (userId && userId !== 'guest' && userId.trim() !== '') {
-                return String(userId).replace(/[^a-zA-Z0-9_-]/g, '_');
+                return userId.trim();
             }
             
-            // Ищем во всех возможных ключах localStorage
-            const keysToTry = ['th_current_user', 'currentUser', 'user', 'profile', 'auth', 'user-info', 'account', 'userRole'];
-            
+            // 2. Пытаемся вытащить тот самый уникальный ID, который использует страница
+            const directId = localStorage.getItem('current_user_id');
+            if (directId && directId !== 'guest' && directId.trim() !== '') {
+                return directId.trim();
+            }
+
+            // 3. Запасной поиск по объекту профиля
+            const keysToTry = ['th_current_user', 'currentUser', 'user', 'profile'];
             for (const key of keysToTry) {
                 const data = localStorage.getItem(key);
                 if (data) {
                     try {
                         const parsed = JSON.parse(data);
-                        const foundId = parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || parsed.token;
+                        // Берем только уникальные параметры (id, login, email), игнорируя общую роль 'user'
+                        const foundId = parsed.id || parsed.login || parsed.email || parsed.username;
                         if (foundId) return String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_');
                     } catch {
-                        if (data !== 'guest') return String(data).replace(/[^a-zA-Z0-9_-]/g, '_');
+                        if (data !== 'guest' && data !== 'user') return String(data).replace(/[^a-zA-Z0-9_-]/g, '_');
                     }
                 }
             }
-
-            for (const key of keysToTry) {
-                const data = sessionStorage.getItem(key);
-                if (data) {
-                    try {
-                        const parsed = JSON.parse(data);
-                        const foundId = parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || parsed.token;
-                        if (foundId) return String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_');
-                    } catch {
-                        if (data !== 'guest') return String(data).replace(/[^a-zA-Z0-9_-]/g, '_');
-                    }
-                }
-            }
-
-            // Если вообще ничего не найдено, создаем уникальный ID для браузера
-            let deviceId = localStorage.getItem('th_device_id');
-            if (!deviceId) {
-                deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('th_device_id', deviceId);
-            }
-            return deviceId;
+            return 'guest_fallback_session';
         };
 
         const activeUser = determineUser();
         setCurrentUserId(activeUser);
 
+        // Загрузка персональной истории с сервера
         const loadHistory = async () => {
             let serverDataFound = false;
             try {
@@ -100,7 +87,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     }
                 }
             } catch (e) {
-                console.warn("Сервер недоступен, читаем из памяти браузера");
+                console.warn("Сервер недоступен, загружаем локальную копию");
             }
 
             if (!serverDataFound) {
@@ -127,14 +114,16 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     }, [sessions, activeSessionId, isTyping]);
 
     // =========================================================================
-    // 2. СОХРАНЕНИЕ НА СЕРВЕР И В ЛОКАЛКУ
+    // 2. НАДЕЖНОЕ СОХРАНЕНИЕ ДАННЫХ
     // =========================================================================
     const saveSessions = (newSessions: ChatSession[]) => {
         setSessions(newSessions);
         if (!currentUserId) return;
 
+        // Пишем в локалку браузера для мгновенного отклика UI
         localStorage.setItem(`th_ai_history_${currentUserId}`, JSON.stringify(newSessions));
         
+        // Отправляем на сервер под уникальным ключом сотрудника
         fetch('/api/storage', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -146,7 +135,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     };
 
     // =========================================================================
-    // УПРАВЛЕНИЕ СЕССИЯМИ
+    // УПРАВЛЕНИЕ СЕССИЯМИ (БУЛАВКИ, УДАЛЕНИЕ)
     // =========================================================================
     const createNewSession = () => {
         const newSession: ChatSession = {
@@ -183,6 +172,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         saveSessions(updated);
     };
 
+    // Сортировка: сначала закрепленные булавкой, затем по времени обновления
     const sortedSessions = [...sessions].sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
@@ -190,7 +180,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     });
 
     // =========================================================================
-    // ОТПРАВКА СООБЩЕНИЯ
+    // ОТПРАВКА ЗАПРОСА В ЯНДЕКС
     // =========================================================================
     const handleSendMessage = async (text: string) => {
         if (!text.trim() || !currentUserId) return;
@@ -198,6 +188,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         let currentActiveId = activeSessionId;
         let currentSessions = [...sessions];
 
+        // Автосоздание сессии при первом сообщении в пустом окне
         if (!currentActiveId || currentSessions.length === 0) {
             const newSession: ChatSession = {
                 id: `chat_${Date.now()}`,
@@ -275,24 +266,19 @@ export default function AIAssistant({ userId }: { userId?: string }) {
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
             if (data.error) throw new Error(JSON.stringify(data));
 
-            // =========================================================================
-            // 💡 ИСПРАВЛЕНИЕ ЯНДЕКСА: УМНЫЙ ПОИСК ТЕКСТА В МАССИВЕ
-            // =========================================================================
+            // Поиск текста в структуре ответа Яндекса (учитывая поиск по файлам RAG)
             let aiText = "";
             if (Array.isArray(data.output)) {
-                // Ищем в массиве блок, который является финальным сообщением, а не отчетом о поиске
                 const msgObj = data.output.find((o: any) => o.type === 'message' && o.content);
                 if (msgObj && Array.isArray(msgObj.content) && msgObj.content[0]?.text) {
                     aiText = msgObj.content[0].text;
                 }
             }
             
-            // Если структура другая, используем запасные варианты
             if (!aiText) {
                 aiText = data.output_text || data.text || data.message?.text || data.message?.content?.text || data.choices?.[0]?.message?.content;
             }
 
-            // Если ничего не помогло, выводим сырой код (но теперь это маловероятно)
             if (!aiText) {
                 aiText = `🚨 СЫРОЙ ОТВЕТ ЯНДЕКСА:\n${JSON.stringify(data, null, 2)}`;
             }
@@ -345,7 +331,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     <div className="ai-mobile-overlay" onClick={() => setIsMobileHistoryOpen(false)}></div>
                 )}
                 
-                {/* --- БОКОВАЯ ПАНЕЛЬ --- */}
+                {/* --- БОКОВАЯ ПАНЕЛЬ ИСТОРИИ --- */}
                 <div className={`ai-sidebar custom-scroll ${isMobileHistoryOpen ? 'open' : ''}`}>
                     <div style={{ padding: '20px' }}>
                         <button 
@@ -396,8 +382,9 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                         ))}
                     </div>
 
-                    <div style={{ padding: '10px 20px', fontSize: '10px', color: '#444', textAlign: 'center', borderTop: '1px solid #1a1a1a' }}>
-                        Аккаунт: {currentUserId}
+                    {/* ТЕХНИЧЕСКИЙ РАДАР (Показывает, под каким ID создается файл локалки) */}
+                    <div style={{ padding: '10px 20px', fontSize: '10px', color: '#444', textAlign: 'center', borderTop: '1px solid #1a1a1a', fontWeight: 'bold' }}>
+                        ID аккаунта: {currentUserId}
                     </div>
 
                     {sessions.length > 0 && (
@@ -412,7 +399,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     )}
                 </div>
 
-                {/* --- ГЛАВНЫЙ ЭКРАН --- */}
+                {/* --- ОКНО ДИАЛОГА --- */}
                 <div className="ai-chat-area">
                     <div className="ai-mobile-header">
                         <div style={{ fontWeight: '900', color: '#fff', fontSize: '16px' }}>TeaMaster <span style={{ color: '#0abab5' }}>AI</span></div>
@@ -528,11 +515,11 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                 .ai-session-item:hover .ai-session-actions { opacity: 1; }
                 .ai-session-actions.pinned { opacity: 1; }
 
-                .ai-pin-btn { background: transparent; border: none; cursor: pointer; color: #555; transition: all 0.2s ease; padding: 2px; display: flex; align-items: center; justifyContent: center; }
+                .ai-pin-btn { background: transparent; border: none; cursor: pointer; color: #555; transition: all 0.2s ease; padding: 2px; display: flex; align-items: center; justify-content: center; }
                 .ai-pin-btn:hover { color: #ffd700; transform: scale(1.15); }
                 .ai-pin-btn.active { color: #ffd700; }
 
-                .ai-session-del-btn { background: transparent; border: none; color: #ff4d4d; cursor: pointer; transition: transform 0.1s ease, color 0.2s ease; padding: 2px; display: flex; align-items: center; justifyContent: center; }
+                .ai-session-del-btn { background: transparent; border: none; color: #ff4d4d; cursor: pointer; transition: transform 0.1s ease, color 0.2s ease; padding: 2px; display: flex; align-items: center; justify-content: center; }
                 .ai-session-del-btn:hover { color: #ff1a1a; }
                 .ai-session-del-btn:active { transform: scale(0.85); } 
 
