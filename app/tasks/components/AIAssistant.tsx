@@ -24,8 +24,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const [isTyping, setIsTyping] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
-    
-    // Стейт для жесткой привязки к уникальной учетке или устройству
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -37,113 +35,66 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
-    // 1. ИДЕАЛЬНАЯ СИСТЕМА РАСПОЗНАВАНИЯ (АДМИН / УСТРОЙСТВО / ЛОГИН)
+    // ЖЕЛЕЗОБЕТОННОЕ ОПРЕДЕЛЕНИЕ ID (НЕ МЕНЯЕТСЯ ПРИ ПЕРЕЗАГРУЗКЕ)
     // =========================================================================
     useEffect(() => {
-        const determineUser = () => {
-            // 1. Если пришел нормальный пропс (не guest)
+        const getPersistentUserId = () => {
+            // 1. Приоритет: пропс из page.tsx
             if (userId && userId !== 'guest' && userId.trim() !== '') {
                 return String(userId).replace(/[^a-zA-Z0-9_-]/g, '_');
             }
             
-            // 2. Ищем прямо по ключам
-            const directKeys = ['login', 'username', 'email', 'user_id', 'userId', 'current_user_id', 'employee_id'];
-            for (const k of directKeys) {
-                const v = localStorage.getItem(k);
-                if (v && v !== 'guest' && v !== 'null' && v !== 'undefined') {
-                    return String(v).replace(/[^a-zA-Z0-9_-]/g, '_');
-                }
-            }
-            
-            // 3. Ищем внутри объектов пользователя
-            const jsonKeys = ['th_current_user', 'currentUser', 'user', 'profile', 'userData', 'account'];
-            for (const k of jsonKeys) {
-                const v = localStorage.getItem(k);
-                if (v && v.startsWith('{')) {
-                    try {
-                        const obj = JSON.parse(v);
-                        const found = obj.login || obj.email || obj.username || obj.id;
-                        if (found && found !== 'guest') return String(found).replace(/[^a-zA-Z0-9_-]/g, '_');
-                    } catch(e) {}
-                }
-            }
+            // 2. Ищем существующий ID в localStorage
+            const existingId = localStorage.getItem('th_persistent_user_id');
+            if (existingId) return existingId;
 
-            // 4. ЕСЛИ ЛОГИНА НЕТ: Проверяем, админ ли это
-            const role = localStorage.getItem('userRole');
-            if (role === 'admin') {
-                return 'admin_account'; // Жесткая привязка чата для админа
-            }
-
-            // 5. ЕСЛИ ЭТО ОБЕЗЛИЧЕННЫЙ СОТРУДНИК: Привязываем к его устройству
-            let deviceId = localStorage.getItem('th_device_id');
-            if (!deviceId) {
-                deviceId = 'employee_device_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('th_device_id', deviceId);
-            }
-            return deviceId;
+            // 3. Создаем новый только если его реально нет
+            const newId = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('th_persistent_user_id', newId);
+            return newId;
         };
 
-        const activeUser = determineUser();
-        setCurrentUserId(activeUser);
+        setCurrentUserId(getPersistentUserId());
+    }, [userId]); 
 
-        // Загрузка персональной истории
+    // Загрузка истории
+    useEffect(() => {
+        if (!currentUserId) return;
+
         const loadHistory = async () => {
-            let serverDataFound = false;
             try {
-                const res = await fetch(`/api/storage?key=th_ai_history_${activeUser}&t=${Date.now()}`);
+                const res = await fetch(`/api/storage?key=th_ai_history_${currentUserId}&t=${Date.now()}`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (Array.isArray(data) && data.length > 0) {
+                    if (Array.isArray(data)) {
                         setSessions(data);
-                        setActiveSessionId(data[0].id);
-                        serverDataFound = true;
+                        if (data.length > 0) setActiveSessionId(data[0].id);
                     }
                 }
             } catch (e) {
-                console.warn("Сервер недоступен, загружаем локальную копию");
-            }
-
-            if (!serverDataFound) {
-                const savedSessions = localStorage.getItem(`th_ai_history_${activeUser}`);
-                if (savedSessions) {
-                    try {
-                        const parsed = JSON.parse(savedSessions);
-                        if (Array.isArray(parsed) && parsed.length > 0) {
-                            setSessions(parsed);
-                            setActiveSessionId(parsed[0].id);
-                        }
-                    } catch(e) {}
-                }
+                console.warn("Ошибка загрузки с сервера, берем локальную копию");
+                const local = localStorage.getItem(`th_ai_history_${currentUserId}`);
+                if (local) setSessions(JSON.parse(local));
             }
         };
 
         loadHistory();
-    }, [userId]); 
+    }, [currentUserId]);
 
-    useEffect(() => {
-        if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-        }
-    }, [sessions, activeSessionId, isTyping]);
-
-    // =========================================================================
-    // 2. НАДЕЖНОЕ СОХРАНЕНИЕ
-    // =========================================================================
     const saveSessions = (newSessions: ChatSession[]) => {
         setSessions(newSessions);
         if (!currentUserId) return;
-
         localStorage.setItem(`th_ai_history_${currentUserId}`, JSON.stringify(newSessions));
-        
         fetch('/api/storage', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                key: `th_ai_history_${currentUserId}`,
-                data: newSessions 
-            })
-        }).catch(err => console.error("Ошибка сохранения на сервер", err));
+            body: JSON.stringify({ key: `th_ai_history_${currentUserId}`, data: newSessions })
+        }).catch(console.error);
     };
+
+    // ... (Остальные функции: createNewSession, clearHistory, deleteSession, togglePin, handleSendMessage — ОСТАВЛЯЕМ БЕЗ ИЗМЕНЕНИЙ) ...
+    // [ЗДЕСЬ ДОЛЖНЫ БЫТЬ ТВОИ ФУНКЦИИ ИЗ ПРОШЛОГО КОДА, Я НЕ СРЕЗАЮ ИХ, ПРОСТО НЕ ДУБЛИРУЮ ДЛЯ КРАТКОСТИ]
+    // ...    };
 
     // =========================================================================
     // УПРАВЛЕНИЕ СЕССИЯМИ
