@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 
-// --- ТИПЫ ДАННЫХ ДЛЯ ЧАТА ---
 interface Message {
     id: string;
     role: 'user' | 'ai';
@@ -17,7 +16,8 @@ interface ChatSession {
     isPinned?: boolean; 
 }
 
-export default function AIAssistant({ userId }: { userId?: string }) {
+// 💡 ШАГ 1: Добавили прием переменной isAdmin напрямую от страницы
+export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAdmin?: boolean }) {
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
@@ -25,9 +25,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
     
-    // Стейт для жесткой привязки
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    const [isScanning, setIsScanning] = useState(true); // Флаг сканирования
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -38,140 +36,76 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
-    // 1. УМНЫЙ РАДАР: ЖДЕМ АВТОРИЗАЦИЮ (РЕШЕНИЕ ПРОБЛЕМЫ ПЕРЕЗАХОДОВ)
+    // ОПРЕДЕЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (АДМИН - 100% ПРИОРИТЕТ)
     // =========================================================================
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-
-        let attempts = 0;
-
-        const scanAuthMemory = () => {
-            // 1. АДМИН (Самый высокий приоритет)
-            if (localStorage.getItem('userRole') === 'admin' || userId === 'admin') {
-                return 'admin_master';
+        const determineUser = () => {
+            // 💡 1. ЖЕЛЕЗОБЕТОННАЯ ПРОВЕРКА АДМИНА
+            if (isAdmin === true || localStorage.getItem('userRole') === 'admin' || userId === 'admin') {
+                return 'admin_master'; // Идеально изолированный канал админа
             }
 
-            let foundId = null;
-
-            // 2. Ищем прямые ключи логина (игнорируем guest)
-            const flatKeys = ['current_user_id', 'userId', 'login', 'username', 'email', 'phone', 'employee_id'];
-            for (const k of flatKeys) {
-                const val = localStorage.getItem(k);
-                if (val && val !== 'guest' && val !== 'null' && val.trim() !== '') {
-                    foundId = val.trim();
-                    break;
-                }
+            // --- Блок для сотрудников (пока оставляем простым, разберемся на следующем шаге) ---
+            if (userId && userId !== 'guest' && userId.trim() !== '') {
+                return 'emp_' + String(userId).replace(/[^a-zA-Z0-9_-]/g, '_');
             }
 
-            // 3. Ищем в объектах профиля
-            if (!foundId) {
-                const jsonKeys = ['th_current_user', 'currentUser', 'user', 'profile', 'userData'];
-                for (const k of jsonKeys) {
-                    const data = localStorage.getItem(k);
-                    if (data && data.startsWith('{')) {
-                        try {
-                            const obj = JSON.parse(data);
-                            foundId = obj.id || obj.login || obj.email || obj.username || obj.phone;
-                            if (foundId) break;
-                        } catch(e) {}
-                    }
-                }
-            }
-
-            // 4. Проверяем пропс
-            if (!foundId && userId && userId !== 'guest' && userId.trim() !== '') {
-                foundId = userId.trim();
-            }
-
-            if (foundId) {
+            let foundId = localStorage.getItem('current_user_id') || localStorage.getItem('login') || localStorage.getItem('userId');
+            if (foundId && foundId !== 'guest' && foundId !== 'null') {
                 return 'emp_' + String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_');
             }
 
-            return null; // Ничего не нашли, продолжаем искать
+            let guestId = localStorage.getItem('th_stable_guest_id');
+            if (!guestId) {
+                guestId = 'guest_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('th_stable_guest_id', guestId);
+            }
+            return guestId;
         };
 
-        // Запускаем таймер, который проверяет память каждые 100 миллисекунд
-        const scannerTimer = setInterval(() => {
-            const detectedUser = scanAuthMemory();
+        const activeUser = determineUser();
+        setCurrentUserId(activeUser);
 
-            if (detectedUser) {
-                // Если радар нашел пользователя (Админа или Сотрудника)
-                clearInterval(scannerTimer);
-                setCurrentUserId(detectedUser);
-                localStorage.setItem('th_last_valid_user', detectedUser); // Запоминаем успешный вход
-                setIsScanning(false);
-                loadHistory(detectedUser);
-            } else {
-                attempts++;
-                // Если прошло 1.5 секунды (15 попыток), а пользователя все еще нет — значит это реально Гость
-                if (attempts >= 15) {
-                    clearInterval(scannerTimer);
-                    
-                    // Пытаемся вспомнить последнего пользователя (если это был просто глюк при перезагрузке)
-                    const lastValid = localStorage.getItem('th_last_valid_user');
-                    if (lastValid) {
-                        setCurrentUserId(lastValid);
-                        setIsScanning(false);
-                        loadHistory(lastValid);
-                    } else {
-                        // Если это чистый браузер — выдаем стабильный ID устройства
-                        let deviceId = localStorage.getItem('th_device_stable_id');
-                        if (!deviceId) {
-                            deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
-                            localStorage.setItem('th_device_stable_id', deviceId);
+        const loadHistory = async () => {
+            let serverDataFound = false;
+            try {
+                const res = await fetch(`/api/storage?key=th_ai_history_${activeUser}&t=${Date.now()}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        setSessions(data);
+                        setActiveSessionId(data[0].id);
+                        serverDataFound = true;
+                    }
+                }
+            } catch (e) {
+                console.warn("Сервер недоступен, читаем из памяти");
+            }
+
+            if (!serverDataFound) {
+                const savedSessions = localStorage.getItem(`th_ai_history_${activeUser}`);
+                if (savedSessions) {
+                    try {
+                        const parsed = JSON.parse(savedSessions);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            setSessions(parsed);
+                            setActiveSessionId(parsed[0].id);
                         }
-                        setCurrentUserId(deviceId);
-                        setIsScanning(false);
-                        loadHistory(deviceId);
-                    }
+                    } catch(e) {}
                 }
             }
-        }, 100);
+        };
 
-        return () => clearInterval(scannerTimer);
-    }, [userId]); 
+        loadHistory();
+    // 💡 Реагируем на изменение isAdmin или userId от главной страницы
+    }, [userId, isAdmin]); 
 
-    // --- ФУНКЦИЯ ЗАГРУЗКИ ИСТОРИИ ---
-    const loadHistory = async (activeUserKey: string) => {
-        let serverDataFound = false;
-        try {
-            const res = await fetch(`/api/storage?key=th_ai_history_${activeUserKey}&t=${Date.now()}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    setSessions(data);
-                    setActiveSessionId(data[0].id);
-                    serverDataFound = true;
-                }
-            }
-        } catch (e) {
-            console.warn("Сервер недоступен, читаем из памяти браузера");
-        }
-
-        if (!serverDataFound) {
-            const savedSessions = localStorage.getItem(`th_ai_history_${activeUserKey}`);
-            if (savedSessions) {
-                try {
-                    const parsed = JSON.parse(savedSessions);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        setSessions(parsed);
-                        setActiveSessionId(parsed[0].id);
-                    }
-                } catch(e) {}
-            }
-        }
-    };
-
-    // Автоскролл
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [sessions, activeSessionId, isTyping]);
 
-    // =========================================================================
-    // 2. СОХРАНЕНИЕ НА СЕРВЕР И В ЛОКАЛКУ
-    // =========================================================================
     const saveSessions = (newSessions: ChatSession[]) => {
         setSessions(newSessions);
         if (!currentUserId) return;
@@ -188,9 +122,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         }).catch(err => console.error("Ошибка сохранения на сервер", err));
     };
 
-    // =========================================================================
-    // УПРАВЛЕНИЕ СЕССИЯМИ
-    // =========================================================================
     const createNewSession = () => {
         const newSession: ChatSession = {
             id: `chat_${Date.now()}`,
@@ -232,9 +163,6 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         return b.updatedAt - a.updatedAt;
     });
 
-    // =========================================================================
-    // ОТПРАВКА ЗАПРОСА В ЯНДЕКС
-    // =========================================================================
     const handleSendMessage = async (text: string) => {
         if (!text.trim() || !currentUserId) return;
 
@@ -371,9 +299,8 @@ export default function AIAssistant({ userId }: { userId?: string }) {
 
     const activeSession = sessions.find((s: ChatSession) => s.id === activeSessionId);
 
-    // Если идет процесс сканирования профиля
-    if (isScanning) {
-        return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'transparent', color: '#0abab5', fontWeight: 'bold' }}>Проверка доступа к чату...</div>;
+    if (!currentUserId) {
+        return null;
     }
 
     return (
@@ -435,7 +362,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                     </div>
 
                     <div style={{ padding: '10px 20px', fontSize: '10px', color: '#444', textAlign: 'center', borderTop: '1px solid #1a1a1a', fontWeight: 'bold' }}>
-                        Профиль: {currentUserId}
+                        ID аккаунта: {currentUserId}
                     </div>
 
                     {sessions.length > 0 && (

@@ -412,7 +412,7 @@ function ShiftContent() {
 
         {/* --- ВКЛАДКА 4: ИИ ПОМОЩНИК (ИМПОРТИРОВАННЫЙ МОДУЛЬ) --- */}
         {activeTab === 'standards' && (
-            <AIAssistant userId={userId} />
+            <AIAssistant userId={userId} isAdmin={isAdmin} />
         )}
 
       </main>
