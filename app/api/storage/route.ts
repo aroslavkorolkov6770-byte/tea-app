@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+// 💡 ЖЕСТКИЙ АНТИ-КЭШ ДЛЯ NEXT.JS
+// Эти команды запрещают серверу отдавать старые (пустые) данные из памяти
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
+
 // Указываем папку, где будут храниться наши JSON-файлы (в корне проекта)
 const dataDir = path.join(process.cwd(), 'data');
 
