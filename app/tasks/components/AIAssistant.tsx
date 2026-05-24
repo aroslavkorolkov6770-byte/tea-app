@@ -37,30 +37,53 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     ];
 
     // =========================================================================
-    // 1. СТАРАЯ НАДЕЖНАЯ СИСТЕМА, НО С ПРИВЯЗКОЙ К УЧЕТКЕ
+    // 1. АГРЕССИВНЫЙ ПОИСК УЧЕТНОЙ ЗАПИСИ
     // =========================================================================
     useEffect(() => {
-        // Вычисляем, кто сейчас сидит за компьютером
         const determineUser = () => {
-            if (userId) return userId;
+            // 1. Если ID передали напрямую в компонент (идеальный вариант)
+            if (userId && userId.trim() !== '') return userId.trim();
             
-            const authData = localStorage.getItem('th_current_user') || localStorage.getItem('currentUser') || localStorage.getItem('user');
-            if (authData) {
-                try {
-                    const parsed = JSON.parse(authData);
-                    // Берем уникальный идентификатор (логин, email или роль)
-                    return parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || 'unknown_user';
-                } catch {
-                    return authData;
+            // 2. Ищем во всех возможных ключах localStorage
+            const keysToTry = ['th_current_user', 'currentUser', 'user', 'profile', 'auth', 'user-info', 'account'];
+            
+            for (const key of keysToTry) {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        // Ищем хоть какую-то уникальную зацепку
+                        const foundId = parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || parsed.token;
+                        if (foundId) return String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_'); // Очищаем от спецсимволов
+                    } catch {
+                        // Если это просто текст, а не JSON
+                        return String(data).replace(/[^a-zA-Z0-9_-]/g, '_');
+                    }
                 }
             }
-            return 'guest_account';
+
+            // 3. Ищем в sessionStorage (иногда данные лежат там)
+            for (const key of keysToTry) {
+                const data = sessionStorage.getItem(key);
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        const foundId = parsed.login || parsed.email || parsed.username || parsed.id || parsed.role || parsed.token;
+                        if (foundId) return String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_');
+                    } catch {
+                        return String(data).replace(/[^a-zA-Z0-9_-]/g, '_');
+                    }
+                }
+            }
+
+            // Если ничего не нашли — выдаем эту заглушку (мы увидим ее в интерфейсе)
+            return 'SHARED_GUEST_ACCOUNT';
         };
 
         const activeUser = determineUser();
         setCurrentUserId(activeUser);
 
-        // СТАРЫЙ АЛГОРИТМ ЗАГРУЗКИ: Грузим с сервера, если пусто - берем локалку
+        // Загрузка истории
         const loadHistory = async () => {
             let serverDataFound = false;
             try {
@@ -92,7 +115,7 @@ export default function AIAssistant({ userId }: { userId?: string }) {
         };
 
         loadHistory();
-    }, [userId]); // Срабатывает только при смене пользователя
+    }, [userId]); 
 
     useEffect(() => {
         if (chatContainerRef.current) {
@@ -101,16 +124,14 @@ export default function AIAssistant({ userId }: { userId?: string }) {
     }, [sessions, activeSessionId, isTyping]);
 
     // =========================================================================
-    // 2. СТАРОЕ НАДЕЖНОЕ СОХРАНЕНИЕ
+    // 2. СОХРАНЕНИЕ НА СЕРВЕР И В ЛОКАЛКУ
     // =========================================================================
     const saveSessions = (newSessions: ChatSession[]) => {
         setSessions(newSessions);
         if (!currentUserId) return;
 
-        // 1. Моментально сохраняем в браузере (как было раньше)
         localStorage.setItem(`th_ai_history_${currentUserId}`, JSON.stringify(newSessions));
         
-        // 2. Фоном отправляем копию на сервер (чтобы не тормозить чат)
         fetch('/api/storage', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -351,6 +372,11 @@ export default function AIAssistant({ userId }: { userId?: string }) {
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    {/* 💡 ИНДИКАТОР ТЕКУЩЕГО АККАУНТА (Для дебага) */}
+                    <div style={{ padding: '10px 20px', fontSize: '10px', color: '#444', textAlign: 'center', borderTop: '1px solid #1a1a1a' }}>
+                        Аккаунт: {currentUserId}
                     </div>
 
                     {sessions.length > 0 && (
