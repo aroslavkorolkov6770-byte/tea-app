@@ -213,14 +213,29 @@ export default function Navigation() {
       }
   };
 
+  // =======================================================================
+  // 💡 ИСПРАВЛЕННАЯ ФУНКЦИЯ ВЫХОДА (СНАЙПЕРСКОЕ УДАЛЕНИЕ ВМЕСТО БОМБЫ)
+  // =======================================================================
   const handleLogout = () => {
-    localStorage.clear();
-    sessionStorage.clear();
+    const keysToRemove = ['isLoggedIn', 'userRole', 'current_user_id', 'current_user_name', 'th_current_user', 'currentUser'];
+    
+    // Удаляем только данные авторизации
+    keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+    });
+
+    // Удаляем куки авторизации
     deleteAppCookie('isLoggedIn');
     deleteAppCookie('userRole');
     deleteAppCookie('current_user_id');
     deleteAppCookie('current_user_name');
+
+    // Пингуем систему, чтобы чат моментально понял, что мы вышли
+    window.dispatchEvent(new Event('storage'));
+
     setIsLoggedIn(false);
+    setIsProfileOpen(false);
     router.push('/');
   };
 
