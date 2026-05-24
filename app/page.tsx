@@ -66,16 +66,16 @@ export default function Home() {
 
         <main className="home-main" style={{ maxWidth: '1200px', margin: '0 auto', padding: '160px 20px 80px 20px', flex: 1 }}>
           <section style={{ textAlign: 'center', marginBottom: '100px', animation: 'fadeInUp 1s ease' }}>
-            <div className="home-badge" style={badgeStyle}>E-learning Master Platform</div>
+            <div className="home-badge" style={badgeStyle}>Мастер Платформа</div>
             <h1 style={heroTitleStyle}>TEA <span style={{ color: '#0ABAB5' }}>HUB</span></h1>
-            <p style={heroSubTitleStyle}>Профессиональная среда для обучения и развития. <br/> Ваш путь от новичка до эксперта начинается здесь.</p>
+            <p style={heroSubTitleStyle}>Среда для обучения и развития. <br/> Ваш путь от новичка до эксперта.</p>
           </section>
 
           <section className="home-features" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', marginBottom: '100px' }}>
               {[
-                  { title: 'База знаний', desc: 'Более 50 уроков по ботанике, географии и химии чайного листа.' },
-                  { title: 'Техника пролива', desc: 'Пошаговые инструкции работы с профессиональной посудой.' },
-                  { title: 'Стандарты сервиса', desc: 'Скрипты общения и правила гостеприимства нашего бренда.' }
+                  { title: 'База знаний', desc: 'Обучающий материал для изучения и подготовки.' },
+                  { title: 'Система тестирования', desc: 'В любой момент можно проверить свои знания.' },
+                  { title: 'Будъте всегда в курсе', desc: 'Получайте уведомления о новых изменениях.' }
               ].map((box, i) => (
                   <div key={i} style={infoBoxStyle}>
                       <h3 style={{ fontSize: '22px', fontWeight: '800', margin: '0 0 10px 0', color: '#fff' }}>{box.title}</h3>
