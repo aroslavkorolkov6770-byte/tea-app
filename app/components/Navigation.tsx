@@ -599,13 +599,23 @@ export default function Navigation() {
             box-sizing: border-box;
         }
 
-        /* 💡 ГЛОБАЛЬНОЕ СКРЫТИЕ СКРОЛЛБАРА */
+        /* 💡 ГЛОБАЛЬНОЕ СКРЫТИЕ ВСЕХ СКРОЛЛБАРОВ (включая главную страницу) */
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+            display: none;
+            width: 0;
+        }
+        html, body {
+            -ms-overflow-style: none; /* Для IE и Edge */
+            scrollbar-width: none;    /* Для Firefox */
+        }
+
         .custom-scroll::-webkit-scrollbar {
             display: none;
         }
         .custom-scroll {
-            -ms-overflow-style: none; /* IE, Edge */
-            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
         .nav-item {
