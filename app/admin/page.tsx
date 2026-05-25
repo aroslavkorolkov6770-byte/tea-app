@@ -89,7 +89,6 @@ export default function AdminDashboard() {
   const [usersStats, setUsersStats] = useState<Record<string, {route: number, basics: number}>>({});
   
   const [isDragging, setIsDragging] = useState(false);
-  // 💡 ИЗМЕНЕНИЕ 1: Теперь это массив файлов
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   
@@ -356,7 +355,7 @@ export default function AdminDashboard() {
       setConfirmModal({ show: true, type: 'user', id: id, title: 'УДАЛЕНИЕ СОТРУДНИКА', text: 'Вы уверены, что хотите удалить учетную запись этого сотрудника? Это действие необратимо.' });
   };
 
-  // 💡 ИЗМЕНЕНИЕ 2: Пакетное сохранение нескольких файлов (Асинхронный цикл)
+  // 💡 НОВЫЙ АЛГОРИТМ ЗАГРУЗКИ: Микросервисное разбиение данных
   const handleSaveFile = async () => {
       if (selectedFiles.length === 0 || isProcessing) return;
       setIsProcessing(true);
@@ -369,7 +368,6 @@ export default function AdminDashboard() {
           const newFilesData: any[] = [];
           const fileNames: string[] = [];
 
-          // Асинхронно превращаем каждый файл в Base64
           for (const file of selectedFiles) {
               const fileData = await new Promise((resolve) => {
                   const reader = new FileReader();
@@ -377,12 +375,18 @@ export default function AdminDashboard() {
                   reader.readAsDataURL(file);
               });
 
+              const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+              
+              // 1. Сохраняем "тяжелый" Base64 отдельным файлом на сервер, чтобы не перегружать главный массив
+              await saveDataToServer(`file_data_${fileId}`, fileData);
+
+              // 2. В главный массив кладем только "легкий" текст (вес: пара байтов)
               newFilesData.push({
-                  id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                  id: fileId,
                   name: file.name,
                   size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
                   date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
-                  data: fileData 
+                  hasSeparateData: true 
               });
               fileNames.push(file.name);
           }
@@ -428,29 +432,80 @@ export default function AdminDashboard() {
                   const activeSubs = subs.filter((s: any) => s.userId !== confirmModal.id);
                   await saveDataToServer('tea_hub_push_subs_v1', activeSubs);
               }
-          } catch (e) {
-              console.error("Ошибка при удалении push-подписок:", e);
-          }
+          } catch (e) {}
 
       } else if (confirmModal.type === 'file') {
           const updatedFiles = urgentFiles.filter(f => f.id !== confirmModal.id);
           setUrgentFiles(updatedFiles);
           saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+          
+          // 💡 ИЗМЕНЕНИЕ: Подчищаем за собой "тяжелый" файл с сервера
+          const targetFile = urgentFiles.find(f => f.id === confirmModal.id);
+          if (targetFile && targetFile.hasSeparateData) {
+              saveDataToServer(`file_data_${confirmModal.id}`, null);
+          }
       }
       setConfirmModal({ ...confirmModal, show: false });
   };
 
-  const handleDownloadFile = (file: any) => {
-      if (!file.data) {
-          setErrorModal({ show: true, text: "Этот файл был загружен в старой версии платформы и недоступен для скачивания." });
+  // 💡 НОВЫЙ АЛГОРИТМ СКАЧИВАНИЯ (ПОДТЯГИВАЕТ ДАННЫЕ НА ЛЕТУ)
+  const handleDownloadFile = async (file: any) => {
+      setIsProcessing(true);
+      try {
+          let fileBase64 = file.data;
+          
+          // Если данные отделены от основного массива - скачиваем их
+          if (file.hasSeparateData || !file.data) {
+              const res = await fetch(`/api/storage?t=${Date.now()}&key=file_data_${file.id}`);
+              if (res.ok) {
+                  fileBase64 = await res.json();
+              }
+          }
+
+          if (!fileBase64) {
+              setErrorModal({ show: true, text: "Файл недоступен для скачивания (данные не найдены на сервере)." });
+              return;
+          }
+
+          const link = document.createElement('a');
+          link.href = fileBase64;
+          link.download = file.name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      } catch(e) {
+          setErrorModal({ show: true, text: "Не удалось скачать файл из-за сбоя сети." });
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
+  // 💡 НОВЫЙ АЛГОРИТМ ОТКРЫТИЯ ПРЕДПРОСМОТРА
+  const handleOpenPreview = async (file: any) => {
+      if (!file.hasSeparateData && !file.data) {
+          setErrorModal({ show: true, text: "Этот файл был загружен в старой версии и недоступен." });
           return;
       }
-      const link = document.createElement('a');
-      link.href = file.data;
-      link.download = file.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      setIsProcessing(true);
+      try {
+          let fileBase64 = file.data;
+          if (file.hasSeparateData) {
+              const res = await fetch(`/api/storage?t=${Date.now()}&key=file_data_${file.id}`);
+              if (res.ok) {
+                  fileBase64 = await res.json();
+              }
+          }
+
+          if (!fileBase64) {
+              setErrorModal({ show: true, text: "Ошибка: данные файла не найдены на сервере." });
+              return;
+          }
+          setPreviewFile({ ...file, data: fileBase64 });
+      } catch(e) {
+          setErrorModal({ show: true, text: "Сбой сети при попытке открыть файл." });
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
@@ -795,7 +850,6 @@ export default function AdminDashboard() {
               onDrop={(e) => { 
                 e.preventDefault(); 
                 setIsDragging(false); 
-                // 💡 ИЗМЕНЕНИЕ 3: Мульти-выделение при перетаскивании
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
                 } 
@@ -809,7 +863,6 @@ export default function AdminDashboard() {
                        <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>
                          Перетащите сюда документы (PDF, DOCX, TXT) или нажмите кнопку ниже. Можно выделять сразу несколько файлов!
                        </p>
-                       {/* 💡 ИЗМЕНЕНИЕ 4: Атрибут multiple добавлен в input */}
                        <input 
                           type="file" multiple id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing}
                           onChange={(e) => { 
@@ -830,7 +883,6 @@ export default function AdminDashboard() {
                    </>
                ) : (
                    <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', wordBreak: 'break-word', textAlign: 'left' }}>
-                       {/* 💡 ИЗМЕНЕНИЕ 5: Красивый список всех выбранных файлов */}
                        <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px', textAlign: 'center' }}>
                            ВЫБРАНО ФАЙЛОВ: {selectedFiles.length}
                        </div>
@@ -846,8 +898,7 @@ export default function AdminDashboard() {
                            <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>{isProcessing ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ВСЕ'}</button>
                            <button onClick={() => setSelectedFiles([])} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>ОТМЕНИТЬ</button>
                        </div>
-                       {/* Подсказка для администратора */}
-                       <div style={{fontSize: '10px', color: '#666', textAlign: 'center', marginTop: '10px'}}>Если файлов очень много или они тяжелые (PDF), загрузка может занять время.</div>
+                       <div style={{fontSize: '10px', color: '#666', textAlign: 'center', marginTop: '10px'}}>Файлы отправляются по одному, чтобы избежать перегрузки сервера.</div>
                    </div>
                )}
             </div>
@@ -1127,7 +1178,6 @@ export default function AdminDashboard() {
 
                     return (
                         <>
-                            {/* БЛОК 1: ШАПКА ПРОФИЛЯ С АВАТАРКОЙ */}
                             <section style={profileHeaderCardStyle}>
                                 <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
                                     {profileAvatar ? (
@@ -1142,7 +1192,6 @@ export default function AdminDashboard() {
                                 </p>
                             </section>
 
-                            {/* БЛОК 2: ДОСТУПЫ (ТОЛЬКО ДЛЯ АДМИНА) */}
                             <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.2)', padding: '15px', borderRadius: '20px', marginBottom: '35px', display: 'flex', justifyContent: 'space-around' }}>
                                 <div style={{textAlign: 'center'}}>
                                     <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '5px'}}>ЛОГИН ДОСТУПА</div>
@@ -1154,7 +1203,6 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
-                            {/* БЛОК 3: ПРОГРЕСС ОБУЧЕНИЯ */}
                             <section style={progressSectionStyle}>
                                 <div style={{ marginBottom: '25px' }}>
                                     <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{routeLen}/{totalRouteSteps}</span></div>
@@ -1166,7 +1214,6 @@ export default function AdminDashboard() {
                                 </div>
                             </section>
 
-                            {/* БЛОК 4: БЕЙДЖИ ДОСТИЖЕНИЙ */}
                             <h3 style={profileSectionTitle}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
                                 <div title="Старт" style={{ ...badgeStyle, opacity: routeLen >= 1 ? 1 : 0.1 }}>🌱</div>
@@ -1175,7 +1222,6 @@ export default function AdminDashboard() {
                                 <div title="Мастер" style={{ ...badgeStyle, opacity: basicsLen >= 10 ? 1 : 0.1 }}>🏮</div>
                             </div>
 
-                            {/* БЛОК 5: КОНТАКТЫ */}
                             <h3 style={profileSectionTitle}>СВЯЗЬ</h3>
                             <section style={contactCardStyle}>
                                 <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
@@ -1188,7 +1234,6 @@ export default function AdminDashboard() {
                                 </div>
                             </section>
 
-                            {/* БЛОК 6: ИСТОРИЯ ТЕСТОВ (ДОПОЛНЕНИЕ АДМИНА) */}
                             <h3 style={{...profileSectionTitle, marginTop: '35px'}}>История аттестаций</h3>
                             <div style={{ background: '#000', padding: '10px', borderRadius: '20px', border: '1px solid #222' }}>
                                 {testResults.filter(r => r.userName === selectedProfileUser.name && r.testName?.toLowerCase().includes('аттестация')).length === 0 ? (
@@ -1251,7 +1296,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ⚠️ ИСПОЛЬЗУЕМ ОТФИЛЬТРОВАННЫЙ СПИСОК В МОДАЛКЕ */}
       {showFilesList && (
           <div style={modalOverlay}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '550px' }}>
@@ -1270,9 +1314,9 @@ export default function AdminDashboard() {
                                       <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>{file.date} • {file.size}</div>
                                   </div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <button onClick={() => setPreviewFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>
-                                      <button onClick={() => handleDownloadFile(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>СКАЧАТЬ</button>
-                                      <button onClick={() => handleDeleteFile(file.id)} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', padding: '0 5px' }}>✕</button>
+                                      <button onClick={() => handleOpenPreview(file)} disabled={isProcessing} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>
+                                      <button onClick={() => handleDownloadFile(file)} disabled={isProcessing} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>СКАЧАТЬ</button>
+                                      <button onClick={() => handleDeleteFile(file.id)} disabled={isProcessing} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', padding: '0 5px' }}>✕</button>
                                   </div>
                               </div>
                           ))
@@ -1386,7 +1430,7 @@ export default function AdminDashboard() {
                           <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
                       ) : (
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '20px' }}>
-                              Нет данных для отображения (загружено в старой версии)
+                              Нет данных для отображения
                           </div>
                       )}
                   </div>
@@ -1394,6 +1438,7 @@ export default function AdminDashboard() {
           </div>
       )}
 
+      {/* ОСТАЛЬНЫЕ МОДАЛЬНЫЕ ОКНА БЕЗ ИЗМЕНЕНИЙ (Уведомления, Заметки и т.д.) */}
       {showUserForm && (
         <div style={modalOverlay}>
             <div className="admin-modal-content" style={modalContentSmall}>
