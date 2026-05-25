@@ -89,7 +89,8 @@ export default function AdminDashboard() {
   const [usersStats, setUsersStats] = useState<Record<string, {route: number, basics: number}>>({});
   
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // 💡 ИЗМЕНЕНИЕ 1: Теперь это массив файлов
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   
   const [showFilesList, setShowFilesList] = useState(false);
@@ -262,7 +263,6 @@ export default function AdminDashboard() {
       }
   };
 
-  // 📧 ФУНКЦИЯ ДЛЯ ОТПРАВКИ EMAIL (РАБОТАЕТ ЧЕРЕЗ НОВЫЙ БЭКЕНД) 📧
   const sendEmailNotification = async (targetUserId: string, subject: string, text: string) => {
       try {
           let emailsToSend: string[] = [];
@@ -278,10 +278,7 @@ export default function AdminDashboard() {
               if (email) emailsToSend.push(email);
           }
 
-          if (emailsToSend.length === 0) {
-              console.log("Нет email адресов для отправки. Email-уведомление пропущено.");
-              return false;
-          }
+          if (emailsToSend.length === 0) return false;
 
           const to = emailsToSend.join(', ');
 
@@ -291,38 +288,22 @@ export default function AdminDashboard() {
               body: JSON.stringify({ to, subject, text })
           });
 
-          if (res.ok) {
-              console.log("Email успешно отправлен на адреса:", to);
-              return true;
-          } else {
-              console.error("Ошибка ответа от API отправки Email:", await res.text());
-              return false;
-          }
+          return res.ok;
       } catch (e) {
           console.error("Ошибка при запросе к /api/send-email:", e);
           return false;
       }
   };
 
-  // 🔔 ФУНКЦИЯ ДЛЯ ОТПРАВКИ WEB-PUSH 🔔
   const sendPushNotification = async (targetUserId: string, payload: { title: string, body: string, url?: string }) => {
       try {
           const subsRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`, { cache: 'no-store' });
           const subs = await subsRes.json().catch(() => []);
           
-          if (!Array.isArray(subs) || subs.length === 0) {
-              console.log("⚠️ ПРЕДУПРЕЖДЕНИЕ: База подписок пуста! Пуш не отправлен.");
-              return false;
-          }
+          if (!Array.isArray(subs) || subs.length === 0) return false;
 
-          const targetSubs = targetUserId === 'Все' 
-              ? subs 
-              : subs.filter((s: any) => s.userId === targetUserId);
-
-          if (targetSubs.length === 0) {
-              console.log(`⚠️ ПРЕДУПРЕЖДЕНИЕ: У пользователя (${targetUserId}) нет привязанных устройств.`);
-              return false;
-          }
+          const targetSubs = targetUserId === 'Все' ? subs : subs.filter((s: any) => s.userId === targetUserId);
+          if (targetSubs.length === 0) return false;
 
           const apiRes = await fetch('/api/push', {
               method: 'POST',
@@ -333,12 +314,7 @@ export default function AdminDashboard() {
               })
           });
 
-          if (!apiRes.ok) {
-              console.log("СЕРВЕРНАЯ ОШИБКА Push API");
-              return false;
-          }
-
-          return true;
+          return apiRes.ok;
       } catch (e) {
           console.error("Ошибка при отправке Web Push:", e);
           return false;
@@ -380,52 +356,65 @@ export default function AdminDashboard() {
       setConfirmModal({ show: true, type: 'user', id: id, title: 'УДАЛЕНИЕ СОТРУДНИКА', text: 'Вы уверены, что хотите удалить учетную запись этого сотрудника? Это действие необратимо.' });
   };
 
-  const handleSaveFile = () => {
-      if (!selectedFile || isProcessing) return;
+  // 💡 ИЗМЕНЕНИЕ 2: Пакетное сохранение нескольких файлов (Асинхронный цикл)
+  const handleSaveFile = async () => {
+      if (selectedFiles.length === 0 || isProcessing) return;
       setIsProcessing(true);
       
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-          try {
-              const fileData = e.target?.result;
-              const newFile = {
-                  id: 'file_' + Date.now(),
-                  name: selectedFile.name,
-                  size: (selectedFile.size / 1024 / 1024).toFixed(2) + ' MB',
+      try {
+          const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
+          let currentFiles = await res.json().catch(() => []);
+          if (!Array.isArray(currentFiles)) currentFiles = [];
+
+          const newFilesData: any[] = [];
+          const fileNames: string[] = [];
+
+          // Асинхронно превращаем каждый файл в Base64
+          for (const file of selectedFiles) {
+              const fileData = await new Promise((resolve) => {
+                  const reader = new FileReader();
+                  reader.onload = (e) => resolve(e.target?.result);
+                  reader.readAsDataURL(file);
+              });
+
+              newFilesData.push({
+                  id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                  name: file.name,
+                  size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
                   date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
                   data: fileData 
-              };
-              
-              const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
-              let currentFiles = await res.json().catch(() => []);
-              if (!Array.isArray(currentFiles)) currentFiles = [];
-
-              const updatedFiles = [newFile, ...currentFiles];
-              setUrgentFiles(updatedFiles);
-              await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-              
-              const pushSent = await sendPushNotification('Все', {
-                  title: '📚 Новый учебный материал',
-                  body: `В базу добавлен файл: ${selectedFile.name}`,
-                  url: '/tasks?tab=edu'
               });
-              
-              const emailSent = await sendEmailNotification('Все', '📚 Новый учебный материал', `Администратор добавил новый файл в базу знаний: ${selectedFile.name}`);
-
-              setShowSuccessModal({ show: true, title: 'МАТЕРИАЛ ОТПРАВЛЕН', text: `Файл "${selectedFile.name}" успешно загружен и появится у сотрудников. ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
-              setSelectedFile(null);
-          } finally {
-              setIsProcessing(false);
+              fileNames.push(file.name);
           }
-      };
-      reader.readAsDataURL(selectedFile);
+
+          const updatedFiles = [...newFilesData, ...currentFiles];
+          setUrgentFiles(updatedFiles);
+          await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
+          
+          const namesStr = fileNames.join(', ');
+          
+          const pushSent = await sendPushNotification('Все', {
+              title: '📚 Новые учебные материалы',
+              body: `Добавлены файлы: ${namesStr}`,
+              url: '/tasks?tab=edu'
+          });
+          
+          const emailSent = await sendEmailNotification('Все', '📚 Новые учебные материалы', `Администратор добавил новые файлы в базу знаний: ${namesStr}`);
+
+          setShowSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) успешно загружены и появятся у сотрудников. ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
+          setSelectedFiles([]);
+      } catch(e) {
+          console.error(e);
+          setErrorModal({ show: true, text: "Произошла ошибка при пакетной загрузке файлов." });
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const handleDeleteFile = (id: string) => {
       setConfirmModal({ show: true, type: 'file', id: id, title: 'УДАЛЕНИЕ МАТЕРИАЛА', text: 'Вы действительно хотите удалить этот учебный материал у всех сотрудников?' });
   };
 
-  // --- ИЗМЕНЕНО: ОЧИСТКА МЕРТВЫХ ТОКЕНОВ ПРИ УДАЛЕНИИ ---
   const executeConfirmAction = async () => {
       if (confirmModal.type === 'user') {
           const updatedUsers = users.filter(u => u.id !== confirmModal.id);
@@ -436,7 +425,6 @@ export default function AdminDashboard() {
               const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
               const subs = await res.json().catch(() => []);
               if (Array.isArray(subs)) {
-                  // Вырезаем все устройства, привязанные к удаленному ID
                   const activeSubs = subs.filter((s: any) => s.userId !== confirmModal.id);
                   await saveDataToServer('tea_hub_push_subs_v1', activeSubs);
               }
@@ -807,25 +795,31 @@ export default function AdminDashboard() {
               onDrop={(e) => { 
                 e.preventDefault(); 
                 setIsDragging(false); 
+                // 💡 ИЗМЕНЕНИЕ 3: Мульти-выделение при перетаскивании
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    setSelectedFile(e.dataTransfer.files[0]);
+                    setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
                 } 
               }}
             >
                <div style={{ fontSize: '28px', marginBottom: '10px' }}>📁</div>
                <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '5px' }}>Загрузка учебных материалов</h3>
                
-               {!selectedFile ? (
+               {(!selectedFiles || selectedFiles.length === 0) ? (
                    <>
                        <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>
-                         Перетащите сюда документ (PDF, DOCX, TXT) или нажмите кнопку ниже.
+                         Перетащите сюда документы (PDF, DOCX, TXT) или нажмите кнопку ниже. Можно выделять сразу несколько файлов!
                        </p>
+                       {/* 💡 ИЗМЕНЕНИЕ 4: Атрибут multiple добавлен в input */}
                        <input 
-                          type="file" id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing}
-                          onChange={(e) => { if (e.target.files && e.target.files.length > 0) setSelectedFile(e.target.files[0]); }} 
+                          type="file" multiple id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing}
+                          onChange={(e) => { 
+                              if (e.target.files && e.target.files.length > 0) {
+                                  setSelectedFiles(prev => [...prev, ...Array.from(e.target.files as FileList)]);
+                              } 
+                          }} 
                        />
                        <button onClick={() => document.getElementById('file-upload-admin')?.click()} disabled={isProcessing} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
-                         ВЫБРАТЬ ФАЙЛ
+                         ВЫБРАТЬ ФАЙЛЫ
                        </button>
 
                        {uploadedMaterials.length > 0 && (
@@ -835,12 +829,25 @@ export default function AdminDashboard() {
                        )}
                    </>
                ) : (
-                   <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', wordBreak: 'break-word' }}>
-                       <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px' }}>📎 {selectedFile.name}</div>
-                       <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                           <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>{isProcessing ? 'ОТПРАВКА...' : 'ПРИКРЕПИТЬ'}</button>
-                           <button onClick={() => setSelectedFile(null)} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>ОТМЕНИТЬ</button>
+                   <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', wordBreak: 'break-word', textAlign: 'left' }}>
+                       {/* 💡 ИЗМЕНЕНИЕ 5: Красивый список всех выбранных файлов */}
+                       <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px', textAlign: 'center' }}>
+                           ВЫБРАНО ФАЙЛОВ: {selectedFiles.length}
                        </div>
+                       <div className="custom-scroll" style={{ maxHeight: '100px', overflowY: 'auto', marginBottom: '15px', paddingRight: '5px' }}>
+                           {selectedFiles.map((f, i) => (
+                               <div key={i} style={{fontSize: '12px', color: '#aaa', marginTop: '4px'}}>
+                                   📎 {f.name}
+                               </div>
+                           ))}
+                       </div>
+
+                       <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                           <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>{isProcessing ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ВСЕ'}</button>
+                           <button onClick={() => setSelectedFiles([])} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>ОТМЕНИТЬ</button>
+                       </div>
+                       {/* Подсказка для администратора */}
+                       <div style={{fontSize: '10px', color: '#666', textAlign: 'center', marginTop: '10px'}}>Если файлов очень много или они тяжелые (PDF), загрузка может занять время.</div>
                    </div>
                )}
             </div>
