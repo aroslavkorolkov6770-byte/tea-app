@@ -7,11 +7,11 @@ export default function Footer() {
       <footer style={footerStyle as any}>
          <div style={docsContainer}>
              {/* 💡 НОВОЕ: Ссылки теперь открывают новую вкладку страницы /privacy */}
+             <span style={{ color: '#333' }}>|</span>
              <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" className="doc-link" style={docLinkStyle}>Политика конфиденциальности</a>
              <span style={{ color: '#333' }}>|</span>
-             <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" className="doc-link" style={docLinkStyle}>Пользовательское соглашение</a>
-             <span style={{ color: '#333' }}>|</span>
              <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" className="doc-link" style={docLinkStyle}>Соглашение с файлами cookie</a>
+             <span style={{ color: '#333' }}>|</span>
          </div>
 
          {/* --- БЛОК СЛУЖБЫ ПОДДЕРЖКИ (ЗАГОТОВКА ПОЧТЫ) --- */}
