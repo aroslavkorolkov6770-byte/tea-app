@@ -355,7 +355,6 @@ export default function AdminDashboard() {
       setConfirmModal({ show: true, type: 'user', id: id, title: 'УДАЛЕНИЕ СОТРУДНИКА', text: 'Вы уверены, что хотите удалить учетную запись этого сотрудника? Это действие необратимо.' });
   };
 
-  // 💡 НОВЫЙ АЛГОРИТМ ЗАГРУЗКИ: Микросервисное разбиение данных
   const handleSaveFile = async () => {
       if (selectedFiles.length === 0 || isProcessing) return;
       setIsProcessing(true);
@@ -376,11 +375,8 @@ export default function AdminDashboard() {
               });
 
               const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-              
-              // 1. Сохраняем "тяжелый" Base64 отдельным файлом на сервер, чтобы не перегружать главный массив
               await saveDataToServer(`file_data_${fileId}`, fileData);
 
-              // 2. В главный массив кладем только "легкий" текст (вес: пара байтов)
               newFilesData.push({
                   id: fileId,
                   name: file.name,
@@ -439,7 +435,6 @@ export default function AdminDashboard() {
           setUrgentFiles(updatedFiles);
           saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
           
-          // 💡 ИЗМЕНЕНИЕ: Подчищаем за собой "тяжелый" файл с сервера
           const targetFile = urgentFiles.find(f => f.id === confirmModal.id);
           if (targetFile && targetFile.hasSeparateData) {
               saveDataToServer(`file_data_${confirmModal.id}`, null);
@@ -448,13 +443,11 @@ export default function AdminDashboard() {
       setConfirmModal({ ...confirmModal, show: false });
   };
 
-  // 💡 НОВЫЙ АЛГОРИТМ СКАЧИВАНИЯ (ПОДТЯГИВАЕТ ДАННЫЕ НА ЛЕТУ)
   const handleDownloadFile = async (file: any) => {
       setIsProcessing(true);
       try {
           let fileBase64 = file.data;
           
-          // Если данные отделены от основного массива - скачиваем их
           if (file.hasSeparateData || !file.data) {
               const res = await fetch(`/api/storage?t=${Date.now()}&key=file_data_${file.id}`);
               if (res.ok) {
@@ -480,7 +473,6 @@ export default function AdminDashboard() {
       }
   };
 
-  // 💡 НОВЫЙ АЛГОРИТМ ОТКРЫТИЯ ПРЕДПРОСМОТРА
   const handleOpenPreview = async (file: any) => {
       if (!file.hasSeparateData && !file.data) {
           setErrorModal({ show: true, text: "Этот файл был загружен в старой версии и недоступен." });
@@ -916,7 +908,8 @@ export default function AdminDashboard() {
                     <input type="text" placeholder="Поиск по имени или логину..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' }} />
                 </div>
                 
-                <div className="custom-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '5px' }}>
+                {/* 💡 ИЗМЕНЕНО: Добавлен класс keep-scroll, чтобы сохранить ползунок именно тут */}
+                <div className="custom-scroll keep-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '5px' }}>
                     <div className="admin-user-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                       {filteredUsers.length === 0 ? (
                           <div style={{ color: '#555', padding: '20px 0', fontSize: '14px', fontWeight: 'bold', gridColumn: '1 / -1', textAlign: 'center' }}>Сотрудники не найдены</div>
@@ -1430,7 +1423,7 @@ export default function AdminDashboard() {
                           <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
                       ) : (
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '20px' }}>
-                              Нет данных для отображения
+                              Нет данных для отображения (загружено в старой версии)
                           </div>
                       )}
                   </div>
@@ -1438,7 +1431,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* ОСТАЛЬНЫЕ МОДАЛЬНЫЕ ОКНА БЕЗ ИЗМЕНЕНИЙ (Уведомления, Заметки и т.д.) */}
       {showUserForm && (
         <div style={modalOverlay}>
             <div className="admin-modal-content" style={modalContentSmall}>
@@ -1549,8 +1541,10 @@ export default function AdminDashboard() {
         .deadline-dot { background: #ff4d4d; }
         .cal-day:hover .note-dot, .cal-day.today .note-dot { background: #000; }
         
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        /* 💡 ИСКЛЮЧЕНИЕ: Для класса keep-scroll ползунок остается видимым */
+        .keep-scroll::-webkit-scrollbar { width: 6px !important; display: block !important; }
+        .keep-scroll::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 10px !important; }
+        .keep-scroll { -ms-overflow-style: auto !important; scrollbar-width: thin !important; scrollbar-color: #333 transparent !important; }
 
         @media (max-width: 768px) {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }

@@ -39,7 +39,6 @@ export default function Navigation() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
-  // Состояния для формы входа и регистрации
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [login, setLogin] = useState("");
   const [pass, setPass] = useState("");
@@ -49,10 +48,8 @@ export default function Navigation() {
   const [regTg, setRegTg] = useState("");
   const [regPhone, setRegPhone] = useState("");
 
-  // 💡 НОВОЕ: Состояние для галочки согласия во всплывающем окне
   const [isConsentGiven, setIsConsentGiven] = useState(false);
 
-  // Базы для поиска
   const [searchDbRoutes, setSearchDbRoutes] = useState<any[]>([]);
   const [searchDbTests, setSearchDbTests] = useState<any[]>([]);
   const [searchDbAssortment, setSearchDbAssortment] = useState<any[]>([]);
@@ -172,7 +169,6 @@ export default function Navigation() {
   };
 
   const handleRegister = async () => {
-      // 💡 НОВОЕ: Проверка галочки согласия во всплывающем окне
       if (!isConsentGiven) {
           setErrorMessage("ОШИБКА: Для регистрации необходимо дать согласие на обработку персональных данных.");
           return;
@@ -498,7 +494,6 @@ export default function Navigation() {
                     <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
                     <input type="text" placeholder="Номер телефона" value={regPhone} onChange={(e)=>setRegPhone(e.target.value)} style={inputS} />
                     
-                    {/* 💡 НОВОЕ: Блок с галочкой согласия */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '5px', marginBottom: '20px', width: '100%' }}>
                         <div 
                             onClick={() => setIsConsentGiven(!isConsentGiven)}
@@ -555,7 +550,7 @@ export default function Navigation() {
                     setFailedAttempts(0); 
                     setIsCaptchaVerified(false); 
                     setIsCaptchaLoading(false); 
-                    setIsConsentGiven(false); // Сброс галочки при переключении
+                    setIsConsentGiven(false);
                 }} 
                 style={{...closeText, color: '#0abab5', marginTop: '15px', textDecoration: 'underline'}}
             >
@@ -583,7 +578,6 @@ export default function Navigation() {
           from { transform: scale(0.9); opacity: 0; } 
           to { transform: scale(1); opacity: 1; } 
         }
-        
         @keyframes captchaSpin {
           100% { transform: rotate(360deg); }
         }
@@ -604,12 +598,14 @@ export default function Navigation() {
         * {
             box-sizing: border-box;
         }
+
+        /* 💡 ГЛОБАЛЬНОЕ СКРЫТИЕ СКРОЛЛБАРА */
         .custom-scroll::-webkit-scrollbar {
-            width: 4px;
+            display: none;
         }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background: #333;
-            border-radius: 10px;
+        .custom-scroll {
+            -ms-overflow-style: none; /* IE, Edge */
+            scrollbar-width: none; /* Firefox */
         }
 
         .nav-item {
@@ -678,7 +674,7 @@ export default function Navigation() {
         @media (max-width: 768px) {
             .nav-topbar {
                 left: 0 !important;
-                padding: 0 15px !important;
+                padding: 0 10px !important;
                 height: 70px !important;
             }
             .nav-sidebar {
@@ -692,24 +688,35 @@ export default function Navigation() {
                 z-index: 10004;
                 backdrop-filter: blur(5px);
             }
-            .desktop-hamburger { display: none !important; }
             .mobile-hamburger { 
                 display: block !important; 
-                margin-right: 15px; 
+                margin-right: 10px; 
                 color: #fff;
             }
-            .mobile-close-btn { display: block !important; }
 
             .search-box-container {
-                width: auto !important;
-                flex: 1;
-                padding: 10px 15px !important;
-                margin-right: 15px;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 8px 12px !important;
+                margin-right: 10px !important;
+                flex: 1 !important;
+                min-width: 50px !important;
             }
-
+            .search-box-container input {
+                min-width: 0 !important;
+                text-overflow: ellipsis !important;
+            }
+            
+            .desktop-hamburger { display: none !important; }
+            .mobile-close-btn { display: block !important; }
+            
             .guest-header {
                 right: 15px !important;
                 top: 15px !important;
+            }
+            
+            .top-actions {
+                gap: 15px !important;
             }
 
             .modal-content-custom {
