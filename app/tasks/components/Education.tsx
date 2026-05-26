@@ -72,7 +72,6 @@ export default function Education({
     const [urgentTestStep, setUrgentTestStep] = useState(0);
     const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
 
-    // НОВОЕ СОСТОЯНИЕ: Для модального окна Нормативных документов
     const [showDocsModal, setShowDocsModal] = useState(false);
 
     // --- ЛОГИКА ФИЛЬТРАЦИИ ФАЙЛОВ ---
@@ -110,7 +109,6 @@ export default function Education({
         return isForMe && !isPassed && !isDismissed;
     });
 
-    // --- РАЗДЕЛЕНИЕ НА ТЕСТЫ/ДЕДЛАЙНЫ И ДОКУМЕНТЫ ---
     const urgentTasks = visibleUrgentFiles.filter((f: any) => f.id?.startsWith('deadline_') || f.isTest);
     const normativeDocs = visibleUrgentFiles.filter((f: any) => !(f.id?.startsWith('deadline_') || f.isTest));
 
@@ -460,7 +458,8 @@ export default function Education({
             <div className="premium-cards-container">
                {dynamicTests.map((test: any, idx: number) => {
                   const isDone = completedTests.includes(test.id);
-                  const isUnlocked = idx === 0 || completedTests.includes(dynamicTests[idx - 1].id);
+                  // 💡 ИСПРАВЛЕНИЕ: Если пользователь админ (isAdmin), то тест автоматически разблокирован
+                  const isUnlocked = isAdmin || idx === 0 || completedTests.includes(dynamicTests[idx - 1].id);
                   
                   return (
                     <div key={test.id} onClick={() => { 
@@ -731,87 +730,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- КАСТОМНЫЙ АЛЕРТ ДЛЯ ЗАБЛОКИРОВАННОГО ТЕСТА --- */}
-            {lockedTestAlert.show && (
-                <div style={{...errorOverlayStyle, zIndex: 70000} as any} onClick={() => setLockedTestAlert({show: false, message: ''})}>
-                    <div className="tasks-modal" style={errorModalContent as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ fontSize: '60px', marginBottom: '15px' }}>🔒</div>
-                        <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900', textTransform: 'uppercase' }}>ДОСТУП ЗАКРЫТ</h2>
-                        <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.5', marginBottom: '25px', fontWeight: 'bold' }}>{lockedTestAlert.message}</p>
-                        <button onClick={() => setLockedTestAlert({show: false, message: ''})} style={{...errorBtnStyle, background: '#333', color: '#fff', marginTop: 0} as any}>ПОНЯТНО</button>
-                    </div>
-                </div>
-            )}
-
-            {/* --- МОДАЛКА ПРОСМОТРА ТЕОРИИ --- */}
-            {selectedRouteStep && !showRouteForm && (
-               <div style={modalOverlay as any}>
-                  <div className="tasks-modal" style={modalContent as any}>
-                     <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
-                        <div onClick={closeRouteModal} style={{...backLink, margin:0} as any}>← НАЗАД</div>
-                        <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(selectedRouteStep.title)}</h2>
-                        <div className="desktop-spacer" style={{width:'80px'}} />
-                     </div>
-                     <div style={{animation: 'fadeInUp 0.3s ease'}}>
-                         <div className="tasks-theory-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'20px', marginBottom:'50px'}}>
-                             <div className="tasks-theory-block" style={theoryBlock as any}>
-                                 <h3 style={theoryLabel as any}>{selectedRouteStep.h1 || 'Карточка 1'}</h3>
-                                 <p style={theoryText as any}>{selectedRouteStep.t1}</p>
-                             </div>
-                             <div className="tasks-theory-block" style={theoryBlock as any}>
-                                 <h3 style={theoryLabel as any}>{selectedRouteStep.h2 || 'Карточка 2'}</h3>
-                                 <p style={theoryText as any}>{selectedRouteStep.t2}</p>
-                             </div>
-                             <div className="tasks-theory-block" style={theoryBlock as any}>
-                                 <h3 style={theoryLabel as any}>{selectedRouteStep.h3 || 'Карточка 3'}</h3>
-                                 <p style={theoryText as any}>{selectedRouteStep.t3}</p>
-                             </div>
-                         </div>
-                         <button onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn as any}>Я ИЗУЧИЛ ЭТУ ТЕМУ</button>
-                     </div>
-                  </div>
-               </div>
-            )}
-
-            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ --- */}
-            {showRouteForm && (
-                <div style={modalOverlay as any}>
-                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '600px'} as any}>
-                        <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{routeFormData.id ? 'РЕДАКТОР ТЕМЫ' : 'НОВАЯ ТЕМА'}</h2>
-                        <input style={adminIn as any} placeholder="Название темы (напр. Гигиена)" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-                            <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '15px', border: '1px solid #222'}}>
-                                <input style={{...adminIn, marginBottom: '10px'} as any} placeholder="Заголовок 1 (напр. Обязательное мытьё рук)" value={routeFormData.h1} onChange={e => setRouteFormData({...routeFormData, h1: e.target.value})} />
-                                <textarea style={{...adminIn, height: '80px', marginBottom: 0, resize: 'none'} as any} placeholder="Текст карточки 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
-                            </div>
-                            <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '15px', border: '1px solid #222'}}>
-                                <input style={{...adminIn, marginBottom: '10px'} as any} placeholder="Заголовок 2 (напр. Использование перчаток)" value={routeFormData.h2} onChange={e => setRouteFormData({...routeFormData, h2: e.target.value})} />
-                                <textarea style={{...adminIn, height: '80px', marginBottom: 0, resize: 'none'} as any} placeholder="Текст карточки 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
-                            </div>
-                            <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '15px', border: '1px solid #222'}}>
-                                <input style={{...adminIn, marginBottom: '10px'} as any} placeholder="Заголовок 3 (напр. Правила туалета)" value={routeFormData.h3} onChange={e => setRouteFormData({...routeFormData, h3: e.target.value})} />
-                                <textarea style={{...adminIn, height: '80px', marginBottom: 0, resize: 'none'} as any} placeholder="Текст карточки 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
-                            </div>
-                        </div>
-                        <button onClick={handleSaveRoute} style={{...saveBtn, marginTop: '25px'} as any}>СОХРАНИТЬ ТЕМУ</button>
-                        <div onClick={() => setShowRouteForm(false)} style={{ textAlign: 'center', marginTop: '25px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ОТМЕНА</div>
-                    </div>
-                </div>
-            )}
-
-            {routeToDelete && (
-                <div style={errorOverlayStyle as any}>
-                    <div className="tasks-modal" style={errorModalContent as any}>
-                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
-                        <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ТЕМУ?</h2>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={handleDeleteRoute} style={{...errorBtnStyle, flex: 1} as any}>УДАЛИТЬ</button>
-                            <button onClick={() => setRouteToDelete(null)} style={{...errorBtnStyle, background: '#333', flex: 1} as any}>ОТМЕНА</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            
             {/* ГЛОБАЛЬНЫЕ СТИЛИ КОМПОНЕНТА */}
             <style jsx global>{`
                 .anti-cheat { user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
