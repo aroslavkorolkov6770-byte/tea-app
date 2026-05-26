@@ -324,8 +324,12 @@ export default function Navigation() {
     router.push(link);
   };
 
+  // 💡 НОВОЕ: Динамическое название первой кнопки в зависимости от роли
   const sideItems = [
-    { id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', label: 'Статистика' },
+    { 
+      id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', 
+      label: userRole === 'admin' ? 'Меню управления' : 'Статистика' 
+    },
     { id: '/tasks?tab=edu', label: 'Обучение' },
     { id: '/tasks?tab=assortment', label: 'Ассортимент' },
     { id: '/tasks?tab=standards', label: 'ИИ Помощник' },
@@ -599,15 +603,14 @@ export default function Navigation() {
             box-sizing: border-box;
         }
 
-        /* 💡 ГЛОБАЛЬНОЕ СКРЫТИЕ ВСЕХ СКРОЛЛБАРОВ (включая главную страницу) */
         html::-webkit-scrollbar,
         body::-webkit-scrollbar {
             display: none;
             width: 0;
         }
         html, body {
-            -ms-overflow-style: none; /* Для IE и Edge */
-            scrollbar-width: none;    /* Для Firefox */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
         .custom-scroll::-webkit-scrollbar {
