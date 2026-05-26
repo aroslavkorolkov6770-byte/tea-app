@@ -42,8 +42,8 @@ function ProfileContent() {
     const [progress, setProgress] = useState({
         routeCount: 0,
         basicsCount: 0,
-        deadline: '',
-        isOverdue: false
+        totalRoute: 5,
+        totalBasics: 10
     });
 
     const [adminStats, setAdminStats] = useState({
@@ -64,18 +64,9 @@ function ProfileContent() {
             try {
                 let pData = await fetch(`/api/storage?key=profile_data_${currentId}`).then(r => r.json()).catch(() => null);
                 
-                let dlDate = new Date();
-                
                 if (!pData || Array.isArray(pData) || Object.keys(pData).length === 0) {
-                    pData = { avatar: '', tg: role === 'admin' ? 'admin_tea' : 'username', phone: '', email: '', firstLogin: dlDate.toISOString() };
+                    pData = { avatar: '', tg: role === 'admin' ? 'admin_tea' : 'username', phone: '', email: '', firstLogin: new Date().toISOString() };
                     saveDataToServer(`profile_data_${currentId}`, pData);
-                    dlDate.setDate(dlDate.getDate() + 7);
-                } else {
-                    if (!pData.firstLogin) {
-                        pData.firstLogin = dlDate.toISOString();
-                        saveDataToServer(`profile_data_${currentId}`, pData);
-                    }
-                    dlDate = new Date(new Date(pData.firstLogin).getTime() + 7 * 24 * 60 * 60 * 1000);
                 }
 
                 setProfile({
@@ -86,27 +77,34 @@ function ProfileContent() {
                     email: pData.email || '' 
                 });
 
+                // 💡 ИСПРАВЛЕННАЯ СТАТИСТИКА: Загружаем реальные данные из базы, чтобы правильно считать прогресс
                 const routeData = await fetch(`/api/storage?key=prog_route_${currentId}`).then(r => r.json()).catch(() => []);
                 const basicsData = await fetch(`/api/storage?key=prog_basics_${currentId}`).then(r => r.json()).catch(() => []);
                 
+                const rDb = await fetch(`/api/storage?key=tea_hub_dynamic_route_v2`).then(r => r.json()).catch(() => []);
+                const bDb = await fetch(`/api/storage?key=tea_hub_dynamic_basics_v2`).then(r => r.json()).catch(() => []);
+                
+                const rTotal = Array.isArray(rDb) && rDb.length > 0 ? rDb.length : 5;
+                const bTotal = Array.isArray(bDb) && bDb.length > 0 ? bDb.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 50;
+
                 const rCount = Array.isArray(routeData) ? routeData.length : 0;
                 const bCount = Array.isArray(basicsData) ? basicsData.length : 0;
 
                 setProgress({
                     routeCount: rCount,
                     basicsCount: bCount,
-                    deadline: dlDate.toLocaleDateString(),
-                    isOverdue: new Date() > dlDate && (rCount < 5 || bCount < 10)
+                    totalRoute: rTotal,
+                    totalBasics: bTotal
                 });
 
                 if (role === 'admin') {
                     const teaDb = await fetch('/api/storage?key=tea_master_unified_v1').then(r => r.json()).catch(() => []);
-                    const basicsDb = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1').then(r => r.json()).catch(() => []);
+                    const basicsDbAdmin = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1').then(r => r.json()).catch(() => []);
                     const standardsDb = await fetch('/api/storage?key=tea_hub_dynamic_standards_v1').then(r => r.json()).catch(() => []);
 
                     setAdminStats({
                         teas: Array.isArray(teaDb) ? teaDb.length : 0,
-                        lessons: Array.isArray(basicsDb) ? basicsDb.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 0,
+                        lessons: Array.isArray(basicsDbAdmin) ? basicsDbAdmin.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 0,
                         rules: Array.isArray(standardsDb) ? standardsDb.length : 0
                     });
                 }
@@ -156,7 +154,6 @@ function ProfileContent() {
             const registration = await navigator.serviceWorker.register(swUrl);
             let subscription = await registration.pushManager.getSubscription();
 
-            // Если подписка уже есть (призрачная или старая) - отписываемся для жесткой ПЕРЕПРИВЯЗКИ
             if (subscription) {
                 await subscription.unsubscribe();
             }
@@ -179,21 +176,17 @@ function ProfileContent() {
                 return outputArray;
             };
 
-            // Подписываем устройство заново, получая чистый токен
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
             });
 
-            // Скачиваем базу подписок
             const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
             let subs = await res.json().catch(() => []);
             if (!Array.isArray(subs)) subs = [];
 
-            // УДАЛЯЕМ старую привязку ИМЕННО ЭТОГО БРАУЗЕРА, если она висела на старом/удаленном аккаунте
             subs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
             
-            // Сохраняем новую привязку на текущего пользователя
             subs.push({ userId: userId, sub: subscription });
             await saveDataToServer('tea_hub_push_subs_v1', subs);
             
@@ -294,7 +287,19 @@ function ProfileContent() {
                 <div style={{ maxWidth: '600px', margin: '0 auto' }}>
                     
                     <section style={profileHeaderCardStyle}>
-                        <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={threeDotsButtonStyle}>•••</div>
+                        
+                        {/* 💡 НОВОЕ: Прозрачный слой поверх экрана для закрытия меню по клику вне его */}
+                        {isMenuOpen && (
+                            <div onClick={() => setIsMenuOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
+                        )}
+
+                        {/* 💡 ИСПРАВЛЕНО: Редизайн кнопки меню */}
+                        <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={settingsBtnStyle} className="settings-btn">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                        </div>
 
                         {isMenuOpen && (
                             <div style={contextMenuStyle}>
@@ -328,27 +333,17 @@ function ProfileContent() {
                         </div>
                     ) : (
                         <div style={{ animation: 'fadeInUp 0.5s ease' }}>
+                            {/* 💡 ИСПРАВЛЕНА СТАТИСТИКА: берем реальные totalRoute и totalBasics */}
                             <section style={progressSectionStyle}>
                                 <div style={{ marginBottom: '25px' }}>
-                                    <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{progress.routeCount}/5</span></div>
-                                    <div style={barBg}><div style={{ ...barFill, width: `${(progress.routeCount/5)*100}%` }} /></div>
+                                    <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{progress.routeCount}/{progress.totalRoute}</span></div>
+                                    <div style={barBg}><div style={{ ...barFill, width: `${Math.min((progress.routeCount / (progress.totalRoute || 1)) * 100, 100)}%` }} /></div>
                                 </div>
-                                <div style={{ marginBottom: '10px' }}>
-                                    <div style={labelRow}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{progress.basicsCount}/10</span></div>
-                                    <div style={barBg}><div style={{ ...barFill, width: `${(progress.basicsCount/10)*100}%` }} /></div>
-                                </div>
-                                <div style={deadlineStyle}>
-                                    ДЕДЛАЙН: <span style={{ color: progress.isOverdue ? '#ff7675' : '#0abab5', fontWeight: '900' }}>{progress.deadline}</span>
+                                <div>
+                                    <div style={labelRow}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{progress.basicsCount}/{progress.totalBasics}</span></div>
+                                    <div style={barBg}><div style={{ ...barFill, width: `${Math.min((progress.basicsCount / (progress.totalBasics || 1)) * 100, 100)}%` }} /></div>
                                 </div>
                             </section>
-
-                            <h3 style={sectionTitle}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
-                                <div title="Старт" style={{ ...badgeStyle, opacity: progress.routeCount >= 1 ? 1 : 0.1 }}>🌱</div>
-                                <div title="План" style={{ ...badgeStyle, opacity: progress.routeCount >= 5 ? 1 : 0.1 }}>🚀</div>
-                                <div title="Теория" style={{ ...badgeStyle, opacity: progress.basicsCount >= 5 ? 1 : 0.1 }}>📚</div>
-                                <div title="Мастер" style={{ ...badgeStyle, opacity: progress.basicsCount >= 10 ? 1 : 0.1 }}>🏮</div>
-                            </div>
                         </div>
                     )}
 
@@ -364,7 +359,6 @@ function ProfileContent() {
                         </div>
                     </section>
 
-                    {/* --- НОВАЯ КНОПКА ПОДКЛЮЧЕНИЯ/ПЕРЕПРИВЯЗКИ --- */}
                     <button 
                         onClick={handleSubscribeToPush} 
                         style={{
@@ -393,9 +387,10 @@ function ProfileContent() {
                     </button>
                 </div>
 
+                {/* 💡 ИСПРАВЛЕНЫ МОДАЛКИ: добавлено закрытие по клику на фон + исправлен дизайн для ПК */}
                 {isEditing && (
-                    <div style={overlayStyle}>
-                        <div style={modalStyle}>
+                    <div style={overlayStyle} onClick={() => setIsEditing(false)}>
+                        <div style={modalStyle} onClick={e => e.stopPropagation()}>
                             <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px' }}>РЕДАКТОР ПРОФИЛЯ</h2>
                             <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
                                 <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} placeholder="Ваше имя" style={inputItemStyle} />
@@ -417,8 +412,8 @@ function ProfileContent() {
                 )}
 
                 {isPassModalOpen && (
-                    <div style={overlayStyle}>
-                        <div style={modalStyle}>
+                    <div style={overlayStyle} onClick={() => setIsPassModalOpen(false)}>
+                        <div style={modalStyle} onClick={e => e.stopPropagation()}>
                             <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px', color: '#fff' }}>СМЕНА ПАРОЛЯ</h2>
                             <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
                                 <input type="text" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Придумайте новый пароль" style={inputItemStyle} />
@@ -429,9 +424,10 @@ function ProfileContent() {
                     </div>
                 )}
 
+                {/* Окно инструкции */}
                 {isHelpModalOpen && (
                     <div style={overlayStyle} onClick={() => setIsHelpModalOpen(false)}>
-                        <div className="custom-scroll" style={{...modalStyle, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '40px 35px'}} onClick={e => e.stopPropagation()}>
+                        <div className="custom-scroll" style={{...modalStyle, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
                             
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                                 <h2 style={{ margin: 0, fontWeight: '900', color: '#fff', fontSize: '24px' }}>НАСТРОЙКА УВЕДОМЛЕНИЙ</h2>
@@ -534,7 +530,7 @@ function ProfileContent() {
 
                                     <div style={stepCardStyle as any}>
                                         <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}><b>Алгоритм привязки:</b> В верхней части текущей страницы нажмите на системное меню <b>«•••»</b> ➔ выберите <b>«Настроить данные»</b> ➔ заполните поле <b>«E-mail адрес»</b> ➔ нажмите <b>«Сохранить изменения»</b>.</div>
+                                        <div style={stepTextStyle as any}><b>Алгоритм привязки:</b> В верхней части текущей страницы нажмите на системное меню (шестеренку) ➔ выберите <b>«Настроить данные»</b> ➔ заполните поле <b>«E-mail адрес»</b> ➔ нажмите <b>«Сохранить изменения»</b>.</div>
                                     </div>
 
                                     <div style={{ marginTop: '30px', padding: '20px 25px', background: 'rgba(255, 118, 117, 0.05)', border: '1px solid rgba(255, 118, 117, 0.2)', borderRadius: '18px' }}>
@@ -563,6 +559,13 @@ function ProfileContent() {
                 ::-webkit-scrollbar-track { background: transparent; }
                 body { overflow-x: hidden; width: 100vw; }
                 @media (max-width: 768px) { .sidebar-spacer { display: none; } }
+                
+                /* Стили для новой кнопки настроек (шестеренки) при наведении */
+                .settings-btn:hover {
+                    background: #222 !important;
+                    border-color: #0abab5 !important;
+                    color: #0abab5 !important;
+                }
             `}</style>
         </div>
     );
@@ -581,28 +584,35 @@ const profileHeaderCardStyle: any = {
     boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
 };
 
-const threeDotsButtonStyle: any = { 
+// 💡 НОВЫЙ ДИЗАЙН КНОПКИ МЕНЮ (ШЕСТЕРЕНКА)
+const settingsBtnStyle: any = { 
     position: 'absolute', 
     top: '25px', 
-    right: '30px', 
-    color: '#444', 
-    fontSize: '22px', 
+    right: '25px', 
+    width: '45px',
+    height: '45px',
+    background: '#111',
+    border: '1px solid #333',
+    borderRadius: '14px',
+    color: '#aaa',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     cursor: 'pointer', 
-    fontWeight: 'bold', 
     transition: '0.2s',
-    letterSpacing: '-1px'
+    zIndex: 95
 };
 
 const contextMenuStyle: any = { 
     position: 'absolute', 
-    top: '60px', 
-    right: '30px', 
+    top: '75px', 
+    right: '25px', 
     backgroundColor: '#111', 
-    border: '1px solid #222', 
-    borderRadius: '18px', 
-    width: '200px', 
+    border: '1px solid #333', 
+    borderRadius: '20px', 
+    width: '220px', 
     overflow: 'hidden', 
-    boxShadow: '0 20px 40px rgba(0,0,0,0.8)', 
+    boxShadow: '0 20px 50px rgba(0,0,0,0.8)', 
     zIndex: 100,
     textAlign: 'left',
     animation: 'fadeIn 0.2s ease'
@@ -627,14 +637,24 @@ const progressSectionStyle: any = { background: '#161816', padding: '35px', bord
 const labelRow: any = { display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '900' };
 const barBg: any = { width: '100%', height: '10px', background: '#000', borderRadius: '12px', overflow: 'hidden' };
 const barFill: any = { height: '100%', background: '#0abab5', transition: '1.2s cubic-bezier(0.4, 0, 0.2, 1)' };
-const deadlineStyle: any = { marginTop: '25px', paddingTop: '20px', borderTop: '1px solid #222', fontSize: '11px', color: '#555', textAlign: 'center' };
-
-const badgeStyle: any = { background: '#111', height: '80px', borderRadius: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '35px', border: '1px solid #222', transition: '0.4s' };
 
 const contactCardStyle: any = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
 const contactIconStyle: any = { width: '45px', height: '45px', background: '#000', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
-const overlayStyle: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.98)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px', backdropFilter: 'blur(15px)' };
-const modalStyle: any = { background: '#111', borderRadius: '45px', border: '1px solid #222' };
+
+const overlayStyle: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px', backdropFilter: 'blur(10px)', boxSizing: 'border-box' };
+
+// 💡 ИСПРАВЛЕНИЕ: Теперь у модальных окон (редактор/пароль) есть четкие рамки и красивые отступы
+const modalStyle: any = { 
+    background: '#111', 
+    borderRadius: '40px', 
+    border: '1px solid #222',
+    padding: '40px 35px',
+    width: '100%',
+    maxWidth: '500px',
+    boxSizing: 'border-box',
+    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)'
+};
+
 const inputItemStyle: any = { width: '100%', padding: '20px', background: '#000', border: '1px solid #222', borderRadius: '18px', color: '#fff', outline: 'none', fontSize: '16px', boxSizing: 'border-box' };
 const saveButtonStyle: any = { width: '100%', padding: '22px', background: '#0abab5', border: 'none', borderRadius: '18px', fontWeight: '900', color: '#000', cursor: 'pointer', marginTop: '20px', fontSize: '15px' };
 const cancelButtonStyle: any = { textAlign: 'center', marginTop: '25px', color: '#444', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' };
