@@ -76,6 +76,11 @@ export default function AdminDashboard() {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
 
+  // 💡 НОВЫЕ СТЕЙТЫ: Для редактирования логина и пароля внутри админки
+  const [editAuthMode, setEditAuthMode] = useState(false);
+  const [editAuthLogin, setEditAuthLogin] = useState('');
+  const [editAuthPass, setEditAuthPass] = useState('');
+
   const [interactionTab, setInteractionTab] = useState<'notif' | 'test'>('notif');
   const [selectedStaff, setSelectedStaff] = useState("Все");
   const [notifText, setNotifText] = useState("");
@@ -353,6 +358,28 @@ export default function AdminDashboard() {
           return;
       }
       setConfirmModal({ show: true, type: 'user', id: id, title: 'УДАЛЕНИЕ СОТРУДНИКА', text: 'Вы уверены, что хотите удалить учетную запись этого сотрудника? Это действие необратимо.' });
+  };
+
+  // 💡 НОВОЕ: Функция сохранения отредактированных доступов (логин и пароль)
+  const handleSaveUserAuth = async () => {
+      if (!editAuthLogin.trim() || !editAuthPass.trim()) {
+          setErrorModal({ show: true, text: "Логин и пароль не могут быть пустыми!" });
+          return;
+      }
+      
+      const loginExists = users.find(u => u.login === editAuthLogin.trim() && u.id !== selectedProfileUser.id);
+      if (loginExists) {
+          setErrorModal({ show: true, text: "Этот логин уже занят другим пользователем!" });
+          return;
+      }
+
+      const updatedUsers = users.map(u => u.id === selectedProfileUser.id ? { ...u, login: editAuthLogin.trim(), pass: editAuthPass.trim() } : u);
+      setUsers(updatedUsers);
+      saveDataToServer('tea_hub_users_v1', updatedUsers);
+      
+      setSelectedProfileUser({ ...selectedProfileUser, login: editAuthLogin.trim(), pass: editAuthPass.trim() });
+      setEditAuthMode(false);
+      setShowSuccessModal({ show: true, title: 'ДОСТУПЫ ОБНОВЛЕНЫ', text: `Новые данные для входа успешно сохранены.` });
   };
 
   const handleSaveFile = async () => {
@@ -908,7 +935,6 @@ export default function AdminDashboard() {
                     <input type="text" placeholder="Поиск по имени или логину..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' }} />
                 </div>
                 
-                {/* 💡 ИЗМЕНЕНО: Добавлен класс keep-scroll, чтобы сохранить ползунок именно тут */}
                 <div className="custom-scroll keep-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '5px' }}>
                     <div className="admin-user-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                       {filteredUsers.length === 0 ? (
@@ -1147,14 +1173,14 @@ export default function AdminDashboard() {
           </div>
       </main>
 
-      {/* --- ИДЕНТИЧНОЕ МОДАЛЬНОЕ ОКНО ПРОФИЛЯ СОТРУДНИКА (КАК В APP/PROFILE) --- */}
+      {/* --- ИДЕНТИЧНОЕ МОДАЛЬНОЕ ОКНО ПРОФИЛЯ СОТРУДНИКА --- */}
       {selectedProfileUser && (
-        <div style={modalOverlay as any} onClick={() => setSelectedProfileUser(null)}>
+        <div style={modalOverlay as any} onClick={() => { setSelectedProfileUser(null); setEditAuthMode(false); }}>
             <div className="custom-scroll" style={{ background: '#0d0f0d', padding: '40px 20px', borderRadius: '40px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #333' } as any} onClick={e => e.stopPropagation()}>
                 
                 {/* Кнопка закрытия */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                    <div onClick={() => setSelectedProfileUser(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
+                    <div onClick={() => { setSelectedProfileUser(null); setEditAuthMode(false); }} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
                 </div>
 
                 {(() => {
@@ -1185,14 +1211,40 @@ export default function AdminDashboard() {
                                 </p>
                             </section>
 
-                            <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.2)', padding: '15px', borderRadius: '20px', marginBottom: '35px', display: 'flex', justifyContent: 'space-around' }}>
-                                <div style={{textAlign: 'center'}}>
-                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '5px'}}>ЛОГИН ДОСТУПА</div>
-                                    <div style={{fontFamily: 'monospace', fontSize: '15px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.login}</div>
+                            {/* 💡 НОВОЕ: Блок редактирования доступов прямо в админке */}
+                            <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.2)', padding: '20px', borderRadius: '20px', marginBottom: '35px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,77,77,0.2)' }}>
+                                    <span style={{color: '#ff7675', fontWeight: '900', fontSize: '13px', letterSpacing: '1px'}}>ДАННЫЕ АВТОРИЗАЦИИ</span>
+                                    <button onClick={() => {
+                                        if(editAuthMode) {
+                                            handleSaveUserAuth();
+                                        } else {
+                                            setEditAuthLogin(selectedProfileUser.login);
+                                            setEditAuthPass(selectedProfileUser.pass);
+                                            setEditAuthMode(true);
+                                        }
+                                    }} style={{ background: editAuthMode ? '#ff7675' : 'transparent', color: editAuthMode ? '#000' : '#ff7675', border: '1px solid #ff7675', padding: '6px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '11px', fontWeight: '900', transition: '0.2s' }}>
+                                        {editAuthMode ? 'СОХРАНИТЬ' : 'РЕДАКТИРОВАТЬ'}
+                                    </button>
                                 </div>
-                                <div style={{textAlign: 'center'}}>
-                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '5px'}}>ПАРОЛЬ</div>
-                                    <div style={{fontFamily: 'monospace', fontSize: '15px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.pass}</div>
+                                
+                                <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                                    <div style={{textAlign: 'center'}}>
+                                        <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '8px'}}>ЛОГИН ДОСТУПА</div>
+                                        {editAuthMode ? (
+                                            <input value={editAuthLogin} onChange={e => setEditAuthLogin(e.target.value)} style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '120px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
+                                        ) : (
+                                            <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.login}</div>
+                                        )}
+                                    </div>
+                                    <div style={{textAlign: 'center'}}>
+                                        <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '8px'}}>ПАРОЛЬ</div>
+                                        {editAuthMode ? (
+                                            <input value={editAuthPass} onChange={e => setEditAuthPass(e.target.value)} style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '120px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
+                                        ) : (
+                                            <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.pass}</div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -1541,7 +1593,6 @@ export default function AdminDashboard() {
         .deadline-dot { background: #ff4d4d; }
         .cal-day:hover .note-dot, .cal-day.today .note-dot { background: #000; }
         
-        /* 💡 ИСКЛЮЧЕНИЕ: Для класса keep-scroll ползунок остается видимым */
         .keep-scroll::-webkit-scrollbar { width: 6px !important; display: block !important; }
         .keep-scroll::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 10px !important; }
         .keep-scroll { -ms-overflow-style: auto !important; scrollbar-width: thin !important; scrollbar-color: #333 transparent !important; }
