@@ -18,7 +18,7 @@ function ProfileContent() {
     const [isEditing, setIsEditing] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     
-    // 💡 ИЗМЕНЕНО: Стейты для окна авторизации (Логин + Пароль)
+    // Стейты для окна авторизации (Логин + Пароль)
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [newLogin, setNewLogin] = useState('');
     const [newPass, setNewPass] = useState('');
@@ -29,7 +29,7 @@ function ProfileContent() {
     const [userRole, setUserRole] = useState('staff');
     const [userId, setUserId] = useState('guest');
     
-    // --- СТЕЙТЫ ДЛЯ КНОПКИ PUSH-УВЕДОМЛЕНИЙ ---
+    // Стейты для кнопки PUSH-уведомлений
     const [pushBtnText, setPushBtnText] = useState('ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ');
     const [pushBtnColor, setPushBtnColor] = useState('#0abab5');
     
@@ -204,7 +204,7 @@ function ProfileContent() {
         setIsEditing(true);
     };
 
-    // 💡 НОВОЕ: Открытие окна изменения данных авторизации с подгрузкой текущих
+    // Открытие окна изменения данных авторизации с подгрузкой текущих (Универсально для админа и сотрудника)
     const handleOpenAuthChange = async () => {
         setIsMenuOpen(false);
         try {
@@ -253,7 +253,7 @@ function ProfileContent() {
         setIsEditing(false);
     };
 
-    // 💡 ИЗМЕНЕНО: Общая функция для сохранения логина и пароля
+    // Общая функция для сохранения логина и пароля
     const handleChangeAuth = async () => {
         if (!newLogin.trim() || !newPass.trim()) {
             alert("Логин и пароль не могут быть пустыми!");
@@ -309,6 +309,7 @@ function ProfileContent() {
                     
                     <section style={profileHeaderCardStyle}>
                         
+                        {/* Прозрачный слой поверх экрана для закрытия меню по клику вне его */}
                         {isMenuOpen && (
                             <div onClick={() => setIsMenuOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
                         )}
@@ -323,7 +324,6 @@ function ProfileContent() {
                         {isMenuOpen && (
                             <div style={contextMenuStyle}>
                                 <div onClick={handleOpenEdit} style={menuItemStyle}>Настроить данные</div>
-                                {/* 💡 Измененный пункт меню */}
                                 <div onClick={handleOpenAuthChange} style={menuItemStyle}>Сменить логин и пароль</div>
                                 <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>Выйти из аккаунта</div>
                             </div>
@@ -429,7 +429,6 @@ function ProfileContent() {
                     </div>
                 )}
 
-                {/* 💡 НОВОЕ: Окно смены ЛОГИНА и ПАРОЛЯ */}
                 {isAuthModalOpen && (
                     <div style={overlayStyle} onClick={() => setIsAuthModalOpen(false)}>
                         <div style={modalStyle} onClick={e => e.stopPropagation()}>
@@ -451,6 +450,7 @@ function ProfileContent() {
                     </div>
                 )}
 
+                {/* Окно инструкции */}
                 {isHelpModalOpen && (
                     <div style={overlayStyle} onClick={() => setIsHelpModalOpen(false)}>
                         <div className="custom-scroll" style={{...modalStyle, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
@@ -538,7 +538,7 @@ function ProfileContent() {
                                         <div style={stepTextStyle as any}>В системном окне браузера подтвердите действие, нажав <b>«Разрешить» (Allow)</b>.</div>
                                     </div>
 
-                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '18px' }}>
+                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: '1a1a1a', border: '1px solid #333', borderRadius: '18px' }}>
                                         <h4 style={{ color: '#0abab5', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>Ручная настройка параметров браузера:</h4>
                                         <p style={{ fontSize: '14px', color: '#ccc', margin: 0, lineHeight: '1.6' }}>Если диалоговое окно не отображается, кликните на иконку «Настройки сайта» (замок слева от адресной строки) и переведите параметр <b>Уведомления</b> в активное положение.</p>
                                     </div>
