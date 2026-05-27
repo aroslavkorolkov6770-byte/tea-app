@@ -1,465 +1,754 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
-// --- ИМПОРТ НАШИХ НОВЫХ МОДУЛЕЙ ---
-import Education from './components/Education';
-import Assortment from './components/Assortment';
-import AIAssistant from './components/AIAssistant';
-
-// --- КЛЮЧИ ПАМЯТИ ---
-const STORAGE_KEYS = {
-    ONBOARD_ROUTE: 'tea_hub_onboard_route_v2',
-    DYNAMIC_TESTS: 'tea_hub_dynamic_tests_v1',   
-    DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v2',     
-    TESTS_PROGRESS: 'tea_hub_tests_progress_v1',
-    URGENT_FILES: 'tea_hub_urgent_files_v1'        
+// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
+const saveDataToServer = (key: string, data: any) => {
+    fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, data })
+    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
-function ShiftContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter(); 
-  
-  const [isMounted, setIsMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState('welcome');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [userId, setUserId] = useState<string>('');
-  
-  // --- ГЛОБАЛЬНЫЕ ДАННЫЕ (ПЕРЕДАЮТСЯ В МОДУЛИ КАК PROPS) ---
-  const [dynamicRoute, setDynamicRoute] = useState<any[]>([]);
-  const [dynamicTests, setDynamicTests] = useState<any[]>([]);
-  const [completedRoute, setCompletedRoute] = useState<string[]>([]);
-  const [completedTests, setCompletedTests] = useState<string[]>([]); 
-  const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
-  const [passedTests, setPassedTests] = useState<string[]>([]);
-  const [dismissedTasks, setDismissedTasks] = useState<string[]>([]);
-  const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
+function ProfileContent() {
+    const router = useRouter();
+    const [isMounted, setIsMounted] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    
+    // 💡 ИЗМЕНЕНО: Стейты для окна авторизации (Логин + Пароль)
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [newLogin, setNewLogin] = useState('');
+    const [newPass, setNewPass] = useState('');
+    
+    const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+    const [helpTab, setHelpTab] = useState<'ios' | 'android' | 'desktop' | 'email'>('ios');
+    
+    const [userRole, setUserRole] = useState('staff');
+    const [userId, setUserId] = useState('guest');
+    
+    // --- СТЕЙТЫ ДЛЯ КНОПКИ PUSH-УВЕДОМЛЕНИЙ ---
+    const [pushBtnText, setPushBtnText] = useState('ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ');
+    const [pushBtnColor, setPushBtnColor] = useState('#0abab5');
+    
+    const [profile, setProfile] = useState({
+        name: '',
+        avatar: '',
+        tg: '',
+        phone: '',
+        email: ''
+    });
 
-  // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ МОДАЛКАМИ ИЗ ПОИСКА ---
-  const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
-  const [selectedTest, setSelectedTest] = useState<any>(null); 
+    const [progress, setProgress] = useState({
+        routeCount: 0,
+        basicsCount: 0,
+        totalRoute: 5,
+        totalBasics: 10
+    });
 
-  // --- СОСТОЯНИЕ УВЕДОМЛЕНИЙ PUSH ---
-  const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
-  const [isPushBound, setIsPushBound] = useState(false);
+    const [adminStats, setAdminStats] = useState({
+        teas: 0,
+        lessons: 0,
+        rules: 0
+    });
 
-  const loadAllData = async (currentUserId: string, checkUrl = false) => {
-      if (typeof window !== 'undefined') {
-          const cachedFiles = localStorage.getItem('th_cache_files');
-          const cachedRoute = localStorage.getItem('th_cache_route');
-          const cachedTests = localStorage.getItem('th_cache_tests');
-          const cachedProgRoute = localStorage.getItem(`th_prog_route_${currentUserId}`);
-          const cachedProgTests = localStorage.getItem(`th_prog_tests_${currentUserId}`);
-          const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
-          const cachedDismissed = localStorage.getItem(`th_dismissed_tasks_${currentUserId}`);
-          const cachedAssortment = localStorage.getItem('th_cache_assortment_matrix_v2');
+    useEffect(() => {
+        const loadProfileData = async () => {
+            const role = localStorage.getItem('userRole') || 'staff';
+            const currentId = localStorage.getItem('current_user_id') || 'guest';
+            const currentName = localStorage.getItem('current_user_name') || (role === 'admin' ? 'Главный Мастер' : 'Сотрудник');
+            
+            setUserRole(role);
+            setUserId(currentId);
 
-          if (cachedFiles) setUrgentFiles(JSON.parse(cachedFiles));
-          if (cachedRoute) setDynamicRoute(JSON.parse(cachedRoute));
-          if (cachedTests) setDynamicTests(JSON.parse(cachedTests));
-          if (cachedProgRoute) setCompletedRoute(JSON.parse(cachedProgRoute));
-          if (cachedProgTests) setCompletedTests(JSON.parse(cachedProgTests));
-          if (cachedPassedTests) setPassedTests(JSON.parse(cachedPassedTests));
-          if (cachedDismissed) setDismissedTasks(JSON.parse(cachedDismissed));
-          if (cachedAssortment) setAssortmentMatrix(JSON.parse(cachedAssortment));
-      }
-
-      try {
-          const cacheBuster = `?t=${Date.now()}`;
-          const [sFiles, cRoute, cTests, sTestsData, sRouteData, pTestsRes, sAssortment] = await Promise.all([
-              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.URGENT_FILES}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=prog_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_TESTS}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_ROUTE}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=tea_hub_assortment_matrix_v2`).then(r => r.json()).catch(() => null)
-          ]);
-
-          if (Array.isArray(sFiles)) {
-              setUrgentFiles(sFiles);
-              localStorage.setItem('th_cache_files', JSON.stringify(sFiles));
-          }
-
-          if (Array.isArray(cRoute)) {
-              setCompletedRoute(cRoute);
-              localStorage.setItem(`th_prog_route_${currentUserId}`, JSON.stringify(cRoute));
-          }
-
-          if (Array.isArray(cTests)) {
-              setCompletedTests(cTests);
-              localStorage.setItem(`th_prog_tests_${currentUserId}`, JSON.stringify(cTests));
-          }
-
-          if (Array.isArray(pTestsRes)) {
-              setPassedTests(pTestsRes);
-              localStorage.setItem(`th_cache_passed_tests_${currentUserId}`, JSON.stringify(pTestsRes));
-          }
-
-          if (Array.isArray(sTestsData)) {
-              setDynamicTests(sTestsData);
-              localStorage.setItem('th_cache_tests', JSON.stringify(sTestsData));
-          }
-
-          if (Array.isArray(sRouteData)) {
-              setDynamicRoute(sRouteData);
-              localStorage.setItem('th_cache_route', JSON.stringify(sRouteData));
-          }
-
-          if (Array.isArray(sAssortment)) {
-              setAssortmentMatrix(sAssortment);
-              localStorage.setItem('th_cache_assortment_matrix_v2', JSON.stringify(sAssortment));
-          }
-
-      } catch (e) {
-          console.error("Ошибка синхронизации с сервером", e);
-      }
-  };
-
-  const subscribeToPush = async () => {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-          alert("Браузер не поддерживает Web Push уведомления.");
-          return;
-      }
-      const currentId = localStorage.getItem('current_user_id') || 'guest';
-      if (currentId === 'guest' || !currentId) {
-          alert("⚠️ Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве! Пожалуйста, сначала авторизуйтесь под логином сотрудника и попробуйте снова.");
-          return;
-      }
-      try {
-          const permission = await Notification.requestPermission();
-          setPushStatus(permission);
-          if (permission === 'granted') {
-              const swUrl = `/sw.js?v=${Date.now()}`;
-              const registration = await navigator.serviceWorker.register(swUrl);
-              let subscription = await registration.pushManager.getSubscription();
-
-              if (!subscription) {
-                  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-                  if (!vapidPublicKey) {
-                      console.warn("VAPID ключ не найден в .env");
-                      return;
-                  }
-                  const urlBase64ToUint8Array = (base64String: string) => {
-                      const cleanKey = base64String.replace(/["']/g, '').trim();
-                      const padding = '='.repeat((4 - cleanKey.length % 4) % 4);
-                      const base64 = (cleanKey + padding).replace(/-/g, '+').replace(/_/g, '/');
-                      const rawData = window.atob(base64);
-                      const outputArray = new Uint8Array(rawData.length);
-                      for (let i = 0; i < rawData.length; ++i) {
-                          outputArray[i] = rawData.charCodeAt(i);
-                      }
-                      return outputArray;
-                  };
-                  subscription = await registration.pushManager.subscribe({
-                      userVisibleOnly: true,
-                      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-                  });
-              }
-
-              const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
-              let subs = await res.json().catch(() => []);
-              if (!Array.isArray(subs)) subs = [];
-
-              let filteredSubs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
-              filteredSubs.push({ userId: currentId, sub: subscription });
-              
-              await fetch('/api/storage', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ key: 'tea_hub_push_subs_v1', data: filteredSubs })
-              }).catch(err => console.error(err));
-              
-              localStorage.setItem('tea_hub_push_bound', 'true');
-              setIsPushBound(true);
-
-              alert(`🎉 Устройство успешно зарегистрировано и привязано к вашему аккаунту!`);
-          } else {
-              alert("❌ Вы заблокировали уведомления в браузере.");
-          }
-      } catch (error) {
-          console.error('Ошибка подписки на Push:', error);
-          alert("Ошибка привязки устройства: " + error);
-      }
-  };
-
-  useEffect(() => {
-    setIsMounted(true);
-    const role = localStorage.getItem('userRole');
-    const currentId = localStorage.getItem('current_user_id') || 'guest';
-    setIsAdmin(role === 'admin');
-    setUserId(currentId);
-
-    if (typeof window !== 'undefined') {
-        if (!('Notification' in window)) setPushStatus('unsupported');
-        else setPushStatus(Notification.permission as any);
-        setIsPushBound(localStorage.getItem('tea_hub_push_bound') === 'true');
-    }
-
-    loadAllData(currentId, true);
-
-    const urlTab = searchParams.get('tab');
-    if (urlTab) setActiveTab(urlTab);
-
-    const handleToggle = () => setIsSidebarOpen(prev => !prev);
-    window.addEventListener('sidebarToggle', handleToggle);
-    const syncInterval = setInterval(() => loadAllData(currentId, false), 5000);
-    const focusHandler = () => loadAllData(currentId, false);
-    window.addEventListener('focus', focusHandler);
-
-    return () => {
-        window.removeEventListener('sidebarToggle', handleToggle);
-        clearInterval(syncInterval);
-        window.removeEventListener('focus', focusHandler);
-    };
-  }, [searchParams]);
-
-  // --- ЛОВЕЦ ССЫЛОК ИЗ ПОИСКА (DEEP LINKING) ---
-  const lastHandledParams = React.useRef("");
-  useEffect(() => {
-      if (!isMounted) return;
-      const currentParams = searchParams.toString();
-      
-      if (lastHandledParams.current === currentParams) return; 
-      if (dynamicRoute.length === 0 && dynamicTests.length === 0 && assortmentMatrix.length === 0) return; 
-
-      let handled = false;
-      
-      const rId = searchParams.get('routeId');
-      if (rId && dynamicRoute.length > 0) {
-          const step = dynamicRoute.find(r => r.id === rId);
-          if (step) {
-              setSelectedRouteStep(step);
-              handled = true;
-          }
-      }
-
-      const tId = searchParams.get('testId');
-      if (tId && dynamicTests.length > 0) {
-          const testIdx = dynamicTests.findIndex(t => t.id === tId);
-          if (testIdx !== -1) {
-              const isUnlocked = testIdx === 0 || completedTests.includes(dynamicTests[testIdx - 1].id);
-              if (isUnlocked) {
-                  setSelectedTest(dynamicTests[testIdx]);
-              } else {
-                  alert(`Для разблокировки этого этапа сначала необходимо успешно сдать Тест ${testIdx}`);
-              }
-              handled = true;
-          }
-      }
-
-      const aId = searchParams.get('assortmentId');
-      if (aId && assortmentMatrix.length > 0) handled = true;
-      
-      if (handled) lastHandledParams.current = currentParams;
-  }, [searchParams, dynamicRoute, dynamicTests, assortmentMatrix, completedTests, isMounted]);
-
-  // --- ФУНКЦИИ ОЧИСТКИ URL ПРИ ЗАКРЫТИИ МОДАЛОК ---
-  const closeRouteModal = () => {
-      setSelectedRouteStep(null);
-      if (searchParams.has('routeId')) {
-          router.replace('/tasks?tab=edu'); 
-      }
-  };
-
-  const closeTestModal = () => {
-      setSelectedTest(null);
-      if (searchParams.has('testId')) {
-          router.replace('/tasks?tab=edu'); 
-      }
-  };
-
-  if (!isMounted) return null;
-
-  // --- ВЫЧИСЛЕНИЕ СТАТИСТИКИ ---
-  const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
-  const testsPercent = Math.round((completedTests.length / (Math.max(dynamicTests.length, 1))) * 100);
-  const totalHubPercent = testsPercent; 
-
-  const pct = totalHubPercent;
-  const startX = 0;
-  const startY = 100;
-  const endX = pct;
-  const endY = 100 - pct; 
-  const cpX = pct * 0.5;
-  const cpY = 100;
-  const dotY = Math.max(pct, 2);
-  const lineEndY = 100 - dotY;
-
-  const pathArea = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY} L ${endX} ${startY} Z`;
-  const pathLine = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY}`;
-
-  return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
-      <Navigation />
-      
-      <div className="desktop-sidebar-spacer" style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
-
-      <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
-        
-        {/* --- ПРИВЯЗКА ПУШЕЙ --- */}
-        {(!isPushBound && (pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest') && (
-            <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
-                <div>
-                    <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Синхронизация уведомлений</h3>
-                    <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Нажмите кнопку справа, чтобы жестко привязать это устройство к вашему рабочему аккаунту.</p>
-                </div>
-                <button onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>ПРИВЯЗАТЬ</button>
-            </div>
-        )}
-
-        {/* --- ВКЛАДКА 1: СТАТИСТИКА (ДАШБОРД) --- */}
-        {activeTab === 'welcome' && (
-            <div style={{ animation: 'fadeInUp 0.6s ease' }}>
-                <h1 className="tasks-title" style={{fontSize:'36px', fontWeight:'900', marginBottom:'40px'}}>Центр управления мастером</h1>
+            try {
+                let pData = await fetch(`/api/storage?key=profile_data_${currentId}`).then(r => r.json()).catch(() => null);
                 
-                <section className="tasks-chart-card" style={wideChartCard}>
-                    <div className="tasks-flex-space" style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'20px', flexWrap: 'wrap', gap:'20px'}}>
-                        <div>
-                            <div style={{fontSize:'11px', fontWeight:'900', color:'#0abab5', letterSpacing:'2px', marginBottom:'8px', textTransform:'uppercase'}}>ОБЩАЯ ДИНАМИКА РАЗВИТИЯ</div>
-                            <div className="tasks-big-val" style={{fontSize:'48px', fontWeight:'900', color:'#fff', display:'flex', alignItems:'baseline', gap:'12px'}}>
-                                {totalHubPercent}% <span style={{fontSize:'15px', opacity:0.4, fontWeight:'500'}}>общего прогресса HUB</span>
+                if (!pData || Array.isArray(pData) || Object.keys(pData).length === 0) {
+                    pData = { avatar: '', tg: role === 'admin' ? 'admin_tea' : 'username', phone: '', email: '', firstLogin: new Date().toISOString() };
+                    saveDataToServer(`profile_data_${currentId}`, pData);
+                }
+
+                setProfile({
+                    name: currentName,
+                    avatar: pData.avatar || '',
+                    tg: pData.tg || '',
+                    phone: pData.phone || '',
+                    email: pData.email || '' 
+                });
+
+                const routeData = await fetch(`/api/storage?key=prog_route_${currentId}`).then(r => r.json()).catch(() => []);
+                const basicsData = await fetch(`/api/storage?key=prog_basics_${currentId}`).then(r => r.json()).catch(() => []);
+                
+                const rDb = await fetch(`/api/storage?key=tea_hub_dynamic_route_v2`).then(r => r.json()).catch(() => []);
+                const bDb = await fetch(`/api/storage?key=tea_hub_dynamic_basics_v2`).then(r => r.json()).catch(() => []);
+                
+                const rTotal = Array.isArray(rDb) && rDb.length > 0 ? rDb.length : 5;
+                const bTotal = Array.isArray(bDb) && bDb.length > 0 ? bDb.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 50;
+
+                const rCount = Array.isArray(routeData) ? routeData.length : 0;
+                const bCount = Array.isArray(basicsData) ? basicsData.length : 0;
+
+                setProgress({
+                    routeCount: rCount,
+                    basicsCount: bCount,
+                    totalRoute: rTotal,
+                    totalBasics: bTotal
+                });
+
+                if (role === 'admin') {
+                    const teaDb = await fetch('/api/storage?key=tea_master_unified_v1').then(r => r.json()).catch(() => []);
+                    const basicsDbAdmin = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1').then(r => r.json()).catch(() => []);
+                    const standardsDb = await fetch('/api/storage?key=tea_hub_dynamic_standards_v1').then(r => r.json()).catch(() => []);
+
+                    setAdminStats({
+                        teas: Array.isArray(teaDb) ? teaDb.length : 0,
+                        lessons: Array.isArray(basicsDbAdmin) ? basicsDbAdmin.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 0,
+                        rules: Array.isArray(standardsDb) ? standardsDb.length : 0
+                    });
+                }
+
+                if ('serviceWorker' in navigator && 'PushManager' in window) {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        const sub = await registration.pushManager.getSubscription();
+                        if (sub) {
+                            setPushBtnText('ПЕРЕПРИВЯЗАТЬ УСТРОЙСТВО');
+                            setPushBtnColor('#4CAF50');
+                        }
+                    }
+                }
+
+                setIsMounted(true);
+            } catch (error) {
+                console.error("Ошибка загрузки профиля:", error);
+                setIsMounted(true); 
+            }
+        };
+
+        loadProfileData();
+    }, []);
+
+    const handleSubscribeToPush = async () => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            alert("Ваш браузер не поддерживает Web Push уведомления. Попробуйте Google Chrome.");
+            return;
+        }
+        
+        if (userId === 'guest' || !userId) {
+            alert("⚠️ Перед включением уведомлений нужно войти в аккаунт!");
+            return;
+        }
+
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                alert("❌ Вы заблокировали уведомления в браузере. Разрешите их в настройках сайта.");
+                return;
+            }
+
+            const swUrl = `/sw.js?v=${Date.now()}`;
+            const registration = await navigator.serviceWorker.register(swUrl);
+            let subscription = await registration.pushManager.getSubscription();
+
+            if (subscription) {
+                await subscription.unsubscribe();
+            }
+
+            const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+            if (!vapidPublicKey) {
+                alert("⚠️ Ошибка: VAPID ключ не найден в .env");
+                return;
+            }
+
+            const urlBase64ToUint8Array = (base64String: string) => {
+                const cleanKey = base64String.replace(/["']/g, '').trim();
+                const padding = '='.repeat((4 - cleanKey.length % 4) % 4);
+                const base64 = (cleanKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
+                const rawData = window.atob(base64);
+                const outputArray = new Uint8Array(rawData.length);
+                for (let i = 0; i < rawData.length; ++i) {
+                    outputArray[i] = rawData.charCodeAt(i);
+                }
+                return outputArray;
+            };
+
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+            });
+
+            const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
+            let subs = await res.json().catch(() => []);
+            if (!Array.isArray(subs)) subs = [];
+
+            subs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
+            
+            subs.push({ userId: userId, sub: subscription });
+            await saveDataToServer('tea_hub_push_subs_v1', subs);
+            
+            setPushBtnText('ПЕРЕПРИВЯЗАТЬ УСТРОЙСТВО');
+            setPushBtnColor('#4CAF50');
+            alert("✅ Устройство успешно привязано к вашему аккаунту!");
+
+        } catch (error: any) {
+            console.error('Ошибка подписки на Push:', error);
+            alert("Критическая ошибка: " + error.message);
+        }
+    };
+
+    const handleOpenEdit = () => {
+        setIsMenuOpen(false);
+        setIsEditing(true);
+    };
+
+    // 💡 НОВОЕ: Открытие окна изменения данных авторизации с подгрузкой текущих
+    const handleOpenAuthChange = async () => {
+        setIsMenuOpen(false);
+        try {
+            const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
+            if (Array.isArray(users)) {
+                const myUser = users.find((u:any) => u.id === userId);
+                if (myUser) {
+                    setNewLogin(myUser.login);
+                    setNewPass(myUser.pass);
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        setIsAuthModalOpen(true);
+    };
+
+    const handleLogout = () => {
+        localStorage.clear();
+        router.push('/');
+    };
+
+    const handleSaveProfile = async () => {
+        localStorage.setItem('current_user_name', profile.name);
+        
+        try {
+            let pData = await fetch(`/api/storage?key=profile_data_${userId}`).then(r => r.json()).catch(() => ({}));
+            if (Array.isArray(pData)) pData = {};
+            
+            pData.avatar = profile.avatar;
+            pData.tg = profile.tg;
+            pData.phone = profile.phone;
+            pData.email = profile.email;
+            
+            saveDataToServer(`profile_data_${userId}`, pData);
+
+            const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
+            if (Array.isArray(users)) {
+                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, name: profile.name } : u);
+                saveDataToServer('tea_hub_users_v1', updatedUsers);
+            }
+        } catch (error) {
+            console.error("Ошибка сохранения профиля:", error);
+        }
+
+        setIsEditing(false);
+    };
+
+    // 💡 ИЗМЕНЕНО: Общая функция для сохранения логина и пароля
+    const handleChangeAuth = async () => {
+        if (!newLogin.trim() || !newPass.trim()) {
+            alert("Логин и пароль не могут быть пустыми!");
+            return;
+        }
+        
+        try {
+            const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
+            
+            if (Array.isArray(users)) {
+                // Проверяем, не занят ли новый логин кем-то другим
+                const loginExists = users.find((u:any) => u.login === newLogin.trim() && u.id !== userId);
+                if (loginExists) {
+                    alert("Ошибка: Этот логин уже занят другим сотрудником!");
+                    return;
+                }
+
+                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, login: newLogin.trim(), pass: newPass.trim() } : u);
+                saveDataToServer('tea_hub_users_v1', updatedUsers);
+                
+                alert("Данные для входа успешно обновлены!");
+                setIsAuthModalOpen(false);
+            }
+        } catch (error) {
+            console.error("Ошибка смены данных авторизации:", error);
+            alert("Не удалось сохранить новые данные.");
+        }
+    };
+
+    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                setProfile(prev => ({ ...prev, avatar: event.target!.result as string }));
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    if (!isMounted) return <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh' }} />;
+
+    return (
+        <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', overflowX: 'hidden' }}>
+            <Navigation />
+            
+            <div style={{ width: '260px', flexShrink: 0 }} className="sidebar-spacer" />
+
+            <main style={{ flex: 1, padding: '120px 20px 140px 20px', maxWidth: '100%', boxSizing: 'border-box' }}>
+                <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+                    
+                    <section style={profileHeaderCardStyle}>
+                        
+                        {isMenuOpen && (
+                            <div onClick={() => setIsMenuOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
+                        )}
+
+                        <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={settingsBtnStyle} className="settings-btn">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                        </div>
+
+                        {isMenuOpen && (
+                            <div style={contextMenuStyle}>
+                                <div onClick={handleOpenEdit} style={menuItemStyle}>Настроить данные</div>
+                                {/* 💡 Измененный пункт меню */}
+                                <div onClick={handleOpenAuthChange} style={menuItemStyle}>Сменить логин и пароль</div>
+                                <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>Выйти из аккаунта</div>
+                            </div>
+                        )}
+
+                        <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
+                            {profile.avatar ? (
+                                <img src={profile.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
+                            ) : (
+                                <span style={{ fontSize: '45px' }}>{userRole === 'admin' ? '👑' : '👤'}</span>
+                            )}
+                        </div>
+
+                        <h2 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', color: '#fff' }}>{profile.name}</h2>
+                        <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>
+                            {userRole === 'admin' ? 'ГЛАВНЫЙ МАСТЕР (ADMIN)' : 'ЧАЙНЫЙ МАСТЕР (УЧЕНИК)'}
+                        </p>
+                    </section>
+
+                    {userRole === 'admin' ? (
+                        <div style={{ animation: 'fadeInUp 0.5s ease' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '35px' }}>
+                                <div style={statCardStyle}><span style={statNum}>{adminStats.teas}</span><span style={statLabel}>ПРОДУКТОВ</span></div>
+                                <div style={statCardStyle}><span style={statNum}>{adminStats.lessons}</span><span style={statLabel}>УРОКОВ</span></div>
+                                <div style={statCardStyle}><span style={statNum}>{adminStats.rules}</span><span style={statLabel}>ПРАВИЛ</span></div>
                             </div>
                         </div>
-                        <div style={rankBadge}>{totalHubPercent < 40 ? '🌱 НОВИЧОК' : totalHubPercent < 80 ? '⚖️ ЭРУДИТ' : '🏮 МАСТЕР'}</div>
-                    </div>
+                    ) : (
+                        <div style={{ animation: 'fadeInUp 0.5s ease' }}>
+                            <section style={progressSectionStyle}>
+                                <div style={{ marginBottom: '25px' }}>
+                                    <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{progress.routeCount}/{progress.totalRoute}</span></div>
+                                    <div style={barBg}><div style={{ ...barFill, width: `${Math.min((progress.routeCount / (progress.totalRoute || 1)) * 100, 100)}%` }} /></div>
+                                </div>
+                                <div>
+                                    <div style={labelRow}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{progress.basicsCount}/{progress.totalBasics}</span></div>
+                                    <div style={barBg}><div style={{ ...barFill, width: `${Math.min((progress.basicsCount / (progress.totalBasics || 1)) * 100, 100)}%` }} /></div>
+                                </div>
+                            </section>
+                        </div>
+                    )}
 
-                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '30px', marginBottom: '30px' }}>
-                        {[0, 25, 50, 75, 100].map(v => (
-                            <div key={`h-${v}`} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', borderBottom: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
-                        ))}
-                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(v => (
-                            <div key={`v-${v}`} style={{ position: 'absolute', bottom: 0, left: `${v}%`, height: '100%', borderLeft: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
-                        ))}
-                        
-                        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, overflow: 'visible' }}>
-                            <defs>
-                                <linearGradient id="flatGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#0abab5" stopOpacity="0.15" />
-                                    <stop offset="100%" stopColor="#0abab5" stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            <path d={pathArea} fill="url(#flatGrad)" style={{ transition: '1s ease' }} />
-                            <path d={pathLine} fill="none" stroke="#0abab5" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '1s ease' }} />
-                        </svg>
+                    <h3 style={sectionTitle}>СВЯЗЬ</h3>
+                    <section style={contactCardStyle}>
+                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                            <div style={contactIconStyle}>💬</div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{profile.tg || 'Telegram не указан'}</div>
+                                <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{profile.email || 'E-mail не указан'}</div>
+                                <div style={{ fontSize: '13px', color: '#555' }}>{profile.phone || 'Телефон не указан'}</div>
+                            </div>
+                        </div>
+                    </section>
 
-                        <div style={{ 
-                            position: 'absolute', left: `${endX}%`, bottom: `${dotY}%`, 
-                            transform: 'translate(-50%, 50%)', width: '10px', height: '10px', 
-                            borderRadius: '50%', background: '#0abab5', border: '2px solid #111', 
-                            zIndex: 3, transition: '1s ease' 
-                        }} />
+                    <button 
+                        onClick={handleSubscribeToPush} 
+                        style={{
+                            width: '100%',
+                            padding: '20px',
+                            marginTop: '30px',
+                            background: `rgba(${pushBtnColor === '#4CAF50' ? '76, 175, 80' : '10, 186, 181'}, 0.1)`,
+                            border: `1px solid ${pushBtnColor}`,
+                            color: pushBtnColor,
+                            borderRadius: '25px',
+                            fontWeight: '900',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            transition: '0.3s',
+                            letterSpacing: '1px'
+                        }}
+                    >
+                        {pushBtnText}
+                    </button>
 
-                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(p => (
-                            <div key={`lbl-${p}`} style={{ position: 'absolute', left: `${p}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '10px', color: '#666', fontWeight: 'bold' }}>{p}%</div>
-                        ))}
-                    </div>
-                </section>
-
-                <div className="tasks-dashboard-grid" style={dashboardGrid}>
-                      <div className="tasks-stat-card" style={statCardMain}>
-                         <div style={cardHeaderLabel}>ТЕОРИЯ</div>
-                         <div className="tasks-big-val" style={bigStatVal}>{completedRoute.length} <span style={{fontSize:'20px', opacity:0.4}}>/ {dynamicRoute.length}</span></div>
-                         <p style={cardSubText}>тем пройдено</p>
-                          <div style={segmentedBar}>
-                              {dynamicRoute.map((step, i) => (
-                                  <div key={i} style={segment(completedRoute.includes(step.id))} />
-                              ))}
-                          </div>
-                      </div>
-                      
-                      <div className="tasks-stat-card" style={statCardMain}>
-                         <div style={cardHeaderLabel}>ПРОГРЕСС ТЕСТИРОВАНИЯ</div>
-                         <div className="tasks-big-val" style={bigStatVal}>{testsPercent}%</div>
-                         <p style={cardSubText}>пройдено тестов</p>
-                         <div style={pBarBg}>
-                             <div style={pBarFill(testsPercent)} />
-                         </div>
-                      </div>
+                    <button 
+                        onClick={() => setIsHelpModalOpen(true)} 
+                        style={notificationHelpBtnStyle as any}
+                    >
+                        ИНСТРУКЦИЯ: НАСТРОЙКА УВЕДОМЛЕНИЙ
+                    </button>
                 </div>
-            </div>
-        )}
 
-        {/* --- ВКЛАДКА 2: ОБУЧЕНИЕ (ИМПОРТИРОВАННЫЙ МОДУЛЬ) --- */}
-        {activeTab === 'edu' && (
-            <Education 
-                isAdmin={isAdmin}
-                userId={userId}
-                dynamicRoute={dynamicRoute} setDynamicRoute={setDynamicRoute}
-                completedRoute={completedRoute} setCompletedRoute={setCompletedRoute}
-                dynamicTests={dynamicTests} setDynamicTests={setDynamicTests}
-                completedTests={completedTests} setCompletedTests={setCompletedTests}
-                urgentFiles={urgentFiles}
-                passedTests={passedTests} setPassedTests={setPassedTests}
-                dismissedTasks={dismissedTasks} setDismissedTasks={setDismissedTasks}
-                selectedRouteStep={selectedRouteStep} setSelectedRouteStep={setSelectedRouteStep}
-                closeRouteModal={closeRouteModal}
-                selectedTest={selectedTest} setSelectedTest={setSelectedTest}
-                closeTestModal={closeTestModal}
-            />
-        )}
+                {isEditing && (
+                    <div style={overlayStyle} onClick={() => setIsEditing(false)}>
+                        <div style={modalStyle} onClick={e => e.stopPropagation()}>
+                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px' }}>РЕДАКТОР ПРОФИЛЯ</h2>
+                            <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
+                                <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} placeholder="Ваше имя" style={inputItemStyle} />
+                                
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    <input type="file" id="avatar-upload" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
+                                    <input value={profile.avatar} onChange={e => setProfile({...profile, avatar: e.target.value})} placeholder="Ссылка на фото (URL)" style={{ ...inputItemStyle, flex: 1, marginBottom: 0 }} />
+                                    <button onClick={() => document.getElementById('avatar-upload')?.click()} style={{ background: '#222', color: '#0abab5', border: '1px solid #333', padding: '0 20px', height: '58px', borderRadius: '18px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>ЗАГРУЗИТЬ</button>
+                                </div>
 
-        {/* --- ВКЛАДКА 3: АССОРТИМЕНТ (ИМПОРТИРОВАННЫЙ МОДУЛЬ) --- */}
-        {(activeTab === 'assortment' || activeTab === 'products') && (
-            <Assortment 
-                assortmentMatrix={assortmentMatrix} 
-                assortmentId={searchParams.get('assortmentId')} 
-            />
-        )}
+                                <input value={profile.tg} onChange={e => setProfile({...profile, tg: e.target.value})} placeholder="Telegram (напр. @nik_name)" style={inputItemStyle} />
+                                <input value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} placeholder="E-mail адрес" style={inputItemStyle} />
+                                <input value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} placeholder="Номер телефона" style={inputItemStyle} />
+                            </div>
+                            <button onClick={handleSaveProfile} style={saveButtonStyle}>СОХРАНИТЬ ИЗМЕНЕНИЯ</button>
+                            <div onClick={() => setIsEditing(false)} style={cancelButtonStyle}>ОТМЕНА</div>
+                        </div>
+                    </div>
+                )}
 
-        {/* --- ВКЛАДКА 4: ИИ ПОМОЩНИК (ИМПОРТИРОВАННЫЙ МОДУЛЬ) --- */}
-        {activeTab === 'standards' && (
-            <AIAssistant userId={userId} isAdmin={isAdmin} />
-        )}
+                {/* 💡 НОВОЕ: Окно смены ЛОГИНА и ПАРОЛЯ */}
+                {isAuthModalOpen && (
+                    <div style={overlayStyle} onClick={() => setIsAuthModalOpen(false)}>
+                        <div style={modalStyle} onClick={e => e.stopPropagation()}>
+                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px', color: '#fff' }}>ДАННЫЕ ДЛЯ ВХОДА</h2>
+                            <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
+                                <div>
+                                    <div style={{fontSize: '12px', color: '#888', fontWeight: 'bold', marginLeft: '5px', marginBottom: '5px'}}>Логин (используется для входа):</div>
+                                    <input type="text" value={newLogin} onChange={e => setNewLogin(e.target.value)} placeholder="Новый логин" style={inputItemStyle} />
+                                </div>
+                                
+                                <div>
+                                    <div style={{fontSize: '12px', color: '#888', fontWeight: 'bold', marginLeft: '5px', marginBottom: '5px'}}>Текущий пароль:</div>
+                                    <input type="text" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Новый пароль" style={inputItemStyle} />
+                                </div>
+                            </div>
+                            <button onClick={handleChangeAuth} style={saveButtonStyle}>СОХРАНИТЬ ДАННЫЕ</button>
+                            <div onClick={() => setIsAuthModalOpen(false)} style={cancelButtonStyle}>ОТМЕНА</div>
+                        </div>
+                    </div>
+                )}
 
-      </main>
+                {isHelpModalOpen && (
+                    <div style={overlayStyle} onClick={() => setIsHelpModalOpen(false)}>
+                        <div className="custom-scroll" style={{...modalStyle, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                                <h2 style={{ margin: 0, fontWeight: '900', color: '#fff', fontSize: '24px' }}>НАСТРОЙКА УВЕДОМЛЕНИЙ</h2>
+                                <div onClick={() => setIsHelpModalOpen(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
+                            </div>
 
-      <style jsx global>{` 
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } 
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        
-        * { box-sizing: border-box; }
-        body { overflow-x: hidden; width: 100vw; margin: 0; padding: 0; }
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: '#000', borderRadius: '15px', padding: '4px', marginBottom: '30px', border: '1px solid #222' }}>
+                                <div onClick={() => setHelpTab('ios')} style={tabStyle(helpTab === 'ios') as any}>iOS</div>
+                                <div onClick={() => setHelpTab('android')} style={tabStyle(helpTab === 'android') as any}>Android</div>
+                                <div onClick={() => setHelpTab('desktop')} style={tabStyle(helpTab === 'desktop') as any}>ПК</div>
+                                <div onClick={() => setHelpTab('email')} style={tabStyle(helpTab === 'email') as any}>Почта</div>
+                            </div>
 
-        @media (max-width: 768px) {
-            .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
-            
-            .tasks-main { padding: 90px 15px 50px 15px !important; }
-            .tasks-title { font-size: 26px !important; margin-bottom: 25px !important; line-height: 1.2 !important; }
-            .tasks-chart-card { padding: 25px 20px !important; border-radius: 25px !important; }
-            .tasks-stat-card { padding: 25px 20px !important; border-radius: 25px !important; }
-            
-            .tasks-dashboard-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
-            
-            .tasks-big-val { font-size: 38px !important; flex-wrap: wrap; }
-            .tasks-chart-container { height: 160px !important; margin-top: 25px !important; }
+                            {helpTab === 'ios' && (
+                                <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                                    <p style={helpDescStyle as any}>Операционная система iOS разрешает получать Push-уведомления с платформ <b>только в случае установки сайта на домашний экран устройства</b>.</p>
+                                    
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>1</div>
+                                        <div style={stepTextStyle as any}>Откройте платформу Tea Hub строго в стандартном браузере <b>Safari</b>.</div>
+                                    </div>
 
-            .tasks-flex-space { flex-direction: column; align-items: flex-start !important; gap: 15px !important; margin-bottom: 25px !important; }
-        }
-      `}</style>
-    </div>
-  );
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>2</div>
+                                        <div style={stepTextStyle as any}>Нажмите на системную кнопку <b>«Поделиться»</b> (иконка квадрата со стрелкой вверх в нижней панели экрана).</div>
+                                    </div>
+
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>3</div>
+                                        <div style={stepTextStyle as any}>В появившемся контекстном меню пролистайте вниз, выберите пункт <b>«На экран "Домой"»</b> и подтвердите действие кнопкой «Добавить».</div>
+                                    </div>
+
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>4</div>
+                                        <div style={stepTextStyle as any}>Закройте браузер Safari. Найдите новую иконку <b>Tea Hub на рабочем столе</b> вашего устройства и откройте приложение через нее.</div>
+                                    </div>
+
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>5</div>
+                                        <div style={stepTextStyle as any}>Пройдите авторизацию. В меню профиля нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b> и предоставьте права браузеру.</div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {helpTab === 'android' && (
+                                <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                                    <p style={helpDescStyle as any}>Для корректной работы системы уведомлений на ОС Android настоятельно рекомендуется использовать браузер <b>Google Chrome</b>.</p>
+                                    
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>1</div>
+                                        <div style={stepTextStyle as any}>Осуществите вход на платформу Tea Hub через браузер Google Chrome.</div>
+                                    </div>
+
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>2</div>
+                                        <div style={stepTextStyle as any}>Пройдите процедуру авторизации, перейдите в профиль и нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div>
+                                    </div>
+
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>3</div>
+                                        <div style={stepTextStyle as any}>В появившемся системном диалоговом окне выберите <b>«Разрешить»</b>.</div>
+                                    </div>
+
+                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: 'rgba(255, 77, 77, 0.05)', border: '1px solid rgba(255, 77, 77, 0.2)', borderRadius: '18px' }}>
+                                        <h4 style={{ color: '#ff4d4d', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>Внимание: Разблокировка уведомлений</h4>
+                                        <p style={{ fontSize: '14px', color: '#ccc', margin: 0, lineHeight: '1.6' }}>Если запрос не появился или был заблокирован: нажмите на иконку настроек (замок) слева от адресной строки браузера ➔ <b>Разрешения</b> ➔ Уведомления ➔ Разрешить.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {helpTab === 'desktop' && (
+                                <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                                    <p style={helpDescStyle as any}>Активация уведомлений на персональном компьютере (Windows / macOS).</p>
+                                    
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>1</div>
+                                        <div style={stepTextStyle as any}>Пройдите авторизацию в системе, перейдите в раздел Профиль и нажмите на кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div>
+                                    </div>
+
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>2</div>
+                                        <div style={stepTextStyle as any}>В системном окне браузера подтвердите действие, нажав <b>«Разрешить» (Allow)</b>.</div>
+                                    </div>
+
+                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '18px' }}>
+                                        <h4 style={{ color: '#0abab5', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>Ручная настройка параметров браузера:</h4>
+                                        <p style={{ fontSize: '14px', color: '#ccc', margin: 0, lineHeight: '1.6' }}>Если диалоговое окно не отображается, кликните на иконку «Настройки сайта» (замок слева от адресной строки) и переведите параметр <b>Уведомления</b> в активное положение.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {helpTab === 'email' && (
+                                <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                                    <p style={helpDescStyle as any}>Настройка дублирования важных системных уведомлений, дедлайнов и назначенных аттестаций на ваш персональный почтовый адрес.</p>
+                                    
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>1</div>
+                                        <div style={stepTextStyle as any}>Убедитесь, что в карточке вашего профиля корректно заполнен E-mail адрес.</div>
+                                    </div>
+
+                                    <div style={stepCardStyle as any}>
+                                        <div style={stepNumStyle as any}>2</div>
+                                        <div style={stepTextStyle as any}><b>Алгоритм привязки:</b> В верхней части текущей страницы нажмите на системное меню (шестеренку) ➔ выберите <b>«Настроить данные»</b> ➔ заполните поле <b>«E-mail адрес»</b> ➔ нажмите <b>«Сохранить изменения»</b>.</div>
+                                    </div>
+
+                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: 'rgba(255, 118, 117, 0.05)', border: '1px solid rgba(255, 118, 117, 0.2)', borderRadius: '18px' }}>
+                                        <h4 style={{ color: '#ff7675', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>ВАЖНО: ФИЛЬТРЫ СПАМА</h4>
+                                        <p style={{ fontSize: '14px', color: '#ccc', margin: '0 0 12px 0', lineHeight: '1.6' }}>
+                                            Системы защиты почтовых провайдеров (Яндекс, Mail.ru, Gmail) могут по умолчанию направлять автоматические сервисные письма в папку <b>«Спам»</b> или «Рассылки».
+                                        </p>
+                                        <p style={{ fontSize: '14px', color: '#0abab5', margin: 0, fontWeight: 'bold', lineHeight: '1.6' }}>
+                                            Если вы обнаружили системное письмо в директории спама, обязательно откройте его и нажмите системную кнопку <b>«Это не спам»</b> (или «Переместить во Входящие»). Данное действие обучит алгоритмы, и последующие уведомления будут доставляться корректно.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <button onClick={() => setIsHelpModalOpen(false)} style={{ ...saveButtonStyle, marginTop: '35px' } as any}>ПОНЯТНО, ЗАКРЫТЬ</button>
+                        </div>
+                    </div>
+                )}
+            </main>
+
+            <style jsx global>{` 
+                @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } 
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                ::-webkit-scrollbar { width: 6px; height: 6px; }
+                ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                body { overflow-x: hidden; width: 100vw; }
+                @media (max-width: 768px) { .sidebar-spacer { display: none; } }
+                
+                /* Стили для новой кнопки настроек (шестеренки) при наведении */
+                .settings-btn:hover {
+                    background: #222 !important;
+                    border-color: #0abab5 !important;
+                    color: #0abab5 !important;
+                }
+            `}</style>
+        </div>
+    );
 }
 
-// --- СТИЛИ БЛОКОВ И КАРТОЧЕК ДЛЯ ДАШБОРДА ---
-const wideChartCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', marginBottom: '30px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
-const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
-const dashboardGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px', width: '100%' };
-const statCardMain: React.CSSProperties = { background: '#161816', padding: '35px', borderRadius: '35px', border: '1px solid #222', boxSizing: 'border-box' };
-const cardHeaderLabel: React.CSSProperties = { fontSize: '11px', fontWeight: '900', opacity: 0.4, letterSpacing: '1.5px', marginBottom: '15px' };
-const bigStatVal: React.CSSProperties = { fontSize: '48px', fontWeight: '900', color: '#fff' };
-const cardSubText: React.CSSProperties = { fontSize: '14px', opacity: 0.5, marginBottom: '25px' };
+// --- СТИЛИ ---
 
-const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height: '8px', marginTop: '10px', width: '100%' };
-const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#222', borderRadius: '4px', transition: '0.3s' });
-const pBarBg: React.CSSProperties = { height: '8px', background: '#222', borderRadius: '4px', marginTop: '15px', marginBottom: '10px' };
-const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '4px', transition: '1s' });
+const profileHeaderCardStyle: any = { 
+    position: 'relative',
+    backgroundColor: '#161816', 
+    padding: '40px 30px', 
+    borderRadius: '40px', 
+    border: '1px solid #222', 
+    textAlign: 'center', 
+    marginBottom: '40px',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
+};
 
-export default function ShiftPage() {
-    return <Suspense><ShiftContent /></Suspense>;
+const settingsBtnStyle: any = { 
+    position: 'absolute', 
+    top: '25px', 
+    right: '25px', 
+    width: '45px',
+    height: '45px',
+    background: '#111',
+    border: '1px solid #333',
+    borderRadius: '14px',
+    color: '#aaa',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer', 
+    transition: '0.2s',
+    zIndex: 95
+};
+
+const contextMenuStyle: any = { 
+    position: 'absolute', 
+    top: '75px', 
+    right: '25px', 
+    backgroundColor: '#111', 
+    border: '1px solid #333', 
+    borderRadius: '20px', 
+    width: '220px', 
+    overflow: 'hidden', 
+    boxShadow: '0 20px 50px rgba(0,0,0,0.8)', 
+    zIndex: 100,
+    textAlign: 'left',
+    animation: 'fadeIn 0.2s ease'
+};
+
+const menuItemStyle: any = { 
+    padding: '16px 20px', 
+    color: '#eee', 
+    fontSize: '14px', 
+    fontWeight: 'bold', 
+    cursor: 'pointer', 
+    borderBottom: '1px solid #1a1a1a', 
+    transition: '0.2s' 
+};
+
+const sectionTitle: any = { fontSize: '12px', fontWeight: '900', color: '#444', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center', textTransform: 'uppercase' };
+const statCardStyle: any = { background: '#161816', padding: '25px 10px', borderRadius: '25px', border: '1px solid #222', display: 'flex', flexDirection: 'column', alignItems: 'center' };
+const statNum: any = { fontSize: '28px', fontWeight: '900', color: '#0abab5' };
+const statLabel: any = { fontSize: '10px', color: '#555', marginTop: '5px', fontWeight: 'bold' };
+
+const progressSectionStyle: any = { background: '#161816', padding: '35px', borderRadius: '35px', border: '1px solid #222', marginBottom: '35px' };
+const labelRow: any = { display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '900' };
+const barBg: any = { width: '100%', height: '10px', background: '#000', borderRadius: '12px', overflow: 'hidden' };
+const barFill: any = { height: '100%', background: '#0abab5', transition: '1.2s cubic-bezier(0.4, 0, 0.2, 1)' };
+
+const contactCardStyle: any = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
+const contactIconStyle: any = { width: '45px', height: '45px', background: '#000', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
+
+const overlayStyle: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px', backdropFilter: 'blur(10px)', boxSizing: 'border-box' };
+
+const modalStyle: any = { 
+    background: '#111', 
+    borderRadius: '40px', 
+    border: '1px solid #222',
+    padding: '40px 35px',
+    width: '100%',
+    maxWidth: '500px',
+    boxSizing: 'border-box',
+    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)'
+};
+
+const inputItemStyle: any = { width: '100%', padding: '20px', background: '#000', border: '1px solid #222', borderRadius: '18px', color: '#fff', outline: 'none', fontSize: '16px', boxSizing: 'border-box' };
+const saveButtonStyle: any = { width: '100%', padding: '22px', background: '#0abab5', border: 'none', borderRadius: '18px', fontWeight: '900', color: '#000', cursor: 'pointer', marginTop: '20px', fontSize: '15px' };
+const cancelButtonStyle: any = { textAlign: 'center', marginTop: '25px', color: '#444', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' };
+
+const notificationHelpBtnStyle = {
+    width: '100%',
+    padding: '20px',
+    marginTop: '15px',
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.1)',
+    color: '#888',
+    borderRadius: '25px',
+    fontWeight: '900',
+    cursor: 'pointer',
+    fontSize: '13px',
+    transition: '0.3s',
+};
+
+const tabStyle = (isActive: boolean) => ({
+    flex: 1,
+    textAlign: 'center',
+    padding: '12px 5px',
+    cursor: 'pointer',
+    color: isActive ? '#000' : '#888',
+    background: isActive ? '#0abab5' : 'transparent',
+    fontWeight: '900',
+    fontSize: '14px',
+    borderRadius: '10px',
+    transition: '0.2s'
+});
+
+const helpDescStyle = {
+    fontSize: '15px',
+    color: '#ccc',
+    lineHeight: '1.6',
+    marginBottom: '25px',
+    padding: '0 5px'
+};
+
+const stepCardStyle = {
+    display: 'flex',
+    gap: '20px',
+    alignItems: 'center',
+    background: '#161816',
+    padding: '20px 25px',
+    borderRadius: '18px',
+    border: '1px solid #222',
+    marginBottom: '15px'
+};
+
+const stepNumStyle = {
+    width: '45px',
+    height: '45px',
+    background: 'rgba(10,186,181,0.1)',
+    color: '#0abab5',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: '900',
+    fontSize: '18px',
+    flexShrink: 0
+};
+
+const stepTextStyle = {
+    fontSize: '15px',
+    color: '#eee',
+    lineHeight: '1.6'
+};
+
+export default function ProfilePage() {
+    return <Suspense fallback={<div style={{backgroundColor: '#0d0f0d', minHeight: '100vh'}} />}><ProfileContent /></Suspense>;
 }
