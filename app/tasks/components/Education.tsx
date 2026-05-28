@@ -502,7 +502,7 @@ export default function Education({
                })}
             </div>
 
-            {/* 💡 ВОССТАНОВЛЕНО: ОКНО ОШИБКИ "ЭТАП ЗАБЛОКИРОВАН" */}
+            {/* 💡 ИСПРАВЛЕНО: ОКНО ОШИБКИ "ЭТАП ЗАБЛОКИРОВАН" */}
             {lockedTestAlert.show && (
                 <div style={{...errorOverlayStyle, zIndex: 50000} as any} onClick={() => setLockedTestAlert({show: false, message: ''})}>
                     <div className="tasks-modal" style={errorModalContent as any} onClick={e => e.stopPropagation()}>
@@ -514,10 +514,10 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 ВОССТАНОВЛЕНО: ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" */}
+            {/* 💡 ИСПРАВЛЕНО: ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" (ГРИД ИЗ 3-Х БЛОКОВ) */}
             {selectedRouteStep && !showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteModal}>
-                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'30px'}}>
                             <div>
                                 <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase'}}>ТЕОРИЯ • {selectedRouteStep.time}</span>
@@ -526,21 +526,22 @@ export default function Education({
                             <div onClick={closeRouteModal} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
                         </div>
 
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '25px', marginBottom: '35px'}}>
+                        {/* Здесь вернулась правильная горизонтальная сетка из 3-х колонок */}
+                        <div className="tasks-theory-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '25px', marginBottom: '35px'}}>
                             {selectedRouteStep.h1 && (
-                                <div style={theoryBlock as any}>
+                                <div className="tasks-theory-block" style={theoryBlock as any}>
                                     <div style={theoryLabel as any}>{selectedRouteStep.h1}</div>
                                     <p style={theoryText as any}>{selectedRouteStep.t1}</p>
                                 </div>
                             )}
                             {selectedRouteStep.h2 && (
-                                <div style={theoryBlock as any}>
+                                <div className="tasks-theory-block" style={theoryBlock as any}>
                                     <div style={theoryLabel as any}>{selectedRouteStep.h2}</div>
                                     <p style={theoryText as any}>{selectedRouteStep.t2}</p>
                                 </div>
                             )}
                             {selectedRouteStep.h3 && (
-                                <div style={theoryBlock as any}>
+                                <div className="tasks-theory-block" style={theoryBlock as any}>
                                     <div style={theoryLabel as any}>{selectedRouteStep.h3}</div>
                                     <p style={theoryText as any}>{selectedRouteStep.t3}</p>
                                 </div>
@@ -560,7 +561,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 ВОССТАНОВЛЕНО: РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ */}
+            {/* 💡 ИСПРАВЛЕНО: РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ */}
             {showRouteForm && (
                 <div style={{...modalOverlay, alignItems: 'flex-start'} as any}>
                     <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '900px', margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any}>
@@ -596,7 +597,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 ВОССТАНОВЛЕНО: ОКНО УДАЛЕНИЯ ТЕОРИИ */}
+            {/* 💡 ИСПРАВЛЕНО: ОКНО УДАЛЕНИЯ ТЕОРИИ */}
             {routeToDelete && (
                 <div style={{...errorOverlayStyle, zIndex: 50000} as any}>
                     <div className="tasks-modal" style={errorModalContent as any}>
