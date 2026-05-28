@@ -18,8 +18,10 @@ function ProfileContent() {
     const [isEditing, setIsEditing] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     
-    const [isPassModalOpen, setIsPassModalOpen] = useState(false);
-    const [newPass, setNewPass] = useState('');
+    // 💡 НОВОЕ: Стейты для прямого редактирования логина и пароля в профиле
+    const [editAuthMode, setEditAuthMode] = useState(false);
+    const [editAuthLogin, setEditAuthLogin] = useState('');
+    const [editAuthPass, setEditAuthPass] = useState('');
     
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
     const [helpTab, setHelpTab] = useState<'ios' | 'android' | 'desktop' | 'email'>('ios');
@@ -46,12 +48,6 @@ function ProfileContent() {
         totalBasics: 10
     });
 
-    const [adminStats, setAdminStats] = useState({
-        teas: 0,
-        lessons: 0,
-        rules: 0
-    });
-
     useEffect(() => {
         const loadProfileData = async () => {
             const role = localStorage.getItem('userRole') || 'staff';
@@ -62,8 +58,8 @@ function ProfileContent() {
             setUserId(currentId);
 
             try {
+                // Подгружаем личные данные профиля
                 let pData = await fetch(`/api/storage?key=profile_data_${currentId}`).then(r => r.json()).catch(() => null);
-                
                 if (!pData || Array.isArray(pData) || Object.keys(pData).length === 0) {
                     pData = { avatar: '', tg: role === 'admin' ? 'admin_tea' : 'username', phone: '', email: '', firstLogin: new Date().toISOString() };
                     saveDataToServer(`profile_data_${currentId}`, pData);
@@ -77,39 +73,36 @@ function ProfileContent() {
                     email: pData.email || '' 
                 });
 
-                // 💡 ИСПРАВЛЕННАЯ СТАТИСТИКА: Загружаем реальные данные из базы, чтобы правильно считать прогресс
-                const routeData = await fetch(`/api/storage?key=prog_route_${currentId}`).then(r => r.json()).catch(() => []);
-                const basicsData = await fetch(`/api/storage?key=prog_basics_${currentId}`).then(r => r.json()).catch(() => []);
-                
-                const rDb = await fetch(`/api/storage?key=tea_hub_dynamic_route_v2`).then(r => r.json()).catch(() => []);
-                const bDb = await fetch(`/api/storage?key=tea_hub_dynamic_basics_v2`).then(r => r.json()).catch(() => []);
-                
-                const rTotal = Array.isArray(rDb) && rDb.length > 0 ? rDb.length : 5;
-                const bTotal = Array.isArray(bDb) && bDb.length > 0 ? bDb.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 50;
+                // 💡 Подгружаем актуальный логин и пароль текущего пользователя
+                const usersDb = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
+                if (Array.isArray(usersDb)) {
+                    const me = usersDb.find((u:any) => u.id === currentId);
+                    if (me) {
+                        setEditAuthLogin(me.login || '');
+                        setEditAuthPass(me.pass || '');
+                    }
+                }
 
-                const rCount = Array.isArray(routeData) ? routeData.length : 0;
-                const bCount = Array.isArray(basicsData) ? basicsData.length : 0;
+                // Загружаем статистику только для сотрудников
+                if (role !== 'admin') {
+                    const routeData = await fetch(`/api/storage?key=prog_route_${currentId}`).then(r => r.json()).catch(() => []);
+                    const basicsData = await fetch(`/api/storage?key=prog_basics_${currentId}`).then(r => r.json()).catch(() => []);
+                    
+                    const rDb = await fetch(`/api/storage?key=tea_hub_dynamic_route_v2`).then(r => r.json()).catch(() => []);
+                    const bDb = await fetch(`/api/storage?key=tea_hub_dynamic_basics_v2`).then(r => r.json()).catch(() => []);
+                    
+                    const rTotal = Array.isArray(rDb) && rDb.length > 0 ? rDb.length : 5;
+                    const bTotal = Array.isArray(bDb) && bDb.length > 0 ? bDb.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 50;
 
-                setProgress({
-                    routeCount: rCount,
-                    basicsCount: bCount,
-                    totalRoute: rTotal,
-                    totalBasics: bTotal
-                });
-
-                if (role === 'admin') {
-                    const teaDb = await fetch('/api/storage?key=tea_master_unified_v1').then(r => r.json()).catch(() => []);
-                    const basicsDbAdmin = await fetch('/api/storage?key=tea_hub_dynamic_basics_v1').then(r => r.json()).catch(() => []);
-                    const standardsDb = await fetch('/api/storage?key=tea_hub_dynamic_standards_v1').then(r => r.json()).catch(() => []);
-
-                    setAdminStats({
-                        teas: Array.isArray(teaDb) ? teaDb.length : 0,
-                        lessons: Array.isArray(basicsDbAdmin) ? basicsDbAdmin.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 0,
-                        rules: Array.isArray(standardsDb) ? standardsDb.length : 0
+                    setProgress({
+                        routeCount: Array.isArray(routeData) ? routeData.length : 0,
+                        basicsCount: Array.isArray(basicsData) ? basicsData.length : 0,
+                        totalRoute: rTotal,
+                        totalBasics: bTotal
                     });
                 }
 
-                // ПРОВЕРКА АКТИВНОЙ ПОДПИСКИ ПРИ ЗАГРУЗКЕ ПРОФИЛЯ
+                // Проверка подписки на Push
                 if ('serviceWorker' in navigator && 'PushManager' in window) {
                     const registration = await navigator.serviceWorker.getRegistration();
                     if (registration) {
@@ -131,7 +124,6 @@ function ProfileContent() {
         loadProfileData();
     }, []);
 
-    // --- ФУНКЦИЯ ПОДКЛЮЧЕНИЯ/ПЕРЕПРИВЯЗКИ PUSH-УВЕДОМЛЕНИЙ ---
     const handleSubscribeToPush = async () => {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             alert("Ваш браузер не поддерживает Web Push уведомления. Попробуйте Google Chrome.");
@@ -205,12 +197,6 @@ function ProfileContent() {
         setIsEditing(true);
     };
 
-    const handleOpenPassChange = () => {
-        setIsMenuOpen(false);
-        setIsPassModalOpen(true);
-        setNewPass('');
-    };
-
     const handleLogout = () => {
         localStorage.clear();
         router.push('/');
@@ -242,23 +228,33 @@ function ProfileContent() {
         setIsEditing(false);
     };
 
-    const handleChangePassword = async () => {
-        if (!newPass.trim()) return;
+    // 💡 ИСПРАВЛЕНО: Функция сохранения логина и пароля прямо из профиля
+    const handleSaveInlineAuth = async () => {
+        if (!editAuthLogin.trim() || !editAuthPass.trim()) {
+            alert("Логин и пароль не могут быть пустыми!");
+            return;
+        }
         
         try {
             const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
             
             if (Array.isArray(users)) {
-                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, pass: newPass.trim() } : u);
+                // Проверяем, не занят ли логин кем-то другим
+                const loginExists = users.find((u:any) => u.login === editAuthLogin.trim() && u.id !== userId);
+                if (loginExists) {
+                    alert("Ошибка: Этот логин уже занят другим сотрудником!");
+                    return;
+                }
+
+                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, login: editAuthLogin.trim(), pass: editAuthPass.trim() } : u);
                 saveDataToServer('tea_hub_users_v1', updatedUsers);
                 
-                alert("Пароль успешно изменен");
-                setIsPassModalOpen(false);
-                setNewPass('');
+                alert("Данные для входа успешно обновлены!");
+                setEditAuthMode(false);
             }
         } catch (error) {
-            console.error("Ошибка смены пароля:", error);
-            alert("Не удалось изменить пароль.");
+            console.error("Ошибка смены данных авторизации:", error);
+            alert("Не удалось сохранить новые данные.");
         }
     };
 
@@ -288,12 +284,12 @@ function ProfileContent() {
                     
                     <section style={profileHeaderCardStyle}>
                         
-                        {/* 💡 НОВОЕ: Прозрачный слой поверх экрана для закрытия меню по клику вне его */}
+                        {/* Прозрачный слой поверх экрана для закрытия меню по клику вне его */}
                         {isMenuOpen && (
                             <div onClick={() => setIsMenuOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
                         )}
 
-                        {/* 💡 ИСПРАВЛЕНО: Редизайн кнопки меню */}
+                        {/* Шестеренка */}
                         <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={settingsBtnStyle} className="settings-btn">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="3"></circle>
@@ -304,7 +300,6 @@ function ProfileContent() {
                         {isMenuOpen && (
                             <div style={contextMenuStyle}>
                                 <div onClick={handleOpenEdit} style={menuItemStyle}>Настроить данные</div>
-                                <div onClick={handleOpenPassChange} style={menuItemStyle}>Сменить пароль</div>
                                 <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>Выйти из аккаунта</div>
                             </div>
                         )}
@@ -323,17 +318,43 @@ function ProfileContent() {
                         </p>
                     </section>
 
-                    {userRole === 'admin' ? (
-                        <div style={{ animation: 'fadeInUp 0.5s ease' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '35px' }}>
-                                <div style={statCardStyle}><span style={statNum}>{adminStats.teas}</span><span style={statLabel}>ПРОДУКТОВ</span></div>
-                                <div style={statCardStyle}><span style={statNum}>{adminStats.lessons}</span><span style={statLabel}>УРОКОВ</span></div>
-                                <div style={statCardStyle}><span style={statNum}>{adminStats.rules}</span><span style={statLabel}>ПРАВИЛ</span></div>
+                    {/* 💡 НОВОЕ: Блок редактирования логина и пароля выведен прямо в интерфейс! */}
+                    <div style={{ animation: 'fadeInUp 0.5s ease' }}>
+                        <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.2)', padding: '20px', borderRadius: '20px', marginBottom: '35px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,77,77,0.2)' }}>
+                                <span style={{color: '#ff7675', fontWeight: '900', fontSize: '13px', letterSpacing: '1px'}}>ДАННЫЕ АВТОРИЗАЦИИ</span>
+                                <button onClick={() => {
+                                    if(editAuthMode) {
+                                        handleSaveInlineAuth();
+                                    } else {
+                                        setEditAuthMode(true);
+                                    }
+                                }} style={{ background: editAuthMode ? '#ff7675' : 'transparent', color: editAuthMode ? '#000' : '#ff7675', border: '1px solid #ff7675', padding: '6px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '11px', fontWeight: '900', transition: '0.2s' }}>
+                                    {editAuthMode ? 'СОХРАНИТЬ' : 'РЕДАКТИРОВАТЬ'}
+                                </button>
+                            </div>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                                <div style={{textAlign: 'center'}}>
+                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '8px'}}>ЛОГИН ДОСТУПА</div>
+                                    {editAuthMode ? (
+                                        <input value={editAuthLogin} onChange={e => setEditAuthLogin(e.target.value)} style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '120px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
+                                    ) : (
+                                        <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#fff', fontWeight: 'bold'}}>{editAuthLogin}</div>
+                                    )}
+                                </div>
+                                <div style={{textAlign: 'center'}}>
+                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '8px'}}>ПАРОЛЬ</div>
+                                    {editAuthMode ? (
+                                        <input value={editAuthPass} onChange={e => setEditAuthPass(e.target.value)} style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '120px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
+                                    ) : (
+                                        <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#fff', fontWeight: 'bold'}}>{editAuthPass}</div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    ) : (
-                        <div style={{ animation: 'fadeInUp 0.5s ease' }}>
-                            {/* 💡 ИСПРАВЛЕНА СТАТИСТИКА: берем реальные totalRoute и totalBasics */}
+
+                        {userRole !== 'admin' && (
                             <section style={progressSectionStyle}>
                                 <div style={{ marginBottom: '25px' }}>
                                     <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{progress.routeCount}/{progress.totalRoute}</span></div>
@@ -344,8 +365,8 @@ function ProfileContent() {
                                     <div style={barBg}><div style={{ ...barFill, width: `${Math.min((progress.basicsCount / (progress.totalBasics || 1)) * 100, 100)}%` }} /></div>
                                 </div>
                             </section>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <h3 style={sectionTitle}>СВЯЗЬ</h3>
                     <section style={contactCardStyle}>
@@ -387,7 +408,6 @@ function ProfileContent() {
                     </button>
                 </div>
 
-                {/* 💡 ИСПРАВЛЕНЫ МОДАЛКИ: добавлено закрытие по клику на фон + исправлен дизайн для ПК */}
                 {isEditing && (
                     <div style={overlayStyle} onClick={() => setIsEditing(false)}>
                         <div style={modalStyle} onClick={e => e.stopPropagation()}>
@@ -407,19 +427,6 @@ function ProfileContent() {
                             </div>
                             <button onClick={handleSaveProfile} style={saveButtonStyle}>СОХРАНИТЬ ИЗМЕНЕНИЯ</button>
                             <div onClick={() => setIsEditing(false)} style={cancelButtonStyle}>ОТМЕНА</div>
-                        </div>
-                    </div>
-                )}
-
-                {isPassModalOpen && (
-                    <div style={overlayStyle} onClick={() => setIsPassModalOpen(false)}>
-                        <div style={modalStyle} onClick={e => e.stopPropagation()}>
-                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px', color: '#fff' }}>СМЕНА ПАРОЛЯ</h2>
-                            <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
-                                <input type="text" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Придумайте новый пароль" style={inputItemStyle} />
-                            </div>
-                            <button onClick={handleChangePassword} style={saveButtonStyle}>ОБНОВИТЬ ПАРОЛЬ</button>
-                            <div onClick={() => setIsPassModalOpen(false)} style={cancelButtonStyle}>ОТМЕНА</div>
                         </div>
                     </div>
                 )}
@@ -560,7 +567,6 @@ function ProfileContent() {
                 body { overflow-x: hidden; width: 100vw; }
                 @media (max-width: 768px) { .sidebar-spacer { display: none; } }
                 
-                /* Стили для новой кнопки настроек (шестеренки) при наведении */
                 .settings-btn:hover {
                     background: #222 !important;
                     border-color: #0abab5 !important;
@@ -584,7 +590,6 @@ const profileHeaderCardStyle: any = {
     boxShadow: '0 20px 50px rgba(0,0,0,0.3)'
 };
 
-// 💡 НОВЫЙ ДИЗАЙН КНОПКИ МЕНЮ (ШЕСТЕРЕНКА)
 const settingsBtnStyle: any = { 
     position: 'absolute', 
     top: '25px', 
@@ -643,7 +648,6 @@ const contactIconStyle: any = { width: '45px', height: '45px', background: '#000
 
 const overlayStyle: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px', backdropFilter: 'blur(10px)', boxSizing: 'border-box' };
 
-// 💡 ИСПРАВЛЕНИЕ: Теперь у модальных окон (редактор/пароль) есть четкие рамки и красивые отступы
 const modalStyle: any = { 
     background: '#111', 
     borderRadius: '40px', 
