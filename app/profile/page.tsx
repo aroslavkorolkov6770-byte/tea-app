@@ -9,7 +9,7 @@ const saveDataToServer = (key: string, data: any) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
+    }).catch(err => console.error("Ошибка сохранения на server:", err));
 };
 
 function ProfileContent() {
@@ -18,10 +18,10 @@ function ProfileContent() {
     const [isEditing, setIsEditing] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     
-    // 💡 НОВОЕ: Стейты для прямого редактирования логина и пароля в профиле
-    const [editAuthMode, setEditAuthMode] = useState(false);
-    const [editAuthLogin, setEditAuthLogin] = useState('');
-    const [editAuthPass, setEditAuthPass] = useState('');
+    // Стейты для модального окна авторизации (Логин + Пароль)
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [newLogin, setNewLogin] = useState('');
+    const [newPass, setNewPass] = useState('');
     
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
     const [helpTab, setHelpTab] = useState<'ios' | 'android' | 'desktop' | 'email'>('ios');
@@ -29,7 +29,7 @@ function ProfileContent() {
     const [userRole, setUserRole] = useState('staff');
     const [userId, setUserId] = useState('guest');
     
-    // --- СТЕЙТЫ ДЛЯ КНОПКИ PUSH-УВЕДОМЛЕНИЙ ---
+    // Стейты для кнопки PUSH-уведомлений
     const [pushBtnText, setPushBtnText] = useState('ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ');
     const [pushBtnColor, setPushBtnColor] = useState('#0abab5');
     
@@ -72,16 +72,6 @@ function ProfileContent() {
                     phone: pData.phone || '',
                     email: pData.email || '' 
                 });
-
-                // 💡 Подгружаем актуальный логин и пароль текущего пользователя
-                const usersDb = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
-                if (Array.isArray(usersDb)) {
-                    const me = usersDb.find((u:any) => u.id === currentId);
-                    if (me) {
-                        setEditAuthLogin(me.login || '');
-                        setEditAuthPass(me.pass || '');
-                    }
-                }
 
                 // Загружаем статистику только для сотрудников
                 if (role !== 'admin') {
@@ -197,6 +187,24 @@ function ProfileContent() {
         setIsEditing(true);
     };
 
+    // Открытие окна изменения данных авторизации с автоматической подгрузкой текущих логина и пароля
+    const handleOpenAuthChange = async () => {
+        setIsMenuOpen(false);
+        try {
+            const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
+            if (Array.isArray(users)) {
+                const myUser = users.find((u:any) => u.id === userId);
+                if (myUser) {
+                    setNewLogin(myUser.login || '');
+                    setNewPass(myUser.pass || '');
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        setIsAuthModalOpen(true);
+    };
+
     const handleLogout = () => {
         localStorage.clear();
         router.push('/');
@@ -228,9 +236,9 @@ function ProfileContent() {
         setIsEditing(false);
     };
 
-    // 💡 ИСПРАВЛЕНО: Функция сохранения логина и пароля прямо из профиля
-    const handleSaveInlineAuth = async () => {
-        if (!editAuthLogin.trim() || !editAuthPass.trim()) {
+    // Сохранение логина и пароля из модального окна
+    const handleChangeAuth = async () => {
+        if (!newLogin.trim() || !newPass.trim()) {
             alert("Логин и пароль не могут быть пустыми!");
             return;
         }
@@ -239,18 +247,18 @@ function ProfileContent() {
             const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
             
             if (Array.isArray(users)) {
-                // Проверяем, не занят ли логин кем-то другим
-                const loginExists = users.find((u:any) => u.login === editAuthLogin.trim() && u.id !== userId);
+                // Проверяем уникальность логина
+                const loginExists = users.find((u:any) => u.login === newLogin.trim() && u.id !== userId);
                 if (loginExists) {
-                    alert("Ошибка: Этот логин уже занят другим сотрудником!");
+                    alert("Ошибка: Этот логин уже занят другим пользователем!");
                     return;
                 }
 
-                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, login: editAuthLogin.trim(), pass: editAuthPass.trim() } : u);
+                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, login: newLogin.trim(), pass: newPass.trim() } : u);
                 saveDataToServer('tea_hub_users_v1', updatedUsers);
                 
                 alert("Данные для входа успешно обновлены!");
-                setEditAuthMode(false);
+                setIsAuthModalOpen(false);
             }
         } catch (error) {
             console.error("Ошибка смены данных авторизации:", error);
@@ -284,12 +292,12 @@ function ProfileContent() {
                     
                     <section style={profileHeaderCardStyle}>
                         
-                        {/* Прозрачный слой поверх экрана для закрытия меню по клику вне его */}
+                        {/* Прозрачный фон для закрытия меню шестерёнки по клику вне его */}
                         {isMenuOpen && (
                             <div onClick={() => setIsMenuOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
                         )}
 
-                        {/* Шестеренка */}
+                        {/* Кнопка настроек (Шестерёнка) */}
                         <div onClick={() => setIsMenuOpen(!isMenuOpen)} style={settingsBtnStyle} className="settings-btn">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="3"></circle>
@@ -300,6 +308,7 @@ function ProfileContent() {
                         {isMenuOpen && (
                             <div style={contextMenuStyle}>
                                 <div onClick={handleOpenEdit} style={menuItemStyle}>Настроить данные</div>
+                                <div onClick={handleOpenAuthChange} style={menuItemStyle}>Сменить логин и пароль</div>
                                 <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>Выйти из аккаунта</div>
                             </div>
                         )}
@@ -318,43 +327,9 @@ function ProfileContent() {
                         </p>
                     </section>
 
-                    {/* 💡 НОВОЕ: Блок редактирования логина и пароля выведен прямо в интерфейс! */}
-                    <div style={{ animation: 'fadeInUp 0.5s ease' }}>
-                        <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.2)', padding: '20px', borderRadius: '20px', marginBottom: '35px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,77,77,0.2)' }}>
-                                <span style={{color: '#ff7675', fontWeight: '900', fontSize: '13px', letterSpacing: '1px'}}>ДАННЫЕ АВТОРИЗАЦИИ</span>
-                                <button onClick={() => {
-                                    if(editAuthMode) {
-                                        handleSaveInlineAuth();
-                                    } else {
-                                        setEditAuthMode(true);
-                                    }
-                                }} style={{ background: editAuthMode ? '#ff7675' : 'transparent', color: editAuthMode ? '#000' : '#ff7675', border: '1px solid #ff7675', padding: '6px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '11px', fontWeight: '900', transition: '0.2s' }}>
-                                    {editAuthMode ? 'СОХРАНИТЬ' : 'РЕДАКТИРОВАТЬ'}
-                                </button>
-                            </div>
-                            
-                            <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-                                <div style={{textAlign: 'center'}}>
-                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '8px'}}>ЛОГИН ДОСТУПА</div>
-                                    {editAuthMode ? (
-                                        <input value={editAuthLogin} onChange={e => setEditAuthLogin(e.target.value)} style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '120px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
-                                    ) : (
-                                        <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#fff', fontWeight: 'bold'}}>{editAuthLogin}</div>
-                                    )}
-                                </div>
-                                <div style={{textAlign: 'center'}}>
-                                    <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '8px'}}>ПАРОЛЬ</div>
-                                    {editAuthMode ? (
-                                        <input value={editAuthPass} onChange={e => setEditAuthPass(e.target.value)} style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '120px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
-                                    ) : (
-                                        <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#fff', fontWeight: 'bold'}}>{editAuthPass}</div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {userRole !== 'admin' && (
+                    {/* Блок статистики обучения показывается только для сотрудников */}
+                    {userRole !== 'admin' && (
+                        <div style={{ animation: 'fadeInUp 0.5s ease' }}>
                             <section style={progressSectionStyle}>
                                 <div style={{ marginBottom: '25px' }}>
                                     <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{progress.routeCount}/{progress.totalRoute}</span></div>
@@ -365,8 +340,8 @@ function ProfileContent() {
                                     <div style={barBg}><div style={{ ...barFill, width: `${Math.min((progress.basicsCount / (progress.totalBasics || 1)) * 100, 100)}%` }} /></div>
                                 </div>
                             </section>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
                     <h3 style={sectionTitle}>СВЯЗЬ</h3>
                     <section style={contactCardStyle}>
@@ -408,6 +383,7 @@ function ProfileContent() {
                     </button>
                 </div>
 
+                {/* МОДАЛЬНОЕ ОКНО: РЕДАКТОР ПРОФИЛЯ */}
                 {isEditing && (
                     <div style={overlayStyle} onClick={() => setIsEditing(false)}>
                         <div style={modalStyle} onClick={e => e.stopPropagation()}>
@@ -431,7 +407,29 @@ function ProfileContent() {
                     </div>
                 )}
 
-                {/* Окно инструкции */}
+                {/* МОДАЛЬНОЕ ОКНО: СМЕНА ЛОГИНА И ПАРОЛЯ */}
+                {isAuthModalOpen && (
+                    <div style={overlayStyle} onClick={() => setIsAuthModalOpen(false)}>
+                        <div style={modalStyle} onClick={e => e.stopPropagation()}>
+                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px', color: '#fff' }}>ДАННЫЕ ДЛЯ ВХОДА</h2>
+                            <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
+                                <div>
+                                    <div style={{fontSize: '12px', color: '#888', fontWeight: 'bold', marginLeft: '5px', marginBottom: '5px'}}>Логин (используется для входа):</div>
+                                    <input type="text" value={newLogin} onChange={e => setNewLogin(e.target.value)} placeholder="Новый логин" style={inputItemStyle} />
+                                </div>
+                                
+                                <div>
+                                    <div style={{fontSize: '12px', color: '#888', fontWeight: 'bold', marginLeft: '5px', marginBottom: '5px'}}>Пароль доступа:</div>
+                                    <input type="text" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Новый пароль" style={inputItemStyle} />
+                                </div>
+                            </div>
+                            <button onClick={handleChangeAuth} style={saveButtonStyle}>СОХРАНИТЬ ДАННЫЕ</button>
+                            <div onClick={() => setIsAuthModalOpen(false)} style={cancelButtonStyle}>ОТМЕНА</div>
+                        </div>
+                    </div>
+                )}
+
+                {/* МОДАЛЬНОЕ ОКНО: ИНСТРУКЦИЯ */}
                 {isHelpModalOpen && (
                     <div style={overlayStyle} onClick={() => setIsHelpModalOpen(false)}>
                         <div className="custom-scroll" style={{...modalStyle, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
@@ -451,104 +449,36 @@ function ProfileContent() {
                             {helpTab === 'ios' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
                                     <p style={helpDescStyle as any}>Операционная система iOS разрешает получать Push-уведомления с платформ <b>только в случае установки сайта на домашний экран устройства</b>.</p>
-                                    
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>1</div>
-                                        <div style={stepTextStyle as any}>Откройте платформу Tea Hub строго в стандартном браузере <b>Safari</b>.</div>
-                                    </div>
-
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}>Нажмите на системную кнопку <b>«Поделиться»</b> (иконка квадрата со стрелкой вверх в нижней панели экрана).</div>
-                                    </div>
-
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>3</div>
-                                        <div style={stepTextStyle as any}>В появившемся контекстном меню пролистайте вниз, выберите пункт <b>«На экран "Домой"»</b> и подтвердите действие кнопкой «Добавить».</div>
-                                    </div>
-
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>4</div>
-                                        <div style={stepTextStyle as any}>Закройте браузер Safari. Найдите новую иконку <b>Tea Hub на рабочем столе</b> вашего устройства и откройте приложение через нее.</div>
-                                    </div>
-
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>5</div>
-                                        <div style={stepTextStyle as any}>Пройдите авторизацию. В меню профиля нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b> и предоставьте права браузеру.</div>
-                                    </div>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Откройте платформу Tea Hub строго в Safari.</div></div>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>Нажмите кнопку <b>«Поделиться»</b>.</div></div>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>3</div><div style={stepTextStyle as any}>Выберите пункт <b>«На экран "Домой"»</b>.</div></div>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>4</div><div style={stepTextStyle as any}>Запустите приложение через иконку на рабочем столе.</div></div>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>5</div><div style={stepTextStyle as any}>В профиле нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
                                 </div>
                             )}
 
                             {helpTab === 'android' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                    <p style={helpDescStyle as any}>Для корректной работы системы уведомлений на ОС Android настоятельно рекомендуется использовать браузер <b>Google Chrome</b>.</p>
-                                    
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>1</div>
-                                        <div style={stepTextStyle as any}>Осуществите вход на платформу Tea Hub через браузер Google Chrome.</div>
-                                    </div>
-
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}>Пройдите процедуру авторизации, перейдите в профиль и нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div>
-                                    </div>
-
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>3</div>
-                                        <div style={stepTextStyle as any}>В появившемся системном диалоговом окне выберите <b>«Разрешить»</b>.</div>
-                                    </div>
-
-                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: 'rgba(255, 77, 77, 0.05)', border: '1px solid rgba(255, 77, 77, 0.2)', borderRadius: '18px' }}>
-                                        <h4 style={{ color: '#ff4d4d', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>Внимание: Разблокировка уведомлений</h4>
-                                        <p style={{ fontSize: '14px', color: '#ccc', margin: 0, lineHeight: '1.6' }}>Если запрос не появился или был заблокирован: нажмите на иконку настроек (замок) слева от адресной строки браузера ➔ <b>Разрешения</b> ➔ Уведомления ➔ Разрешить.</p>
-                                    </div>
+                                    <p style={helpDescStyle as any}>Рекомендуется использовать браузер <b>Google Chrome</b>.</p>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Зайдите в Tea Hub через Google Chrome.</div></div>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>В профиле нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>3</div><div style={stepTextStyle as any}>Выберите <b>«Разрешить»</b>.</div></div>
                                 </div>
                             )}
 
                             {helpTab === 'desktop' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                    <p style={helpDescStyle as any}>Активация уведомлений на персональном компьютере (Windows / macOS).</p>
-                                    
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>1</div>
-                                        <div style={stepTextStyle as any}>Пройдите авторизацию в системе, перейдите в раздел Профиль и нажмите на кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div>
-                                    </div>
-
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}>В системном окне браузера подтвердите действие, нажав <b>«Разрешить» (Allow)</b>.</div>
-                                    </div>
-
-                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '18px' }}>
-                                        <h4 style={{ color: '#0abab5', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>Ручная настройка параметров браузера:</h4>
-                                        <p style={{ fontSize: '14px', color: '#ccc', margin: 0, lineHeight: '1.6' }}>Если диалоговое окно не отображается, кликните на иконку «Настройки сайта» (замок слева от адресной строки) и переведите параметр <b>Уведомления</b> в активное положение.</p>
-                                    </div>
+                                    <p style={helpDescStyle as any}>Активация уведомлений на ПК.</p>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>В разделе Профиль нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>В окне браузера подтвердите действие, нажав <b>«Разрешить»</b>.</div></div>
                                 </div>
                             )}
 
                             {helpTab === 'email' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                                    <p style={helpDescStyle as any}>Настройка дублирования важных системных уведомлений, дедлайнов и назначенных аттестаций на ваш персональный почтовый адрес.</p>
-                                    
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>1</div>
-                                        <div style={stepTextStyle as any}>Убедитесь, что в карточке вашего профиля корректно заполнен E-mail адрес.</div>
-                                    </div>
-
-                                    <div style={stepCardStyle as any}>
-                                        <div style={stepNumStyle as any}>2</div>
-                                        <div style={stepTextStyle as any}><b>Алгоритм привязки:</b> В верхней части текущей страницы нажмите на системное меню (шестеренку) ➔ выберите <b>«Настроить данные»</b> ➔ заполните поле <b>«E-mail адрес»</b> ➔ нажмите <b>«Сохранить изменения»</b>.</div>
-                                    </div>
-
-                                    <div style={{ marginTop: '30px', padding: '20px 25px', background: 'rgba(255, 118, 117, 0.05)', border: '1px solid rgba(255, 118, 117, 0.2)', borderRadius: '18px' }}>
-                                        <h4 style={{ color: '#ff7675', margin: '0 0 10px 0', fontSize: '15px', fontWeight: '900' }}>ВАЖНО: ФИЛЬТРЫ СПАМА</h4>
-                                        <p style={{ fontSize: '14px', color: '#ccc', margin: '0 0 12px 0', lineHeight: '1.6' }}>
-                                            Системы защиты почтовых провайдеров (Яндекс, Mail.ru, Gmail) могут по умолчанию направлять автоматические сервисные письма в папку <b>«Спам»</b> или «Рассылки».
-                                        </p>
-                                        <p style={{ fontSize: '14px', color: '#0abab5', margin: 0, fontWeight: 'bold', lineHeight: '1.6' }}>
-                                            Если вы обнаружили системное письмо в директории спама, обязательно откройте его и нажмите системную кнопку <b>«Это не спам»</b> (или «Переместить во Входящие»). Данное действие обучит алгоритмы, и последующие уведомления будут доставляться корректно.
-                                        </p>
-                                    </div>
+                                    <p style={helpDescStyle as any}>Настройка дублирования уведомлений на почту.</p>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Убедитесь, что в профиле заполнен ваш E-mail.</div></div>
+                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>При получении писем проверьте папку «Спам» и нажмите кнопку <b>«Это не спам»</b>.</div></div>
                                 </div>
                             )}
 
@@ -634,9 +564,6 @@ const menuItemStyle: any = {
 };
 
 const sectionTitle: any = { fontSize: '12px', fontWeight: '900', color: '#444', marginBottom: '15px', letterSpacing: '2px', textAlign: 'center', textTransform: 'uppercase' };
-const statCardStyle: any = { background: '#161816', padding: '25px 10px', borderRadius: '25px', border: '1px solid #222', display: 'flex', flexDirection: 'column', alignItems: 'center' };
-const statNum: any = { fontSize: '28px', fontWeight: '900', color: '#0abab5' };
-const statLabel: any = { fontSize: '10px', color: '#555', marginTop: '5px', fontWeight: 'bold' };
 
 const progressSectionStyle: any = { background: '#161816', padding: '35px', borderRadius: '35px', border: '1px solid #222', marginBottom: '35px' };
 const labelRow: any = { display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px', fontWeight: '900' };
