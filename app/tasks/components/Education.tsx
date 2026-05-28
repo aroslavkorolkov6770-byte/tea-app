@@ -458,7 +458,6 @@ export default function Education({
             <div className="premium-cards-container">
                {dynamicTests.map((test: any, idx: number) => {
                   const isDone = completedTests.includes(test.id);
-                  // 💡 ИСПРАВЛЕНИЕ: Если пользователь админ (isAdmin), то тест автоматически разблокирован
                   const isUnlocked = isAdmin || idx === 0 || completedTests.includes(dynamicTests[idx - 1].id);
                   
                   return (
@@ -502,6 +501,114 @@ export default function Education({
                   );
                })}
             </div>
+
+            {/* 💡 ВОССТАНОВЛЕНО: ОКНО ОШИБКИ "ЭТАП ЗАБЛОКИРОВАН" */}
+            {lockedTestAlert.show && (
+                <div style={{...errorOverlayStyle, zIndex: 50000} as any} onClick={() => setLockedTestAlert({show: false, message: ''})}>
+                    <div className="tasks-modal" style={errorModalContent as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>🔒</div>
+                        <h2 style={{ fontSize: '20px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>ЭТАП ЗАБЛОКИРОВАН</h2>
+                        <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{lockedTestAlert.message}</p>
+                        <button onClick={() => setLockedTestAlert({show: false, message: ''})} style={{...errorBtnStyle, background: '#333', color: '#fff', marginTop: 0} as any}>ПОНЯТНО</button>
+                    </div>
+                </div>
+            )}
+
+            {/* 💡 ВОССТАНОВЛЕНО: ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" */}
+            {selectedRouteStep && !showRouteForm && (
+                <div style={modalOverlay as any} onClick={closeRouteModal}>
+                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'30px'}}>
+                            <div>
+                                <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase'}}>ТЕОРИЯ • {selectedRouteStep.time}</span>
+                                <h2 style={{fontSize:'28px', color:'#fff', fontWeight:'900', marginTop:'5px', margin:'0'}}>{selectedRouteStep.title}</h2>
+                            </div>
+                            <div onClick={closeRouteModal} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
+                        </div>
+
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '25px', marginBottom: '35px'}}>
+                            {selectedRouteStep.h1 && (
+                                <div style={theoryBlock as any}>
+                                    <div style={theoryLabel as any}>{selectedRouteStep.h1}</div>
+                                    <p style={theoryText as any}>{selectedRouteStep.t1}</p>
+                                </div>
+                            )}
+                            {selectedRouteStep.h2 && (
+                                <div style={theoryBlock as any}>
+                                    <div style={theoryLabel as any}>{selectedRouteStep.h2}</div>
+                                    <p style={theoryText as any}>{selectedRouteStep.t2}</p>
+                                </div>
+                            )}
+                            {selectedRouteStep.h3 && (
+                                <div style={theoryBlock as any}>
+                                    <div style={theoryLabel as any}>{selectedRouteStep.h3}</div>
+                                    <p style={theoryText as any}>{selectedRouteStep.t3}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {completedRoute.includes(selectedRouteStep.id) ? (
+                            <button onClick={closeRouteModal} style={{...checkKnowledgeBtn, background: '#111', color: '#0abab5', border: '1px solid #0abab5'} as any}>
+                                МАТЕРИАЛ ПРОЙДЕН (ЗАКРЫТЬ)
+                            </button>
+                        ) : (
+                            <button onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn as any}>
+                                ПОДТВЕРДИТЬ ПРОХОЖДЕНИЕ
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* 💡 ВОССТАНОВЛЕНО: РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ */}
+            {showRouteForm && (
+                <div style={{...modalOverlay, alignItems: 'flex-start'} as any}>
+                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '900px', margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any}>
+                        <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{routeFormData.id ? 'РЕДАКТОР ТЕМЫ' : 'НОВАЯ ТЕМА'}</h2>
+                        
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '30px'}}>
+                            <input style={adminIn as any} placeholder="Название темы" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
+                            <input style={adminIn as any} placeholder="Время на изучение (напр. 10 мин)" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
+                        </div>
+
+                        <div style={{borderTop: '1px solid #222', paddingTop: '30px'}}>
+                            <h3 style={{fontSize: '20px', color: '#0abab5', marginBottom: '25px', fontWeight: '900'}}>БЛОКИ С ТЕКСТОМ (ДО 3-Х)</h3>
+                            
+                            <div style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px'}}>
+                                <input style={{...adminIn, fontWeight: 'bold'} as any} placeholder="Заголовок блока 1" value={routeFormData.h1} onChange={e => setRouteFormData({...routeFormData, h1: e.target.value})} />
+                                <textarea style={{...adminIn, height: '100px', resize: 'vertical'} as any} placeholder="Текст блока 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
+                            </div>
+
+                            <div style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px'}}>
+                                <input style={{...adminIn, fontWeight: 'bold'} as any} placeholder="Заголовок блока 2" value={routeFormData.h2} onChange={e => setRouteFormData({...routeFormData, h2: e.target.value})} />
+                                <textarea style={{...adminIn, height: '100px', resize: 'vertical'} as any} placeholder="Текст блока 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
+                            </div>
+
+                            <div style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px'}}>
+                                <input style={{...adminIn, fontWeight: 'bold'} as any} placeholder="Заголовок блока 3" value={routeFormData.h3} onChange={e => setRouteFormData({...routeFormData, h3: e.target.value})} />
+                                <textarea style={{...adminIn, height: '100px', resize: 'vertical'} as any} placeholder="Текст блока 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
+                            </div>
+                        </div>
+
+                        <button onClick={handleSaveRoute} style={{...saveBtn, marginTop: '30px'} as any}>СОХРАНИТЬ ТЕМУ</button>
+                        <div onClick={() => setShowRouteForm(false)} style={{ textAlign: 'center', marginTop: '25px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ОТМЕНА</div>
+                    </div>
+                </div>
+            )}
+
+            {/* 💡 ВОССТАНОВЛЕНО: ОКНО УДАЛЕНИЯ ТЕОРИИ */}
+            {routeToDelete && (
+                <div style={{...errorOverlayStyle, zIndex: 50000} as any}>
+                    <div className="tasks-modal" style={errorModalContent as any}>
+                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                        <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ТЕМУ?</h2>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button onClick={handleDeleteRoute} style={{...errorBtnStyle, flex: 1} as any}>УДАЛИТЬ</button>
+                            <button onClick={() => setRouteToDelete(null)} style={{...errorBtnStyle, background: '#333', color: '#fff', flex: 1} as any}>ОТМЕНА</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* --- МОДАЛЬНОЕ ОКНО "НОРМАТИВНЫЕ ДОКУМЕНТЫ" --- */}
             {showDocsModal && (
@@ -694,7 +801,7 @@ export default function Education({
                         <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ТЕСТ?</h2>
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button onClick={handleDeleteTest} style={{...errorBtnStyle, flex: 1} as any}>УДАЛИТЬ</button>
-                            <button onClick={() => setTestToDelete(null)} style={{...errorBtnStyle, background: '#333', flex: 1} as any}>ОТМЕНА</button>
+                            <button onClick={() => setTestToDelete(null)} style={{...errorBtnStyle, background: '#333', color: '#fff', flex: 1} as any}>ОТМЕНА</button>
                         </div>
                     </div>
                 </div>
