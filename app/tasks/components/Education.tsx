@@ -43,17 +43,25 @@ export default function Education({
         id: '', title: '', time: '5 мин', section: '', subsection: '',
         h1: '', t1: '', h2: '', t2: '', h3: '', t3: '' 
     });
-    const [routeToDelete, setRouteToDelete] = useState<string | null>(null);
 
     const [showTestForm, setShowTestForm] = useState(false);
     const [testFormData, setTestFormData] = useState({
         id: '', title: '', subtitle: '', theory: '', section: '', subsection: '',
         quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] 
     });
-    const [testToDelete, setTestToDelete] = useState<string | null>(null);
 
-    // Состояние для функции перемещения карточки
+    // 💡 ЕДИНОЕ СОСТОЯНИЕ УДАЛЕНИЯ (вместо window.confirm)
+    const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, type: 'route'|'test'|'section_route'|'section_test', targetId: string, name: string}>({
+        isOpen: false, type: 'route', targetId: '', name: ''
+    });
+
+    // 💡 СОСТОЯНИЕ ДЛЯ СОЗДАНИЯ РАЗДЕЛА (вместо window.prompt)
+    const [promptSection, setPromptSection] = useState<{isOpen: boolean, type: 'route'|'test', name: string}>({
+        isOpen: false, type: 'route', name: ''
+    });
+
     const [movingItem, setMovingItem] = useState<{id: string, type: 'route' | 'test'} | null>(null);
+    const [moveNewSectionName, setMoveNewSectionName] = useState('');
 
     const [previewFile, setPreviewFile] = useState<any>(null);
 
@@ -128,7 +136,7 @@ export default function Education({
 
     // --- ЛОГИКА ТЕОРИИ ---
     const handleSaveRoute = () => {
-        if (!routeFormData.title.trim()) return;
+        if (!routeFormData.title.trim()) { alert("Введите название темы!"); return; }
         let newList = [...dynamicRoute];
         if (routeFormData.id) {
             newList = newList.map((r: any) => r.id === routeFormData.id ? routeFormData : r);
@@ -139,15 +147,6 @@ export default function Education({
         localStorage.setItem('th_cache_route', JSON.stringify(newList));
         saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newList);
         setShowRouteForm(false);
-    };
-
-    const handleDeleteRoute = () => {
-        if (!routeToDelete) return;
-        const newList = dynamicRoute.filter((r: any) => r.id !== routeToDelete);
-        setDynamicRoute(newList);
-        localStorage.setItem('th_cache_route', JSON.stringify(newList));
-        saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newList);
-        setRouteToDelete(null);
     };
 
     const handleRouteComplete = (id: string) => {
@@ -182,7 +181,7 @@ export default function Education({
     };
 
     const handleSaveTestForm = () => {
-        if (!testFormData.title.trim()) return;
+        if (!testFormData.title.trim()) { alert("Введите название теста!"); return; }
         const newTest = {
             id: testFormData.id || ('t_' + Date.now()),
             title: testFormData.title,
@@ -209,16 +208,7 @@ export default function Education({
         setShowTestForm(false);
     };
 
-    const handleDeleteTest = () => {
-        if (!testToDelete) return;
-        const newList = dynamicTests.filter((t: any) => t.id !== testToDelete);
-        setDynamicTests(newList);
-        localStorage.setItem('th_cache_tests', JSON.stringify(newList));
-        saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, newList);
-        setTestToDelete(null);
-    };
-
-    // --- ФУНКЦИЯ ПЕРЕМЕЩЕНИЯ (НОВОЕ) ---
+    // --- ФУНКЦИЯ ПЕРЕМЕЩЕНИЯ ---
     const handleMoveItem = (targetSection: string) => {
         if (!movingItem) return;
         if (movingItem.type === 'route') {
@@ -231,20 +221,42 @@ export default function Education({
             saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, updated);
         }
         setMovingItem(null);
+        setMoveNewSectionName('');
     };
 
-    // --- УДАЛЕНИЕ ЦЕЛОГО РАЗДЕЛА (НОВОЕ) ---
-    const handleDeleteSection = (sectionName: string, type: 'route' | 'test') => {
-        if (!confirm(`Вы уверены, что хотите удалить весь раздел "${sectionName}" и ВСЕ материалы внутри него?`)) return;
-        if (type === 'route') {
-            const updated = dynamicRoute.filter((r: any) => (r.section?.trim() || 'Основной раздел') !== sectionName);
+    // --- ЕДИНАЯ ЛОГИКА УДАЛЕНИЯ (БЕЗ WINDOW.CONFIRM) ---
+    const executeDelete = () => {
+        if (confirmDelete.type === 'section_route') {
+            const updated = dynamicRoute.filter((r: any) => (r.section?.trim() || 'Основной раздел') !== confirmDelete.targetId);
             setDynamicRoute(updated);
             saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, updated);
-        } else {
-            const updated = dynamicTests.filter((t: any) => (t.section?.trim() || 'Основной раздел') !== sectionName);
+        } else if (confirmDelete.type === 'section_test') {
+            const updated = dynamicTests.filter((t: any) => (t.section?.trim() || 'Основной раздел') !== confirmDelete.targetId);
+            setDynamicTests(updated);
+            saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, updated);
+        } else if (confirmDelete.type === 'route') {
+            const updated = dynamicRoute.filter((r: any) => r.id !== confirmDelete.targetId);
+            setDynamicRoute(updated);
+            saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, updated);
+        } else if (confirmDelete.type === 'test') {
+            const updated = dynamicTests.filter((t: any) => t.id !== confirmDelete.targetId);
             setDynamicTests(updated);
             saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, updated);
         }
+        setConfirmDelete({ isOpen: false, type: 'route', targetId: '', name: '' });
+    };
+
+    // --- ЛОГИКА СОЗДАНИЯ РАЗДЕЛА ---
+    const confirmPromptSection = () => {
+        if (!promptSection.name.trim()) return;
+        if (promptSection.type === 'route') {
+            setRouteFormData({ id: '', title: '', time: '5 мин', section: promptSection.name.trim(), subsection: '', h1: '', t1: '', h2: '', t2: '', h3: '', t3: '' });
+            setShowRouteForm(true);
+        } else {
+            setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: promptSection.name.trim(), subsection: '', quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] });
+            setShowTestForm(true);
+        }
+        setPromptSection({ isOpen: false, type: 'route', name: '' });
     };
 
     // --- ГРУППИРОВКА ДАННЫХ ДЛЯ РЕНДЕРА ---
@@ -271,7 +283,7 @@ export default function Education({
         setTestAnswers(newAnswers);
         setTimeout(() => { 
             if (currentQuizStep < activeTestSession.quiz.length - 1) {
-                setCurrentQuizStep(v => v + 1); 
+                setCurrentQuizStep((v: number) => v + 1); 
                 setActiveAnswer(null); 
             } else {
                 finishMainTest(newAnswers);
@@ -348,7 +360,7 @@ export default function Education({
 
         setTimeout(() => { 
             if (urgentTestStep < activeUrgentTest.quiz.length - 1) {
-                setUrgentTestStep(v => v + 1); 
+                setUrgentTestStep((v: number) => v + 1); 
                 setActiveAnswer(null); 
             } else {
                 finishUrgentTest(newAnswers);
@@ -456,10 +468,15 @@ export default function Education({
             {/* --- БЛОК 1: ТЕОРИЯ --- */}
             <div className="tasks-flex-space" style={flexSpace}>
                <h2 className="tasks-title" style={sectionTitle}>Теория</h2>
-               {isAdmin && <button onClick={() => { 
-                   setRouteFormData({ id: '', title: '', time: '5 мин', section: '', subsection: '', h1: '', t1: '', h2: '', t2: '', h3: '', t3: '' }); 
-                   setShowRouteForm(true); 
-               }} style={adminActionBtn}>+ НОВАЯ ТЕМА</button>}
+               {isAdmin && (
+                   <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                       <button onClick={() => setPromptSection({isOpen: true, type: 'route', name: ''})} style={adminActionBtn}>+ НОВЫЙ РАЗДЕЛ</button>
+                       <button onClick={() => { 
+                           setRouteFormData({ id: '', title: '', time: '5 мин', section: '', subsection: '', h1: '', t1: '', h2: '', t2: '', h3: '', t3: '' }); 
+                           setShowRouteForm(true); 
+                       }} style={{...adminActionBtn, background: '#0abab5', color: '#000'}}>+ НОВАЯ ТЕМА</button>
+                   </div>
+               )}
             </div>
             
             <div style={{ marginBottom: '60px' }}>
@@ -468,7 +485,7 @@ export default function Education({
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
                            <h3 style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>📁 {secName}</h3>
                            {isAdmin && secName !== 'Основной раздел' && (
-                               <span onClick={() => handleDeleteSection(secName, 'route')} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>УДАЛИТЬ РАЗДЕЛ</span>
+                               <span onClick={() => setConfirmDelete({isOpen: true, type: 'section_route', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>УДАЛИТЬ РАЗДЕЛ</span>
                            )}
                        </div>
                        
@@ -484,7 +501,7 @@ export default function Education({
                                            <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="premium-card">
                                               {isAdmin && (
                                                   <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                                      <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} style={moveIconStyle}>📦</div>
+                                                      <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} style={moveIconStyle} title="Переместить">📦</div>
                                                       <div onClick={(e) => { 
                                                           e.stopPropagation(); 
                                                           setRouteFormData({
@@ -493,8 +510,8 @@ export default function Education({
                                                               h1: step.h1, t1: step.t1, h2: step.h2, t2: step.t2, h3: step.h3, t3: step.t3
                                                           }); 
                                                           setShowRouteForm(true); 
-                                                      }} style={editIconStyle}>✎</div>
-                                                      <div onClick={(e) => { e.stopPropagation(); setRouteToDelete(step.id); }} style={delIconStyle}>✕</div>
+                                                      }} style={editIconStyle} title="Редактировать">✎</div>
+                                                      <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} style={delIconStyle} title="Удалить">✕</div>
                                                   </div>
                                               )}
                                               <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px'}}>Урок {idx+1}</span>
@@ -519,10 +536,15 @@ export default function Education({
             {/* --- БЛОК 2: ТЕСТЫ --- */}
             <div className="tasks-flex-space" style={flexSpace}>
                 <h2 className="tasks-title" style={sectionTitle}>Тесты</h2>
-                {isAdmin && <button onClick={() => { 
-                    setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: '', subsection: '', quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] }); 
-                    setShowTestForm(true); 
-                }} style={adminActionBtn}>+ НОВЫЙ ТЕСТ</button>}
+                {isAdmin && (
+                   <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                       <button onClick={() => setPromptSection({isOpen: true, type: 'test', name: ''})} style={adminActionBtn}>+ НОВЫЙ РАЗДЕЛ</button>
+                       <button onClick={() => { 
+                           setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: '', subsection: '', quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] }); 
+                           setShowTestForm(true); 
+                       }} style={{...adminActionBtn, background: '#0abab5', color: '#000'}}>+ НОВЫЙ ТЕСТ</button>
+                   </div>
+                )}
             </div>
             
             <div style={{ marginBottom: '60px' }}>
@@ -531,7 +553,7 @@ export default function Education({
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
                            <h3 style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>📋 {secName}</h3>
                            {isAdmin && secName !== 'Основной раздел' && (
-                               <span onClick={() => handleDeleteSection(secName, 'test')} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>УДАЛИТЬ РАЗДЕЛ</span>
+                               <span onClick={() => setConfirmDelete({isOpen: true, type: 'section_test', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>УДАЛИТЬ РАЗДЕЛ</span>
                            )}
                        </div>
                        
@@ -562,7 +584,7 @@ export default function Education({
 
                                               {isAdmin && (
                                                    <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                                       <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} style={moveIconStyle}>📦</div>
+                                                       <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} style={moveIconStyle} title="Переместить">📦</div>
                                                        <div onClick={(e) => { 
                                                            e.stopPropagation(); 
                                                            setTestFormData({
@@ -571,8 +593,8 @@ export default function Education({
                                                                quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }]
                                                            }); 
                                                            setShowTestForm(true); 
-                                                       }} style={editIconStyle}>✎</div>
-                                                       <div onClick={(e) => { e.stopPropagation(); setTestToDelete(test.id); }} style={delIconStyle}>✕</div>
+                                                       }} style={editIconStyle} title="Редактировать">✎</div>
+                                                       <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'test', targetId: test.id, name: test.title}); }} style={delIconStyle} title="Удалить">✕</div>
                                                    </div>
                                                )}
 
@@ -595,22 +617,63 @@ export default function Education({
                ))}
             </div>
 
-            {/* --- ОКНО ПЕРЕМЕЩЕНИЯ --- */}
-            {movingItem && (
-                <div style={modalOverlay as any} onClick={() => setMovingItem(null)}>
+            {/* 💡 МИНИ-ОКНО: СОЗДАТЬ НОВЫЙ РАЗДЕЛ (Вместо prompt) */}
+            {promptSection.isOpen && (
+                <div style={modalOverlay as any} onClick={() => setPromptSection({isOpen: false, type: 'route', name: ''})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
-                        <h2 style={{color: '#0abab5', textAlign: 'center', marginBottom: '20px', fontWeight: '900'}}>ПЕРЕМЕСТИТЬ В РАЗДЕЛ</h2>
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto'}} className="custom-scroll">
+                        <h2 style={{color: '#0abab5', textAlign: 'center', marginBottom: '20px', fontWeight: '900'}}>НОВЫЙ РАЗДЕЛ</h2>
+                        <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название раздела</div>
+                        <input style={adminIn as any} autoFocus placeholder="Например: Основы заваривания" value={promptSection.name} onChange={e => setPromptSection({...promptSection, name: e.target.value})} />
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                            <button onClick={() => setPromptSection({isOpen: false, type: 'route', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button onClick={confirmPromptSection} style={{ ...saveBtn, flex: 1, marginTop: 0 } as any}>СОЗДАТЬ</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 💡 МИНИ-ОКНО: ПЕРЕМЕСТИТЬ (С ИНПУТОМ) */}
+            {movingItem && (
+                <div style={modalOverlay as any} onClick={() => { setMovingItem(null); setMoveNewSectionName(''); }}>
+                    <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
+                        <h2 style={{color: '#0abab5', textAlign: 'center', marginBottom: '20px', fontWeight: '900', textTransform: 'uppercase'}}>Переместить в раздел</h2>
+                        
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto', marginBottom: '20px'}} className="custom-scroll">
+                            <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginLeft: '5px' }}>Выбрать существующий:</div>
                             {Array.from(new Set(
                                 (movingItem.type === 'route' ? dynamicRoute : dynamicTests)
                                 .map((i: any) => i.section?.trim() || 'Основной раздел')
                             )).map((sec: any) => (
-                                <button key={sec} onClick={() => handleMoveItem(sec)} style={adminIn as any}>{sec}</button>
+                                <button key={sec} onClick={() => handleMoveItem(sec)} style={{...adminIn, textAlign: 'left', cursor: 'pointer', background: '#1a1a1a', border: '1px solid #333'} as any}>{sec}</button>
                             ))}
+                        </div>
+
+                        <div style={{ borderTop: '1px solid #222', paddingTop: '20px' }}>
+                            <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Или создать новый раздел:</div>
+                            <input style={adminIn as any} placeholder="Название нового раздела..." value={moveNewSectionName} onChange={e => setMoveNewSectionName(e.target.value)} />
                             <button onClick={() => {
-                                const newSec = prompt("Введите название нового раздела:");
-                                if (newSec && newSec.trim()) handleMoveItem(newSec.trim());
-                            }} style={{...adminActionBtn, marginTop: '10px', width: '100%', padding: '15px'} as any}>+ СОЗДАТЬ НОВЫЙ РАЗДЕЛ</button>
+                                if (moveNewSectionName.trim()) handleMoveItem(moveNewSectionName.trim());
+                            }} style={{...adminActionBtn, marginTop: '10px', width: '100%', padding: '16px'} as any}>СОЗДАТЬ И ПЕРЕМЕСТИТЬ</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 💡 СТИЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ (Вместо confirm) */}
+            {confirmDelete.isOpen && (
+                <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})}>
+                    <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                        <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>УДАЛИТЬ?</h2>
+                        <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>
+                            {confirmDelete.type.startsWith('section') 
+                                ? `Вы уверены, что хотите удалить весь раздел "${confirmDelete.name}" и ВСЕ вложенные в него материалы? Это действие необратимо.` 
+                                : `Удалить карточку "${confirmDelete.name}" безвозвратно?`
+                            }
+                        </p>
+                        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                            <button onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button onClick={executeDelete} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>УДАЛИТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -631,7 +694,7 @@ export default function Education({
             {/* --- ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" --- */}
             {selectedRouteStep && !showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteModal}>
-                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+                    <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'30px'}}>
                             <div>
                                 <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase'}}>ТЕОРИЯ • {selectedRouteStep.time}</span>
@@ -674,67 +737,60 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ --- */}
+            {/* 💡 КОМПАКТНЫЙ РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (По стандартам ассортимента) */}
             {showRouteForm && (
-                <div style={{...modalOverlay, alignItems: 'flex-start'} as any}>
-                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '900px', margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any}>
-                        <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{routeFormData.id ? 'РЕДАКТОР ТЕМЫ' : 'НОВАЯ ТЕМА'}</h2>
+                <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
+                    <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+                        <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#0abab5', fontWeight: '900', textTransform: 'uppercase' }}>
+                            {routeFormData.id ? 'РЕДАКТОР ТЕМЫ' : 'НОВАЯ ТЕМА'}
+                        </h2>
                         
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '15px'}}>
-                            <input style={adminIn as any} placeholder="Название темы" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
-                            <input style={adminIn as any} placeholder="Время на изучение (напр. 10 мин)" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
-                        </div>
-
-                        <div style={{display: 'flex', gap: '15px', marginBottom: '30px'}}>
-                            <div style={{flex: 1}}>
-                                <input list="route-sections" style={{...adminIn, marginBottom: 0} as any} placeholder="Раздел (Папка)" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
-                                <datalist id="route-sections">
-                                    {Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}
-                                </datalist>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
+                            <div>
+                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название темы</div>
+                                <input style={adminIn as any} placeholder="Например: Основы зеленого чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
                             </div>
-                            <div style={{flex: 1}}>
-                                <input list="route-subsections" style={{...adminIn, marginBottom: 0} as any} placeholder="Подраздел" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
-                                <datalist id="route-subsections">
-                                    {Array.from(new Set(dynamicRoute.map((r: any) => r.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}
-                                </datalist>
-                            </div>
-                        </div>
-
-                        <div style={{borderTop: '1px solid #222', paddingTop: '30px'}}>
-                            <h3 style={{fontSize: '20px', color: '#0abab5', marginBottom: '25px', fontWeight: '900'}}>БЛОКИ С ТЕКСТОМ (ДО 3-Х)</h3>
                             
-                            <div style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px'}}>
-                                <input style={{...adminIn, fontWeight: 'bold'} as any} placeholder="Заголовок блока 1" value={routeFormData.h1} onChange={e => setRouteFormData({...routeFormData, h1: e.target.value})} />
-                                <textarea style={{...adminIn, height: '100px', resize: 'vertical'} as any} placeholder="Текст блока 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                                <div>
+                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел (Папка)</div>
+                                    <input list="route-sections" style={adminIn as any} placeholder="Напр. Введение" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
+                                    <datalist id="route-sections">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Подраздел</div>
+                                    <input list="route-subsections" style={adminIn as any} placeholder="Напр. Практика" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
+                                    <datalist id="route-subsections">{Array.from(new Set(dynamicRoute.map((r: any) => r.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
+                                </div>
                             </div>
-
-                            <div style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px'}}>
-                                <input style={{...adminIn, fontWeight: 'bold'} as any} placeholder="Заголовок блока 2" value={routeFormData.h2} onChange={e => setRouteFormData({...routeFormData, h2: e.target.value})} />
-                                <textarea style={{...adminIn, height: '100px', resize: 'vertical'} as any} placeholder="Текст блока 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
-                            </div>
-
-                            <div style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px'}}>
-                                <input style={{...adminIn, fontWeight: 'bold'} as any} placeholder="Заголовок блока 3" value={routeFormData.h3} onChange={e => setRouteFormData({...routeFormData, h3: e.target.value})} />
-                                <textarea style={{...adminIn, height: '100px', resize: 'vertical'} as any} placeholder="Текст блока 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
+                            
+                            <div>
+                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Время на изучение</div>
+                                <input style={adminIn as any} placeholder="Напр. 10 мин" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
                             </div>
                         </div>
 
-                        <button onClick={handleSaveRoute} style={{...saveBtn, marginTop: '30px'} as any}>СОХРАНИТЬ ТЕМУ</button>
-                        <div onClick={() => setShowRouteForm(false)} style={{ textAlign: 'center', marginTop: '25px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ОТМЕНА</div>
-                    </div>
-                </div>
-            )}
+                        <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
+                            <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>БЛОКИ С ТЕКСТОМ (ДО 3-Х)</h3>
+                            
+                            <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
+                                <input style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 1" value={routeFormData.h1} onChange={e => setRouteFormData({...routeFormData, h1: e.target.value})} />
+                                <textarea style={{...adminIn, height: '80px', resize: 'none'} as any} placeholder="Текст блока 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
+                            </div>
 
-            {/* --- ОКНО УДАЛЕНИЯ ТЕОРИИ --- */}
-            {routeToDelete && (
-                <div style={{...errorOverlayStyle, zIndex: 50000} as any}>
-                    <div className="tasks-modal" style={errorModalContent as any}>
-                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
-                        <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ТЕМУ?</h2>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={handleDeleteRoute} style={{...errorBtnStyle, flex: 1} as any}>УДАЛИТЬ</button>
-                            <button onClick={() => setRouteToDelete(null)} style={{...errorBtnStyle, background: '#333', color: '#fff', flex: 1} as any}>ОТМЕНА</button>
+                            <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
+                                <input style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 2" value={routeFormData.h2} onChange={e => setRouteFormData({...routeFormData, h2: e.target.value})} />
+                                <textarea style={{...adminIn, height: '80px', resize: 'none'} as any} placeholder="Текст блока 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
+                            </div>
+
+                            <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
+                                <input style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 3" value={routeFormData.h3} onChange={e => setRouteFormData({...routeFormData, h3: e.target.value})} />
+                                <textarea style={{...adminIn, height: '80px', resize: 'none'} as any} placeholder="Текст блока 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
+                            </div>
                         </div>
+
+                        <button onClick={handleSaveRoute} style={saveBtn as any}>СОХРАНИТЬ ТЕМУ</button>
+                        <div onClick={() => setShowRouteForm(false)} style={cancelLink as any}>ОТМЕНА</div>
                     </div>
                 </div>
             )}
@@ -742,7 +798,7 @@ export default function Education({
             {/* --- МОДАЛЬНОЕ ОКНО "НОРМАТИВНЫЕ ДОКУМЕНТЫ" --- */}
             {showDocsModal && (
                 <div style={modalOverlay as any} onClick={() => setShowDocsModal(false)}>
-                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '1000px', maxHeight: '85vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+                    <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '85vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
                         <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'30px'}}>
                             <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', margin:0}}>📚 Нормативные документы</h2>
                             <div onClick={() => setShowDocsModal(false)} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
@@ -799,7 +855,7 @@ export default function Education({
             {/* --- АКТИВНАЯ СЕССИЯ ТЕСТА (ANTI-CHEAT) --- */}
             {activeTestSession && (
                <div style={modalOverlay as any}>
-                  <div className="tasks-modal" style={{...modalContent, maxWidth: '800px'} as any}>
+                  <div className="tasks-modal" style={{...modalContentLarge, maxWidth: '800px'} as any}>
                      <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
                         <div onClick={() => {
                             if (confirm("Вы уверены, что хотите прервать тест? Прогресс будет потерян.")) {
@@ -866,7 +922,7 @@ export default function Education({
             {/* --- СРОЧНАЯ АТТЕСТАЦИЯ (ANTI-CHEAT) --- */}
             {activeUrgentTest && (
                <div style={modalOverlay as any}>
-                  <div className="tasks-modal" style={modalContent as any}>
+                  <div className="tasks-modal" style={modalContentLarge as any}>
                      <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
                         <div onClick={() => {setActiveUrgentTest(null); setUrgentTestStep(0); setActiveAnswer(null); setUrgentTestAnswers([]);}} style={{...backLink, margin:0} as any}>← ОТЛОЖИТЬ</div>
                         <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 1, padding: '0 20px'}}>{stripEmoji(activeUrgentTest.name)}</h2>
@@ -889,43 +945,56 @@ export default function Education({
                </div>
             )}
 
-            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ --- */}
+            {/* 💡 КОМПАКТНЫЙ РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ */}
             {showTestForm && (
-                <div style={{...modalOverlay, alignItems: 'flex-start'} as any}>
-                    <div className="tasks-modal custom-scroll" style={{...modalContent, maxWidth: '900px', margin: '0 auto'} as any}>
-                        <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#0abab5', fontWeight: '900' }}>{testFormData.id ? 'РЕДАКТОР ТЕСТА' : 'НОВЫЙ ТЕСТ'}</h2>
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '30px'}}>
-                            <input style={{...adminIn, marginBottom: 0} as any} placeholder="Название теста" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
-                            <input style={{...adminIn, marginBottom: 0} as any} placeholder="Подзаголовок (описание)" value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
-                            <input style={{...adminIn, marginBottom: 0} as any} placeholder="Разделы теории (через запятую)" value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
-                        </div>
+                <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowTestForm(false)}>
+                    <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+                        <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#0abab5', fontWeight: '900', textTransform: 'uppercase' }}>
+                            {testFormData.id ? 'РЕДАКТОР ТЕСТА' : 'НОВЫЙ ТЕСТ'}
+                        </h2>
                         
-                        <div style={{display: 'flex', gap: '15px', marginBottom: '30px'}}>
-                            <div style={{flex: 1}}>
-                                <input list="test-sections" style={{...adminIn, marginBottom: 0} as any} placeholder="Раздел (Папка)" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
-                                <datalist id="test-sections">
-                                    {Array.from(new Set(dynamicTests.map((t: any) => t.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}
-                                </datalist>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px'}}>
+                            <div>
+                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название теста</div>
+                                <input style={adminIn as any} placeholder="Например: Итоговый экзамен" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
                             </div>
-                            <div style={{flex: 1}}>
-                                <input list="test-subsections" style={{...adminIn, marginBottom: 0} as any} placeholder="Подраздел" value={testFormData.subsection} onChange={e => setTestFormData({...testFormData, subsection: e.target.value})} />
-                                <datalist id="test-subsections">
-                                    {Array.from(new Set(dynamicTests.map((t: any) => t.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}
-                                </datalist>
+                            
+                            <div>
+                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Краткое описание</div>
+                                <textarea style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Подзаголовок (описание)..." value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
+                            </div>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                                <div>
+                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел (Папка)</div>
+                                    <input list="test-sections" style={adminIn as any} placeholder="Напр. Итоговые" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
+                                    <datalist id="test-sections">{Array.from(new Set(dynamicTests.map((t: any) => t.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Подраздел</div>
+                                    <input list="test-subsections" style={adminIn as any} placeholder="Напр. Для стажеров" value={testFormData.subsection} onChange={e => setTestFormData({...testFormData, subsection: e.target.value})} />
+                                    <datalist id="test-subsections">{Array.from(new Set(dynamicTests.map((t: any) => t.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Рекомендуемая теория</div>
+                                <textarea style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Разделы теории для изучения перед тестом (через запятую)..." value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
                             </div>
                         </div>
 
-                        <div style={{borderTop: '1px solid #222', paddingTop: '30px'}}>
-                            <h3 style={{fontSize: '20px', color: '#0abab5', marginBottom: '25px', fontWeight: '900'}}>ВОПРОСЫ ({testFormData.quiz.length})</h3>
+                        <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
+                            <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>ВОПРОСЫ ({testFormData.quiz.length})</h3>
                             {testFormData.quiz.map((q: any, qIdx: number) => (
-                                <div key={qIdx} style={{background: '#0d0f0d', padding: '25px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
+                                <div key={qIdx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
                                     {testFormData.quiz.length > 1 && <div onClick={() => removeTestQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'} as any}>✕</div>}
-                                    <input style={{...adminIn, fontWeight: 'bold'} as any} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
-                                    <div className="tasks-quiz-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                                    <input style={{...adminIn, fontWeight: 'bold', marginBottom: '15px'} as any} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
+                                    
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                         {[0,1,2,3].map((i: number) => (
-                                            <div key={i} style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                                                <label style={{display:'flex', gap:'5px', cursor:'pointer', color: q.c === i ? '#0abab5' : '#fff', fontWeight: 'bold'}}><input type="radio" checked={q.c === i} onChange={() => updateTestQuestion(qIdx, 'c', i)} /> Правильный: Вариант {i+1}</label>
-                                                <input style={{...adminIn, marginBottom: 0, borderColor: q.c === i ? '#0abab5' : '#222'} as any} placeholder={`Текст варианта ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
+                                            <div key={i} style={{display: 'flex', alignItems: 'center', gap: '10px', background: q.c === i ? 'rgba(10,186,181,0.1)' : 'transparent', padding: '10px', borderRadius: '10px', border: q.c === i ? '1px solid #0abab5' : '1px solid #222'}}>
+                                                <input type="radio" style={{transform: 'scale(1.2)'}} checked={q.c === i} onChange={() => updateTestQuestion(qIdx, 'c', i)} />
+                                                <input style={{...adminIn, padding: '10px', marginBottom: 0, border: 'none', background: 'transparent', width: '100%'} as any} placeholder={`Вариант ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
                                             </div>
                                         ))}
                                     </div>
@@ -934,20 +1003,7 @@ export default function Education({
                             <button onClick={addTestQuestion} style={{...adminActionBtn, width: '100%', padding: '15px', background: 'transparent'} as any}>+ ДОБАВИТЬ ВОПРОС</button>
                         </div>
                         <button onClick={handleSaveTestForm} style={{...saveBtn, marginTop: '30px'} as any}>СОХРАНИТЬ ТЕСТ</button>
-                        <div onClick={() => setShowTestForm(false)} style={{ textAlign: 'center', marginTop: '25px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ОТМЕНА</div>
-                    </div>
-                </div>
-            )}
-
-            {testToDelete && (
-                <div style={{...errorOverlayStyle, zIndex: 50000} as any}>
-                    <div className="tasks-modal" style={errorModalContent as any}>
-                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
-                        <h2 style={{ fontSize: '24px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ТЕСТ?</h2>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={handleDeleteTest} style={{...errorBtnStyle, flex: 1} as any}>УДАЛИТЬ</button>
-                            <button onClick={() => setTestToDelete(null)} style={{...errorBtnStyle, background: '#333', color: '#fff', flex: 1} as any}>ОТМЕНА</button>
-                        </div>
+                        <div onClick={() => setShowTestForm(false)} style={cancelLink as any}>ОТМЕНА</div>
                     </div>
                 </div>
             )}
@@ -1109,9 +1165,10 @@ const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: 
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };
 const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '800', color: '#666' };
 const backLink: React.CSSProperties = { color: '#0abab5', fontWeight: '900', marginBottom: '30px', cursor: 'pointer', display: 'inline-block', fontSize: '15px' };
-const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.98)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(20px)', padding: '20px', boxSizing: 'border-box' };
-const modalContent: React.CSSProperties = { background: '#000', padding: '60px', borderRadius: '50px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
-const modalContentSmall: React.CSSProperties = { background: '#161816', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '400px', border: '1px solid #333' };
+const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
+const modalContentLarge: React.CSSProperties = { background: '#000', padding: '60px', borderRadius: '50px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
+const modalContentMedium: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '550px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
+const modalContentSmall: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
 const theoryBlock: React.CSSProperties = { background: '#0d0d0d', padding: '30px', borderRadius: '25px', border: '1px solid #222' };
 const theoryLabel: React.CSSProperties = { fontSize: '15px', fontWeight: '800', color: '#0abab5', letterSpacing: '0.5px', marginBottom: '12px' };
 const theoryText: React.CSSProperties = { fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0 };
@@ -1121,9 +1178,10 @@ const flexSpace: React.CSSProperties = { display: 'flex', justifyContent: 'space
 const errorOverlayStyle: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', zIndex: 40000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(12px)' };
 const errorModalContent: React.CSSProperties = { background: '#111', padding: '50px', borderRadius: '40px', border: '2px solid #222', textAlign: 'center', maxWidth: '450px', boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)' };
 const errorBtnStyle: React.CSSProperties = { border: 'none', padding: '18px 40px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '15px', letterSpacing: '1px', marginTop: '15px', width: '100%' };
-const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#111', border: '1px solid #222', borderRadius: '15px', color: '#fff', marginBottom: '15px', outline: 'none', fontSize: '15px' };
-const saveBtn: React.CSSProperties = { width: '100%', padding: '20px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '10px', fontSize: '16px' };
+const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
+const saveBtn: React.CSSProperties = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '25px', fontSize: '15px', letterSpacing: '1px' };
 const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
-const editIconStyle: React.CSSProperties = { background: '#111', color: '#0abab5', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
-const delIconStyle: React.CSSProperties = { background: '#111', color: '#ff4d4d', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
-const moveIconStyle: React.CSSProperties = { background: '#111', color: '#fff', border: '1px solid #222', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0 };
+const editIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#0abab5', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const delIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const moveIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#fff', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const cancelLink: React.CSSProperties = { textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
