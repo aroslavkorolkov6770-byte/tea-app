@@ -313,7 +313,25 @@ export const INITIAL_ASSORTMENT = [
 ];
 
 // --- КОМПОНЕНТ РЕКУРСИВНОГО УЗЛА ---
-function AssortmentNode({ node, depth = 0, targetId }: { node: any, depth?: number, targetId?: string | null }) {
+function AssortmentNode({ 
+    node, 
+    depth = 0, 
+    targetId, 
+    isAdmin, 
+    onAdd, 
+    onEdit, 
+    onDelete, 
+    onMove 
+}: { 
+    node: any, 
+    depth?: number, 
+    targetId?: string | null,
+    isAdmin: boolean,
+    onAdd: (id: string) => void,
+    onEdit: (node: any) => void,
+    onDelete: (id: string) => void,
+    onMove: (id: string, direction: 'up' | 'down') => void
+}) {
     const hasTargetInChildren = (n: any, t: string): boolean => {
         if (n.id === t) return true;
         if (n.children) return n.children.some((c: any) => hasTargetInChildren(c, t));
@@ -333,25 +351,38 @@ function AssortmentNode({ node, depth = 0, targetId }: { node: any, depth?: numb
 
     return (
         <div style={{ marginLeft: depth === 0 ? '0' : '20px', borderLeft: depth === 0 ? 'none' : '1px solid #333', paddingLeft: depth === 0 ? '0' : '15px', marginTop: depth === 0 ? '12px' : '8px', marginBottom: depth === 0 ? '12px' : '8px' }}>
-            <div 
-                onClick={() => setIsOpen(!isOpen)} 
-                style={{
-                    display: 'flex', alignItems: 'center', padding: '14px 18px', background: isOpen ? '#1a1a1a' : '#111', color: '#fff', borderRadius: '10px', cursor: 'pointer', 
+            <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: isOpen ? '#1a1a1a' : '#111', borderRadius: '10px', 
                     border: isTarget ? '1px solid #0abab5' : '1px solid #222',
                     boxShadow: isTarget ? '0 0 15px rgba(10,186,181,0.2)' : 'none',
                     transition: 'all 0.15s ease'
                 }}
             >
-                <span style={{ marginRight: '12px', color: '#0abab5', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.15s', fontSize: '12px' }}>
-                    {hasChildren ? '▶' : '•'}
-                </span>
-                <span style={{ fontWeight: depth === 0 ? 'bold' : 'normal', fontSize: depth === 0 ? '18px' : '16px' }}>{node.title}</span>
+                <div onClick={() => setIsOpen(!isOpen)} style={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer', color: '#fff' }}>
+                    <span style={{ marginRight: '12px', color: '#0abab5', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.15s', fontSize: '12px' }}>
+                        {hasChildren ? '▶' : '•'}
+                    </span>
+                    <span style={{ fontWeight: depth === 0 ? 'bold' : 'normal', fontSize: depth === 0 ? '18px' : '16px' }}>{node.title}</span>
+                </div>
+                
+                {/* 💡 ПАНЕЛЬ АДМИНА ДЛЯ КАЖДОЙ СТРОКИ */}
+                {isAdmin && (
+                    <div style={{ display: 'flex', gap: '6px', marginLeft: '15px' }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => onMove(node.id, 'up')} title="Переместить выше" style={adminIconBtn as any}>↑</button>
+                        <button onClick={() => onMove(node.id, 'down')} title="Переместить ниже" style={adminIconBtn as any}>↓</button>
+                        <button onClick={() => onAdd(node.id)} title="Добавить подраздел" style={adminIconBtn as any}>➕</button>
+                        <button onClick={() => onEdit(node)} title="Редактировать" style={adminIconBtn as any}>✎</button>
+                        <button onClick={() => onDelete(node.id)} title="Удалить" style={{...adminIconBtn, color: '#ff4d4d'} as any}>✕</button>
+                    </div>
+                )}
             </div>
             
             {isOpen && (
                 <div style={{ marginTop: '8px', animation: 'fadeInUp 0.2s ease' }}>
                     {node.desc && <div style={{ padding: '12px 18px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1a1a1a' }}>{node.desc}</div>}
-                    {hasChildren && node.children.map((child: any) => <AssortmentNode key={child.id} node={child} depth={depth + 1} targetId={targetId} />)}
+                    {hasChildren && node.children.map((child: any) => (
+                        <AssortmentNode key={child.id} node={child} depth={depth + 1} targetId={targetId} isAdmin={isAdmin} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onMove={onMove} />
+                    ))}
                     {!hasChildren && node.content && <div style={{ padding: '18px', background: '#000', borderRadius: '8px', border: '1px solid #222', color: '#ddd', fontSize: '15px', lineHeight: '1.5', marginTop: '8px' }}>{node.content}</div>}
                 </div>
             )}
@@ -361,21 +392,237 @@ function AssortmentNode({ node, depth = 0, targetId }: { node: any, depth?: numb
 
 // --- ОСНОВНОЙ КОМПОНЕНТ ---
 export default function Assortment({ assortmentMatrix, assortmentId }: { assortmentMatrix: any[], assortmentId: string | null }) {
-    const dataToRender = assortmentMatrix && assortmentMatrix.length > 0 ? assortmentMatrix : INITIAL_ASSORTMENT;
+    const [localMatrix, setLocalMatrix] = useState<any[]>([]);
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    // Модальное окно
+    const [modalConfig, setModalConfig] = useState<{isOpen: boolean, mode: 'add' | 'edit', parentId: string | null, data: any}>({
+        isOpen: false, mode: 'add', parentId: null, data: { id: '', title: '', desc: '', content: '' }
+    });
+
+    useEffect(() => {
+        setIsAdmin(localStorage.getItem('userRole') === 'admin');
+        if (assortmentMatrix && assortmentMatrix.length > 0) {
+            setLocalMatrix(assortmentMatrix);
+        } else {
+            setLocalMatrix(INITIAL_ASSORTMENT);
+        }
+    }, [assortmentMatrix]);
+
+    // Функция сохранения на сервер
+    const saveMatrix = (newMatrix: any[]) => {
+        setLocalMatrix(newMatrix);
+        localStorage.setItem('th_cache_assortment_matrix_v2', JSON.stringify(newMatrix));
+        fetch('/api/storage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'tea_hub_assortment_matrix_v2', data: newMatrix })
+        }).catch(e => console.error(e));
+    };
+
+    // --- ФУНКЦИИ РЕДАКТИРОВАНИЯ ДЕРЕВА ---
+    const handleAddNode = (parentId: string | null) => {
+        setModalConfig({ isOpen: true, mode: 'add', parentId, data: { id: '', title: '', desc: '', content: '' } });
+    };
+
+    const handleEditNode = (node: any) => {
+        setModalConfig({ isOpen: true, mode: 'edit', parentId: null, data: { id: node.id, title: node.title || '', desc: node.desc || '', content: node.content || '' } });
+    };
+
+    const handleDeleteNode = (id: string) => {
+        if (!window.confirm("Удалить этот раздел и все его вложения? Это действие нельзя отменить.")) return;
+        
+        const deleteRecursive = (nodes: any[]): any[] => {
+            return nodes.filter(n => n.id !== id).map(n => {
+                if (n.children) return { ...n, children: deleteRecursive(n.children) };
+                return n;
+            });
+        };
+        saveMatrix(deleteRecursive(localMatrix));
+    };
+
+    const handleMoveNode = (id: string, direction: 'up' | 'down') => {
+        const moveRecursive = (nodes: any[]): any[] => {
+            const index = nodes.findIndex(n => n.id === id);
+            if (index !== -1) {
+                const newNodes = [...nodes];
+                if (direction === 'up' && index > 0) {
+                    [newNodes[index - 1], newNodes[index]] = [newNodes[index], newNodes[index - 1]];
+                } else if (direction === 'down' && index < newNodes.length - 1) {
+                    [newNodes[index + 1], newNodes[index]] = [newNodes[index], newNodes[index + 1]];
+                }
+                return newNodes;
+            }
+            return nodes.map(n => {
+                if (n.children) return { ...n, children: moveRecursive(n.children) };
+                return n;
+            });
+        };
+        saveMatrix(moveRecursive(localMatrix));
+    };
+
+    // --- СОХРАНЕНИЕ МОДАЛКИ ---
+    const handleSaveModal = () => {
+        if (!modalConfig.data.title.trim()) {
+            alert("Название обязательно!");
+            return;
+        }
+
+        const newNode = {
+            id: modalConfig.mode === 'edit' ? modalConfig.data.id : 'as_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            title: modalConfig.data.title.trim(),
+            desc: modalConfig.data.desc.trim(),
+            content: modalConfig.data.content.trim(),
+        };
+        // Если узел не имеет desc/content, не сохраняем пустые строки, чтобы не засорять базу
+        if (!newNode.desc) delete (newNode as any).desc;
+        if (!newNode.content) delete (newNode as any).content;
+
+        if (modalConfig.mode === 'add') {
+            const addRecursive = (nodes: any[]): any[] => {
+                if (!modalConfig.parentId) return [...nodes, newNode];
+                return nodes.map(n => {
+                    if (n.id === modalConfig.parentId) {
+                        return { ...n, children: [...(n.children || []), newNode] };
+                    }
+                    if (n.children) return { ...n, children: addRecursive(n.children) };
+                    return n;
+                });
+            };
+            saveMatrix(addRecursive(localMatrix));
+        } else {
+            const editRecursive = (nodes: any[]): any[] => {
+                return nodes.map(n => {
+                    if (n.id === modalConfig.data.id) {
+                        return { ...n, ...newNode };
+                    }
+                    if (n.children) return { ...n, children: editRecursive(n.children) };
+                    return n;
+                });
+            };
+            saveMatrix(editRecursive(localMatrix));
+        }
+
+        setModalConfig({ ...modalConfig, isOpen: false });
+    };
+
     return (
         <section style={{ animation: 'fadeInUp 0.5s ease', maxWidth: '100%' }}>
-            <h2 style={{ fontSize: '32px', fontWeight: '900', marginBottom: '15px' }}>Каталог товаров (Ассортимент)</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '15px' }}>
+                <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>Каталог товаров (Ассортимент)</h2>
+                {isAdmin && (
+                    <button onClick={() => handleAddNode(null)} style={adminActionBtn as any}>+ ДОБАВИТЬ ГЛАВНЫЙ РАЗДЕЛ</button>
+                )}
+            </div>
+
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '35px', lineHeight: '1.5', maxWidth: '700px' }}>
                 Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов.
             </p>
+            
             <div style={{ marginTop: '10px' }}>
-                {dataToRender.map((rootNode: any) => <AssortmentNode key={rootNode.id} node={rootNode} depth={0} targetId={assortmentId} />)}
+                {localMatrix.map((rootNode: any) => (
+                    <AssortmentNode 
+                        key={rootNode.id} 
+                        node={rootNode} 
+                        depth={0} 
+                        targetId={assortmentId} 
+                        isAdmin={isAdmin}
+                        onAdd={handleAddNode}
+                        onEdit={handleEditNode}
+                        onDelete={handleDeleteNode}
+                        onMove={handleMoveNode}
+                    />
+                ))}
             </div>
+
+            {/* 💡 МОДАЛЬНОЕ ОКНО РЕДАКТОРА */}
+            {modalConfig.isOpen && (
+                <div style={modalOverlay as any} onClick={() => setModalConfig({...modalConfig, isOpen: false})}>
+                    <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
+                        <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center', textTransform: 'uppercase' }}>
+                            {modalConfig.mode === 'add' ? 'Новый раздел' : 'Редактировать'}
+                        </h2>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <div>
+                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название (Обязательно)</div>
+                                <input style={adminIn as any} placeholder="Например: 1.1 Зеленый чай" value={modalConfig.data.title} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, title: e.target.value}})} />
+                            </div>
+                            
+                            <div>
+                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Краткое описание (Под названием)</div>
+                                <textarea style={{...adminIn, height: '80px', resize: 'vertical'} as any} placeholder="Вспомогательный текст..." value={modalConfig.data.desc} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, desc: e.target.value}})} />
+                            </div>
+
+                            <div>
+                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Полный текст (Содержание для товара)</div>
+                                <textarea style={{...adminIn, height: '120px', resize: 'vertical'} as any} placeholder="Основной текст, который раскроется в самом конце..." value={modalConfig.data.content} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, content: e.target.value}})} />
+                            </div>
+                        </div>
+
+                        <button onClick={handleSaveModal} style={saveBtn as any}>СОХРАНИТЬ</button>
+                        <div onClick={() => setModalConfig({...modalConfig, isOpen: false})} style={{ textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>ОТМЕНА</div>
+                    </div>
+                </div>
+            )}
+
             <style jsx global>{`
                 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
                 .assortment-row:hover { border-color: #0abab5 !important; }
                 .assortment-row:active { transform: scale(0.98) !important; background: #0abab5 !important; color: #000 !important; }
+                
+                /* Стилизация скролла для текстовых полей */
+                textarea::-webkit-scrollbar { width: 4px; }
+                textarea::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
             `}</style>
         </section>
     );
 }
+
+// --- СТИЛИ АДМИНКИ ---
+const adminIconBtn = {
+    background: '#1a1a1a', 
+    border: '1px solid #333', 
+    borderRadius: '6px', 
+    color: '#0abab5',
+    width: '28px', 
+    height: '28px', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    cursor: 'pointer', 
+    fontSize: '12px', 
+    transition: '0.2s',
+    fontWeight: 'bold'
+};
+
+const adminActionBtn = { 
+    background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', 
+    padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', 
+    fontSize: '13px', letterSpacing: '1px', transition: '0.2s' 
+};
+
+const adminIn = { 
+    width: '100%', padding: '16px', background: '#000', border: '1px solid #333', 
+    borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', 
+    fontSize: '15px', boxSizing: 'border-box' 
+};
+
+const saveBtn = { 
+    width: '100%', padding: '18px', background: '#0abab5', color: '#000', 
+    border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', 
+    marginTop: '25px', fontSize: '15px', letterSpacing: '1px' 
+};
+
+const modalOverlay = { 
+    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
+    background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', 
+    justifyContent: 'center', zIndex: 30000, backdropFilter: 'blur(15px)', 
+    padding: '20px', boxSizing: 'border-box' 
+};
+
+const modalContentSmall = { 
+    background: '#111', padding: '40px 30px', borderRadius: '40px', 
+    width: '100%', maxWidth: '450px', border: '1px solid #333', 
+    boxSizing: 'border-box', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' 
+};
