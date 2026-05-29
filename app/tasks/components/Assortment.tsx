@@ -395,10 +395,13 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
     const [localMatrix, setLocalMatrix] = useState<any[]>([]);
     const [isAdmin, setIsAdmin] = useState(false);
 
-    // Модальное окно
+    // Модальные окна
     const [modalConfig, setModalConfig] = useState<{isOpen: boolean, mode: 'add' | 'edit', parentId: string | null, data: any}>({
         isOpen: false, mode: 'add', parentId: null, data: { id: '', title: '', desc: '', content: '' }
     });
+    
+    // 💡 Кастомное модальное окно для подтверждения удаления
+    const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, id: string | null}>({ isOpen: false, id: null });
 
     useEffect(() => {
         setIsAdmin(localStorage.getItem('userRole') === 'admin');
@@ -430,7 +433,13 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
     };
 
     const handleDeleteNode = (id: string) => {
-        if (!window.confirm("Удалить этот раздел и все его вложения? Это действие нельзя отменить.")) return;
+        // Открываем стильное окно вместо стандартного браузерного alert/confirm
+        setConfirmDelete({ isOpen: true, id });
+    };
+
+    const executeDeleteNode = () => {
+        if (!confirmDelete.id) return;
+        const id = confirmDelete.id;
         
         const deleteRecursive = (nodes: any[]): any[] => {
             return nodes.filter(n => n.id !== id).map(n => {
@@ -438,7 +447,9 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                 return n;
             });
         };
+        
         saveMatrix(deleteRecursive(localMatrix));
+        setConfirmDelete({ isOpen: false, id: null });
     };
 
     const handleMoveNode = (id: string, direction: 'up' | 'down') => {
@@ -535,7 +546,7 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                 ))}
             </div>
 
-            {/* 💡 МОДАЛЬНОЕ ОКНО РЕДАКТОРА */}
+            {/* 💡 МОДАЛЬНОЕ ОКНО РЕДАКТОРА (resize отключен) */}
             {modalConfig.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setModalConfig({...modalConfig, isOpen: false})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -551,17 +562,36 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                             
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Краткое описание (Под названием)</div>
-                                <textarea style={{...adminIn, height: '80px', resize: 'vertical'} as any} placeholder="Вспомогательный текст..." value={modalConfig.data.desc} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, desc: e.target.value}})} />
+                                {/* 💡 resize: 'none' блокирует растягивание */}
+                                <textarea style={{...adminIn, height: '80px', resize: 'none'} as any} placeholder="Вспомогательный текст..." value={modalConfig.data.desc} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, desc: e.target.value}})} />
                             </div>
 
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Полный текст (Содержание для товара)</div>
-                                <textarea style={{...adminIn, height: '120px', resize: 'vertical'} as any} placeholder="Основной текст, который раскроется в самом конце..." value={modalConfig.data.content} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, content: e.target.value}})} />
+                                {/* 💡 resize: 'none' блокирует растягивание */}
+                                <textarea style={{...adminIn, height: '120px', resize: 'none'} as any} placeholder="Основной текст, который раскроется в самом конце..." value={modalConfig.data.content} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, content: e.target.value}})} />
                             </div>
                         </div>
 
                         <button onClick={handleSaveModal} style={saveBtn as any}>СОХРАНИТЬ</button>
                         <div onClick={() => setModalConfig({...modalConfig, isOpen: false})} style={{ textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>ОТМЕНА</div>
+                    </div>
+                </div>
+            )}
+
+            {/* 💡 НОВОЕ: СТИЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ */}
+            {confirmDelete.isOpen && (
+                <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, id: null})}>
+                    <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                        <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>УДАЛИТЬ РАЗДЕЛ?</h2>
+                        <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
+                            Вы уверены, что хотите удалить этот раздел и все его вложения? Это действие необратимо.
+                        </p>
+                        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                            <button onClick={() => setConfirmDelete({isOpen: false, id: null})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button onClick={executeDeleteNode} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>УДАЛИТЬ</button>
+                        </div>
                     </div>
                 </div>
             )}
