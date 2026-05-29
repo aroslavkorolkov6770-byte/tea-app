@@ -343,6 +343,9 @@ function AssortmentNode({
     const isTarget = targetId === node.id;
     const hasChildren = node.children && node.children.length > 0;
 
+    // 💡 Тот самый фикс! Теперь мы берем текст из desc или из content, поэтому описание не пропадает
+    const descText = node.desc || node.content;
+
     useEffect(() => {
         if (targetId && hasTargetInChildren(node, targetId)) {
             setIsOpen(true);
@@ -358,16 +361,17 @@ function AssortmentNode({
                     transition: 'all 0.15s ease'
                 }}
             >
-                <div onClick={() => setIsOpen(!isOpen)} style={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer', color: '#fff' }}>
-                    <span style={{ marginRight: '12px', color: '#0abab5', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.15s', fontSize: '12px' }}>
+                <div onClick={() => setIsOpen(!isOpen)} style={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer', color: '#fff', minWidth: 0, paddingRight: '10px' }}>
+                    <span style={{ marginRight: '12px', color: '#0abab5', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.15s', fontSize: '12px', flexShrink: 0 }}>
                         {hasChildren ? '▶' : '•'}
                     </span>
-                    <span style={{ fontWeight: depth === 0 ? 'bold' : 'normal', fontSize: depth === 0 ? '18px' : '16px' }}>{node.title}</span>
+                    {/* 💡 Фикс переноса текста заголовка */}
+                    <span style={{ fontWeight: depth === 0 ? 'bold' : 'normal', fontSize: depth === 0 ? '18px' : '16px', wordBreak: 'break-word', lineHeight: '1.3' }}>{node.title}</span>
                 </div>
                 
-                {/* 💡 ПАНЕЛЬ АДМИНА ДЛЯ КАЖДОЙ СТРОКИ */}
+                {/* ПАНЕЛЬ АДМИНА ДЛЯ КАЖДОЙ СТРОКИ */}
                 {isAdmin && (
-                    <div style={{ display: 'flex', gap: '6px', marginLeft: '15px' }} onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                         <button onClick={() => onMove(node.id, 'up')} title="Переместить выше" style={adminIconBtn as any}>↑</button>
                         <button onClick={() => onMove(node.id, 'down')} title="Переместить ниже" style={adminIconBtn as any}>↓</button>
                         <button onClick={() => onAdd(node.id)} title="Добавить подраздел" style={adminIconBtn as any}>➕</button>
@@ -379,11 +383,15 @@ function AssortmentNode({
             
             {isOpen && (
                 <div style={{ marginTop: '8px', animation: 'fadeInUp 0.2s ease' }}>
-                    {node.desc && <div style={{ padding: '12px 18px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1a1a1a' }}>{node.desc}</div>}
+                    {/* 💡 Фикс переноса текста и отображения старых описаний */}
+                    {descText && (
+                        <div style={{ padding: '12px 18px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1a1a1a', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                            {descText}
+                        </div>
+                    )}
                     {hasChildren && node.children.map((child: any) => (
                         <AssortmentNode key={child.id} node={child} depth={depth + 1} targetId={targetId} isAdmin={isAdmin} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onMove={onMove} />
                     ))}
-                    {!hasChildren && node.content && <div style={{ padding: '18px', background: '#000', borderRadius: '8px', border: '1px solid #222', color: '#ddd', fontSize: '15px', lineHeight: '1.5', marginTop: '8px' }}>{node.content}</div>}
                 </div>
             )}
         </div>
@@ -397,10 +405,10 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
 
     // Модальные окна
     const [modalConfig, setModalConfig] = useState<{isOpen: boolean, mode: 'add' | 'edit', parentId: string | null, data: any}>({
-        isOpen: false, mode: 'add', parentId: null, data: { id: '', title: '', desc: '', content: '' }
+        isOpen: false, mode: 'add', parentId: null, data: { id: '', title: '', desc: '' }
     });
     
-    // 💡 Кастомное модальное окно для подтверждения удаления
+    // Кастомное модальное окно для подтверждения удаления
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, id: string | null}>({ isOpen: false, id: null });
 
     useEffect(() => {
@@ -425,15 +433,17 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
 
     // --- ФУНКЦИИ РЕДАКТИРОВАНИЯ ДЕРЕВА ---
     const handleAddNode = (parentId: string | null) => {
-        setModalConfig({ isOpen: true, mode: 'add', parentId, data: { id: '', title: '', desc: '', content: '' } });
+        setModalConfig({ isOpen: true, mode: 'add', parentId, data: { id: '', title: '', desc: '' } });
     };
 
     const handleEditNode = (node: any) => {
-        setModalConfig({ isOpen: true, mode: 'edit', parentId: null, data: { id: node.id, title: node.title || '', desc: node.desc || '', content: node.content || '' } });
+        // Забираем desc или content (для старых записей), чтобы объединить всё в одно поле
+        const existingDesc = node.desc || node.content || '';
+        setModalConfig({ isOpen: true, mode: 'edit', parentId: null, data: { id: node.id, title: node.title || '', desc: existingDesc } });
     };
 
     const handleDeleteNode = (id: string) => {
-        // Открываем стильное окно вместо стандартного браузерного alert/confirm
+        // Открываем стильное окно
         setConfirmDelete({ isOpen: true, id });
     };
 
@@ -483,11 +493,8 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
             id: modalConfig.mode === 'edit' ? modalConfig.data.id : 'as_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
             title: modalConfig.data.title.trim(),
             desc: modalConfig.data.desc.trim(),
-            content: modalConfig.data.content.trim(),
         };
-        // Если узел не имеет desc/content, не сохраняем пустые строки, чтобы не засорять базу
         if (!newNode.desc) delete (newNode as any).desc;
-        if (!newNode.content) delete (newNode as any).content;
 
         if (modalConfig.mode === 'add') {
             const addRecursive = (nodes: any[]): any[] => {
@@ -505,7 +512,10 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
             const editRecursive = (nodes: any[]): any[] => {
                 return nodes.map(n => {
                     if (n.id === modalConfig.data.id) {
-                        return { ...n, ...newNode };
+                        // 💡 Обновляем узел и удаляем старое свойство content, так как мы теперь используем только desc
+                        const updatedNode = { ...n, ...newNode };
+                        delete updatedNode.content;
+                        return updatedNode;
                     }
                     if (n.children) return { ...n, children: editRecursive(n.children) };
                     return n;
@@ -546,7 +556,7 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                 ))}
             </div>
 
-            {/* 💡 МОДАЛЬНОЕ ОКНО РЕДАКТОРА (resize отключен) */}
+            {/* МОДАЛЬНОЕ ОКНО РЕДАКТОРА */}
             {modalConfig.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setModalConfig({...modalConfig, isOpen: false})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -560,16 +570,10 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                                 <input style={adminIn as any} placeholder="Например: 1.1 Зеленый чай" value={modalConfig.data.title} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, title: e.target.value}})} />
                             </div>
                             
+                            {/* 💡 Одно большое поле описания без возможности растягивания */}
                             <div>
-                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Краткое описание (Под названием)</div>
-                                {/* 💡 resize: 'none' блокирует растягивание */}
-                                <textarea style={{...adminIn, height: '80px', resize: 'none'} as any} placeholder="Вспомогательный текст..." value={modalConfig.data.desc} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, desc: e.target.value}})} />
-                            </div>
-
-                            <div>
-                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Полный текст (Содержание для товара)</div>
-                                {/* 💡 resize: 'none' блокирует растягивание */}
-                                <textarea style={{...adminIn, height: '120px', resize: 'none'} as any} placeholder="Основной текст, который раскроется в самом конце..." value={modalConfig.data.content} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, content: e.target.value}})} />
+                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Описание раздела/товара</div>
+                                <textarea style={{...adminIn, height: '200px', resize: 'none'} as any} placeholder="Опишите этот товар или категорию..." value={modalConfig.data.desc} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, desc: e.target.value}})} />
                             </div>
                         </div>
 
@@ -579,7 +583,7 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                 </div>
             )}
 
-            {/* 💡 НОВОЕ: СТИЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ */}
+            {/* СТИЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ */}
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, id: null})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
@@ -601,7 +605,6 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                 .assortment-row:hover { border-color: #0abab5 !important; }
                 .assortment-row:active { transform: scale(0.98) !important; background: #0abab5 !important; color: #000 !important; }
                 
-                /* Стилизация скролла для текстовых полей */
                 textarea::-webkit-scrollbar { width: 4px; }
                 textarea::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
             `}</style>
