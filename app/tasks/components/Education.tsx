@@ -50,12 +50,12 @@ export default function Education({
         quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] 
     });
 
-    // 💡 ЕДИНОЕ СОСТОЯНИЕ УДАЛЕНИЯ (вместо window.confirm)
+    // ЕДИНОЕ СОСТОЯНИЕ УДАЛЕНИЯ (вместо window.confirm)
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, type: 'route'|'test'|'section_route'|'section_test', targetId: string, name: string}>({
         isOpen: false, type: 'route', targetId: '', name: ''
     });
 
-    // 💡 СОСТОЯНИЕ ДЛЯ СОЗДАНИЯ РАЗДЕЛА (вместо window.prompt)
+    // СОСТОЯНИЕ ДЛЯ СОЗДАНИЯ РАЗДЕЛА (вместо window.prompt)
     const [promptSection, setPromptSection] = useState<{isOpen: boolean, type: 'route'|'test', name: string}>({
         isOpen: false, type: 'route', name: ''
     });
@@ -224,7 +224,7 @@ export default function Education({
         setMoveNewSectionName('');
     };
 
-    // --- ЕДИНАЯ ЛОГИКА УДАЛЕНИЯ (БЕЗ WINDOW.CONFIRM) ---
+    // --- ЕДИНАЯ ЛОГИКА УДАЛЕНИЯ ---
     const executeDelete = () => {
         if (confirmDelete.type === 'section_route') {
             const updated = dynamicRoute.filter((r: any) => (r.section?.trim() || 'Основной раздел') !== confirmDelete.targetId);
@@ -246,34 +246,49 @@ export default function Education({
         setConfirmDelete({ isOpen: false, type: 'route', targetId: '', name: '' });
     };
 
-    // --- ЛОГИКА СОЗДАНИЯ РАЗДЕЛА ---
+    // --- 💡 ЛОГИКА СОЗДАНИЯ ПУСТОГО РАЗДЕЛА ---
     const confirmPromptSection = () => {
         if (!promptSection.name.trim()) return;
+        const newSecName = promptSection.name.trim();
+
+        // Мы сохраняем скрытый "placeholder" элемент. Он создаст раздел, но не будет выводиться как карточка.
         if (promptSection.type === 'route') {
-            setRouteFormData({ id: '', title: '', time: '5 мин', section: promptSection.name.trim(), subsection: '', h1: '', t1: '', h2: '', t2: '', h3: '', t3: '' });
-            setShowRouteForm(true);
+            const placeholder = { id: 'placeholder_' + Date.now(), section: newSecName, isPlaceholder: true };
+            const updated = [...dynamicRoute, placeholder];
+            setDynamicRoute(updated);
+            saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, updated);
         } else {
-            setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: promptSection.name.trim(), subsection: '', quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] });
-            setShowTestForm(true);
+            const placeholder = { id: 'placeholder_' + Date.now(), section: newSecName, isPlaceholder: true };
+            const updated = [...dynamicTests, placeholder];
+            setDynamicTests(updated);
+            saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, updated);
         }
+        
         setPromptSection({ isOpen: false, type: 'route', name: '' });
     };
 
     // --- ГРУППИРОВКА ДАННЫХ ДЛЯ РЕНДЕРА ---
     const groupItems = (items: any[]) => {
         const groups: Record<string, Record<string, any[]>> = {};
-        items.forEach(item => {
+        items.forEach((item: any) => {
             const sec = item.section?.trim() || 'Основной раздел';
             const subsec = item.subsection?.trim() || '';
             if (!groups[sec]) groups[sec] = {};
             if (!groups[sec][subsec]) groups[sec][subsec] = [];
-            groups[sec][subsec].push(item);
+            
+            // Закидываем в массив только реальные карточки, игнорируем плейсхолдеры
+            if (!item.isPlaceholder) {
+                groups[sec][subsec].push(item);
+            }
         });
         return groups;
     };
 
     const theoryGroups = groupItems(dynamicRoute || []);
     const testGroups = groupItems(dynamicTests || []);
+
+    // Массив только реальных тестов (чтобы блокировки работали правильно, игнорируя пустые папки)
+    const realTests = (dynamicTests || []).filter((t: any) => !t.isPlaceholder);
 
     // --- ПРОХОЖДЕНИЕ ОСНОВНОГО ТЕСТА ---
     const handleTestAnswer = (idx: number) => {
@@ -495,37 +510,44 @@ export default function Education({
                                    <h4 style={{ fontSize: '14px', color: '#aaa', marginBottom: '15px', marginLeft: '5px' }}>• {subsecName}</h4>
                                )}
                                <div className="premium-cards-container">
-                                   {items.map((step: any, idx: number) => {
-                                       const isDone = completedRoute.includes(step.id);
-                                       return (
-                                           <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="premium-card">
-                                              {isAdmin && (
-                                                  <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                                      <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} style={moveIconStyle} title="Переместить">📦</div>
-                                                      <div onClick={(e) => { 
-                                                          e.stopPropagation(); 
-                                                          setRouteFormData({
-                                                              id: step.id, title: step.title, time: step.time || '5 мин', 
-                                                              section: step.section || '', subsection: step.subsection || '',
-                                                              h1: step.h1, t1: step.t1, h2: step.h2, t2: step.t2, h3: step.h3, t3: step.t3
-                                                          }); 
-                                                          setShowRouteForm(true); 
-                                                      }} style={editIconStyle} title="Редактировать">✎</div>
-                                                      <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} style={delIconStyle} title="Удалить">✕</div>
+                                   {/* 💡 Если раздел пуст (только плейсхолдер), показываем красивую заглушку */}
+                                   {items.length === 0 ? (
+                                       <div style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>
+                                           В этом разделе пока нет материалов...
+                                       </div>
+                                   ) : (
+                                       items.map((step: any, idx: number) => {
+                                           const isDone = completedRoute.includes(step.id);
+                                           return (
+                                               <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="premium-card">
+                                                  {isAdmin && (
+                                                      <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
+                                                          <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} style={moveIconStyle} title="Переместить">📦</div>
+                                                          <div onClick={(e) => { 
+                                                              e.stopPropagation(); 
+                                                              setRouteFormData({
+                                                                  id: step.id, title: step.title, time: step.time || '5 мин', 
+                                                                  section: step.section || '', subsection: step.subsection || '',
+                                                                  h1: step.h1, t1: step.t1, h2: step.h2, t2: step.t2, h3: step.h3, t3: step.t3
+                                                              }); 
+                                                              setShowRouteForm(true); 
+                                                          }} style={editIconStyle} title="Редактировать">✎</div>
+                                                          <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} style={delIconStyle} title="Удалить">✕</div>
+                                                      </div>
+                                                  )}
+                                                  <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px'}}>Урок {idx+1}</span>
+                                                  <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(step.title)}</h4>
+                                                  
+                                                  <div style={{ marginTop: 'auto' }}>
+                                                      <div style={pBarBg}>
+                                                          <div style={pBarFill(isDone ? 100 : 0)} />
+                                                      </div>
+                                                      <div style={cardFooter}><span>{isDone ? 'Выполнено' : 'Начать'}</span><span>{step.time}</span></div>
                                                   </div>
-                                              )}
-                                              <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px'}}>Урок {idx+1}</span>
-                                              <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(step.title)}</h4>
-                                              
-                                              <div style={{ marginTop: 'auto' }}>
-                                                  <div style={pBarBg}>
-                                                      <div style={pBarFill(isDone ? 100 : 0)} />
-                                                  </div>
-                                                  <div style={cardFooter}><span>{isDone ? 'Выполнено' : 'Начать'}</span><span>{step.time}</span></div>
-                                              </div>
-                                           </div>
-                                       );
-                                   })}
+                                               </div>
+                                           );
+                                       })
+                                   )}
                                </div>
                            </div>
                        ))}
@@ -563,53 +585,61 @@ export default function Education({
                                    <h4 style={{ fontSize: '14px', color: '#aaa', marginBottom: '15px', marginLeft: '5px' }}>• {subsecName}</h4>
                                )}
                                <div className="premium-cards-container">
-                                   {items.map((test: any, idx: number) => {
-                                       const isDone = completedTests.includes(test.id);
-                                       const globalIdx = dynamicTests.findIndex((t: any) => t.id === test.id);
-                                       const isUnlocked = isAdmin || globalIdx === 0 || completedTests.includes(dynamicTests[globalIdx - 1]?.id);
-                                       
-                                       return (
-                                           <div key={test.id} onClick={() => { 
-                                                   if (isUnlocked) setSelectedTest(test); 
-                                                   else setLockedTestAlert({show: true, message: `Сначала необходимо успешно сдать предыдущий тест.`});
-                                               }} 
-                                               className="premium-card" 
-                                               style={{ borderColor: isUnlocked ? '#222' : '#111', cursor: isUnlocked ? 'pointer' : 'not-allowed' }}
-                                           >
-                                              {!isUnlocked && (
-                                                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', borderRadius: '14px', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}>
-                                                      <span style={{ fontSize: '40px' }}>🔒</span>
-                                                  </div>
-                                              )}
+                                   {/* 💡 Заглушка для пустых разделов тестов */}
+                                   {items.length === 0 ? (
+                                       <div style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>
+                                           В этом разделе пока нет тестов...
+                                       </div>
+                                   ) : (
+                                       items.map((test: any, idx: number) => {
+                                           const isDone = completedTests.includes(test.id);
+                                           // 💡 Блокировка вычисляется только по реальным тестам
+                                           const globalIdx = realTests.findIndex((t: any) => t.id === test.id);
+                                           const isUnlocked = isAdmin || globalIdx <= 0 || completedTests.includes(realTests[globalIdx - 1]?.id);
+                                           
+                                           return (
+                                               <div key={test.id} onClick={() => { 
+                                                       if (isUnlocked) setSelectedTest(test); 
+                                                       else setLockedTestAlert({show: true, message: `Сначала необходимо успешно сдать предыдущий тест.`});
+                                                   }} 
+                                                   className="premium-card" 
+                                                   style={{ borderColor: isUnlocked ? '#222' : '#111', cursor: isUnlocked ? 'pointer' : 'not-allowed' }}
+                                               >
+                                                  {!isUnlocked && (
+                                                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', borderRadius: '14px', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}>
+                                                          <span style={{ fontSize: '40px' }}>🔒</span>
+                                                      </div>
+                                                  )}
 
-                                              {isAdmin && (
-                                                   <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                                       <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} style={moveIconStyle} title="Переместить">📦</div>
-                                                       <div onClick={(e) => { 
-                                                           e.stopPropagation(); 
-                                                           setTestFormData({
-                                                               id: test.id, title: test.title, subtitle: test.subtitle, theory: test.theory,
-                                                               section: test.section || '', subsection: test.subsection || '',
-                                                               quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }]
-                                                           }); 
-                                                           setShowTestForm(true); 
-                                                       }} style={editIconStyle} title="Редактировать">✎</div>
-                                                       <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'test', targetId: test.id, name: test.title}); }} style={delIconStyle} title="Удалить">✕</div>
-                                                   </div>
-                                               )}
+                                                  {isAdmin && (
+                                                       <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
+                                                           <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} style={moveIconStyle} title="Переместить">📦</div>
+                                                           <div onClick={(e) => { 
+                                                               e.stopPropagation(); 
+                                                               setTestFormData({
+                                                                   id: test.id, title: test.title, subtitle: test.subtitle, theory: test.theory,
+                                                                   section: test.section || '', subsection: test.subsection || '',
+                                                                   quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }]
+                                                               }); 
+                                                               setShowTestForm(true); 
+                                                           }} style={editIconStyle} title="Редактировать">✎</div>
+                                                           <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'test', targetId: test.id, name: test.title}); }} style={delIconStyle} title="Удалить">✕</div>
+                                                       </div>
+                                                   )}
 
-                                              <span style={{fontSize:'12px', color: isUnlocked ? '#0abab5' : '#555', fontWeight:'800', marginBottom: '6px', opacity: isUnlocked ? 1 : 0.5}}>Тест {idx+1}</span>
-                                              <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: isUnlocked ? '#fff' : '#666', lineHeight: '1.3'}}>{stripEmoji(test.title)}</h4>
-                                              
-                                              <div style={{ marginTop: 'auto', opacity: isUnlocked ? 1 : 0.5 }}>
-                                                  <div style={pBarBg}>
-                                                      <div style={pBarFill(isDone ? 100 : 0)} />
+                                                  <span style={{fontSize:'12px', color: isUnlocked ? '#0abab5' : '#555', fontWeight:'800', marginBottom: '6px', opacity: isUnlocked ? 1 : 0.5}}>Тест {idx+1}</span>
+                                                  <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: isUnlocked ? '#fff' : '#666', lineHeight: '1.3'}}>{stripEmoji(test.title)}</h4>
+                                                  
+                                                  <div style={{ marginTop: 'auto', opacity: isUnlocked ? 1 : 0.5 }}>
+                                                      <div style={pBarBg}>
+                                                          <div style={pBarFill(isDone ? 100 : 0)} />
+                                                      </div>
+                                                      <div style={cardFooter}><span>{isDone ? 'Сдан' : 'Не сдан'}</span><span>{test.quiz?.length || 0} вопр.</span></div>
                                                   </div>
-                                                  <div style={cardFooter}><span>{isDone ? 'Сдан' : 'Не сдан'}</span><span>{test.quiz?.length || 0} вопр.</span></div>
-                                              </div>
-                                           </div>
-                                       );
-                                   })}
+                                               </div>
+                                           );
+                                       })
+                                   )}
                                </div>
                            </div>
                        ))}
@@ -617,7 +647,7 @@ export default function Education({
                ))}
             </div>
 
-            {/* 💡 МИНИ-ОКНО: СОЗДАТЬ НОВЫЙ РАЗДЕЛ (Вместо prompt) */}
+            {/* МИНИ-ОКНО: СОЗДАТЬ НОВЫЙ РАЗДЕЛ (Вместо prompt) */}
             {promptSection.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setPromptSection({isOpen: false, type: 'route', name: ''})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -632,7 +662,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 МИНИ-ОКНО: ПЕРЕМЕСТИТЬ (С ИНПУТОМ) */}
+            {/* МИНИ-ОКНО: ПЕРЕМЕСТИТЬ (С ИНПУТОМ) */}
             {movingItem && (
                 <div style={modalOverlay as any} onClick={() => { setMovingItem(null); setMoveNewSectionName(''); }}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -659,7 +689,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 СТИЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ (Вместо confirm) */}
+            {/* СТИЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ (Вместо confirm) */}
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
@@ -737,7 +767,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 КОМПАКТНЫЙ РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (По стандартам ассортимента) */}
+            {/* КОМПАКТНЫЙ РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ */}
             {showRouteForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -858,6 +888,7 @@ export default function Education({
                   <div className="tasks-modal" style={{...modalContentLarge, maxWidth: '800px'} as any}>
                      <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
                         <div onClick={() => {
+                            // Здесь оставляем браузерный confirm, так как это защита от случайного выхода во время экзамена
                             if (confirm("Вы уверены, что хотите прервать тест? Прогресс будет потерян.")) {
                                 setActiveTestSession(null); setCurrentQuizStep(0); setActiveAnswer(null); setTestAnswers([]); closeTestModal();
                             }
@@ -945,7 +976,7 @@ export default function Education({
                </div>
             )}
 
-            {/* 💡 КОМПАКТНЫЙ РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ */}
+            {/* КОМПАКТНЫЙ РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ */}
             {showTestForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowTestForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
