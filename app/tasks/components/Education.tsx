@@ -37,7 +37,7 @@ const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: st
     return prevProps.iframeStr === nextProps.iframeStr && prevProps.descText === nextProps.descText;
 });
 
-// 💡 Функция рандомизации массива (Тасуем вопросы)
+// Функция рандомизации массива (Тасуем вопросы)
 const shuffleArray = (array: any[]) => {
     return [...array].sort(() => Math.random() - 0.5);
 };
@@ -76,7 +76,9 @@ export default function Education({
 
     const [lockedTestAlert, setLockedTestAlert] = useState({show: false, message: ''});
     
-    // 💡 СОСТОЯНИЕ РЕЖИМА ОБЗОРА ТЕСТА
+    // 💡 СОСТОЯНИЕ ДЛЯ КАСТОМНОГО ОКНА ПРЕРЫВАНИЯ ТЕСТА
+    const [cancelTestConfirm, setCancelTestConfirm] = useState<{show: boolean, type: 'normal'|'urgent'}>({show: false, type: 'normal'});
+    
     const [reviewTest, setReviewTest] = useState<any>(null);
 
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -93,20 +95,6 @@ export default function Education({
     const updateRouteState = (newData: any[]) => { setDynamicRoute(newData); localStorage.setItem('th_cache_route', JSON.stringify(newData)); saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newData); };
     const updateTestsState = (newData: any[]) => { setDynamicTests(newData); localStorage.setItem('th_cache_tests', JSON.stringify(newData)); saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, newData); };
 
-    // 💡 ЛОГИКА КОНВЕРТАЦИИ ТАЙМЕРА ДЛЯ РЕДАКТОРА
-    const currentMins = Math.floor(testFormData.timeLimit || 0);
-    const currentSecs = Math.round(((testFormData.timeLimit || 0) - currentMins) * 60);
-
-    const handleTimeChange = (type: 'm' | 's', val: string) => {
-        let num = parseInt(val.replace(/\D/g, ''), 10);
-        if (isNaN(num)) num = 0;
-        if (type === 's' && num > 59) num = 59;
-        let newMins = type === 'm' ? num : currentMins;
-        let newSecs = type === 's' ? num : currentSecs;
-        setTestFormData({...testFormData, timeLimit: newMins + (newSecs / 60)});
-    };
-
-    // 💡 ЛОГИКА ТАЙМ-АУТА
     useEffect(() => {
         let timerId: any;
         if ((activeTestSession || activeUrgentTest) && timeLeft !== null) {
@@ -125,12 +113,11 @@ export default function Education({
         const testTarget = activeTestSession || activeUrgentTest;
         if (!testTarget) return;
 
-        const isUrgent = !!activeUrgentTest; // Проверяем, срочный ли это тест
+        const isUrgent = !!activeUrgentTest;
         const currentUserName = localStorage.getItem('current_user_name') || 'Сотрудник';
         const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
         try {
-            // 💡 Уведомляем админа ТОЛЬКО если это была срочная аттестация
             if (isUrgent) {
                 const notifRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_notifications_v1`);
                 const notifs = await notifRes.json().catch(() => []);
@@ -157,6 +144,16 @@ export default function Education({
         setTestResultModal({ show: true, score: 0, isPassed: false, title: testTarget.title || testTarget.name, mistakes: [], isTimeout: true });
         setActiveTestSession(null); setActiveUrgentTest(null); setCurrentQuizStep(0); setUrgentTestStep(0);
         setTestAnswers([]); setUrgentTestAnswers([]); setActiveAnswer(null); setTimeLeft(null);
+    };
+
+    // 💡 ЛОГИКА КАСТОМНОГО ПРЕРЫВАНИЯ ТЕСТА
+    const executeCancelTest = () => {
+        if (cancelTestConfirm.type === 'normal') {
+            setActiveTestSession(null); setCurrentQuizStep(0); setActiveAnswer(null); setTestAnswers([]); closeTestModal(); setTimeLeft(null);
+        } else {
+            setActiveUrgentTest(null); setUrgentTestStep(0); setActiveAnswer(null); setUrgentTestAnswers([]); setTimeLeft(null);
+        }
+        setCancelTestConfirm({show: false, type: 'normal'});
     };
 
     const handleDismissTask = (id: string) => {
@@ -192,7 +189,6 @@ export default function Education({
 
     const urgentTasks = visibleUrgentFiles.filter((f: any) => f.id?.startsWith('deadline_') || f.isTest);
     
-    // 💡 Проверка: есть ли невыполненные аттестации (для блокировки обычных тестов)
     const pendingAttestations = urgentTasks.filter((t: any) => t.isTest);
     const isLockedByUrgent = pendingAttestations.length > 0;
 
@@ -437,7 +433,6 @@ export default function Education({
                                 </div>
                             ) : (
                                 <div key={file.id} className="premium-card" onClick={() => {
-                                    // 💡 Передаем рандомизированный массив вопросов для аттестации
                                     setActiveUrgentTest({ ...file, quiz: shuffleArray(file.quiz || []) });
                                     if (file.timeLimit > 0) setTimeLeft(file.timeLimit * 60);
                                     else setTimeLeft(null);
@@ -458,6 +453,7 @@ export default function Education({
                 )}
             </div>
 
+            {/* --- БЛОК 1: ТЕОРИЯ --- */}
             <div className="tasks-flex-space" style={flexSpace as any}>
                <h2 className="tasks-title" style={sectionTitle as any}>Теория</h2>
                {isAdmin && (
@@ -516,6 +512,7 @@ export default function Education({
                ))}
             </div>
 
+            {/* --- БЛОК 2: ТЕСТЫ --- */}
             <div className="tasks-flex-space" style={flexSpace as any}>
                 <h2 className="tasks-title" style={sectionTitle as any}>Тесты</h2>
                 {isAdmin && (
@@ -554,10 +551,8 @@ export default function Education({
                                            return (
                                                <div key={test.id} onClick={() => { 
                                                        if (isDone) {
-                                                           // 💡 Открываем режим обзора, если тест сдан
                                                            setReviewTest(test);
                                                        } else if (isLockedByUrgent && !isAdmin) {
-                                                           // 💡 Блокировка, если есть аттестация
                                                            setLockedTestAlert({
                                                                show: true, 
                                                                message: `Доступ к обычным тестам закрыт.\nНе пройдены обязательные аттестации:\n${pendingAttestations.map((t:any) => '— ' + stripEmoji(t.name)).join('\n')}`
@@ -565,7 +560,6 @@ export default function Education({
                                                        } else if (!isUnlocked && !isAdmin) {
                                                            setLockedTestAlert({show: true, message: `Сначала необходимо успешно сдать предыдущий тест.`});
                                                        } else {
-                                                           // 💡 Если открываем тест на прохождение
                                                            setSelectedTest(test); 
                                                        }
                                                    }} 
@@ -573,7 +567,6 @@ export default function Education({
                                                >
                                                   {(!isUnlocked && !isAdmin) && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', borderRadius: '14px', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}><span style={{ fontSize: '40px' }}>🔒</span></div>}
                                                   
-                                                  {/* 💡 ИСПРАВЛЕНИЕ: Кнопка редактирования для админа восстановлена */}
                                                   {isAdmin && (
                                                        <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
                                                            <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} style={moveIconStyle as any} title="Переместить">📦</div>
@@ -839,7 +832,6 @@ export default function Education({
                          </div>
                      </div>
                      <button onClick={() => { 
-                         // 💡 Передаем рандомизированный массив вопросов
                          setActiveTestSession({ ...selectedTest, quiz: shuffleArray(selectedTest.quiz || []) }); 
                          if (selectedTest.timeLimit > 0) setTimeLeft(selectedTest.timeLimit * 60);
                          else setTimeLeft(null);
@@ -854,11 +846,7 @@ export default function Education({
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={{...modalContentLarge, maxWidth: '800px'} as any}>
                      <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
-                        <div onClick={() => {
-                            if (confirm("Вы уверены, что хотите прервать тест? Прогресс будет потерян.")) {
-                                setActiveTestSession(null); setCurrentQuizStep(0); setActiveAnswer(null); setTestAnswers([]); closeTestModal(); setTimeLeft(null);
-                            }
-                        }} style={{...backLink, margin:0, color: '#ff4d4d', flex: 1} as any}>← ПРЕРВАТЬ</div>
+                        <div onClick={() => setCancelTestConfirm({show: true, type: 'normal'})} style={{...backLink, margin:0, color: '#ff4d4d', flex: 1} as any}>← ПРЕРВАТЬ</div>
                         
                         <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', textAlign:'center', flex: 2, padding: '0 20px'}}>{stripEmoji(activeTestSession.title)}</h2>
                         
@@ -897,7 +885,7 @@ export default function Education({
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={modalContentLarge as any}>
                      <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
-                        <div onClick={() => {setActiveUrgentTest(null); setUrgentTestStep(0); setActiveAnswer(null); setUrgentTestAnswers([]); setTimeLeft(null);}} style={{...backLink, margin:0, flex: 1} as any}>← ОТЛОЖИТЬ</div>
+                        <div onClick={() => setCancelTestConfirm({show: true, type: 'urgent'})} style={{...backLink, margin:0, color: '#ff4d4d', flex: 1} as any}>← ОТЛОЖИТЬ</div>
                         
                         <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 2, padding: '0 20px'}}>{stripEmoji(activeUrgentTest.name)}</h2>
                         
@@ -929,6 +917,23 @@ export default function Education({
                      </div>
                   </div>
                </div>
+            )}
+
+            {/* 💡 КАСТОМНОЕ ОКНО ПРЕРЫВАНИЯ ТЕСТА */}
+            {cancelTestConfirm.show && (
+                <div style={modalOverlay as any} onClick={() => setCancelTestConfirm({show: false, type: 'normal'})}>
+                    <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                        <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ПРЕРВАТЬ ТЕСТ?</h2>
+                        <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>
+                            Вы уверены, что хотите прервать прохождение? Весь текущий прогресс ответов будет потерян.
+                        </p>
+                        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                            <button onClick={() => setCancelTestConfirm({show: false, type: 'normal'})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button onClick={executeCancelTest} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ПРЕРВАТЬ</button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* --- МОДАЛКА РЕЗУЛЬТАТОВ ОСНОВНОГО ТЕСТА С ОШИБКАМИ --- */}
@@ -995,6 +1000,7 @@ export default function Education({
                 .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
                 .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }
 
+                /* 💡 СТИЛИ ДЛЯ КАРТИНОК И ЗУМА */
                 .image-zoom-container { position: relative; width: 100%; height: 220px; border-radius: 15px; overflow: hidden; cursor: pointer; margin-bottom: 15px; background: #111; }
                 .image-zoom-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
                 .image-zoom-container:hover img { transform: scale(1.05); }
