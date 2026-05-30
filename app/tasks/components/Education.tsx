@@ -37,6 +37,11 @@ const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: st
     return prevProps.iframeStr === nextProps.iframeStr && prevProps.descText === nextProps.descText;
 });
 
+// 💡 Функция рандомизации массива (Тасуем вопросы)
+const shuffleArray = (array: any[]) => {
+    return [...array].sort(() => Math.random() - 0.5);
+};
+
 export default function Education({
     isAdmin, userId, dynamicRoute, setDynamicRoute, completedRoute, setCompletedRoute,
     dynamicTests, setDynamicTests, completedTests, setCompletedTests, urgentFiles,
@@ -54,7 +59,7 @@ export default function Education({
 
     const [showTestForm, setShowTestForm] = useState(false);
     const [testFormData, setTestFormData] = useState({
-        id: '', title: '', subtitle: '', theory: '', section: '', subsection: '',
+        id: '', title: '', subtitle: '', theory: '', section: '', subsection: '', timeLimit: 0,
         quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] 
     });
 
@@ -70,6 +75,9 @@ export default function Education({
     const [activeAnswer, setActiveAnswer] = useState<number | null>(null);
 
     const [lockedTestAlert, setLockedTestAlert] = useState({show: false, message: ''});
+    
+    // 💡 СОСТОЯНИЕ РЕЖИМА ОБЗОРА ТЕСТА
+    const [reviewTest, setReviewTest] = useState<any>(null);
 
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
     const [testResultModal, setTestResultModal] = useState<{
@@ -85,6 +93,20 @@ export default function Education({
     const updateRouteState = (newData: any[]) => { setDynamicRoute(newData); localStorage.setItem('th_cache_route', JSON.stringify(newData)); saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newData); };
     const updateTestsState = (newData: any[]) => { setDynamicTests(newData); localStorage.setItem('th_cache_tests', JSON.stringify(newData)); saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, newData); };
 
+    // 💡 ЛОГИКА КОНВЕРТАЦИИ ТАЙМЕРА ДЛЯ РЕДАКТОРА
+    const currentMins = Math.floor(testFormData.timeLimit || 0);
+    const currentSecs = Math.round(((testFormData.timeLimit || 0) - currentMins) * 60);
+
+    const handleTimeChange = (type: 'm' | 's', val: string) => {
+        let num = parseInt(val.replace(/\D/g, ''), 10);
+        if (isNaN(num)) num = 0;
+        if (type === 's' && num > 59) num = 59;
+        let newMins = type === 'm' ? num : currentMins;
+        let newSecs = type === 's' ? num : currentSecs;
+        setTestFormData({...testFormData, timeLimit: newMins + (newSecs / 60)});
+    };
+
+    // 💡 ЛОГИКА ТАЙМ-АУТА
     useEffect(() => {
         let timerId: any;
         if ((activeTestSession || activeUrgentTest) && timeLeft !== null) {
@@ -102,18 +124,23 @@ export default function Education({
     const handleTimeoutFail = async () => {
         const testTarget = activeTestSession || activeUrgentTest;
         if (!testTarget) return;
+
+        const isUrgent = !!activeUrgentTest; // Проверяем, срочный ли это тест
         const currentUserName = localStorage.getItem('current_user_name') || 'Сотрудник';
         const formattedTime = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
         try {
-            const notifRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_notifications_v1`);
-            const notifs = await notifRes.json().catch(() => []);
-            const newNotif = {
-                id: Date.now(), title: '⚠️ Провал по таймеру',
-                text: `Сотрудник ${currentUserName} не успел пройти тест "${testTarget.title || testTarget.name}". Время вышло!`,
-                time: formattedTime, target: 'u_admin' 
-            };
-            await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...(Array.isArray(notifs) ? notifs : [])]);
+            // 💡 Уведомляем админа ТОЛЬКО если это была срочная аттестация
+            if (isUrgent) {
+                const notifRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_notifications_v1`);
+                const notifs = await notifRes.json().catch(() => []);
+                const newNotif = {
+                    id: Date.now(), title: '⚠️ Провал по таймеру',
+                    text: `Сотрудник ${currentUserName} не успел пройти аттестацию "${testTarget.title || testTarget.name}". Время вышло!`,
+                    time: formattedTime, target: 'u_admin' 
+                };
+                await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...(Array.isArray(notifs) ? notifs : [])]);
+            }
 
             const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_test_results_v1`);
             let results = await res.json().catch(() => []);
@@ -164,6 +191,10 @@ export default function Education({
     });
 
     const urgentTasks = visibleUrgentFiles.filter((f: any) => f.id?.startsWith('deadline_') || f.isTest);
+    
+    // 💡 Проверка: есть ли невыполненные аттестации (для блокировки обычных тестов)
+    const pendingAttestations = urgentTasks.filter((t: any) => t.isTest);
+    const isLockedByUrgent = pendingAttestations.length > 0;
 
     const handleSaveRoute = () => {
         if (!routeFormData.title.trim()) { alert("Введите название темы!"); return; }
@@ -200,7 +231,7 @@ export default function Education({
         const newTest = {
             id: testFormData.id || ('t_' + Date.now()),
             title: testFormData.title, subtitle: testFormData.subtitle, theory: testFormData.theory,
-            section: testFormData.section, subsection: testFormData.subsection,
+            section: testFormData.section, subsection: testFormData.subsection, timeLimit: testFormData.timeLimit || 0,
             quiz: testFormData.quiz.map((q: any) => ({ q: q.q || 'Без вопроса?', o: [q.o[0] || '1', q.o[1] || '2', q.o[2] || '3', q.o[3] || '4'], c: q.c }))
         };
         let newList = [...dynamicTests];
@@ -386,6 +417,7 @@ export default function Education({
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
+            {/* --- СРОЧНО К ПРОХОЖДЕНИЮ --- */}
             <div style={{ marginBottom: '50px', width: '100%', boxSizing: 'border-box' }}>
                 <div className="tasks-flex-space" style={flexSpace as any}>
                     <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 } as any}>Срочно к прохождению</h2>
@@ -405,7 +437,8 @@ export default function Education({
                                 </div>
                             ) : (
                                 <div key={file.id} className="premium-card" onClick={() => {
-                                    setActiveUrgentTest(file);
+                                    // 💡 Передаем рандомизированный массив вопросов для аттестации
+                                    setActiveUrgentTest({ ...file, quiz: shuffleArray(file.quiz || []) });
                                     if (file.timeLimit > 0) setTimeLeft(file.timeLimit * 60);
                                     else setTimeLeft(null);
                                 }}>
@@ -488,6 +521,10 @@ export default function Education({
                 {isAdmin && (
                    <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                        <button onClick={() => setPromptSection({isOpen: true, type: 'test', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
+                       <button onClick={() => { 
+                           setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: '', subsection: '', timeLimit: 0, quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] }); 
+                           setShowTestForm(true); 
+                       }} style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВЫЙ ТЕСТ</button>
                    </div>
                 )}
             </div>
@@ -513,20 +550,46 @@ export default function Education({
                                            const isDone = completedTests.includes(test.id);
                                            const globalIdx = realTests.findIndex((t: any) => t.id === test.id);
                                            const isUnlocked = isAdmin || globalIdx <= 0 || completedTests.includes(realTests[globalIdx - 1]?.id);
+                                           
                                            return (
                                                <div key={test.id} onClick={() => { 
-                                                       if (isUnlocked) setSelectedTest(test); 
-                                                       else setLockedTestAlert({show: true, message: `Сначала необходимо успешно сдать предыдущий тест.`});
+                                                       if (isDone) {
+                                                           // 💡 Открываем режим обзора, если тест сдан
+                                                           setReviewTest(test);
+                                                       } else if (isLockedByUrgent && !isAdmin) {
+                                                           // 💡 Блокировка, если есть аттестация
+                                                           setLockedTestAlert({
+                                                               show: true, 
+                                                               message: `Доступ к обычным тестам закрыт.\nНе пройдены обязательные аттестации:\n${pendingAttestations.map((t:any) => '— ' + stripEmoji(t.name)).join('\n')}`
+                                                           });
+                                                       } else if (!isUnlocked && !isAdmin) {
+                                                           setLockedTestAlert({show: true, message: `Сначала необходимо успешно сдать предыдущий тест.`});
+                                                       } else {
+                                                           // 💡 Если открываем тест на прохождение
+                                                           setSelectedTest(test); 
+                                                       }
                                                    }} 
-                                                   className="premium-card" style={{ borderColor: isUnlocked ? '#222' : '#111', cursor: isUnlocked ? 'pointer' : 'not-allowed' }}
+                                                   className="premium-card" style={{ borderColor: isUnlocked || isAdmin ? '#222' : '#111', cursor: isUnlocked || isAdmin ? 'pointer' : 'not-allowed' }}
                                                >
-                                                  {!isUnlocked && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', borderRadius: '14px', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}><span style={{ fontSize: '40px' }}>🔒</span></div>}
+                                                  {(!isUnlocked && !isAdmin) && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', borderRadius: '14px', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}><span style={{ fontSize: '40px' }}>🔒</span></div>}
+                                                  
+                                                  {/* 💡 ИСПРАВЛЕНИЕ: Кнопка редактирования для админа восстановлена */}
                                                   {isAdmin && (
                                                        <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
                                                            <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} style={moveIconStyle as any} title="Переместить">📦</div>
+                                                           <div onClick={(e) => { 
+                                                               e.stopPropagation(); 
+                                                               setTestFormData({
+                                                                   id: test.id, title: test.title, subtitle: test.subtitle, theory: test.theory,
+                                                                   section: test.section || '', subsection: test.subsection || '', timeLimit: test.timeLimit || 0,
+                                                                   quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }]
+                                                               }); 
+                                                               setShowTestForm(true); 
+                                                           }} style={editIconStyle as any} title="Редактировать">✎</div>
                                                            <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'test', targetId: test.id, name: test.title}); }} style={delIconStyle as any} title="Удалить">✕</div>
                                                        </div>
                                                    )}
+
                                                   <span style={{fontSize:'12px', color: isUnlocked ? '#0abab5' : '#555', fontWeight:'800', marginBottom: '6px', opacity: isUnlocked ? 1 : 0.5}}>Тест {idx+1}</span>
                                                   <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: isUnlocked ? '#fff' : '#666', lineHeight: '1.3'}}>{stripEmoji(test.title)}</h4>
                                                   <div style={{ marginTop: 'auto', opacity: isUnlocked ? 1 : 0.5 }}>
@@ -606,8 +669,8 @@ export default function Education({
                 <div style={{...errorOverlayStyle, zIndex: 50000} as any} onClick={() => setLockedTestAlert({show: false, message: ''})}>
                     <div className="tasks-modal" style={errorModalContent as any} onClick={e => e.stopPropagation()}>
                         <div style={{ fontSize: '50px', marginBottom: '20px' }}>🔒</div>
-                        <h2 style={{ fontSize: '20px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>ЭТАП ЗАБЛОКИРОВАН</h2>
-                        <p style={{ color: '#ccc', fontSize: '14px', marginBottom: '25px' }}>{lockedTestAlert.message}</p>
+                        <h2 style={{ fontSize: '20px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>ДОСТУП ЗАКРЫТ</h2>
+                        <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.6', marginBottom: '25px', whiteSpace: 'pre-wrap' }}>{lockedTestAlert.message}</p>
                         <button onClick={() => setLockedTestAlert({show: false, message: ''})} style={{...errorBtnStyle, background: '#333', color: '#fff', marginTop: 0} as any}>ПОНЯТНО</button>
                     </div>
                 </div>
@@ -734,6 +797,28 @@ export default function Education({
                 </div>
             )}
 
+            {/* 💡 НОВОЕ ОКНО: ПРОСМОТР РЕЗУЛЬТАТОВ (ОШИБКИ И ОТВЕТЫ) */}
+            {reviewTest && (
+               <div style={modalOverlay as any} onClick={() => setReviewTest(null)}>
+                  <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '800px'} as any} onClick={e => e.stopPropagation()}>
+                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'30px'}}>
+                        <h2 style={{fontSize:'24px', color:'#0abab5', fontWeight:'900', margin:0, textTransform: 'uppercase'}}>ОБЗОР ТЕСТА: {stripEmoji(reviewTest.title || reviewTest.name)}</h2>
+                        <div onClick={() => setReviewTest(null)} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold'}}>✕</div>
+                     </div>
+                     <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                         {reviewTest.quiz.map((q: any, i: number) => (
+                             <div key={i} style={{background: '#111', padding: '20px', borderRadius: '20px', border: '1px solid #222'}}>
+                                 <p style={{fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '15px'}}>{i+1}. {q.q}</p>
+                                 <div style={{background: 'rgba(10,186,181,0.1)', border: '1px solid rgba(10,186,181,0.3)', padding: '15px', borderRadius: '15px', color: '#0abab5', fontWeight: 'bold', fontSize: '14px'}}>
+                                     ✅ Верный ответ: {q.o[q.c]}
+                                 </div>
+                             </div>
+                         ))}
+                     </div>
+                  </div>
+               </div>
+            )}
+
             {/* --- ПРЕДПРОСМОТР ЭКРАНА ТЕСТА --- */}
             {selectedTest && !activeTestSession && !showTestForm && (
                <div style={modalOverlay as any} onClick={closeTestModal}>
@@ -754,7 +839,8 @@ export default function Education({
                          </div>
                      </div>
                      <button onClick={() => { 
-                         setActiveTestSession(selectedTest); 
+                         // 💡 Передаем рандомизированный массив вопросов
+                         setActiveTestSession({ ...selectedTest, quiz: shuffleArray(selectedTest.quiz || []) }); 
                          if (selectedTest.timeLimit > 0) setTimeLeft(selectedTest.timeLimit * 60);
                          else setTimeLeft(null);
                          setSelectedTest(null); 
@@ -858,7 +944,7 @@ export default function Education({
                         
                         {testResultModal.isTimeout ? (
                             <div style={{background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', padding: '20px', borderRadius: '15px', fontWeight: 'bold', marginBottom: '30px'}}>
-                                Вы не уложились в отведенное время. Тест автоматически завершен и считается проваленным. Администратор уведомлен.
+                                Вы не уложились в отведенное время. Тест автоматически завершен и считается проваленным.
                             </div>
                         ) : (
                             testResultModal.score === 100 ? (
@@ -909,7 +995,6 @@ export default function Education({
                 .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
                 .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }
 
-                /* 💡 СТИЛИ ДЛЯ КАРТИНОК И ЗУМА */
                 .image-zoom-container { position: relative; width: 100%; height: 220px; border-radius: 15px; overflow: hidden; cursor: pointer; margin-bottom: 15px; background: #111; }
                 .image-zoom-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
                 .image-zoom-container:hover img { transform: scale(1.05); }
