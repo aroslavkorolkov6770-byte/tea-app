@@ -46,10 +46,15 @@ export default function TestEditorModal({
                             ))}
                             <input 
                                 type="number" 
-                                placeholder="Свой вариант" 
+                                step="0.1" 
+                                placeholder="Свое точное время" 
                                 value={testFormData.timeLimit === 0 ? '' : testFormData.timeLimit} 
-                                onChange={e => setTestFormData({...testFormData, timeLimit: parseInt(e.target.value) || 0})}
-                                style={{ ...adminIn, padding: '8px 10px', fontSize: '12px', width: '100px', marginBottom: 0, minHeight: '34px' } as any} 
+                                onChange={e => {
+                                    // 💡 ЗАМЕНИЛИ parseInt на parseFloat для поддержки дробных чисел (напр. 1.5 мин = 90 сек)
+                                    const val = parseFloat(e.target.value);
+                                    setTestFormData({...testFormData, timeLimit: isNaN(val) ? 0 : val});
+                                }}
+                                style={{ ...adminIn, padding: '8px 10px', fontSize: '12px', width: '120px', marginBottom: 0, minHeight: '34px' } as any} 
                             />
                         </div>
                     </div>

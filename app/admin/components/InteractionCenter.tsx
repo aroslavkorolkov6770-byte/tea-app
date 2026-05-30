@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { adminCard, adminIn, adminSendBtn, adminActionBtn } from './adminStyles';
+import { adminCard, adminIn, adminSendBtn, adminActionBtn, modalOverlay, modalContentSmall } from './adminStyles';
 
 export default function InteractionCenter({
     users, interactionTab, setInteractionTab, selectedStaff, setSelectedStaff,
@@ -44,39 +44,10 @@ export default function InteractionCenter({
                                 <select style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} value={testType} onChange={(e) => setTestType(e.target.value)}>
                                     {testTypesList.map((t: any) => <option key={t.id} value={t.name}>{t.name}</option>)}
                                 </select>
-                                <button onClick={() => setIsManagingTypes(!isManagingTypes)} style={{ ...adminActionBtn, padding: '0 15px', borderRadius: '15px', background: isManagingTypes ? '#0abab5' : 'rgba(10,186,181,0.1)', color: isManagingTypes ? '#000' : '#0abab5' } as any}>
-                                    {isManagingTypes ? 'Закрыть список' : '✎ Список тестов'}
+                                <button onClick={() => setIsManagingTypes(true)} style={{ ...adminActionBtn, padding: '0 15px', borderRadius: '15px', background: 'rgba(10,186,181,0.1)', color: '#0abab5' } as any}>
+                                    ⚙️ Список тестов
                                 </button>
                             </div>
-
-                            {isManagingTypes && (
-                                <div style={{ background: '#000', padding: '15px', borderRadius: '15px', border: '1px dashed #333' }}>
-                                    <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold', marginBottom: '10px' }}>СОЗДАНИЕ НОВОГО ТИПА ТЕСТА</div>
-                                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                                        <input style={{ ...adminIn, marginBottom: 0, padding: '10px', fontSize: '13px' } as any} placeholder="Например: Тест для стажеров..." value={newTypeName} onChange={e => setNewTypeName(e.target.value)} />
-                                        <button onClick={() => {
-                                            if (newTypeName.trim()) {
-                                                handleUpdateTestTypes([...testTypesList, { id: 'type_' + Date.now(), name: newTypeName.trim() }]);
-                                                setNewTypeName('');
-                                            }
-                                        }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Добавить</button>
-                                    </div>
-                                    <div style={{ maxHeight: '120px', overflowY: 'auto' }} className="custom-scroll">
-                                        {testTypesList.map((t: any) => (
-                                            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', background: '#111', borderRadius: '8px', marginBottom: '5px' }}>
-                                                <span style={{ fontSize: '13px', color: '#ccc' }}>{t.name}</span>
-                                                {testTypesList.length > 1 && (
-                                                    <span style={{ color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', padding: '0 5px' }} onClick={() => {
-                                                        const newL = testTypesList.filter((type: any) => type.id !== t.id);
-                                                        handleUpdateTestTypes(newL);
-                                                        if (testType === t.name) setTestType(newL[0].name);
-                                                    }}>✕ Удалить</span>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
 
                             <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
                                 <button onClick={handleOpenTestEditor} disabled={isProcessing} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' } as any}>
@@ -90,6 +61,56 @@ export default function InteractionCenter({
                     </div>
                 )}
             </div>
+
+            {/* 💡 МОДАЛЬНОЕ ОКНО ДЛЯ УПРАВЛЕНИЯ ТИПАМИ ТЕСТОВ */}
+            {isManagingTypes && (
+                <div style={modalOverlay as any} onClick={() => setIsManagingTypes(false)}>
+                    <div className="admin-modal-content custom-scroll" style={{ ...modalContentSmall, position: 'relative', maxWidth: '500px' } as any} onClick={e => e.stopPropagation()}>
+                        <div onClick={() => setIsManagingTypes(false)} style={{ position: 'absolute', top: '20px', right: '25px', cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
+                        
+                        <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center', textTransform: 'uppercase', fontSize: '18px' }}>
+                            УПРАВЛЕНИЕ СПИСКОМ ТЕСТОВ
+                        </h2>
+                        
+                        <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
+                            <input 
+                                style={{ ...adminIn, marginBottom: 0, padding: '14px', fontSize: '14px' } as any} 
+                                placeholder="Название (напр. Вводный тест)..." 
+                                value={newTypeName} 
+                                onChange={e => setNewTypeName(e.target.value)} 
+                                autoFocus
+                            />
+                            <button onClick={() => {
+                                if (newTypeName.trim()) {
+                                    handleUpdateTestTypes([...testTypesList, { id: 'type_' + Date.now(), name: newTypeName.trim() }]);
+                                    setNewTypeName('');
+                                }
+                            }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '12px', padding: '0 20px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>ДОБАВИТЬ</button>
+                        </div>
+                        
+                        <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '10px', letterSpacing: '0.5px' }}>СУЩЕСТВУЮЩИЕ ШАБЛОНЫ ({testTypesList.length}):</div>
+                        
+                        <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '5px' }} className="custom-scroll">
+                            {testTypesList.map((t: any) => (
+                                <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', background: '#000', border: '1px solid #222', borderRadius: '12px', marginBottom: '10px' }}>
+                                    <span style={{ fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>{t.name}</span>
+                                    {testTypesList.length > 1 && (
+                                        <span 
+                                            style={{ color: '#ff4d4d', cursor: 'pointer', fontWeight: '900', fontSize: '12px', padding: '6px 12px', background: 'rgba(255,77,77,0.1)', borderRadius: '8px', transition: '0.2s' }} 
+                                            onClick={() => {
+                                                const newL = testTypesList.filter((type: any) => type.id !== t.id);
+                                                handleUpdateTestTypes(newL);
+                                                if (testType === t.name) setTestType(newL[0].name);
+                                            }}>
+                                            ✕ Удалить
+                                        </span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
