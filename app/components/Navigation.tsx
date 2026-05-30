@@ -324,13 +324,14 @@ export default function Navigation() {
     router.push(link);
   };
 
-  // 💡 НОВОЕ: Динамическое название первой кнопки в зависимости от роли
+  // 💡 НОВОЕ: Добавлена вкладка "Документы"
   const sideItems = [
     { 
       id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', 
       label: userRole === 'admin' ? 'Меню управления' : 'Статистика' 
     },
     { id: '/tasks?tab=edu', label: 'Обучение' },
+    { id: '/tasks?tab=docs', label: 'Документы' },
     { id: '/tasks?tab=assortment', label: 'Ассортимент' },
     { id: '/tasks?tab=standards', label: 'ИИ Помощник' },
   ];

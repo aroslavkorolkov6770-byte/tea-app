@@ -76,7 +76,6 @@ export default function AdminDashboard() {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
 
-  // 💡 НОВЫЕ СТЕЙТЫ: Для редактирования логина и пароля внутри админки
   const [editAuthMode, setEditAuthMode] = useState(false);
   const [editAuthLogin, setEditAuthLogin] = useState('');
   const [editAuthPass, setEditAuthPass] = useState('');
@@ -97,6 +96,9 @@ export default function AdminDashboard() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   
+  // 💡 НОВОЕ СОСТОЯНИЕ: Для выбора папки при загрузке
+  const [uploadSection, setUploadSection] = useState('Основной раздел');
+
   const [showFilesList, setShowFilesList] = useState(false);
   const [previewFile, setPreviewFile] = useState<any>(null);
 
@@ -360,7 +362,6 @@ export default function AdminDashboard() {
       setConfirmModal({ show: true, type: 'user', id: id, title: 'УДАЛЕНИЕ СОТРУДНИКА', text: 'Вы уверены, что хотите удалить учетную запись этого сотрудника? Это действие необратимо.' });
   };
 
-  // 💡 НОВОЕ: Функция сохранения отредактированных доступов (логин и пароль)
   const handleSaveUserAuth = async () => {
       if (!editAuthLogin.trim() || !editAuthPass.trim()) {
           setErrorModal({ show: true, text: "Логин и пароль не могут быть пустыми!" });
@@ -382,6 +383,7 @@ export default function AdminDashboard() {
       setShowSuccessModal({ show: true, title: 'ДОСТУПЫ ОБНОВЛЕНЫ', text: `Новые данные для входа успешно сохранены.` });
   };
 
+  // 💡 ОБНОВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ ФАЙЛА (ДОБАВЛЯЕТ SECTION)
   const handleSaveFile = async () => {
       if (selectedFiles.length === 0 || isProcessing) return;
       setIsProcessing(true);
@@ -409,6 +411,7 @@ export default function AdminDashboard() {
                   name: file.name,
                   size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
                   date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
+                  section: uploadSection.trim() || 'Основной раздел', // 💡 Сохраняем раздел
                   hasSeparateData: true 
               });
               fileNames.push(file.name);
@@ -423,13 +426,14 @@ export default function AdminDashboard() {
           const pushSent = await sendPushNotification('Все', {
               title: '📚 Новые учебные материалы',
               body: `Добавлены файлы: ${namesStr}`,
-              url: '/tasks?tab=edu'
+              url: '/tasks?tab=docs'
           });
           
-          const emailSent = await sendEmailNotification('Все', '📚 Новые учебные материалы', `Администратор добавил новые файлы в базу знаний: ${namesStr}`);
+          const emailSent = await sendEmailNotification('Все', '📚 Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`);
 
-          setShowSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) успешно загружены и появятся у сотрудников. ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
+          setShowSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) успешно загружены в раздел "${uploadSection}". ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
           setSelectedFiles([]);
+          setUploadSection('Основной раздел'); // Сбрасываем выбор
       } catch(e) {
           console.error(e);
           setErrorModal({ show: true, text: "Произошла ошибка при пакетной загрузке файлов." });
@@ -832,7 +836,14 @@ export default function AdminDashboard() {
       u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
 
-  const uploadedMaterials = urgentFiles.filter(f => !f.isTest && !f.id.startsWith('deadline_'));
+  const uploadedMaterials = urgentFiles.filter(f => !f.isTest && !f.id.startsWith('deadline_') && !f.isDocPlaceholder);
+
+  // 💡 Собираем все уникальные названия разделов для выпадающего списка при загрузке файлов
+  const existingDocSections = Array.from(new Set(
+      urgentFiles
+          .filter((f: any) => !f.isTest && !f.id?.startsWith('deadline_'))
+          .map((f: any) => f.section?.trim() || 'Основной раздел')
+  ));
 
   if (!isMounted) {
     return (
@@ -913,9 +924,24 @@ export default function AdminDashboard() {
                            ))}
                        </div>
 
+                       {/* 💡 НОВОЕ: ВЫБОР ПАПКИ ПРИ ЗАГРУЗКЕ */}
+                       <div style={{ textAlign: 'left', marginTop: '15px', marginBottom: '20px' }}>
+                           <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold', marginBottom: '8px', letterSpacing: '0.5px' }}>ВЫБЕРИТЕ ПАПКУ ДЛЯ ДОКУМЕНТОВ:</div>
+                           <input 
+                               list="doc-sections" 
+                               style={{ width: '100%', padding: '12px', background: '#111', border: '1px solid #333', borderRadius: '10px', color: '#fff', outline: 'none', fontSize: '13px' }} 
+                               placeholder="Напр. Инструкции (или оставьте 'Основной раздел')" 
+                               value={uploadSection} 
+                               onChange={e => setUploadSection(e.target.value)} 
+                           />
+                           <datalist id="doc-sections">
+                               {existingDocSections.map(sec => <option key={sec as string} value={sec as string} />)}
+                           </datalist>
+                       </div>
+
                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                            <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>{isProcessing ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ВСЕ'}</button>
-                           <button onClick={() => setSelectedFiles([])} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>ОТМЕНИТЬ</button>
+                           <button onClick={() => { setSelectedFiles([]); setUploadSection('Основной раздел'); }} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>ОТМЕНИТЬ</button>
                        </div>
                        <div style={{fontSize: '10px', color: '#666', textAlign: 'center', marginTop: '10px'}}>Файлы отправляются по одному, чтобы избежать перегрузки сервера.</div>
                    </div>
@@ -1211,7 +1237,6 @@ export default function AdminDashboard() {
                                 </p>
                             </section>
 
-                            {/* 💡 НОВОЕ: Блок редактирования доступов прямо в админке */}
                             <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.2)', padding: '20px', borderRadius: '20px', marginBottom: '35px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,77,77,0.2)' }}>
                                     <span style={{color: '#ff7675', fontWeight: '900', fontSize: '13px', letterSpacing: '1px'}}>ДАННЫЕ АВТОРИЗАЦИИ</span>
