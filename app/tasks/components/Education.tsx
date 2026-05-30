@@ -20,10 +20,9 @@ const saveDataToServer = (key: string, data: any) => {
 
 const stripEmoji = (str: string) => {
     if (!str) return '';
-    return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+    return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|[\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 };
 
-// 💡 ИЗОЛИРОВАННЫЙ ВИДЕОПЛЕЕР (Защита от перезагрузки при тиках таймера)
 const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: string, descText: string }) => {
     return (
         <div style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px' }}>
@@ -32,11 +31,10 @@ const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: st
             ) : (
                 <div style={{ padding: '40px', textAlign: 'center', color: '#555', fontStyle: 'italic', background: '#111', borderRadius: '15px' }}>Видео не прикреплено</div>
             )}
-            {descText && <p style={{...theoryText, marginTop: '20px', padding: '0 10px'} as any}>{descText}</p>}
+            {descText && <p style={{ fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, marginTop: '20px', padding: '0 10px' }}>{descText}</p>}
         </div>
     );
 }, (prevProps, nextProps) => {
-    // React не будет перерисовывать плеер, пока не изменится сама ссылка
     return prevProps.iframeStr === nextProps.iframeStr && prevProps.descText === nextProps.descText;
 });
 
@@ -54,7 +52,6 @@ export default function Education({
     selectedTest, setSelectedTest, closeTestModal
 }: any) {
     
-    // --- ЛОКАЛЬНЫЕ СОСТОЯНИЯ ДЛЯ РЕДАКТОРОВ И МОДАЛОК ---
     const [showRouteForm, setShowRouteForm] = useState(false);
     
     const [routeFormData, setRouteFormData] = useState({ 
@@ -102,7 +99,6 @@ export default function Education({
     const [urgentTestStep, setUrgentTestStep] = useState(0);
     const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
 
-    // --- ЛОГИКА ФИЛЬТРАЦИИ СРОЧНЫХ ЗАДАНИЙ ---
     const handleDismissTask = (id: string) => {
         const newDismissed = [...dismissedTasks, id];
         setDismissedTasks(newDismissed);
@@ -139,7 +135,6 @@ export default function Education({
 
     const urgentTasks = visibleUrgentFiles.filter((f: any) => f.id?.startsWith('deadline_') || f.isTest);
 
-    // --- ЛОГИКА ТЕОРИИ ---
     const handleSaveRoute = () => {
         if (!routeFormData.title.trim()) { alert("Введите название темы!"); return; }
         let newList = [...dynamicRoute];
@@ -164,7 +159,6 @@ export default function Education({
         closeRouteModal();
     };
 
-    // --- ЛОГИКА ТЕСТОВ ---
     const updateTestQuestion = (index: number, field: string, value: any) => {
         const newQuiz = [...testFormData.quiz];
         if (field === 'q') newQuiz[index].q = value;
@@ -213,7 +207,6 @@ export default function Education({
         setShowTestForm(false);
     };
 
-    // --- УПРАВЛЕНИЕ РАЗДЕЛАМИ ---
     const handleMoveItem = (targetSection: string) => {
         if (!movingItem) return;
         if (movingItem.type === 'route') {
@@ -285,7 +278,6 @@ export default function Education({
         setPromptSection({ isOpen: false, type: 'route', name: '' });
     };
 
-    // --- ГРУППИРОВКА ---
     const groupItems = (items: any[]) => {
         const groups: Record<string, Record<string, any[]>> = {};
         items.forEach((item: any) => {
@@ -305,7 +297,6 @@ export default function Education({
     const testGroups = groupItems(dynamicTests || []);
     const realTests = (dynamicTests || []).filter((t: any) => !t.isPlaceholder);
 
-    // --- ПРОХОЖДЕНИЕ ТЕСТА ---
     const handleTestAnswer = (idx: number) => {
         if (activeAnswer !== null) return; 
         setActiveAnswer(idx);
@@ -368,7 +359,6 @@ export default function Education({
         } catch (e) { console.error("Ошибка сохранения результатов", e); }
     };
 
-    // --- ПРОХОЖДЕНИЕ АТТЕСТАЦИИ ---
     const handleUrgentTestAnswer = (idx: number) => {
         if (activeAnswer !== null) return; 
         setActiveAnswer(idx);
@@ -425,7 +415,6 @@ export default function Education({
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
-            {/* --- СРОЧНО К ПРОХОЖДЕНИЮ --- */}
             <div style={{ marginBottom: '50px', width: '100%', boxSizing: 'border-box' }}>
                 <div className="tasks-flex-space" style={flexSpace}>
                     <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>Срочно к прохождению</h2>
@@ -461,7 +450,6 @@ export default function Education({
                 )}
             </div>
 
-            {/* --- БЛОК 1: ТЕОРИЯ --- */}
             <div className="tasks-flex-space" style={flexSpace}>
                <h2 className="tasks-title" style={sectionTitle}>Теория</h2>
                {isAdmin && (
@@ -541,7 +529,6 @@ export default function Education({
                ))}
             </div>
 
-            {/* --- БЛОК 2: ТЕСТЫ --- */}
             <div className="tasks-flex-space" style={flexSpace}>
                 <h2 className="tasks-title" style={sectionTitle}>Тесты</h2>
                 {isAdmin && (
@@ -560,7 +547,7 @@ export default function Education({
                    <div key={secName} style={{ marginBottom: '40px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
                            <h3 style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>📋 {secName}</h3>
-                           {isAdmin && (
+                           {isAdmin && secName !== 'Основной раздел' && (
                                <div style={{display: 'flex', gap: '15px'}}>
                                    <span onClick={() => setRenameSectionPrompt({isOpen: true, type: 'test', oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✎ РЕДАКТИРОВАТЬ</span>
                                    <span onClick={() => setConfirmDelete({isOpen: true, type: 'section_test', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✕ УДАЛИТЬ</span>
@@ -634,7 +621,6 @@ export default function Education({
                ))}
             </div>
 
-            {/* --- МИНИ-ОКНО: СОЗДАТЬ НОВЫЙ РАЗДЕЛ --- */}
             {promptSection.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setPromptSection({isOpen: false, type: 'route', name: ''})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -649,7 +635,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- МИНИ-ОКНО: ПЕРЕИМЕНОВАТЬ РАЗДЕЛ --- */}
             {renameSectionPrompt.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setRenameSectionPrompt({...renameSectionPrompt, isOpen: false})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -664,7 +649,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- МИНИ-ОКНО: ПЕРЕМЕСТИТЬ --- */}
             {movingItem && (
                 <div style={modalOverlay as any} onClick={() => { setMovingItem(null); setMoveNewSectionName(''); }}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -691,7 +675,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- СТИЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ --- */}
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
@@ -711,7 +694,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- ОКНО ОШИБКИ "ЭТАП ЗАБЛОКИРОВАН" --- */}
             {lockedTestAlert.show && (
                 <div style={{...errorOverlayStyle, zIndex: 50000} as any} onClick={() => setLockedTestAlert({show: false, message: ''})}>
                     <div className="tasks-modal" style={errorModalContent as any} onClick={e => e.stopPropagation()}>
@@ -723,7 +705,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- 💡 ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" (С ВИДЕО И ФОТО) --- */}
             {selectedRouteStep && !showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteModal}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -735,7 +716,6 @@ export default function Education({
                             <div onClick={closeRouteModal} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
                         </div>
 
-                        {/* 💡 ВЫВОД ИЗОЛИРОВАННОГО ВИДЕОПЛЕЕРА ИЛИ ТЕКСТА */}
                         {selectedRouteStep.mediaType === 'video' ? (
                             <MemoizedVideoPlayer 
                                 iframeStr={selectedRouteStep.videoIframe || ''} 
@@ -780,7 +760,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 КОМПАКТНЫЙ РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (С ВЫБОРОМ МЕДИА) */}
             {showRouteForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -791,31 +770,30 @@ export default function Education({
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название темы</div>
-                                <input style={adminIn as any} placeholder="Например: Основы зеленого чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
+                                <input autoComplete="off" style={adminIn as any} placeholder="Например: Основы зеленого чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
                             </div>
                             
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел (Папка)</div>
-                                    <input list="route-sections" style={adminIn as any} placeholder="Напр. Введение" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
+                                    <input list="route-sections" autoComplete="off" style={adminIn as any} placeholder="Напр. Введение" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
                                     <datalist id="route-sections">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Подраздел</div>
-                                    <input list="route-subsections" style={adminIn as any} placeholder="Напр. Практика" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
+                                    <input list="route-subsections" autoComplete="off" style={adminIn as any} placeholder="Напр. Практика" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
                                     <datalist id="route-subsections">{Array.from(new Set(dynamicRoute.map((r: any) => r.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
                                 </div>
                             </div>
                             
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Время на изучение</div>
-                                <input style={adminIn as any} placeholder="Напр. 10 мин" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
+                                <input autoComplete="off" style={adminIn as any} placeholder="Напр. 10 мин" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
                             </div>
                         </div>
 
                         <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
                             
-                            {/* Слайдер выбора формата */}
                             <div style={{ display: 'flex', background: '#111', borderRadius: '12px', padding: '4px', marginBottom: '20px', border: '1px solid #222' }}>
                                 <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'text'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'text' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'text' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px' }}>📝 ТЕКСТ / ФОТО</div>
                                 <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'video'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'video' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'video' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px' }}>🎥 ВИДЕО</div>
@@ -860,7 +838,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- ПРЕДПРОСМОТР ЭКРАНА ТЕСТА --- */}
             {selectedTest && !activeTestSession && !showTestForm && (
                <div style={modalOverlay as any} onClick={closeTestModal}>
                   <div className="tasks-modal" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -885,7 +862,6 @@ export default function Education({
                </div>
             )}
 
-            {/* --- АКТИВНАЯ СЕССИЯ ТЕСТА (ANTI-CHEAT) --- */}
             {activeTestSession && (
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={{...modalContentLarge, maxWidth: '800px'} as any}>
@@ -915,7 +891,6 @@ export default function Education({
                </div>
             )}
 
-            {/* --- МОДАЛКА РЕЗУЛЬТАТОВ ОСНОВНОГО ТЕСТА С ОШИБКАМИ --- */}
             {testResultModal.show && (
                 <div style={{...errorOverlayStyle, zIndex: 60000} as any}>
                     <div className="tasks-modal custom-scroll" style={{...errorModalContent, maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
@@ -952,7 +927,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- СРОЧНАЯ АТТЕСТАЦИЯ (ANTI-CHEAT) --- */}
             {activeUrgentTest && (
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={modalContentLarge as any}>
@@ -978,7 +952,6 @@ export default function Education({
                </div>
             )}
 
-            {/* КОМПАКТНЫЙ РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ */}
             {showTestForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowTestForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -989,30 +962,30 @@ export default function Education({
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px'}}>
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название теста</div>
-                                <input style={adminIn as any} placeholder="Например: Итоговый экзамен" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
+                                <input autoComplete="off" style={adminIn as any} placeholder="Например: Итоговый экзамен" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
                             </div>
                             
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Краткое описание</div>
-                                <textarea style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Подзаголовок (описание)..." value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
+                                <textarea autoComplete="off" style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Подзаголовок (описание)..." value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
                             </div>
 
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел (Папка)</div>
-                                    <input list="test-sections" style={adminIn as any} placeholder="Напр. Итоговые" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
+                                    <input list="test-sections" autoComplete="off" style={adminIn as any} placeholder="Напр. Итоговые" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
                                     <datalist id="test-sections">{Array.from(new Set(dynamicTests.map((t: any) => t.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Подраздел</div>
-                                    <input list="test-subsections" style={adminIn as any} placeholder="Напр. Для стажеров" value={testFormData.subsection} onChange={e => setTestFormData({...testFormData, subsection: e.target.value})} />
+                                    <input list="test-subsections" autoComplete="off" style={adminIn as any} placeholder="Напр. Для стажеров" value={testFormData.subsection} onChange={e => setTestFormData({...testFormData, subsection: e.target.value})} />
                                     <datalist id="test-subsections">{Array.from(new Set(dynamicTests.map((t: any) => t.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
                                 </div>
                             </div>
                             
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Рекомендуемая теория</div>
-                                <textarea style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Разделы теории для изучения перед тестом (через запятую)..." value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
+                                <textarea autoComplete="off" style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Разделы теории для изучения перед тестом (через запятую)..." value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
                             </div>
                         </div>
 
@@ -1021,13 +994,13 @@ export default function Education({
                             {testFormData.quiz.map((q: any, qIdx: number) => (
                                 <div key={qIdx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
                                     {testFormData.quiz.length > 1 && <div onClick={() => removeTestQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'} as any}>✕</div>}
-                                    <input style={{...adminIn, fontWeight: 'bold', marginBottom: '15px'} as any} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
+                                    <input autoComplete="off" style={{...adminIn, fontWeight: 'bold', marginBottom: '15px'} as any} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
                                     
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                         {[0,1,2,3].map((i: number) => (
                                             <div key={i} style={{display: 'flex', alignItems: 'center', gap: '10px', background: q.c === i ? 'rgba(10,186,181,0.1)' : 'transparent', padding: '10px', borderRadius: '10px', border: q.c === i ? '1px solid #0abab5' : '1px solid #222'}}>
                                                 <input type="radio" style={{transform: 'scale(1.2)'}} checked={q.c === i} onChange={() => updateTestQuestion(qIdx, 'c', i)} />
-                                                <input style={{...adminIn, padding: '10px', marginBottom: 0, border: 'none', background: 'transparent', width: '100%'} as any} placeholder={`Вариант ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
+                                                <input autoComplete="off" style={{...adminIn, padding: '10px', marginBottom: 0, border: 'none', background: 'transparent', width: '100%'} as any} placeholder={`Вариант ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
                                             </div>
                                         ))}
                                     </div>
@@ -1041,99 +1014,31 @@ export default function Education({
                 </div>
             )}
 
-            {/* ГЛОБАЛЬНЫЕ СТИЛИ КОМПОНЕНТА */}
             <style jsx global>{`
                 .anti-cheat { user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
                 .test-answer-btn { padding: 20px 30px; background: #111; color: #fff; border-radius: 18px; cursor: pointer; border: 1px solid #222; font-weight: 800; margin-bottom: 12px; transition: all 0.2s ease; }
                 .test-answer-btn:hover { border-color: #0abab5; background: rgba(10, 186, 181, 0.05); transform: translateY(-2px); }
                 .test-answer-btn.selected { background: #0abab5 !important; color: #000 !important; border-color: #0abab5 !important; transform: scale(0.98); }
                 
-                .premium-cards-container {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
-                    gap: 20px;
-                    width: 100%;
-                }
+                .premium-cards-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; width: 100%; }
+                .premium-card { background: #111; border-radius: 14px; border: 1px solid #222; transition: all 0.2s ease; position: relative; cursor: pointer; display: flex; flex-direction: column; width: 100%; min-height: 140px; padding: 20px; box-sizing: border-box; overflow: hidden; }
+                .premium-card:hover { border-color: #0abab5; transform: translateY(-3px); }
+                .premium-card:active { background: rgba(10, 186, 181, 0.05); border-color: #0abab5; transform: scale(0.98); }
+                .deadline-card:hover { border-color: #ff4d4d !important; box-shadow: 0 8px 25px rgba(255, 77, 77, 0.15) !important; }
+                .deadline-card:active { background: rgba(255, 77, 77, 0.05) !important; border-color: #ff4d4d !important; }
 
-                .premium-card {
-                    background: #111;
-                    border-radius: 14px; 
-                    border: 1px solid #222;
-                    transition: all 0.2s ease;
-                    position: relative;
-                    cursor: pointer;
-                    display: flex;
-                    flex-direction: column;
-                    width: 100%;
-                    min-height: 140px; 
-                    padding: 20px; 
-                    box-sizing: border-box; 
-                    overflow: hidden;
-                }
-
-                .premium-card:hover {
-                    border-color: #0abab5;
-                    transform: translateY(-3px);
-                }
-
-                .premium-card:active {
-                    background: rgba(10, 186, 181, 0.05); 
-                    border-color: #0abab5;
-                    transform: scale(0.98); 
-                }
-
-                .deadline-card:hover {
-                    border-color: #ff4d4d !important;
-                    box-shadow: 0 8px 25px rgba(255, 77, 77, 0.15) !important;
-                }
-                .deadline-card:active {
-                    background: rgba(255, 77, 77, 0.05) !important;
-                    border-color: #ff4d4d !important;
-                }
-
-                /* 💡 СТИЛИ ДЛЯ АДАПТИВНОГО ПЛЕЕРА */
-                .video-wrapper {
-                    position: relative;
-                    width: 100%;
-                    padding-bottom: 56.25%; /* Пропорция 16:9 */
-                    height: 0;
-                    background: #000;
-                    border-radius: 15px;
-                    overflow: hidden;
-                }
-                .video-wrapper iframe, .video-wrapper object, .video-wrapper embed {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100% !important;
-                    height: 100% !important;
-                    border: none;
-                }
+                .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
+                .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }
 
                 @media (max-width: 768px) {
-                    .premium-cards-container { 
-                        display: grid !important;
-                        grid-template-columns: repeat(2, 1fr) !important;
-                        gap: 10px !important; 
-                    }
-                    .premium-card {
-                        padding: 15px !important;
-                        min-height: 120px !important;
-                    }
+                    .premium-cards-container { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+                    .premium-card { padding: 15px !important; min-height: 120px !important; }
                     .premium-card h4 { font-size: 13px !important; margin-bottom: 10px !important; }
                     .premium-card span { font-size: 10px !important; }
-                    
                     .tasks-theory-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
                     .tasks-quiz-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
-                    
-                    .tasks-modal { 
-                        padding: 30px 20px !important; 
-                        border-radius: 25px !important; 
-                        width: 95% !important; 
-                        max-height: 90vh !important; 
-                    }
+                    .tasks-modal { padding: 30px 20px !important; border-radius: 25px !important; width: 95% !important; max-height: 90vh !important; }
                     .tasks-theory-block { padding: 20px !important; border-radius: 20px !important; }
-                    
                     .tasks-modal-header { flex-direction: column; align-items: flex-start !important; gap: 15px; margin-bottom: 25px !important; }
                     .tasks-modal-header h2 { font-size: 20px !important; padding: 0 !important; text-align: left !important; }
                     .desktop-spacer { display: none !important; }
@@ -1143,7 +1048,6 @@ export default function Education({
     );
 }
 
-// --- СТИЛИ БЛОКОВ И КАРТОЧЕК ---
 const pBarBg: React.CSSProperties = { height: '8px', background: '#222', borderRadius: '4px', marginTop: '15px', marginBottom: '10px' };
 const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '4px', transition: '1s' });
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };

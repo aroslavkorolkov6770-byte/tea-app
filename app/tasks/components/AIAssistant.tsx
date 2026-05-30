@@ -204,7 +204,6 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             if (routeCache.length > 0 || testsCache.length > 0) {
                 siteContext += "=== СЕКРЕТНЫЙ КОНТЕКСТ (БАЗА ЗНАНИЙ КОМПАНИИ ИЗ ПАНЕЛИ АДМИНА) ===\n";
                 
-                // 💡 ИСПРАВЛЕНИЕ: Группировка Теории по разделам, чтобы ИИ понимал локальную нумерацию (Урок 1, Урок 2...)
                 if (routeCache.length > 0) {
                     siteContext += "РАЗДЕЛ 'ТЕОРИЯ' (Сгруппировано по папкам):\n";
                     const routeGroups: Record<string, any[]> = {};
@@ -218,14 +217,19 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                         siteContext += `\n📁 ПАПКА: "${secName}"\n`;
                         items.forEach((route: any, idx: number) => {
                             siteContext += `  - Урок ${idx + 1}: ${route.title} (ID: ${route.id})\n`;
-                            if (route.h1) siteContext += `    * ${route.h1}: ${route.t1}\n`;
-                            if (route.h2) siteContext += `    * ${route.h2}: ${route.t2}\n`;
-                            if (route.h3) siteContext += `    * ${route.h3}: ${route.t3}\n`;
+                            
+                            // 💡 ИСПРАВЛЕНИЕ: Теперь ИИ видит описание видеоуроков
+                            if (route.mediaType === 'video') {
+                                if (route.videoDesc) siteContext += `    * Описание видео: ${route.videoDesc}\n`;
+                            } else {
+                                if (route.h1) siteContext += `    * ${route.h1}: ${route.t1}\n`;
+                                if (route.h2) siteContext += `    * ${route.h2}: ${route.t2}\n`;
+                                if (route.h3) siteContext += `    * ${route.h3}: ${route.t3}\n`;
+                            }
                         });
                     });
                 }
                 
-                // 💡 ИСПРАВЛЕНИЕ: Группировка Тестов по разделам
                 if (testsCache.length > 0) {
                     siteContext += "\nРАЗДЕЛ 'ТЕСТЫ' (Сгруппировано по папкам):\n";
                     const testGroups: Record<string, any[]> = {};
@@ -245,7 +249,6 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 
                 siteContext += "\n=== КОНЕЦ БАЗЫ ЗНАНИЙ ===\n";
                 
-                // 💡 ИСПРАВЛЕНИЕ: Системный промпт для ИИ, чтобы он учитывал разделы при ответах
                 siteContext += "ВАЖНОЕ ПРАВИЛО НАВИГАЦИИ ПО УРОКАМ: Все уроки и тесты сгруппированы по папкам (разделам). Нумерация (Урок 1, Урок 2) начинается ЗАНОВО внутри каждой папки! Если пользователь просит 'Включи урок 1' или 'Расскажи первую тему', ты должен ОБЯЗАТЕЛЬНО понять из контекста или переспросить: 'Урок 1 из какого раздела (папки) вас интересует?'.\nОпирайся СТРОГО на этот текст.\n\n";
             }
 
@@ -267,8 +270,16 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
 
             const data = await response.json();
 
+            // 💡 ИСПРАВЛЕНИЕ: Перехват ошибки о закончившихся токенах (внутри ответа 200 OK)
+            if (data.error) {
+                const errStr = JSON.stringify(data.error).toLowerCase();
+                if (errStr.includes('quota') || errStr.includes('token') || errStr.includes('limit') || errStr.includes('баланс') || errStr.includes('429')) {
+                    throw new Error("TOKEN_LIMIT_EXCEEDED");
+                }
+                throw new Error(JSON.stringify(data.error));
+            }
+
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
-            if (data.error) throw new Error(JSON.stringify(data));
 
             let aiText = "";
             if (Array.isArray(data.output)) {
@@ -300,9 +311,18 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
 
         } catch (error: any) {
             console.error("❌ ОШИБКА:", error);
+            
+            let displayError = `🚨 СИСТЕМНАЯ ОШИБКА:\n\n${error.message}`;
+            const errStr = error.message?.toLowerCase() || '';
+            
+            // 💡 ИСПРАВЛЕНИЕ: Перехват системной ошибки о токенах
+            if (errStr.includes('token') || errStr.includes('quota') || errStr.includes('429') || errStr.includes('402') || errStr.includes('limit') || errStr.includes('баланс') || errStr.includes('too many requests')) {
+                displayError = "⚠️ Токены закончились, просьба обратиться к администратору.";
+            }
+
             const errorMsg: Message = {
                 id: `msg_${Date.now() + 1}`, role: 'ai',
-                content: `🚨 СИСТЕМНАЯ ОШИБКА:\n\n${error.message}`,
+                content: displayError,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
             const finalSessions = updatedSessions.map((s: ChatSession) => 
