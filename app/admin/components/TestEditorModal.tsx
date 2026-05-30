@@ -2,7 +2,6 @@
 import React from 'react';
 import { modalOverlay, adminIn, delIconStyle, adminActionBtn, saveBtn } from './adminStyles';
 
-// 💡 Локальные стили для красивого компактного окна (как в Обучении)
 const modalContentMedium: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '550px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
 const cancelLink: React.CSSProperties = { textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
 
@@ -17,10 +16,14 @@ export default function TestEditorModal({
                     РЕДАКТОР АТТЕСТАЦИИ
                 </h2>
                 
-                <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px'}}>
-                    <div>
+                <div style={{display: 'flex', gap: '15px', marginBottom: '20px'}}>
+                    <div style={{flex: 2}}>
                         <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название аттестации</div>
                         <input autoComplete="new-password" style={adminIn as any} placeholder="Например: Итоговый экзамен" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
+                    </div>
+                    <div style={{flex: 1}}>
+                        <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Таймер (мин)</div>
+                        <input type="number" autoComplete="new-password" style={adminIn as any} placeholder="0 = без лимита" value={testFormData.timeLimit || ''} onChange={e => setTestFormData({...testFormData, timeLimit: parseInt(e.target.value) || 0})} />
                     </div>
                 </div>
 
@@ -33,7 +36,6 @@ export default function TestEditorModal({
                             <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', marginBottom: '15px', paddingRight: '40px'} as any} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
                             
                             <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                                {/* Динамически выводим 4 варианта ответа с красивым выделением */}
                                 {[0, 1, 2, 3].map((i: number) => (
                                     <div key={i} style={{display: 'flex', alignItems: 'center', gap: '10px', background: q.c === i ? 'rgba(10,186,181,0.1)' : 'transparent', padding: '10px', borderRadius: '10px', border: q.c === i ? '1px solid #0abab5' : '1px solid #222'}}>
                                         <input type="radio" style={{transform: 'scale(1.2)'}} checked={q.c === i} onChange={() => updateTestQuestion(qIdx, 'c', i)} />

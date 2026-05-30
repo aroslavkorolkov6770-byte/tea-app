@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
 
-// 🧩 ИМПОРТЫ НАШИХ КОМПОНЕНТОВ
 import FileManager from './components/FileManager';
 import UserManagement from './components/UserManagement';
 import StatisticsPanel from './components/StatisticsPanel';
@@ -12,14 +11,9 @@ import UserProfileModal from './components/UserProfileModal';
 import TestEditorModal from './components/TestEditorModal';
 import TestResultsModal from './components/TestResultsModal';
 
-// 🎨 ИМПОРТ СТИЛЕЙ ДЛЯ ОСТАВШИХСЯ МОДАЛОК
-import { 
-    modalOverlay, modalContentSmall, saveBtn, adminIn, 
-    noteOverlayStyle, noteSidebarStyle, noteTextarea, noteDeleteBtn, adminSendBtn, flexSpace, sectionTitle 
-} from './components/adminStyles';
+import { noteOverlayStyle, noteSidebarStyle, noteTextarea, noteDeleteBtn, adminSendBtn, flexSpace, sectionTitle, adminIn, saveBtn, modalOverlay, modalContentSmall } from './components/adminStyles';
 
 const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
-const DAYS_OF_WEEK = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 const saveDataToServer = (key: string, data: any) => {
     return fetch('/api/storage', {
@@ -35,7 +29,6 @@ export default function AdminDashboard() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
 
-  // --- ГЛОБАЛЬНЫЕ ДАННЫЕ СЕРВЕРА ---
   const [users, setUsers] = useState<any[]>([]);
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
@@ -45,7 +38,6 @@ export default function AdminDashboard() {
   const [totalBasicsModules, setTotalBasicsModules] = useState(50);
   const [totalRouteSteps, setTotalRouteSteps] = useState(5);
 
-  // --- КАЛЕНДАРЬ И ЗАМЕТКИ ---
   const [currentDate, setCurrentDate] = useState(new Date());
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
@@ -54,25 +46,22 @@ export default function AdminDashboard() {
   const [deadlineTarget, setDeadlineTarget] = useState<string>('Все');
   const [eventTab, setEventTab] = useState<'personal' | 'deadline'>('personal');
 
-  // --- ЦЕНТР ВЗАИМОДЕЙСТВИЯ ---
+  const [testTypesList, setTestTypesList] = useState<any[]>([{ id: 't1', name: '🎓 Итоговая аттестация' }, { id: 't2', name: '🔄 Переаттестация' }]);
   const [interactionTab, setInteractionTab] = useState<'notif' | 'test'>('notif');
   const [selectedStaff, setSelectedStaff] = useState("Все");
   const [notifText, setNotifText] = useState("");
-  const [testType, setTestType] = useState('final');
+  const [testType, setTestType] = useState('');
   
-  // --- ПРОФИЛЬ И АВТОРИЗАЦИЯ ---
   const [selectedProfileUser, setSelectedProfileUser] = useState<any>(null);
   const [editAuthMode, setEditAuthMode] = useState(false);
   const [editAuthLogin, setEditAuthLogin] = useState('');
   const [editAuthPass, setEditAuthPass] = useState('');
 
-  // --- РЕДАКТОР И РЕЗУЛЬТАТЫ ТЕСТОВ ---
   const [showTestEditor, setShowTestEditor] = useState(false);
-  const [testFormData, setTestFormData] = useState({ title: 'Итоговая аттестация', quiz: [{ q: '', o: ['', '', ''], c: 0 }] });
+  const [testFormData, setTestFormData] = useState({ title: '', timeLimit: 0, quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] });
   const [showTestModal, setShowTestModal] = useState(false);
   const [selectedTestUser, setSelectedTestUser] = useState("Все");
 
-  // --- ОБЩИЕ МОДАЛКИ ОШИБОК И УСПЕХА ---
   const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, title: string, text: string}>({ show: false, title: '', text: '' });
   const [errorModal, setErrorModal] = useState({ show: false, text: '' });
 
@@ -90,31 +79,47 @@ export default function AdminDashboard() {
         try {
             const cacheBuster = `?t=${Date.now()}`;
             
-            const notesRes = await fetch(`/api/storage${cacheBuster}&key=admin_cal_notes_v1`);
-            const notesData = await notesRes.json();
-            if (notesData && Object.keys(notesData).length > 0 && !Array.isArray(notesData)) setNotes(notesData);
+            const [notesRes, usersRes, testRes, filesRes, bRes, rRes, typesRes] = await Promise.all([
+                fetch(`/api/storage${cacheBuster}&key=admin_cal_notes_v1`).catch(() => null),
+                fetch(`/api/storage${cacheBuster}&key=tea_hub_users_v1`).catch(() => null),
+                fetch(`/api/storage${cacheBuster}&key=tea_hub_test_results_v1`).catch(() => null),
+                fetch(`/api/storage${cacheBuster}&key=tea_hub_urgent_files_v1`).catch(() => null),
+                fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_basics_v2`).catch(() => null),
+                fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_route_v2`).catch(() => null),
+                fetch(`/api/storage${cacheBuster}&key=tea_hub_test_types_v1`).catch(() => null)
+            ]);
 
-            const usersRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_users_v1`);
-            let usersData = await usersRes.json();
-            if (!Array.isArray(usersData) || usersData.length === 0) {
-                usersData = [{ id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' }];
-                saveDataToServer('tea_hub_users_v1', usersData);
+            if (notesRes && notesRes.ok) {
+                const notesData = await notesRes.json();
+                if (notesData && !Array.isArray(notesData)) setNotes(notesData);
             }
-            setUsers(usersData);
 
-            const testRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_test_results_v1`);
-            let testData = await testRes.json();
-            if (!Array.isArray(testData) || testData.length === 0) testData = [];
-            setTestResults(testData);
+            if (usersRes && usersRes.ok) {
+                let usersData = await usersRes.json();
+                if (!Array.isArray(usersData) || usersData.length === 0) {
+                    usersData = [{ id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' }];
+                    saveDataToServer('tea_hub_users_v1', usersData);
+                }
+                setUsers(usersData);
+            }
 
-            const filesRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_urgent_files_v1`);
-            const filesData = await filesRes.json();
-            if (Array.isArray(filesData)) setUrgentFiles(filesData);
+            if (testRes && testRes.ok) {
+                let testData = await testRes.json();
+                setTestResults(Array.isArray(testData) ? testData : []);
+            }
 
-            const bRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_basics_v2`);
-            const bDb = await bRes.json().catch(() => []);
-            const rRes = await fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_route_v2`);
-            const rDb = await rRes.json().catch(() => []);
+            if (filesRes && filesRes.ok) {
+                const filesData = await filesRes.json();
+                if (Array.isArray(filesData)) setUrgentFiles(filesData);
+            }
+
+            if (typesRes && typesRes.ok) {
+                const typesData = await typesRes.json();
+                if (Array.isArray(typesData) && typesData.length > 0) setTestTypesList(typesData);
+            }
+
+            const bDb = bRes && bRes.ok ? await bRes.json() : [];
+            const rDb = rRes && rRes.ok ? await rRes.json() : [];
             
             setTotalBasicsModules((Array.isArray(bDb) ? bDb : []).reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) || 50);
             setTotalRouteSteps(Array.isArray(rDb) ? rDb.length : 5);
@@ -123,50 +128,57 @@ export default function AdminDashboard() {
             const avatarsFound: Record<string, string> = {};
             const profilesFound: Record<string, any> = {};
 
-            await Promise.all(usersData.map(async (u: any) => {
-                if (u.avatar) avatarsFound[u.id] = u.avatar;
-                try {
-                    const profData = await fetch(`/api/storage${cacheBuster}&key=profile_data_${u.id}`).then(r => r.json()).catch(() => null);
-                    if (profData && !Array.isArray(profData)) {
-                        profilesFound[u.id] = profData;
-                        if (profData.avatar) avatarsFound[u.id] = profData.avatar;
-                    }
-                } catch(e) {}
-
-                if (u.role === 'staff') {
+            if (usersRes && usersRes.ok) {
+                const usersData = await usersRes.json();
+                await Promise.all(usersData.map(async (u: any) => {
+                    if (u.avatar) avatarsFound[u.id] = u.avatar;
                     try {
-                        const [uRouteData, uBasicsData] = await Promise.all([
-                            fetch(`/api/storage${cacheBuster}&key=prog_route_${u.id}`).then(r => r.json()).catch(() => []),
-                            fetch(`/api/storage${cacheBuster}&key=prog_basics_${u.id}`).then(r => r.json()).catch(() => [])
-                        ]);
-                        stats[u.id] = { route: Array.isArray(uRouteData) ? uRouteData.length : 0, basics: Array.isArray(uBasicsData) ? uBasicsData.length : 0 };
-                    } catch(e) {
-                        stats[u.id] = { route: 0, basics: 0 };
+                        const profData = await fetch(`/api/storage${cacheBuster}&key=profile_data_${u.id}`).then(r => r.json()).catch(() => null);
+                        if (profData && !Array.isArray(profData)) {
+                            profilesFound[u.id] = profData;
+                            if (profData.avatar) avatarsFound[u.id] = profData.avatar;
+                        }
+                    } catch(e) {}
+
+                    if (u.role === 'staff') {
+                        try {
+                            const [uRouteData, uBasicsData] = await Promise.all([
+                                fetch(`/api/storage${cacheBuster}&key=prog_route_${u.id}`).then(r => r.json()).catch(() => []),
+                                fetch(`/api/storage${cacheBuster}&key=prog_basics_${u.id}`).then(r => r.json()).catch(() => [])
+                            ]);
+                            stats[u.id] = { route: Array.isArray(uRouteData) ? uRouteData.length : 0, basics: Array.isArray(uBasicsData) ? uBasicsData.length : 0 };
+                        } catch(e) {
+                            stats[u.id] = { route: 0, basics: 0 };
+                        }
                     }
-                }
-            }));
+                }));
+            }
             
             setUsersStats(stats);
             setUserAvatars(avatarsFound);
             setUserProfiles(profilesFound);
 
-        } catch (error) {
-            console.error("Ошибка загрузки данных с сервера:", error);
-        }
+        } catch (error) { console.error("Error", error); }
     };
-
     loadAllData();
     return () => window.removeEventListener('sidebarToggle', handleToggle);
   }, []);
 
-  // ============================================================================
-  // PUSH & УВЕДОМЛЕНИЯ
-  // ============================================================================
+  const handleUpdateTestTypes = (newTypes: any[]) => {
+      setTestTypesList(newTypes);
+      saveDataToServer('tea_hub_test_types_v1', newTypes);
+  };
+
+  useEffect(() => {
+      if (testTypesList.length > 0 && !testTypesList.some(t => t.name === testType)) {
+          setTestType(testTypesList[0].name);
+      }
+  }, [testTypesList, testType]);
+
   const subscribeToPush = async () => {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return alert("Браузер не поддерживает Web Push.");
       const currentId = localStorage.getItem('current_user_id') || 'guest';
       if (currentId === 'guest' || !currentId) return alert("⚠️ Перед включением уведомлений нужно войти в аккаунт!");
-      
       try {
           const permission = await Notification.requestPermission();
           setPushStatus(permission);
@@ -174,7 +186,6 @@ export default function AdminDashboard() {
               const swUrl = `/sw.js?v=${Date.now()}`;
               const registration = await navigator.serviceWorker.register(swUrl);
               let subscription = await registration.pushManager.getSubscription();
-
               if (!subscription) {
                   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
                   if (!vapidPublicKey) return alert("⚠️ Ошибка: VAPID ключ не найден!");
@@ -188,11 +199,9 @@ export default function AdminDashboard() {
                   };
                   subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) });
               }
-
               const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
               let subs = await res.json().catch(() => []);
               if (!Array.isArray(subs)) subs = [];
-
               if (!subs.find((s: any) => s.sub.endpoint === subscription?.endpoint)) {
                   subs.push({ userId: currentId, sub: subscription });
                   saveDataToServer('tea_hub_push_subs_v1', subs);
@@ -225,81 +234,54 @@ export default function AdminDashboard() {
           const subsRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`, { cache: 'no-store' });
           const subs = await subsRes.json().catch(() => []);
           if (!Array.isArray(subs) || subs.length === 0) return false;
-
           const targetSubs = targetUserId === 'Все' ? subs : subs.filter((s: any) => s.userId === targetUserId);
           if (targetSubs.length === 0) return false;
-
           const apiRes = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptions: targetSubs.map((s: any) => s.sub), payload }) });
           return apiRes.ok;
       } catch (e) { return false; }
   };
 
-  // ============================================================================
-  // ЛОГИКА ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ
-  // ============================================================================
   const handleSaveUserAuth = async () => {
       if (!editAuthLogin.trim() || !editAuthPass.trim()) return setErrorModal({ show: true, text: "Логин и пароль не могут быть пустыми!" });
       if (users.find(u => u.login === editAuthLogin.trim() && u.id !== selectedProfileUser.id)) return setErrorModal({ show: true, text: "Логин занят другим пользователем!" });
-
       const updatedUsers = users.map(u => u.id === selectedProfileUser.id ? { ...u, login: editAuthLogin.trim(), pass: editAuthPass.trim() } : u);
       setUsers(updatedUsers);
       saveDataToServer('tea_hub_users_v1', updatedUsers);
-      
       setSelectedProfileUser({ ...selectedProfileUser, login: editAuthLogin.trim(), pass: editAuthPass.trim() });
       setEditAuthMode(false);
       setShowSuccessModal({ show: true, title: 'ДОСТУПЫ ОБНОВЛЕНЫ', text: `Новые данные для входа успешно сохранены.` });
   };
 
-  // ============================================================================
-  // ВЫЧИСЛЕНИЯ ДЛЯ КАЛЕНДАРЯ И ЗАМЕТОК (ВОССТАНОВЛЕНО)
-  // ============================================================================
   const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const startDayIndex = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
   const shiftStartDay = startDayIndex === 0 ? 6 : startDayIndex - 1;
-
-  const today = new Date(); 
-  today.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const isToday = (d: number) => today.getDate() === d && today.getMonth() === currentDate.getMonth() && today.getFullYear() === currentDate.getFullYear();
   const formattedSelectedDate = () => selectedDateKey ? `${selectedDateKey.split('-')[2]} ${MONTH_NAMES[parseInt(selectedDateKey.split('-')[1])]} ${selectedDateKey.split('-')[0]}` : "";
-
-  const openNotePanel = (day: number) => {
-      const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`;
-      setSelectedDateKey(key); setNoteText(notes[key] || ""); setNoteType('personal'); setDeadlineTarget('Все');
-  };
   
+  const openNotePanel = (day: number) => { const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`; setSelectedDateKey(key); setNoteText(notes[key] || ""); setNoteType('personal'); setDeadlineTarget('Все'); };
   const closeNotePanel = () => { setSelectedDateKey(null); setNoteText(""); };
 
   const saveNote = async () => {
       if (!selectedDateKey) return;
       if (!noteText.trim()) { const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); return; }
       if (isProcessing) return; setIsProcessing(true);
-
       try {
           const newNotes = { ...notes };
           let adminNoteText = noteText.trim();
-          
           if (noteType === 'deadline') {
               const targetName = deadlineTarget === 'Все' ? 'Всем' : users.find(u => u.id === deadlineTarget)?.name || deadlineTarget;
               adminNoteText = `[Дедлайн: ${targetName}]\n${noteText.trim()}`;
-              
-              const newDeadlineTask = {
-                  id: 'deadline_' + Date.now(), name: '⚠️ Дедлайн: ' + noteText.trim(),
-                  size: 'Выполнить до: ' + formattedSelectedDate(), date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
-                  target: deadlineTarget, isTest: false
-              };
+              const newDeadlineTask = { id: 'deadline_' + Date.now(), name: '⚠️ Дедлайн: ' + noteText.trim(), size: 'Выполнить до: ' + formattedSelectedDate(), date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), target: deadlineTarget, isTest: false };
               const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
               const currentFiles = await res.json().catch(() => []);
               const updatedFiles = [newDeadlineTask, ...(Array.isArray(currentFiles) ? currentFiles : [])];
-              
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-
               const pushSent = await sendPushNotification(deadlineTarget, { title: '⚠️ Новый дедлайн', body: noteText.trim(), url: '/tasks?tab=edu' });
               const emailSent = await sendEmailNotification(deadlineTarget, '⚠️ Внимание: Новый дедлайн!', `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`);
-
               setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена. ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
           }
           newNotes[selectedDateKey] = adminNoteText;
@@ -310,7 +292,6 @@ export default function AdminDashboard() {
 
   const deleteNote = () => { if (!selectedDateKey) return; const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); };
 
-  // Вычисляем события для календаря
   const parsedEvents = Object.entries(notes).map(([key, text]) => {
       const [y, m, d] = key.split('-').map(Number);
       const isDeadline = text.startsWith('[Дедлайн:');
@@ -321,12 +302,8 @@ export default function AdminDashboard() {
       } else { const lines = text.split('\n'); title = lines[0] || 'Без названия'; desc = lines.slice(1).join(' '); }
       return { key, text, dateObj: new Date(y, m, d), d, isDeadline, target, title, desc };
   }).filter(event => event.dateObj >= (new Date(new Date().setHours(0,0,0,0)))).sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
-
   const filteredEvents = parsedEvents.filter(e => eventTab === 'personal' ? !e.isDeadline : e.isDeadline);
 
-  // ============================================================================
-  // ЛОГИКА АТТЕСТАЦИИ И УВЕДОМЛЕНИЙ
-  // ============================================================================
   const handleSendNotification = async () => {
     if (!notifText.trim() || isProcessing) return; setIsProcessing(true);
     try {
@@ -334,7 +311,6 @@ export default function AdminDashboard() {
         const arr = await res.json().catch(() => []);
         const newNotif = { id: Date.now(), title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение', text: notifText.trim(), time: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), target: selectedStaff };
         await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...(Array.isArray(arr) ? arr : [])]);
-
         const pushSent = await sendPushNotification(selectedStaff, { title: newNotif.title, body: newNotif.text, url: '/tasks?tab=welcome' });
         const emailSent = await sendEmailNotification(selectedStaff, newNotif.title, newNotif.text);
         if (pushSent || emailSent) setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление доставлено сотрудникам.' });
@@ -342,25 +318,20 @@ export default function AdminDashboard() {
     } finally { setIsProcessing(false); }
   };
 
-  const getBaseQuizTemplate = () => [{ q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C'], c: 1 }, { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос'], c: 1 }, { q: 'Какая скрутка у Те Гуань Инь?', o: ['Продольная', 'Сферическая', 'Прессованная'], c: 1 }];
+  const getBaseQuizTemplate = () => [{ q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C', '40°C'], c: 1 }, { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос', 'Лопатка'], c: 1 }, { q: 'Какая скрутка у Те Гуань Инь?', o: ['Продольная', 'Сферическая', 'Прессованная', 'Сломанная'], c: 1 }];
 
-  const handleOpenTestEditor = () => { setTestFormData({ title: testType === 'final' ? 'Итоговая аттестация' : 'Переаттестация', quiz: getBaseQuizTemplate() }); setShowTestEditor(true); };
+  const handleOpenTestEditor = () => { setTestFormData({ title: testType, timeLimit: 0, quiz: getBaseQuizTemplate() }); setShowTestEditor(true); };
 
   const handleQuickSendTest = async () => {
       if (isProcessing) return; setIsProcessing(true);
       try {
-          const title = testType === 'final' ? 'Итоговая аттестация' : 'Переаттестация';
-          const newTestTask = { id: 'test_' + Date.now(), name: title, size: 'Интерактивный тест', date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), isTest: true, target: selectedStaff, quiz: getBaseQuizTemplate() };
+          const newTestTask = { id: 'test_' + Date.now(), name: testType, timeLimit: 0, size: 'Интерактивный тест', date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), isTest: true, target: selectedStaff, quiz: getBaseQuizTemplate() };
           const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
           const currentFiles = await res.json().catch(() => []);
           const updatedFiles = [newTestTask, ...(Array.isArray(currentFiles) ? currentFiles : [])];
-          
           setUrgentFiles(updatedFiles);
           await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-          
-          const pushSent = await sendPushNotification(selectedStaff, { title: '🎓 Новая аттестация', body: `Вам назначен тест: ${title}`, url: '/tasks?tab=edu' });
-          const emailSent = await sendEmailNotification(selectedStaff, '🎓 Вам назначена новая аттестация', `Назначен новый тест для прохождения: ${title}.`);
-          if (pushSent || emailSent) setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест успешно отправлен.` });
+          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест успешно отправлен.` });
       } finally { setIsProcessing(false); }
   };
 
@@ -368,17 +339,13 @@ export default function AdminDashboard() {
       if (testFormData.quiz.some(q => !q.q.trim() || q.o.some(opt => !opt.trim()))) return setErrorModal({ show: true, text: 'Все поля должны быть заполнены!' });
       if (isProcessing) return; setIsProcessing(true);
       try {
-          const newTestTask = { id: 'test_' + Date.now(), name: testFormData.title, size: 'Интерактивный тест', date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), isTest: true, target: selectedStaff, quiz: testFormData.quiz };
+          const newTestTask = { id: 'test_' + Date.now(), name: testFormData.title, timeLimit: testFormData.timeLimit || 0, size: 'Интерактивный тест', date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), isTest: true, target: selectedStaff, quiz: testFormData.quiz };
           const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
           const currentFiles = await res.json().catch(() => []);
           const updatedFiles = [newTestTask, ...(Array.isArray(currentFiles) ? currentFiles : [])];
-          
           setUrgentFiles(updatedFiles);
           await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-          
-          const pushSent = await sendPushNotification(selectedStaff, { title: '🎓 Новая аттестация', body: `Вам назначен тест: ${testFormData.title}`, url: '/tasks?tab=edu' });
-          const emailSent = await sendEmailNotification(selectedStaff, '🎓 Вам назначена новая аттестация', `Назначен новый тест: ${testFormData.title}.`);
-          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" отправлен. ${pushSent || emailSent ? '(Уведомления ушли)' : ''}` });
+          setShowSuccessModal({ show: true, title: 'АТТЕСТАЦИЯ НАЗНАЧЕНА', text: `Тест "${testFormData.title}" отправлен.` });
           setShowTestEditor(false);
       } finally { setIsProcessing(false); }
   };
@@ -390,7 +357,7 @@ export default function AdminDashboard() {
       if (field.startsWith('o')) newQuiz[index].o[parseInt(field.replace('o', ''))] = value;
       setTestFormData({...testFormData, quiz: newQuiz});
   };
-  const addTestQuestion = () => setTestFormData({...testFormData, quiz: [...testFormData.quiz, { q: '', o: ['', '', ''], c: 0 }]});
+  const addTestQuestion = () => setTestFormData({...testFormData, quiz: [...testFormData.quiz, { q: '', o: ['', '', '', ''], c: 0 }]});
   const removeTestQuestion = (index: number) => setTestFormData({...testFormData, quiz: testFormData.quiz.filter((_, i) => i !== index)});
 
   if (!isMounted) return <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', display: 'flex' }}><Navigation /><div style={{ width: '260px', flexShrink: 0 }} /></div>;
@@ -413,10 +380,8 @@ export default function AdminDashboard() {
                 </div>
             )}
             
-            {/* ФАЙЛОВЫЙ МЕНЕДЖЕР */}
             <FileManager 
-                urgentFiles={urgentFiles} setUrgentFiles={setUrgentFiles}
-                isProcessing={isProcessing} setIsProcessing={setIsProcessing}
+                urgentFiles={urgentFiles} setUrgentFiles={setUrgentFiles} isProcessing={isProcessing} setIsProcessing={setIsProcessing}
                 sendPushNotification={sendPushNotification} sendEmailNotification={sendEmailNotification}
                 setShowSuccessModal={setShowSuccessModal} setErrorModal={setErrorModal}
             />
@@ -424,7 +389,6 @@ export default function AdminDashboard() {
             <div className="admin-layout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px', marginBottom: '30px', marginTop: '40px' }}>
               <section style={{ minWidth: 0 }}>
                 
-                {/* УПРАВЛЕНИЕ ПЕРСОНАЛОМ */}
                 <UserManagement 
                     users={users} setUsers={setUsers} userAvatars={userAvatars}
                     setShowSuccessModal={setShowSuccessModal} setErrorModal={setErrorModal} setSelectedProfileUser={setSelectedProfileUser}
@@ -437,18 +401,17 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Всего записей: {testResults.length}</span>
                 </div>
 
-                {/* ЦЕНТР ВЗАИМОДЕЙСТВИЯ */}
                 <InteractionCenter 
                     users={users} interactionTab={interactionTab} setInteractionTab={setInteractionTab}
                     selectedStaff={selectedStaff} setSelectedStaff={setSelectedStaff} notifText={notifText}
                     setNotifText={setNotifText} testType={testType} setTestType={setTestType}
                     handleSendNotification={handleSendNotification} handleOpenTestEditor={handleOpenTestEditor}
                     handleQuickSendTest={handleQuickSendTest} isProcessing={isProcessing}
+                    testTypesList={testTypesList} handleUpdateTestTypes={handleUpdateTestTypes}
                 />
 
               </section>
 
-              {/* КАЛЕНДАРЬ И ЗАМЕТКИ */}
               <CalendarWidget 
                   eventTab={eventTab} setEventTab={setEventTab} filteredEvents={filteredEvents}
                   currentDate={currentDate} handlePrevMonth={handlePrevMonth} handleNextMonth={handleNextMonth}
@@ -458,7 +421,6 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-               {/* СТАТИСТИКА СОТРУДНИКОВ */}
                <StatisticsPanel 
                    users={users} usersStats={usersStats} totalRouteSteps={totalRouteSteps} 
                    totalBasicsModules={totalBasicsModules} userAvatars={userAvatars} setSelectedProfileUser={setSelectedProfileUser}
@@ -467,7 +429,6 @@ export default function AdminDashboard() {
           </div>
       </main>
 
-      {/* МОДАЛЬНЫЕ ОКНА */}
       <UserProfileModal 
           selectedProfileUser={selectedProfileUser} setSelectedProfileUser={setSelectedProfileUser}
           userProfiles={userProfiles} usersStats={usersStats} totalRouteSteps={totalRouteSteps}
@@ -492,7 +453,6 @@ export default function AdminDashboard() {
           />
       )}
 
-      {/* САЙДБАР ЗАМЕТКИ */}
       {selectedDateKey && (
         <div style={noteOverlayStyle as any} onClick={closeNotePanel}>
           <div style={noteSidebarStyle as any} onClick={e => e.stopPropagation()}>
@@ -527,7 +487,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* МОДАЛКИ УСПЕХА И ОШИБОК */}
       {showSuccessModal.show && (
           <div style={modalOverlay as any} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
@@ -550,7 +509,6 @@ export default function AdminDashboard() {
           </div>
       )}
 
-      {/* ГЛОБАЛЬНЫЕ СТИЛИ (остаются для анимаций и скроллов) */}
       <style jsx global>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
@@ -573,22 +531,17 @@ export default function AdminDashboard() {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
             .admin-main { padding: 90px 15px 50px 15px !important; }
             .admin-layout-grid { grid-template-columns: 1fr !important; gap: 20px !important; margin-top: 20px !important; }
-            
             .admin-section-title { font-size: 20px !important; margin-bottom: 20px !important; }
             .admin-flex-space { flex-direction: column; align-items: flex-start !important; gap: 15px !important; margin-bottom: 25px !important; }
-            
             .admin-user-grid { grid-template-columns: 1fr !important; }
-            
             .admin-user-card { flex-direction: column !important; align-items: flex-start !important; gap: 20px !important; padding: 20px !important; }
             .admin-user-avatar-col { flex: auto !important; width: 100% !important; margin-bottom: 0 !important; }
             .admin-user-bars-col { border-left: none !important; padding-left: 0 !important; width: 100% !important; border-top: 1px solid #222; padding-top: 20px !important; }
             .admin-user-actions-col { border-left: none !important; padding-left: 0 !important; width: 100% !important; justify-content: flex-end; height: auto !important; border-top: 1px solid #222; padding-top: 20px !important; }
-
             .interaction-center-tabs { flex-direction: column; }
             .interaction-center-tabs > div { border-left: none !important; border-bottom: 1px solid #222; }
             .interaction-center-row { flex-direction: column; align-items: stretch !important; gap: 15px !important; }
             .interaction-center-label { width: 100% !important; margin-bottom: -5px; }
-
             .admin-modal-content { padding: 30px 20px !important; width: 95% !important; border-radius: 25px !important; }
         }
       `}</style>
