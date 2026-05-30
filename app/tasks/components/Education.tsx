@@ -101,6 +101,9 @@ export default function Education({
     const [urgentTestStep, setUrgentTestStep] = useState(0);
     const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
 
+    // 💡 СОСТОЯНИЕ ДЛЯ ОТКРЫТОЙ КАРТИНКИ (Lightbox)
+    const [zoomedImg, setZoomedImg] = useState<string | null>(null);
+
     // 💡 ЕДИНЫЕ ФУНКЦИИ СИНХРОНИЗАЦИИ (ФИКС МЕРЦАНИЯ ПРИ УДАЛЕНИИ И СОХРАНЕНИИ)
     const updateRouteState = (newData: any[]) => {
         setDynamicRoute(newData);
@@ -514,7 +517,7 @@ export default function Education({
                    <div key={secName} style={{ marginBottom: '40px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
                            <h3 style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>📁 {secName}</h3>
-                           {isAdmin && secName !== 'Основной раздел' && (
+                           {isAdmin && (
                                <div style={{display: 'flex', gap: '15px'}}>
                                    <span onClick={() => setRenameSectionPrompt({isOpen: true, type: 'route', oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✎ РЕДАКТИРОВАТЬ</span>
                                    <span onClick={() => setConfirmDelete({isOpen: true, type: 'section_route', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✕ УДАЛИТЬ</span>
@@ -757,7 +760,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- 💡 ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" (С ВИДЕО И ФОТО) --- */}
+            {/* --- 💡 ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" (С ВИДЕО И ЗУМОМ ФОТО) --- */}
             {selectedRouteStep && !showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteModal}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -769,7 +772,6 @@ export default function Education({
                             <div onClick={closeRouteModal} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
                         </div>
 
-                        {/* 💡 ВЫВОД ИЗОЛИРОВАННОГО ВИДЕОПЛЕЕРА ИЛИ ТЕКСТА */}
                         {selectedRouteStep.mediaType === 'video' ? (
                             <MemoizedVideoPlayer 
                                 iframeStr={selectedRouteStep.videoIframe || ''} 
@@ -779,21 +781,36 @@ export default function Education({
                             <div className="tasks-theory-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '25px', marginBottom: '35px'}}>
                                 {selectedRouteStep.h1 && (
                                     <div className="tasks-theory-block" style={theoryBlock as any}>
-                                        {selectedRouteStep.img1 && <img src={selectedRouteStep.img1} alt="" style={{width: '100%', maxHeight: '250px', objectFit: 'cover', borderRadius: '15px', marginBottom: '15px', background: '#111'}} />}
+                                        {selectedRouteStep.img1 && (
+                                            <div className="image-zoom-container" onClick={() => setZoomedImg(selectedRouteStep.img1)}>
+                                                <img src={selectedRouteStep.img1} alt="" />
+                                                <div className="zoom-overlay"><div className="zoom-icon">🔍</div></div>
+                                            </div>
+                                        )}
                                         <div style={theoryLabel as any}>{selectedRouteStep.h1}</div>
                                         <p style={theoryText as any}>{selectedRouteStep.t1}</p>
                                     </div>
                                 )}
                                 {selectedRouteStep.h2 && (
                                     <div className="tasks-theory-block" style={theoryBlock as any}>
-                                        {selectedRouteStep.img2 && <img src={selectedRouteStep.img2} alt="" style={{width: '100%', maxHeight: '250px', objectFit: 'cover', borderRadius: '15px', marginBottom: '15px', background: '#111'}} />}
+                                        {selectedRouteStep.img2 && (
+                                            <div className="image-zoom-container" onClick={() => setZoomedImg(selectedRouteStep.img2)}>
+                                                <img src={selectedRouteStep.img2} alt="" />
+                                                <div className="zoom-overlay"><div className="zoom-icon">🔍</div></div>
+                                            </div>
+                                        )}
                                         <div style={theoryLabel as any}>{selectedRouteStep.h2}</div>
                                         <p style={theoryText as any}>{selectedRouteStep.t2}</p>
                                     </div>
                                 )}
                                 {selectedRouteStep.h3 && (
                                     <div className="tasks-theory-block" style={theoryBlock as any}>
-                                        {selectedRouteStep.img3 && <img src={selectedRouteStep.img3} alt="" style={{width: '100%', maxHeight: '250px', objectFit: 'cover', borderRadius: '15px', marginBottom: '15px', background: '#111'}} />}
+                                        {selectedRouteStep.img3 && (
+                                            <div className="image-zoom-container" onClick={() => setZoomedImg(selectedRouteStep.img3)}>
+                                                <img src={selectedRouteStep.img3} alt="" />
+                                                <div className="zoom-overlay"><div className="zoom-icon">🔍</div></div>
+                                            </div>
+                                        )}
                                         <div style={theoryLabel as any}>{selectedRouteStep.h3}</div>
                                         <p style={theoryText as any}>{selectedRouteStep.t3}</p>
                                     </div>
@@ -814,7 +831,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (С ФИКСАМИ И ЗАГРУЗКОЙ) */}
+            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (С ЗАЩИТОЙ ОТ АВТОЗАПОЛНЕНИЯ) */}
             {showRouteForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -825,18 +842,18 @@ export default function Education({
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название темы</div>
-                                <input autoComplete="new-password" style={adminIn as any} placeholder="Например: Основы зеленого чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
+                                <input autoComplete="new-password" name={"title_" + Date.now()} style={adminIn as any} placeholder="Например: Основы зеленого чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
                             </div>
                             
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел (Папка)</div>
-                                    <input list="route-sections" autoComplete="new-password" style={adminIn as any} placeholder="Напр. Введение" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
+                                    <input list="route-sections" autoComplete="new-password" name={"sec_" + Date.now()} style={adminIn as any} placeholder="Напр. Введение" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
                                     <datalist id="route-sections">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Подраздел</div>
-                                    <input list="route-subsections" autoComplete="new-password" style={adminIn as any} placeholder="Напр. Практика" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
+                                    <input list="route-subsections" autoComplete="new-password" name={"subsec_" + Date.now()} style={adminIn as any} placeholder="Напр. Практика" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
                                     <datalist id="route-subsections">{Array.from(new Set(dynamicRoute.map((r: any) => r.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
                                 </div>
                             </div>
@@ -1123,6 +1140,14 @@ export default function Education({
                 </div>
             )}
 
+            {/* 💡 ФУЛСКРИН LIGHTBOX ДЛЯ ПРОСМОТРА ФОТО */}
+            {zoomedImg && (
+                <div style={lightboxOverlay as any} onClick={() => setZoomedImg(null)}>
+                    <div onClick={() => setZoomedImg(null)} style={{position: 'absolute', top: '20px', right: '30px', cursor: 'pointer', fontSize: '40px', color: '#ff4d4d', fontWeight: 'bold', zIndex: 90001, textShadow: '0 2px 10px rgba(0,0,0,0.5)'}}>✕</div>
+                    <img src={zoomedImg} style={{maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '15px'}} alt="Zoomed" />
+                </div>
+            )}
+
             <style jsx global>{`
                 .anti-cheat { user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
                 .test-answer-btn { padding: 20px 30px; background: #111; color: #fff; border-radius: 18px; cursor: pointer; border: 1px solid #222; font-weight: 800; margin-bottom: 12px; transition: all 0.2s ease; }
@@ -1138,6 +1163,15 @@ export default function Education({
 
                 .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
                 .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }
+
+                /* 💡 СТИЛИ ДЛЯ КАРТИНОК И ЗУМА */
+                .image-zoom-container { position: relative; width: 100%; height: 220px; border-radius: 15px; overflow: hidden; cursor: pointer; margin-bottom: 15px; background: #111; }
+                .image-zoom-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+                .image-zoom-container:hover img { transform: scale(1.05); }
+                .zoom-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; }
+                .image-zoom-container:hover .zoom-overlay { opacity: 1; }
+                .zoom-icon { font-size: 24px; color: #fff; background: rgba(10,186,181,0.9); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transform: translateY(10px); transition: 0.3s ease; }
+                .image-zoom-container:hover .zoom-icon { transform: translateY(0); }
 
                 @media (max-width: 768px) {
                     .premium-cards-container { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
@@ -1163,6 +1197,7 @@ const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900',
 const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '800', color: '#666' };
 const backLink: React.CSSProperties = { color: '#0abab5', fontWeight: '900', marginBottom: '30px', cursor: 'pointer', display: 'inline-block', fontSize: '15px' };
 const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
+const lightboxOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', zIndex: 90000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', boxSizing: 'border-box', cursor: 'zoom-out' };
 const modalContentLarge: React.CSSProperties = { background: '#000', padding: '60px', borderRadius: '50px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
 const modalContentMedium: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '550px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
 const modalContentSmall: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
