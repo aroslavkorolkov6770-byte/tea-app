@@ -33,6 +33,13 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         return true;
     });
 
+    // 💡 Единая функция для безопасного обновления стейта, кэша и сервера (устраняет мерцание)
+    const updateFilesState = (newFiles: any[]) => {
+        setUrgentFiles(newFiles);
+        localStorage.setItem('th_cache_files', JSON.stringify(newFiles));
+        saveDataToServer(STORAGE_KEYS.URGENT_FILES, newFiles);
+    };
+
     const handleDownloadFile = (file: any) => {
         if (!file.data && !file.hasSeparateData) {
             alert("Этот файл был загружен в старой версии платформы и недоступен.");
@@ -94,8 +101,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         const newSecName = promptSection.name.trim();
         const placeholder = { id: 'doc_placeholder_' + Date.now(), section: newSecName, isDocPlaceholder: true };
         const updated = [...(urgentFiles || []), placeholder];
-        setUrgentFiles(updated);
-        saveDataToServer(STORAGE_KEYS.URGENT_FILES, updated);
+        updateFilesState(updated);
         setPromptSection({ isOpen: false, name: '' });
     };
 
@@ -112,8 +118,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             return f;
         });
         
-        setUrgentFiles(updated);
-        saveDataToServer(STORAGE_KEYS.URGENT_FILES, updated);
+        updateFilesState(updated);
         setRenameSectionPrompt({ isOpen: false, oldName: '', newName: '' });
     };
 
@@ -126,19 +131,45 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 return true;
             });
         } else {
+            const itemToDelete = (urgentFiles || []).find((f: any) => f.id === confirmDelete.targetId);
+            const sourceSection = itemToDelete?.section?.trim() || 'Основной раздел';
+            
             updated = (urgentFiles || []).filter((f: any) => f.id !== confirmDelete.targetId);
             saveDataToServer(`file_data_${confirmDelete.targetId}`, null);
+
+            // 💡 Защита от пропадания папки: если мы удалили последний файл, создаем заглушку
+            const sourceHasItems = updated.some((f: any) => {
+                const isDoc = f.isDocPlaceholder || !(f.id?.startsWith('deadline_') || f.isTest);
+                return isDoc && (f.section?.trim() || 'Основной раздел') === sourceSection;
+            });
+            
+            if (!sourceHasItems && sourceSection !== 'Основной раздел') {
+                updated.push({ id: 'doc_placeholder_' + Date.now(), section: sourceSection, isDocPlaceholder: true });
+            }
         }
-        setUrgentFiles(updated);
-        saveDataToServer(STORAGE_KEYS.URGENT_FILES, updated);
+        updateFilesState(updated);
         setConfirmDelete({ isOpen: false, type: 'file', targetId: '', name: '' });
     };
 
     const handleMoveItem = (targetSection: string) => {
         if (!movingItem) return;
-        const updated = (urgentFiles || []).map((f: any) => f.id === movingItem ? { ...f, section: targetSection } : f);
-        setUrgentFiles(updated);
-        saveDataToServer(STORAGE_KEYS.URGENT_FILES, updated);
+        
+        const itemToMove = (urgentFiles || []).find((f: any) => f.id === movingItem);
+        const sourceSection = itemToMove?.section?.trim() || 'Основной раздел';
+
+        let updated = (urgentFiles || []).map((f: any) => f.id === movingItem ? { ...f, section: targetSection } : f);
+        
+        // 💡 Защита от пропадания папки: если мы забрали последний файл, оставляем заглушку
+        const sourceHasItems = updated.some((f: any) => {
+            const isDoc = f.isDocPlaceholder || !(f.id?.startsWith('deadline_') || f.isTest);
+            return isDoc && (f.section?.trim() || 'Основной раздел') === sourceSection;
+        });
+        
+        if (!sourceHasItems && sourceSection !== 'Основной раздел') {
+            updated.push({ id: 'doc_placeholder_' + Date.now(), section: sourceSection, isDocPlaceholder: true });
+        }
+
+        updateFilesState(updated);
         setMovingItem(null);
         setMoveNewSectionName('');
     };
@@ -149,6 +180,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         items.forEach((item: any) => {
             const sec = item.section?.trim() || 'Основной раздел';
             if (!groups[sec]) groups[sec] = [];
+            // Добавляем в массив только реальные файлы, игнорируем плейсхолдеры
             if (!item.isDocPlaceholder) {
                 groups[sec].push(item);
             }
@@ -171,7 +203,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             </div>
             
             <div style={{ marginBottom: '60px' }}>
-               {/* 💡 ИСПРАВЛЕНА ЛОГИКА ОТОБРАЖЕНИЯ ПУСТОГО СОСТОЯНИЯ */}
                {Object.keys(docGroups).length === 0 ? (
                    <div style={{ color: '#666', fontSize: '15px', background: '#111', padding: '40px', borderRadius: '30px', border: '1px dashed #333', textAlign: 'center', lineHeight: '1.5' }}>
                        {isAdmin ? 'В этом разделе пока нет документов.\nНажмите «+ НОВЫЙ РАЗДЕЛ», чтобы создать первую папку.' : 'Нет доступных нормативных документов.'}
@@ -196,9 +227,8 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                    </div>
                                ) : (
                                    items.map((file: any) => (
-                                       <div key={file.id} className="premium-card" style={{ padding: '20px', background: '#111', borderRadius: '15px', border: '1px solid #222', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                                       <div key={file.id} className="premium-card">
                                           
-                                          {/* 💡 ИСПРАВЛЕНА ОШИБКА С ПЕРЕМЕННЫМИ СТИЛЕЙ */}
                                           {isAdmin && (
                                               <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
                                                   <div onClick={(e) => { e.stopPropagation(); setMovingItem(file.id); }} style={moveIconStyle as any} title="Переместить">📦</div>
@@ -324,6 +354,61 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     </div>
                 </div>
             )}
+
+            {/* 💡 ДОБАВЛЕНЫ СТИЛИ СЕТКИ (УСТРАНЯЕТ РАСТЯГИВАНИЕ КАРТОЧЕК НА ВЕСЬ ЭКРАН) */}
+            <style jsx global>{`
+                @media (min-width: 769px) {
+                    .premium-cards-container {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
+                        gap: 20px;
+                        width: 100%;
+                    }
+                }
+
+                .premium-card {
+                    background: #111;
+                    border-radius: 14px; 
+                    border: 1px solid #222;
+                    transition: all 0.2s ease;
+                    position: relative;
+                    cursor: pointer;
+                    display: flex;
+                    flex-direction: column;
+                    width: 100%;
+                    min-height: 140px; 
+                    padding: 20px; 
+                    box-sizing: border-box; 
+                    overflow: hidden;
+                }
+
+                .premium-card:hover {
+                    border-color: #0abab5;
+                    transform: translateY(-3px);
+                }
+
+                .premium-card:active {
+                    background: rgba(10, 186, 181, 0.05); 
+                    border-color: #0abab5;
+                    transform: scale(0.98); 
+                }
+
+                @media (max-width: 768px) {
+                    .premium-cards-container { 
+                        display: grid !important;
+                        grid-template-columns: repeat(2, 1fr) !important;
+                        gap: 10px !important; 
+                    }
+                    .premium-card {
+                        width: 100% !important;
+                        max-width: none !important; 
+                        padding: 15px !important;
+                        min-height: 120px !important;
+                    }
+                    .premium-card h4 { font-size: 13px !important; margin-bottom: 10px !important; }
+                    .premium-card span { font-size: 10px !important; }
+                }
+            `}</style>
         </section>
     );
 }
