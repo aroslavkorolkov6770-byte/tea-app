@@ -96,8 +96,10 @@ export default function AdminDashboard() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   
-  // 💡 НОВОЕ СОСТОЯНИЕ: Для выбора папки при загрузке
+  // 💡 НОВЫЕ СОСТОЯНИЯ ДЛЯ ВЫБОРА ПАПКИ
   const [uploadSection, setUploadSection] = useState('Основной раздел');
+  const [isCreatingNewUploadSection, setIsCreatingNewUploadSection] = useState(false);
+  const [newUploadSectionName, setNewUploadSectionName] = useState('');
 
   const [showFilesList, setShowFilesList] = useState(false);
   const [previewFile, setPreviewFile] = useState<any>(null);
@@ -383,11 +385,17 @@ export default function AdminDashboard() {
       setShowSuccessModal({ show: true, title: 'ДОСТУПЫ ОБНОВЛЕНЫ', text: `Новые данные для входа успешно сохранены.` });
   };
 
-  // 💡 ОБНОВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ ФАЙЛА (ДОБАВЛЯЕТ SECTION)
   const handleSaveFile = async () => {
       if (selectedFiles.length === 0 || isProcessing) return;
       setIsProcessing(true);
       
+      let finalSection = uploadSection.trim();
+      if (isCreatingNewUploadSection && newUploadSectionName.trim()) {
+          finalSection = newUploadSectionName.trim();
+      } else if (!finalSection || finalSection === '__NEW__') {
+          finalSection = 'Основной раздел';
+      }
+
       try {
           const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
           let currentFiles = await res.json().catch(() => []);
@@ -411,7 +419,7 @@ export default function AdminDashboard() {
                   name: file.name,
                   size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
                   date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
-                  section: uploadSection.trim() || 'Основной раздел', // 💡 Сохраняем раздел
+                  section: finalSection, 
                   hasSeparateData: true 
               });
               fileNames.push(file.name);
@@ -431,9 +439,12 @@ export default function AdminDashboard() {
           
           const emailSent = await sendEmailNotification('Все', '📚 Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`);
 
-          setShowSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) успешно загружены в раздел "${uploadSection}". ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
+          setShowSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) успешно загружены в раздел "${finalSection}". ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
+          
           setSelectedFiles([]);
-          setUploadSection('Основной раздел'); // Сбрасываем выбор
+          setUploadSection('Основной раздел');
+          setIsCreatingNewUploadSection(false);
+          setNewUploadSectionName('');
       } catch(e) {
           console.error(e);
           setErrorModal({ show: true, text: "Произошла ошибка при пакетной загрузке файлов." });
@@ -924,24 +935,70 @@ export default function AdminDashboard() {
                            ))}
                        </div>
 
-                       {/* 💡 НОВОЕ: ВЫБОР ПАПКИ ПРИ ЗАГРУЗКЕ */}
+                       {/* 💡 УЛУЧШЕННЫЙ ВЫБОР ПАПКИ (БЕЗ ПРИНУДИТЕЛЬНОГО ИНПУТА) */}
                        <div style={{ textAlign: 'left', marginTop: '15px', marginBottom: '20px' }}>
                            <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold', marginBottom: '8px', letterSpacing: '0.5px' }}>ВЫБЕРИТЕ ПАПКУ ДЛЯ ДОКУМЕНТОВ:</div>
-                           <input 
-                               list="doc-sections" 
-                               style={{ width: '100%', padding: '12px', background: '#111', border: '1px solid #333', borderRadius: '10px', color: '#fff', outline: 'none', fontSize: '13px' }} 
-                               placeholder="Напр. Инструкции (или оставьте 'Основной раздел')" 
-                               value={uploadSection} 
-                               onChange={e => setUploadSection(e.target.value)} 
-                           />
-                           <datalist id="doc-sections">
-                               {existingDocSections.map(sec => <option key={sec as string} value={sec as string} />)}
-                           </datalist>
+                           
+                           {!isCreatingNewUploadSection ? (
+                               <select 
+                                   style={{ width: '100%', padding: '12px', background: '#111', border: '1px solid #333', borderRadius: '10px', color: '#fff', outline: 'none', fontSize: '13px', cursor: 'pointer' }} 
+                                   value={uploadSection} 
+                                   onChange={e => {
+                                       if (e.target.value === '__NEW__') {
+                                           setIsCreatingNewUploadSection(true);
+                                           setNewUploadSectionName('');
+                                       } else {
+                                           setUploadSection(e.target.value);
+                                       }
+                                   }}
+                               >
+                                   {Array.from(new Set(['Основной раздел', ...existingDocSections])).map(sec => (
+                                       <option key={sec as string} value={sec as string}>{sec as string}</option>
+                                   ))}
+                                   <option value="__NEW__" style={{background: '#1a1a1a', color: '#0abab5'}}>+ Создать новую папку...</option>
+                               </select>
+                           ) : (
+                               <div style={{ display: 'flex', gap: '8px' }}>
+                                   <input 
+                                       autoFocus
+                                       style={{ flex: 1, padding: '12px', background: '#000', border: '1px solid #0abab5', borderRadius: '10px', color: '#fff', outline: 'none', fontSize: '13px' }} 
+                                       placeholder="Введите название..." 
+                                       value={newUploadSectionName} 
+                                       onChange={e => setNewUploadSectionName(e.target.value)} 
+                                   />
+                                   <button 
+                                       onClick={() => {
+                                           if (newUploadSectionName.trim()) {
+                                               setUploadSection(newUploadSectionName.trim());
+                                           } else {
+                                               setUploadSection('Основной раздел');
+                                           }
+                                           setIsCreatingNewUploadSection(false);
+                                       }} 
+                                       style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}
+                                   >
+                                       ОК
+                                   </button>
+                                   <button 
+                                       onClick={() => {
+                                           setIsCreatingNewUploadSection(false);
+                                           setUploadSection('Основной раздел');
+                                       }} 
+                                       style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}
+                                   >
+                                       ✕
+                                   </button>
+                               </div>
+                           )}
                        </div>
 
                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                            <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>{isProcessing ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ВСЕ'}</button>
-                           <button onClick={() => { setSelectedFiles([]); setUploadSection('Основной раздел'); }} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>ОТМЕНИТЬ</button>
+                           <button onClick={() => { 
+                               setSelectedFiles([]); 
+                               setUploadSection('Основной раздел'); 
+                               setIsCreatingNewUploadSection(false); 
+                           }} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '10px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>ОТМЕНИТЬ</button>
                        </div>
                        <div style={{fontSize: '10px', color: '#666', textAlign: 'center', marginTop: '10px'}}>Файлы отправляются по одному, чтобы избежать перегрузки сервера.</div>
                    </div>
