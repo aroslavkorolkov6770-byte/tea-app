@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-// --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES (ПАРАЛЛЕЛЬНАЯ ЗАПИСЬ) ---
+// --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES ---
 const setAppCookie = (name: string, value: string, days: number | null = 7) => {
     if (days) {
         const date = new Date();
@@ -324,16 +324,17 @@ export default function Navigation() {
     router.push(link);
   };
 
-  // 💡 НОВОЕ: Добавлена вкладка "Документы"
+  // 💡 НОВОЕ: Вкладка "Документы" сделана как подпункт
   const sideItems = [
     { 
       id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', 
-      label: userRole === 'admin' ? 'Меню управления' : 'Статистика' 
+      label: userRole === 'admin' ? 'Меню управления' : 'Статистика',
+      isSubItem: false 
     },
-    { id: '/tasks?tab=edu', label: 'Обучение' },
-    { id: '/tasks?tab=docs', label: 'Документы' },
-    { id: '/tasks?tab=assortment', label: 'Ассортимент' },
-    { id: '/tasks?tab=standards', label: 'ИИ Помощник' },
+    { id: '/tasks?tab=edu', label: 'Обучение', isSubItem: false },
+    { id: '/tasks?tab=docs', label: '↳ База документов', isSubItem: true }, // Стилизуем как подпункт
+    { id: '/tasks?tab=assortment', label: 'Ассортимент', isSubItem: false },
+    { id: '/tasks?tab=standards', label: 'ИИ Помощник', isSubItem: false },
   ];
 
   return (
@@ -359,7 +360,7 @@ export default function Navigation() {
                         <Link 
                             key={item.id} 
                             href={item.id} 
-                            className={`nav-item ${isActive ? 'active' : ''}`}
+                            className={`nav-item ${isActive ? 'active' : ''} ${item.isSubItem ? 'sub-item' : ''}`}
                             onClick={() => { if (typeof window !== 'undefined' && window.innerWidth <= 768) setIsSidebarOpen(false); }}
                         >
                             <span>{item.label}</span>
@@ -636,16 +637,39 @@ export default function Navigation() {
             transition: all 0.2s ease;
             cursor: pointer;
         }
-        .nav-item.active {
+        
+        /* 💡 СТИЛИ ДЛЯ ПОДПУНКТОВ МЕНЮ */
+        .nav-item.sub-item {
+            font-size: 13px;
+            padding: 10px 16px 10px 30px;
+            margin-top: -5px;
+            margin-bottom: 5px;
+            opacity: 0.7;
+            font-weight: 700;
+        }
+        .nav-item.sub-item:hover {
+            opacity: 1;
+            color: #0abab5;
+            background: transparent;
+            transform: translateX(4px);
+        }
+        .nav-item.sub-item.active {
+            color: #0abab5;
+            background: rgba(10, 186, 181, 0.1);
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .nav-item.active:not(.sub-item) {
             color: #fff;
             background: #111;
         }
-        .nav-item:hover {
+        .nav-item:not(.sub-item):hover {
             color: #0abab5;
             background: rgba(10, 186, 181, 0.05);
             transform: translateX(6px);
         }
-        .nav-item:active {
+        .nav-item:not(.sub-item):active {
             transform: scale(0.96) translateX(0);
             background: rgba(10, 186, 181, 0.15);
         }
