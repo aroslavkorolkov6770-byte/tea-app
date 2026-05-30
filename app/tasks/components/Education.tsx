@@ -20,9 +20,10 @@ const saveDataToServer = (key: string, data: any) => {
 
 const stripEmoji = (str: string) => {
     if (!str) return '';
-    return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|[\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+    return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 };
 
+// 💡 ИЗОЛИРОВАННЫЙ ВИДЕОПЛЕЕР (Защита от перезагрузки при тиках таймера)
 const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: string, descText: string }) => {
     return (
         <div style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px' }}>
@@ -52,6 +53,7 @@ export default function Education({
     selectedTest, setSelectedTest, closeTestModal
 }: any) {
     
+    // --- ЛОКАЛЬНЫЕ СОСТОЯНИЯ ДЛЯ РЕДАКТОРОВ И МОДАЛОК ---
     const [showRouteForm, setShowRouteForm] = useState(false);
     
     const [routeFormData, setRouteFormData] = useState({ 
@@ -99,6 +101,20 @@ export default function Education({
     const [urgentTestStep, setUrgentTestStep] = useState(0);
     const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
 
+    // 💡 ЕДИНЫЕ ФУНКЦИИ СИНХРОНИЗАЦИИ (ФИКС МЕРЦАНИЯ ПРИ УДАЛЕНИИ И СОХРАНЕНИИ)
+    const updateRouteState = (newData: any[]) => {
+        setDynamicRoute(newData);
+        localStorage.setItem('th_cache_route', JSON.stringify(newData));
+        saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newData);
+    };
+
+    const updateTestsState = (newData: any[]) => {
+        setDynamicTests(newData);
+        localStorage.setItem('th_cache_tests', JSON.stringify(newData));
+        saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, newData);
+    };
+
+    // --- ЛОГИКА ФИЛЬТРАЦИИ СРОЧНЫХ ЗАДАНИЙ ---
     const handleDismissTask = (id: string) => {
         const newDismissed = [...dismissedTasks, id];
         setDismissedTasks(newDismissed);
@@ -135,6 +151,7 @@ export default function Education({
 
     const urgentTasks = visibleUrgentFiles.filter((f: any) => f.id?.startsWith('deadline_') || f.isTest);
 
+    // --- ЛОГИКА ТЕОРИИ ---
     const handleSaveRoute = () => {
         if (!routeFormData.title.trim()) { alert("Введите название темы!"); return; }
         let newList = [...dynamicRoute];
@@ -143,9 +160,7 @@ export default function Education({
         } else {
             newList.push({ ...routeFormData, id: 'route_' + Date.now() });
         }
-        setDynamicRoute(newList);
-        localStorage.setItem('th_cache_route', JSON.stringify(newList));
-        saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newList);
+        updateRouteState(newList);
         setShowRouteForm(false);
     };
 
@@ -159,6 +174,7 @@ export default function Education({
         closeRouteModal();
     };
 
+    // --- ЛОГИКА ТЕСТОВ ---
     const updateTestQuestion = (index: number, field: string, value: any) => {
         const newQuiz = [...testFormData.quiz];
         if (field === 'q') newQuiz[index].q = value;
@@ -201,22 +217,37 @@ export default function Education({
         } else {
             newList.push(newTest);
         }
-        setDynamicTests(newList);
-        localStorage.setItem('th_cache_tests', JSON.stringify(newList));
-        saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, newList);
+        updateTestsState(newList);
         setShowTestForm(false);
     };
 
+    // --- УПРАВЛЕНИЕ РАЗДЕЛАМИ ---
     const handleMoveItem = (targetSection: string) => {
         if (!movingItem) return;
         if (movingItem.type === 'route') {
+            const itemToMove = dynamicRoute.find((r: any) => r.id === movingItem.id);
+            const sourceSection = itemToMove?.section?.trim() || 'Основной раздел';
+            
             const updated = dynamicRoute.map((r: any) => r.id === movingItem.id ? { ...r, section: targetSection, subsection: '' } : r);
-            setDynamicRoute(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, updated);
+            
+            // Защита: если перенесли последний урок из папки, оставляем пустышку
+            const sourceHasItems = updated.some((r: any) => (r.section?.trim() || 'Основной раздел') === sourceSection);
+            if (!sourceHasItems && sourceSection !== 'Основной раздел') {
+                updated.push({ id: 'placeholder_' + Date.now(), section: sourceSection, isPlaceholder: true });
+            }
+            updateRouteState(updated);
         } else {
+            const itemToMove = dynamicTests.find((t: any) => t.id === movingItem.id);
+            const sourceSection = itemToMove?.section?.trim() || 'Основной раздел';
+            
             const updated = dynamicTests.map((t: any) => t.id === movingItem.id ? { ...t, section: targetSection, subsection: '' } : t);
-            setDynamicTests(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, updated);
+            
+            // Защита: если перенесли последний тест из папки, оставляем пустышку
+            const sourceHasItems = updated.some((t: any) => (t.section?.trim() || 'Основной раздел') === sourceSection);
+            if (!sourceHasItems && sourceSection !== 'Основной раздел') {
+                updated.push({ id: 'placeholder_' + Date.now(), section: sourceSection, isPlaceholder: true });
+            }
+            updateTestsState(updated);
         }
         setMovingItem(null);
         setMoveNewSectionName('');
@@ -225,20 +256,34 @@ export default function Education({
     const executeDelete = () => {
         if (confirmDelete.type === 'section_route') {
             const updated = dynamicRoute.filter((r: any) => (r.section?.trim() || 'Основной раздел') !== confirmDelete.targetId);
-            setDynamicRoute(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, updated);
+            updateRouteState(updated);
         } else if (confirmDelete.type === 'section_test') {
             const updated = dynamicTests.filter((t: any) => (t.section?.trim() || 'Основной раздел') !== confirmDelete.targetId);
-            setDynamicTests(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, updated);
+            updateTestsState(updated);
         } else if (confirmDelete.type === 'route') {
+            const itemToDelete = dynamicRoute.find((r: any) => r.id === confirmDelete.targetId);
+            const sourceSection = itemToDelete?.section?.trim() || 'Основной раздел';
+            
             const updated = dynamicRoute.filter((r: any) => r.id !== confirmDelete.targetId);
-            setDynamicRoute(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, updated);
+            
+            // Защита папки
+            const sourceHasItems = updated.some((r: any) => (r.section?.trim() || 'Основной раздел') === sourceSection);
+            if (!sourceHasItems && sourceSection !== 'Основной раздел') {
+                updated.push({ id: 'placeholder_' + Date.now(), section: sourceSection, isPlaceholder: true });
+            }
+            updateRouteState(updated);
         } else if (confirmDelete.type === 'test') {
+            const itemToDelete = dynamicTests.find((t: any) => t.id === confirmDelete.targetId);
+            const sourceSection = itemToDelete?.section?.trim() || 'Основной раздел';
+            
             const updated = dynamicTests.filter((t: any) => t.id !== confirmDelete.targetId);
-            setDynamicTests(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, updated);
+            
+            // Защита папки
+            const sourceHasItems = updated.some((t: any) => (t.section?.trim() || 'Основной раздел') === sourceSection);
+            if (!sourceHasItems && sourceSection !== 'Основной раздел') {
+                updated.push({ id: 'placeholder_' + Date.now(), section: sourceSection, isPlaceholder: true });
+            }
+            updateTestsState(updated);
         }
         setConfirmDelete({ isOpen: false, type: 'route', targetId: '', name: '' });
     };
@@ -250,12 +295,10 @@ export default function Education({
         
         if (renameSectionPrompt.type === 'route') {
             const updated = dynamicRoute.map((r: any) => (r.section?.trim() || 'Основной раздел') === oldName ? { ...r, section: newName } : r);
-            setDynamicRoute(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, updated);
+            updateRouteState(updated);
         } else {
             const updated = dynamicTests.map((t: any) => (t.section?.trim() || 'Основной раздел') === oldName ? { ...t, section: newName } : t);
-            setDynamicTests(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, updated);
+            updateTestsState(updated);
         }
         setRenameSectionPrompt({ isOpen: false, type: 'route', oldName: '', newName: '' });
     };
@@ -267,17 +310,16 @@ export default function Education({
         if (promptSection.type === 'route') {
             const placeholder = { id: 'placeholder_' + Date.now(), section: newSecName, isPlaceholder: true };
             const updated = [...dynamicRoute, placeholder];
-            setDynamicRoute(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, updated);
+            updateRouteState(updated);
         } else {
             const placeholder = { id: 'placeholder_' + Date.now(), section: newSecName, isPlaceholder: true };
             const updated = [...dynamicTests, placeholder];
-            setDynamicTests(updated);
-            saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, updated);
+            updateTestsState(updated);
         }
         setPromptSection({ isOpen: false, type: 'route', name: '' });
     };
 
+    // --- ГРУППИРОВКА ---
     const groupItems = (items: any[]) => {
         const groups: Record<string, Record<string, any[]>> = {};
         items.forEach((item: any) => {
@@ -297,6 +339,7 @@ export default function Education({
     const testGroups = groupItems(dynamicTests || []);
     const realTests = (dynamicTests || []).filter((t: any) => !t.isPlaceholder);
 
+    // --- ПРОХОЖДЕНИЕ ТЕСТА ---
     const handleTestAnswer = (idx: number) => {
         if (activeAnswer !== null) return; 
         setActiveAnswer(idx);
@@ -359,6 +402,7 @@ export default function Education({
         } catch (e) { console.error("Ошибка сохранения результатов", e); }
     };
 
+    // --- ПРОХОЖДЕНИЕ АТТЕСТАЦИИ ---
     const handleUrgentTestAnswer = (idx: number) => {
         if (activeAnswer !== null) return; 
         setActiveAnswer(idx);
@@ -415,6 +459,7 @@ export default function Education({
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
+            {/* --- СРОЧНО К ПРОХОЖДЕНИЮ --- */}
             <div style={{ marginBottom: '50px', width: '100%', boxSizing: 'border-box' }}>
                 <div className="tasks-flex-space" style={flexSpace}>
                     <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 }}>Срочно к прохождению</h2>
@@ -450,6 +495,7 @@ export default function Education({
                 )}
             </div>
 
+            {/* --- БЛОК 1: ТЕОРИЯ --- */}
             <div className="tasks-flex-space" style={flexSpace}>
                <h2 className="tasks-title" style={sectionTitle}>Теория</h2>
                {isAdmin && (
@@ -529,6 +575,7 @@ export default function Education({
                ))}
             </div>
 
+            {/* --- БЛОК 2: ТЕСТЫ --- */}
             <div className="tasks-flex-space" style={flexSpace}>
                 <h2 className="tasks-title" style={sectionTitle}>Тесты</h2>
                 {isAdmin && (
@@ -621,6 +668,7 @@ export default function Education({
                ))}
             </div>
 
+            {/* --- МИНИ-ОКНО: СОЗДАТЬ НОВЫЙ РАЗДЕЛ --- */}
             {promptSection.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setPromptSection({isOpen: false, type: 'route', name: ''})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -635,6 +683,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- МИНИ-ОКНО: ПЕРЕИМЕНОВАТЬ РАЗДЕЛ --- */}
             {renameSectionPrompt.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setRenameSectionPrompt({...renameSectionPrompt, isOpen: false})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -649,6 +698,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- МИНИ-ОКНО: ПЕРЕМЕСТИТЬ --- */}
             {movingItem && (
                 <div style={modalOverlay as any} onClick={() => { setMovingItem(null); setMoveNewSectionName(''); }}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -675,6 +725,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- СТИЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ --- */}
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
@@ -694,6 +745,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- ОКНО ОШИБКИ "ЭТАП ЗАБЛОКИРОВАН" --- */}
             {lockedTestAlert.show && (
                 <div style={{...errorOverlayStyle, zIndex: 50000} as any} onClick={() => setLockedTestAlert({show: false, message: ''})}>
                     <div className="tasks-modal" style={errorModalContent as any} onClick={e => e.stopPropagation()}>
@@ -705,6 +757,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- 💡 ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" --- */}
             {selectedRouteStep && !showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteModal}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -716,6 +769,7 @@ export default function Education({
                             <div onClick={closeRouteModal} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
                         </div>
 
+                        {/* 💡 ВЫВОД ИЗОЛИРОВАННОГО ВИДЕОПЛЕЕРА ИЛИ ТЕКСТА */}
                         {selectedRouteStep.mediaType === 'video' ? (
                             <MemoizedVideoPlayer 
                                 iframeStr={selectedRouteStep.videoIframe || ''} 
@@ -760,6 +814,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (С ЗАЩИТОЙ ОТ АВТОЗАПОЛНЕНИЯ) */}
             {showRouteForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -770,30 +825,31 @@ export default function Education({
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название темы</div>
-                                <input autoComplete="off" style={adminIn as any} placeholder="Например: Основы зеленого чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
+                                <input autoComplete="new-password" name={"title_" + Date.now()} style={adminIn as any} placeholder="Например: Основы зеленого чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
                             </div>
                             
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел (Папка)</div>
-                                    <input list="route-sections" autoComplete="off" style={adminIn as any} placeholder="Напр. Введение" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
+                                    <input list="route-sections" autoComplete="new-password" name={"sec_" + Date.now()} style={adminIn as any} placeholder="Напр. Введение" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
                                     <datalist id="route-sections">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Подраздел</div>
-                                    <input list="route-subsections" autoComplete="off" style={adminIn as any} placeholder="Напр. Практика" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
+                                    <input list="route-subsections" autoComplete="new-password" name={"subsec_" + Date.now()} style={adminIn as any} placeholder="Напр. Практика" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
                                     <datalist id="route-subsections">{Array.from(new Set(dynamicRoute.map((r: any) => r.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
                                 </div>
                             </div>
                             
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Время на изучение</div>
-                                <input autoComplete="off" style={adminIn as any} placeholder="Напр. 10 мин" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
+                                <input autoComplete="new-password" style={adminIn as any} placeholder="Напр. 10 мин" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
                             </div>
                         </div>
 
                         <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
                             
+                            {/* Слайдер выбора формата */}
                             <div style={{ display: 'flex', background: '#111', borderRadius: '12px', padding: '4px', marginBottom: '20px', border: '1px solid #222' }}>
                                 <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'text'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'text' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'text' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px' }}>📝 ТЕКСТ / ФОТО</div>
                                 <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'video'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'video' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'video' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px' }}>🎥 ВИДЕО</div>
@@ -802,31 +858,31 @@ export default function Education({
                             {routeFormData.mediaType === 'video' ? (
                                 <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
                                     <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Код вставки плеера (Rutube/YouTube)</div>
-                                    <textarea style={{...adminIn, height: '100px', resize: 'none', marginBottom: '15px', fontFamily: 'monospace', fontSize: '12px', color: '#aaa'} as any} placeholder='<iframe width="720" height="405" src="..." ></iframe>' value={routeFormData.videoIframe} onChange={e => setRouteFormData({...routeFormData, videoIframe: e.target.value})} />
+                                    <textarea autoComplete="new-password" style={{...adminIn, height: '100px', resize: 'none', marginBottom: '15px', fontFamily: 'monospace', fontSize: '12px', color: '#aaa'} as any} placeholder='<iframe width="720" height="405" src="..." ></iframe>' value={routeFormData.videoIframe} onChange={e => setRouteFormData({...routeFormData, videoIframe: e.target.value})} />
                                     
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Текстовое описание под видео</div>
-                                    <textarea style={{...adminIn, height: '100px', resize: 'none', marginBottom: 0} as any} placeholder="О чем это видео..." value={routeFormData.videoDesc} onChange={e => setRouteFormData({...routeFormData, videoDesc: e.target.value})} />
+                                    <textarea autoComplete="new-password" style={{...adminIn, height: '100px', resize: 'none', marginBottom: 0} as any} placeholder="О чем это видео..." value={routeFormData.videoDesc} onChange={e => setRouteFormData({...routeFormData, videoDesc: e.target.value})} />
                                 </div>
                             ) : (
                                 <div>
                                     <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>БЛОКИ С ТЕКСТОМ (ДО 3-Х)</h3>
                                     
                                     <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                        <input style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 1" value={routeFormData.h1} onChange={e => setRouteFormData({...routeFormData, h1: e.target.value})} />
-                                        <textarea style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder="Текст блока 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
-                                        <input style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px'} as any} placeholder="Ссылка на фото (необязательно)" value={routeFormData.img1} onChange={e => setRouteFormData({...routeFormData, img1: e.target.value})} />
+                                        <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 1" value={routeFormData.h1} onChange={e => setRouteFormData({...routeFormData, h1: e.target.value})} />
+                                        <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder="Текст блока 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
+                                        <input autoComplete="new-password" style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px'} as any} placeholder="Ссылка на фото (необязательно)" value={routeFormData.img1} onChange={e => setRouteFormData({...routeFormData, img1: e.target.value})} />
                                     </div>
 
                                     <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                        <input style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 2" value={routeFormData.h2} onChange={e => setRouteFormData({...routeFormData, h2: e.target.value})} />
-                                        <textarea style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder="Текст блока 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
-                                        <input style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px'} as any} placeholder="Ссылка на фото (необязательно)" value={routeFormData.img2} onChange={e => setRouteFormData({...routeFormData, img2: e.target.value})} />
+                                        <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 2" value={routeFormData.h2} onChange={e => setRouteFormData({...routeFormData, h2: e.target.value})} />
+                                        <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder="Текст блока 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
+                                        <input autoComplete="new-password" style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px'} as any} placeholder="Ссылка на фото (необязательно)" value={routeFormData.img2} onChange={e => setRouteFormData({...routeFormData, img2: e.target.value})} />
                                     </div>
 
                                     <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                        <input style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 3" value={routeFormData.h3} onChange={e => setRouteFormData({...routeFormData, h3: e.target.value})} />
-                                        <textarea style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder="Текст блока 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
-                                        <input style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px'} as any} placeholder="Ссылка на фото (необязательно)" value={routeFormData.img3} onChange={e => setRouteFormData({...routeFormData, img3: e.target.value})} />
+                                        <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 3" value={routeFormData.h3} onChange={e => setRouteFormData({...routeFormData, h3: e.target.value})} />
+                                        <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder="Текст блока 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
+                                        <input autoComplete="new-password" style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px'} as any} placeholder="Ссылка на фото (необязательно)" value={routeFormData.img3} onChange={e => setRouteFormData({...routeFormData, img3: e.target.value})} />
                                     </div>
                                 </div>
                             )}
@@ -838,6 +894,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- ПРЕДПРОСМОТР ЭКРАНА ТЕСТА --- */}
             {selectedTest && !activeTestSession && !showTestForm && (
                <div style={modalOverlay as any} onClick={closeTestModal}>
                   <div className="tasks-modal" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -862,6 +919,7 @@ export default function Education({
                </div>
             )}
 
+            {/* --- АКТИВНАЯ СЕССИЯ ТЕСТА (ANTI-CHEAT) --- */}
             {activeTestSession && (
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={{...modalContentLarge, maxWidth: '800px'} as any}>
@@ -891,6 +949,7 @@ export default function Education({
                </div>
             )}
 
+            {/* --- МОДАЛКА РЕЗУЛЬТАТОВ ОСНОВНОГО ТЕСТА С ОШИБКАМИ --- */}
             {testResultModal.show && (
                 <div style={{...errorOverlayStyle, zIndex: 60000} as any}>
                     <div className="tasks-modal custom-scroll" style={{...errorModalContent, maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
@@ -927,6 +986,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- СРОЧНАЯ АТТЕСТАЦИЯ (ANTI-CHEAT) --- */}
             {activeUrgentTest && (
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={modalContentLarge as any}>
@@ -952,6 +1012,7 @@ export default function Education({
                </div>
             )}
 
+            {/* КОМПАКТНЫЙ РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ */}
             {showTestForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowTestForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -962,30 +1023,30 @@ export default function Education({
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px'}}>
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название теста</div>
-                                <input autoComplete="off" style={adminIn as any} placeholder="Например: Итоговый экзамен" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
+                                <input autoComplete="new-password" style={adminIn as any} placeholder="Например: Итоговый экзамен" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
                             </div>
                             
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Краткое описание</div>
-                                <textarea autoComplete="off" style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Подзаголовок (описание)..." value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
+                                <textarea autoComplete="new-password" style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Подзаголовок (описание)..." value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
                             </div>
 
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел (Папка)</div>
-                                    <input list="test-sections" autoComplete="off" style={adminIn as any} placeholder="Напр. Итоговые" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
+                                    <input list="test-sections" autoComplete="new-password" style={adminIn as any} placeholder="Напр. Итоговые" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
                                     <datalist id="test-sections">{Array.from(new Set(dynamicTests.map((t: any) => t.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Подраздел</div>
-                                    <input list="test-subsections" autoComplete="off" style={adminIn as any} placeholder="Напр. Для стажеров" value={testFormData.subsection} onChange={e => setTestFormData({...testFormData, subsection: e.target.value})} />
+                                    <input list="test-subsections" autoComplete="new-password" style={adminIn as any} placeholder="Напр. Для стажеров" value={testFormData.subsection} onChange={e => setTestFormData({...testFormData, subsection: e.target.value})} />
                                     <datalist id="test-subsections">{Array.from(new Set(dynamicTests.map((t: any) => t.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
                                 </div>
                             </div>
                             
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Рекомендуемая теория</div>
-                                <textarea autoComplete="off" style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Разделы теории для изучения перед тестом (через запятую)..." value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
+                                <textarea autoComplete="new-password" style={{...adminIn, height: '60px', resize: 'none'} as any} placeholder="Разделы теории для изучения перед тестом (через запятую)..." value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
                             </div>
                         </div>
 
@@ -994,13 +1055,13 @@ export default function Education({
                             {testFormData.quiz.map((q: any, qIdx: number) => (
                                 <div key={qIdx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
                                     {testFormData.quiz.length > 1 && <div onClick={() => removeTestQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'} as any}>✕</div>}
-                                    <input autoComplete="off" style={{...adminIn, fontWeight: 'bold', marginBottom: '15px'} as any} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
+                                    <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', marginBottom: '15px'} as any} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
                                     
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                         {[0,1,2,3].map((i: number) => (
                                             <div key={i} style={{display: 'flex', alignItems: 'center', gap: '10px', background: q.c === i ? 'rgba(10,186,181,0.1)' : 'transparent', padding: '10px', borderRadius: '10px', border: q.c === i ? '1px solid #0abab5' : '1px solid #222'}}>
                                                 <input type="radio" style={{transform: 'scale(1.2)'}} checked={q.c === i} onChange={() => updateTestQuestion(qIdx, 'c', i)} />
-                                                <input autoComplete="off" style={{...adminIn, padding: '10px', marginBottom: 0, border: 'none', background: 'transparent', width: '100%'} as any} placeholder={`Вариант ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
+                                                <input autoComplete="new-password" style={{...adminIn, padding: '10px', marginBottom: 0, border: 'none', background: 'transparent', width: '100%'} as any} placeholder={`Вариант ${i+1}`} value={q.o[i]} onChange={e => updateTestQuestion(qIdx, `o${i}`, e.target.value)} />
                                             </div>
                                         ))}
                                     </div>
