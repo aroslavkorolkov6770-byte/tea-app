@@ -498,7 +498,7 @@ export default function Education({
                {Object.entries(theoryGroups).map(([secName, subsecs]: any) => (
                    <div key={secName} style={{ marginBottom: '40px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
-                           <h3 style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>📁 {secName}</h3>
+                           <h3 style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>{secName}</h3>
                            {isAdmin && secName !== 'Основной раздел' && (
                                <span onClick={() => setConfirmDelete({isOpen: true, type: 'section_route', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>УДАЛИТЬ РАЗДЕЛ</span>
                            )}
@@ -830,7 +830,7 @@ export default function Education({
                 <div style={modalOverlay as any} onClick={() => setShowDocsModal(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '85vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
                         <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'30px'}}>
-                            <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', margin:0}}>📚 Нормативные документы</h2>
+                            <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', margin:0}}> Нормативные документы</h2>
                             <div onClick={() => setShowDocsModal(false)} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
                         </div>
 
@@ -1051,7 +1051,6 @@ export default function Education({
                             {previewFile.data ? (
                                 previewFile.name?.toLowerCase().match(/\.(docx|doc|xls|xlsx|ppt|pptx|zip|rar)$/i) ? (
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', textAlign: 'center', padding: '20px' }}>
-                                        <div style={{ fontSize: '60px', marginBottom: '15px' }}>📄</div>
                                         <h3 style={{ margin: '0 0 10px 0', fontSize: '20px' }}>Формат не поддерживается</h3>
                                         <p style={{ color: '#555', fontSize: '14px', maxWidth: '350px', lineHeight: '1.5' }}>Браузеры не умеют открывать этот формат прямо внутри сайта. Вы можете скачать файл.</p>
                                         <button onClick={() => handleDownloadFile(previewFile)} style={{ ...saveBtn, width: 'auto', padding: '12px 30px', marginTop: '20px', borderRadius: '12px' } as any}>СКАЧАТЬ ФАЙЛ</button>
