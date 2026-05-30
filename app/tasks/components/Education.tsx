@@ -514,7 +514,7 @@ export default function Education({
                    <div key={secName} style={{ marginBottom: '40px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
                            <h3 style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>📁 {secName}</h3>
-                           {isAdmin && (
+                           {isAdmin && secName !== 'Основной раздел' && (
                                <div style={{display: 'flex', gap: '15px'}}>
                                    <span onClick={() => setRenameSectionPrompt({isOpen: true, type: 'route', oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✎ РЕДАКТИРОВАТЬ</span>
                                    <span onClick={() => setConfirmDelete({isOpen: true, type: 'section_route', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✕ УДАЛИТЬ</span>
@@ -757,7 +757,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- 💡 ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" --- */}
+            {/* --- 💡 ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" (С ВИДЕО И ФОТО) --- */}
             {selectedRouteStep && !showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteModal}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -814,7 +814,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (С ЗАЩИТОЙ ОТ АВТОЗАПОЛНЕНИЯ) */}
+            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (С ФИКСАМИ И ЗАГРУЗКОЙ) */}
             {showRouteForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -825,18 +825,18 @@ export default function Education({
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название темы</div>
-                                <input autoComplete="new-password" name={"title_" + Date.now()} style={adminIn as any} placeholder="Например: Основы зеленого чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
+                                <input autoComplete="new-password" style={adminIn as any} placeholder="Например: Основы зеленого чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
                             </div>
                             
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел (Папка)</div>
-                                    <input list="route-sections" autoComplete="new-password" name={"sec_" + Date.now()} style={adminIn as any} placeholder="Напр. Введение" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
+                                    <input list="route-sections" autoComplete="new-password" style={adminIn as any} placeholder="Напр. Введение" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
                                     <datalist id="route-sections">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Подраздел</div>
-                                    <input list="route-subsections" autoComplete="new-password" name={"subsec_" + Date.now()} style={adminIn as any} placeholder="Напр. Практика" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
+                                    <input list="route-subsections" autoComplete="new-password" style={adminIn as any} placeholder="Напр. Практика" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
                                     <datalist id="route-subsections">{Array.from(new Set(dynamicRoute.map((r: any) => r.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
                                 </div>
                             </div>
@@ -867,23 +867,71 @@ export default function Education({
                                 <div>
                                     <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>БЛОКИ С ТЕКСТОМ (ДО 3-Х)</h3>
                                     
-                                    <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                        <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 1" value={routeFormData.h1} onChange={e => setRouteFormData({...routeFormData, h1: e.target.value})} />
-                                        <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder="Текст блока 1..." value={routeFormData.t1} onChange={e => setRouteFormData({...routeFormData, t1: e.target.value})} />
-                                        <input autoComplete="new-password" style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px'} as any} placeholder="Ссылка на фото (необязательно)" value={routeFormData.img1} onChange={e => setRouteFormData({...routeFormData, img1: e.target.value})} />
-                                    </div>
+                                    {[1, 2, 3].map((num) => {
+                                        const hKey = `h${num}` as keyof typeof routeFormData;
+                                        const tKey = `t${num}` as keyof typeof routeFormData;
+                                        const imgKey = `img${num}` as keyof typeof routeFormData;
+                                        const imgVal = routeFormData[imgKey] as string;
+                                        const isBase64 = imgVal && imgVal.startsWith('data:image');
 
-                                    <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                        <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 2" value={routeFormData.h2} onChange={e => setRouteFormData({...routeFormData, h2: e.target.value})} />
-                                        <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder="Текст блока 2..." value={routeFormData.t2} onChange={e => setRouteFormData({...routeFormData, t2: e.target.value})} />
-                                        <input autoComplete="new-password" style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px'} as any} placeholder="Ссылка на фото (необязательно)" value={routeFormData.img2} onChange={e => setRouteFormData({...routeFormData, img2: e.target.value})} />
-                                    </div>
-
-                                    <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                        <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder="Заголовок блока 3" value={routeFormData.h3} onChange={e => setRouteFormData({...routeFormData, h3: e.target.value})} />
-                                        <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder="Текст блока 3..." value={routeFormData.t3} onChange={e => setRouteFormData({...routeFormData, t3: e.target.value})} />
-                                        <input autoComplete="new-password" style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px'} as any} placeholder="Ссылка на фото (необязательно)" value={routeFormData.img3} onChange={e => setRouteFormData({...routeFormData, img3: e.target.value})} />
-                                    </div>
+                                        return (
+                                            <div key={num} style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
+                                                <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder={`Заголовок блока ${num}`} value={routeFormData[hKey]} onChange={e => setRouteFormData({...routeFormData, [hKey]: e.target.value})} />
+                                                <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder={`Текст блока ${num}...`} value={routeFormData[tKey]} onChange={e => setRouteFormData({...routeFormData, [tKey]: e.target.value})} />
+                                                
+                                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                    {!isBase64 ? (
+                                                        <input autoComplete="new-password" style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px', flex: 1} as any} placeholder="Ссылка на фото (URL)" value={imgVal} onChange={e => setRouteFormData({...routeFormData, [imgKey]: e.target.value})} />
+                                                    ) : (
+                                                        <div style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px', flex: 1, color: '#0abab5', background: 'rgba(10,186,181,0.1)', border: '1px solid rgba(10,186,181,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'} as any}>
+                                                            ✅ Фото загружено с устройства
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        id={`upload-img-${num}`}
+                                                        style={{ display: 'none' }}
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                if (file.size > 5 * 1024 * 1024) {
+                                                                    alert("Файл слишком большой! Максимум 5 МБ.");
+                                                                    return;
+                                                                }
+                                                                const reader = new FileReader();
+                                                                reader.onload = (ev) => {
+                                                                    setRouteFormData(prev => ({...prev, [imgKey]: ev.target?.result as string}));
+                                                                };
+                                                                reader.readAsDataURL(file);
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button
+                                                        onClick={(e) => { e.preventDefault(); document.getElementById(`upload-img-${num}`)?.click(); }}
+                                                        style={{ background: '#1a1a1a', color: '#fff', border: '1px solid #333', padding: '12px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap', transition: '0.2s' }}
+                                                    >
+                                                        📁 ЗАГРУЗИТЬ
+                                                    </button>
+                                                    {imgVal && (
+                                                        <button
+                                                            onClick={(e) => { e.preventDefault(); setRouteFormData(prev => ({...prev, [imgKey]: ''})); }}
+                                                            style={{ background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,77,77,0.3)', padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', transition: '0.2s' }}
+                                                            title="Удалить фото"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {imgVal && (
+                                                    <div style={{ marginTop: '10px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #333', width: 'fit-content', background: '#000' }}>
+                                                        <img src={imgVal} alt="preview" style={{ height: '80px', display: 'block', objectFit: 'cover' }} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
