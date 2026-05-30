@@ -26,13 +26,13 @@ const stripEmoji = (str: string) => {
 // 💡 ИЗОЛИРОВАННЫЙ ВИДЕОПЛЕЕР (Защита от перезагрузки при тиках таймера)
 const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: string, descText: string }) => {
     return (
-        <div style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px' }}>
+        <div style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
             {iframeStr ? (
                 <div className="video-wrapper" dangerouslySetInnerHTML={{ __html: iframeStr }} />
             ) : (
                 <div style={{ padding: '40px', textAlign: 'center', color: '#555', fontStyle: 'italic', background: '#111', borderRadius: '15px' }}>Видео не прикреплено</div>
             )}
-            {descText && <p style={{ fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, marginTop: '20px', padding: '0 10px' }}>{descText}</p>}
+            {descText && <p style={{ fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, marginTop: '20px', padding: '0 10px', whiteSpace: 'pre-wrap' }}>{descText}</p>}
         </div>
     );
 }, (prevProps, nextProps) => {
@@ -831,7 +831,7 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (С ЗАЩИТОЙ ОТ АВТОЗАПОЛНЕНИЯ) */}
+            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (С ЗАЩИТОЙ ОТ АВТОЗАПОЛНЕНИЯ И ТЕКСТА) */}
             {showRouteForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -1155,7 +1155,7 @@ export default function Education({
                 .test-answer-btn.selected { background: #0abab5 !important; color: #000 !important; border-color: #0abab5 !important; transform: scale(0.98); }
                 
                 .premium-cards-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; width: 100%; }
-                .premium-card { background: #111; border-radius: 14px; border: 1px solid #222; transition: all 0.2s ease; position: relative; cursor: pointer; display: flex; flex-direction: column; width: 100%; min-height: 140px; padding: 20px; box-sizing: border-box; overflow: hidden; }
+                .premium-card { background: #111; border-radius: 14px; border: 1px solid #222; transition: all 0.2s ease; position: relative; cursor: pointer; display: flex; flex-direction: column; width: 100%; min-height: 140px; padding: 20px; box-sizing: border-box; overflow: hidden; word-break: break-word; overflow-wrap: anywhere; }
                 .premium-card:hover { border-color: #0abab5; transform: translateY(-3px); }
                 .premium-card:active { background: rgba(10, 186, 181, 0.05); border-color: #0abab5; transform: scale(0.98); }
                 .deadline-card:hover { border-color: #ff4d4d !important; box-shadow: 0 8px 25px rgba(255, 77, 77, 0.15) !important; }
@@ -1172,6 +1172,7 @@ export default function Education({
                 .image-zoom-container:hover .zoom-overlay { opacity: 1; }
                 .zoom-icon { font-size: 24px; color: #fff; background: rgba(10,186,181,0.9); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transform: translateY(10px); transition: 0.3s ease; }
                 .image-zoom-container:hover .zoom-icon { transform: translateY(0); }
+                .tasks-theory-block { word-break: break-word; overflow-wrap: anywhere; }
 
                 @media (max-width: 768px) {
                     .premium-cards-container { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
@@ -1201,9 +1202,9 @@ const lightboxOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 
 const modalContentLarge: React.CSSProperties = { background: '#000', padding: '60px', borderRadius: '50px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
 const modalContentMedium: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '550px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
 const modalContentSmall: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
-const theoryBlock: React.CSSProperties = { background: '#0d0d0d', padding: '30px', borderRadius: '25px', border: '1px solid #222' };
-const theoryLabel: React.CSSProperties = { fontSize: '15px', fontWeight: '800', color: '#0abab5', letterSpacing: '0.5px', marginBottom: '12px' };
-const theoryText: React.CSSProperties = { fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0 };
+const theoryBlock: React.CSSProperties = { background: '#0d0d0d', padding: '30px', borderRadius: '25px', border: '1px solid #222', wordBreak: 'break-word', overflowWrap: 'anywhere' };
+const theoryLabel: React.CSSProperties = { fontSize: '15px', fontWeight: '800', color: '#0abab5', letterSpacing: '0.5px', marginBottom: '12px', wordBreak: 'break-word', overflowWrap: 'anywhere' };
+const theoryText: React.CSSProperties = { fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' };
 const checkKnowledgeBtn: React.CSSProperties = { width: '100%', padding: '25px', background: 'transparent', border: '2px solid #0abab5', color: '#0abab5', borderRadius: '20px', fontWeight: '900', fontSize: '18px', cursor: 'pointer', transition: '0.3s' };
 const quizBox: React.CSSProperties = { borderTop: '1px solid #222', paddingTop: '40px', marginTop: '10px' };
 const flexSpace: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px', flexWrap: 'wrap', gap: '20px' };
