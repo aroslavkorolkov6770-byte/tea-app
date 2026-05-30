@@ -2,7 +2,7 @@
 import React from 'react';
 import { modalOverlay, adminIn, delIconStyle, adminActionBtn, saveBtn } from './adminStyles';
 
-const modalContentMedium: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '550px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
+const modalContentMedium: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '600px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
 const cancelLink: React.CSSProperties = { textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
 
 export default function TestEditorModal({
@@ -10,24 +10,52 @@ export default function TestEditorModal({
     removeTestQuestion, addTestQuestion, handleSendTest, isProcessing, setShowTestEditor
 }: any) {
     return (
-        <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowTestEditor(false)}>
-            <div className="admin-modal-content custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+        <div style={{...modalOverlay, alignItems: 'flex-start'} as any} onClick={() => setShowTestEditor(false)}>
+            <div className="admin-modal-content custom-scroll" style={{...modalContentMedium, margin: '40px auto', maxHeight: '85vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
                 <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#0abab5', fontWeight: '900', textTransform: 'uppercase' }}>
                     РЕДАКТОР АТТЕСТАЦИИ
                 </h2>
                 
-                <div style={{display: 'flex', gap: '15px', marginBottom: '20px'}}>
-                    <div style={{flex: 2}}>
-                        <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название аттестации</div>
-                        <input autoComplete="new-password" style={adminIn as any} placeholder="Например: Итоговый экзамен" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
+                <div style={{display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '25px'}}>
+                    <div>
+                        <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название аттестации (Зависит от выбранного шаблона)</div>
+                        <input autoComplete="new-password" style={{...adminIn, color: '#0abab5', fontWeight: 'bold'} as any} placeholder="Например: Итоговый экзамен" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
                     </div>
-                    <div style={{flex: 1}}>
-                        <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Таймер (мин)</div>
-                        <input type="number" autoComplete="new-password" style={adminIn as any} placeholder="0 = без лимита" value={testFormData.timeLimit || ''} onChange={e => setTestFormData({...testFormData, timeLimit: parseInt(e.target.value) || 0})} />
+                    
+                    <div>
+                        <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '8px', marginLeft: '5px' }}>Время на прохождение (мин):</div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {[0, 5, 10, 15, 30, 60].map((t) => (
+                                <div 
+                                    key={t}
+                                    onClick={() => setTestFormData({...testFormData, timeLimit: t})} 
+                                    style={{ 
+                                        padding: '8px 14px', 
+                                        background: testFormData.timeLimit === t ? '#0abab5' : '#1a1a1a', 
+                                        color: testFormData.timeLimit === t ? '#000' : '#888', 
+                                        borderRadius: '10px', 
+                                        cursor: 'pointer', 
+                                        fontSize: '12px', 
+                                        fontWeight: 'bold', 
+                                        transition: '0.2s',
+                                        border: `1px solid ${testFormData.timeLimit === t ? '#0abab5' : '#333'}`
+                                    }}
+                                >
+                                    {t === 0 ? 'Без лимита' : `${t}`}
+                                </div>
+                            ))}
+                            <input 
+                                type="number" 
+                                placeholder="Свой вариант" 
+                                value={testFormData.timeLimit === 0 ? '' : testFormData.timeLimit} 
+                                onChange={e => setTestFormData({...testFormData, timeLimit: parseInt(e.target.value) || 0})}
+                                style={{ ...adminIn, padding: '8px 10px', fontSize: '12px', width: '100px', marginBottom: 0, minHeight: '34px' } as any} 
+                            />
+                        </div>
                     </div>
                 </div>
 
-                <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
+                <div style={{borderTop: '1px dashed #333', paddingTop: '20px'}}>
                     <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>ВОПРОСЫ ({testFormData.quiz.length})</h3>
                     {testFormData.quiz.map((q: any, qIdx: number) => (
                         <div key={qIdx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
@@ -50,7 +78,7 @@ export default function TestEditorModal({
                 <button onClick={handleSendTest} disabled={isProcessing} style={{...saveBtn, marginTop: '30px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1} as any}>
                     {isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ СОТРУДНИКУ'}
                 </button>
-                <div onClick={() => setShowTestEditor(false)} style={cancelLink as any}>ОТМЕНА</div>
+                <div onClick={() => setShowTestEditor(false)} style={cancelLink as any}>СВЕРНУТЬ (ДАННЫЕ СОХРАНЯТСЯ)</div>
             </div>
         </div>
     );

@@ -37,21 +37,23 @@ export default function InteractionCenter({
                     </div>
                 ) : (
                     <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                        <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', marginTop: '15px' }}>Тип теста:</div>
+                        <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', marginTop: '15px' }}>Выбор теста:</div>
                         
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 <select style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} value={testType} onChange={(e) => setTestType(e.target.value)}>
                                     {testTypesList.map((t: any) => <option key={t.id} value={t.name}>{t.name}</option>)}
                                 </select>
-                                <button onClick={() => setIsManagingTypes(!isManagingTypes)} style={{ ...adminActionBtn, padding: '0 15px', borderRadius: '15px' } as any}>⚙️ Настроить</button>
+                                <button onClick={() => setIsManagingTypes(!isManagingTypes)} style={{ ...adminActionBtn, padding: '0 15px', borderRadius: '15px', background: isManagingTypes ? '#0abab5' : 'rgba(10,186,181,0.1)', color: isManagingTypes ? '#000' : '#0abab5' } as any}>
+                                    {isManagingTypes ? 'Закрыть список' : '✎ Список тестов'}
+                                </button>
                             </div>
 
                             {isManagingTypes && (
-                                <div style={{ background: '#000', padding: '15px', borderRadius: '15px', border: '1px solid #333' }}>
-                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '10px' }}>УПРАВЛЕНИЕ ТИПАМИ</div>
+                                <div style={{ background: '#000', padding: '15px', borderRadius: '15px', border: '1px dashed #333' }}>
+                                    <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold', marginBottom: '10px' }}>СОЗДАНИЕ НОВОГО ТИПА ТЕСТА</div>
                                     <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                                        <input style={{ ...adminIn, marginBottom: 0, padding: '10px', fontSize: '13px' } as any} placeholder="Новый тип..." value={newTypeName} onChange={e => setNewTypeName(e.target.value)} />
+                                        <input style={{ ...adminIn, marginBottom: 0, padding: '10px', fontSize: '13px' } as any} placeholder="Например: Тест для стажеров..." value={newTypeName} onChange={e => setNewTypeName(e.target.value)} />
                                         <button onClick={() => {
                                             if (newTypeName.trim()) {
                                                 handleUpdateTestTypes([...testTypesList, { id: 'type_' + Date.now(), name: newTypeName.trim() }]);
@@ -68,7 +70,7 @@ export default function InteractionCenter({
                                                         const newL = testTypesList.filter((type: any) => type.id !== t.id);
                                                         handleUpdateTestTypes(newL);
                                                         if (testType === t.name) setTestType(newL[0].name);
-                                                    }}>✕</span>
+                                                    }}>✕ Удалить</span>
                                                 )}
                                             </div>
                                         ))}
@@ -77,8 +79,12 @@ export default function InteractionCenter({
                             )}
 
                             <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                                <button onClick={handleOpenTestEditor} disabled={isProcessing} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px', flex: 1 } as any}>РЕДАКТОР</button>
-                                <button onClick={handleQuickSendTest} disabled={isProcessing} style={{ ...adminSendBtn, padding: '14px 25px', fontSize: '13px', borderRadius: '15px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1, flex: 2 } as any}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ СТАНДАРТНЫЙ'}</button>
+                                <button onClick={handleOpenTestEditor} disabled={isProcessing} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' } as any}>
+                                    <span>📝</span> РЕДАКТОР
+                                </button>
+                                <button onClick={handleQuickSendTest} disabled={isProcessing} style={{ ...adminSendBtn, padding: '14px 25px', fontSize: '13px', borderRadius: '15px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1, flex: 1 } as any}>
+                                    {isProcessing ? 'ОТПРАВКА...' : 'БАЗОВЫЙ ШАБЛОН'}
+                                </button>
                             </div>
                         </div>
                     </div>

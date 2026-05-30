@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
 
+// 🧩 ИМПОРТЫ НАШИХ КОМПОНЕНТОВ
 import FileManager from './components/FileManager';
 import UserManagement from './components/UserManagement';
 import StatisticsPanel from './components/StatisticsPanel';
@@ -11,9 +12,15 @@ import UserProfileModal from './components/UserProfileModal';
 import TestEditorModal from './components/TestEditorModal';
 import TestResultsModal from './components/TestResultsModal';
 
-import { noteOverlayStyle, noteSidebarStyle, noteTextarea, noteDeleteBtn, adminSendBtn, flexSpace, sectionTitle, adminIn, saveBtn, modalOverlay, modalContentSmall } from './components/adminStyles';
+// 🎨 ИМПОРТ СТИЛЕЙ
+import { 
+    noteOverlayStyle, noteSidebarStyle, noteTextarea, noteDeleteBtn, 
+    adminSendBtn, flexSpace, sectionTitle, adminIn, saveBtn, 
+    modalOverlay, modalContentSmall 
+} from './components/adminStyles';
 
 const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+const DAYS_OF_WEEK = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 const saveDataToServer = (key: string, data: any) => {
     return fetch('/api/storage', {
@@ -101,6 +108,36 @@ export default function AdminDashboard() {
                     saveDataToServer('tea_hub_users_v1', usersData);
                 }
                 setUsers(usersData);
+
+                const stats: Record<string, {route: number, basics: number}> = {};
+                const avatarsFound: Record<string, string> = {};
+                const profilesFound: Record<string, any> = {};
+
+                await Promise.all(usersData.map(async (u: any) => {
+                    if (u.avatar) avatarsFound[u.id] = u.avatar;
+                    try {
+                        const profData = await fetch(`/api/storage${cacheBuster}&key=profile_data_${u.id}`).then(r => r.json()).catch(() => null);
+                        if (profData && !Array.isArray(profData)) {
+                            profilesFound[u.id] = profData;
+                            if (profData.avatar) avatarsFound[u.id] = profData.avatar;
+                        }
+                    } catch(e) {}
+
+                    if (u.role === 'staff') {
+                        try {
+                            const [uRouteData, uBasicsData] = await Promise.all([
+                                fetch(`/api/storage${cacheBuster}&key=prog_route_${u.id}`).then(r => r.json()).catch(() => []),
+                                fetch(`/api/storage${cacheBuster}&key=prog_basics_${u.id}`).then(r => r.json()).catch(() => [])
+                            ]);
+                            stats[u.id] = { route: Array.isArray(uRouteData) ? uRouteData.length : 0, basics: Array.isArray(uBasicsData) ? uBasicsData.length : 0 };
+                        } catch(e) {
+                            stats[u.id] = { route: 0, basics: 0 };
+                        }
+                    }
+                }));
+                setUsersStats(stats);
+                setUserAvatars(avatarsFound);
+                setUserProfiles(profilesFound);
             }
 
             if (testRes && testRes.ok) {
@@ -124,42 +161,9 @@ export default function AdminDashboard() {
             setTotalBasicsModules((Array.isArray(bDb) ? bDb : []).reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) || 50);
             setTotalRouteSteps(Array.isArray(rDb) ? rDb.length : 5);
 
-            const stats: Record<string, {route: number, basics: number}> = {};
-            const avatarsFound: Record<string, string> = {};
-            const profilesFound: Record<string, any> = {};
-
-            if (usersRes && usersRes.ok) {
-                const usersData = await usersRes.json();
-                await Promise.all(usersData.map(async (u: any) => {
-                    if (u.avatar) avatarsFound[u.id] = u.avatar;
-                    try {
-                        const profData = await fetch(`/api/storage${cacheBuster}&key=profile_data_${u.id}`).then(r => r.json()).catch(() => null);
-                        if (profData && !Array.isArray(profData)) {
-                            profilesFound[u.id] = profData;
-                            if (profData.avatar) avatarsFound[u.id] = profData.avatar;
-                        }
-                    } catch(e) {}
-
-                    if (u.role === 'staff') {
-                        try {
-                            const [uRouteData, uBasicsData] = await Promise.all([
-                                fetch(`/api/storage${cacheBuster}&key=prog_route_${u.id}`).then(r => r.json()).catch(() => []),
-                                fetch(`/api/storage${cacheBuster}&key=prog_basics_${u.id}`).then(r => r.json()).catch(() => [])
-                            ]);
-                            stats[u.id] = { route: Array.isArray(uRouteData) ? uRouteData.length : 0, basics: Array.isArray(uBasicsData) ? uBasicsData.length : 0 };
-                        } catch(e) {
-                            stats[u.id] = { route: 0, basics: 0 };
-                        }
-                    }
-                }));
-            }
-            
-            setUsersStats(stats);
-            setUserAvatars(avatarsFound);
-            setUserProfiles(profilesFound);
-
         } catch (error) { console.error("Error", error); }
     };
+
     loadAllData();
     return () => window.removeEventListener('sidebarToggle', handleToggle);
   }, []);
@@ -174,6 +178,21 @@ export default function AdminDashboard() {
           setTestType(testTypesList[0].name);
       }
   }, [testTypesList, testType]);
+
+  // СБРОС И СОХРАНЕНИЕ ЧЕРНОВИКА
+  useEffect(() => {
+      if (testType) {
+          setTestFormData({ 
+              title: testType, 
+              timeLimit: 0, 
+              quiz: [
+                  { q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C', '40°C'], c: 1 }, 
+                  { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос', 'Лопатка'], c: 1 }, 
+                  { q: 'Какая скрутка у Те Гуань Инь?', o: ['Продольная', 'Сферическая', 'Прессованная', 'Сломанная'], c: 1 }
+              ] 
+          });
+      }
+  }, [testType]);
 
   const subscribeToPush = async () => {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return alert("Браузер не поддерживает Web Push.");
@@ -290,7 +309,14 @@ export default function AdminDashboard() {
       } finally { setIsProcessing(false); closeNotePanel(); }
   };
 
-  const deleteNote = () => { if (!selectedDateKey) return; const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); };
+  const deleteNote = () => { 
+      if (!selectedDateKey) return; 
+      const newNotes = { ...notes }; 
+      delete newNotes[selectedDateKey]; 
+      setNotes(newNotes); 
+      saveDataToServer('admin_cal_notes_v1', newNotes); 
+      closeNotePanel(); 
+  };
 
   const parsedEvents = Object.entries(notes).map(([key, text]) => {
       const [y, m, d] = key.split('-').map(Number);
@@ -302,25 +328,28 @@ export default function AdminDashboard() {
       } else { const lines = text.split('\n'); title = lines[0] || 'Без названия'; desc = lines.slice(1).join(' '); }
       return { key, text, dateObj: new Date(y, m, d), d, isDeadline, target, title, desc };
   }).filter(event => event.dateObj >= (new Date(new Date().setHours(0,0,0,0)))).sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+  
   const filteredEvents = parsedEvents.filter(e => eventTab === 'personal' ? !e.isDeadline : e.isDeadline);
 
   const handleSendNotification = async () => {
-    if (!notifText.trim() || isProcessing) return; setIsProcessing(true);
-    try {
-        const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_notifications_v1`);
-        const arr = await res.json().catch(() => []);
-        const newNotif = { id: Date.now(), title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение', text: notifText.trim(), time: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), target: selectedStaff };
-        await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...(Array.isArray(arr) ? arr : [])]);
-        const pushSent = await sendPushNotification(selectedStaff, { title: newNotif.title, body: newNotif.text, url: '/tasks?tab=welcome' });
-        const emailSent = await sendEmailNotification(selectedStaff, newNotif.title, newNotif.text);
-        if (pushSent || emailSent) setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление доставлено сотрудникам.' });
-        setNotifText("");
-    } finally { setIsProcessing(false); }
+      if (!notifText.trim() || isProcessing) return; setIsProcessing(true);
+      try {
+          const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_notifications_v1`);
+          const arr = await res.json().catch(() => []);
+          const newNotif = { id: Date.now(), title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение', text: notifText.trim(), time: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), target: selectedStaff };
+          await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...(Array.isArray(arr) ? arr : [])]);
+          const pushSent = await sendPushNotification(selectedStaff, { title: newNotif.title, body: newNotif.text, url: '/tasks?tab=welcome' });
+          const emailSent = await sendEmailNotification(selectedStaff, newNotif.title, newNotif.text);
+          if (pushSent || emailSent) setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление доставлено сотрудникам.' });
+          setNotifText("");
+      } finally { setIsProcessing(false); }
   };
 
   const getBaseQuizTemplate = () => [{ q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C', '40°C'], c: 1 }, { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос', 'Лопатка'], c: 1 }, { q: 'Какая скрутка у Те Гуань Инь?', o: ['Продольная', 'Сферическая', 'Прессованная', 'Сломанная'], c: 1 }];
 
-  const handleOpenTestEditor = () => { setTestFormData({ title: testType, timeLimit: 0, quiz: getBaseQuizTemplate() }); setShowTestEditor(true); };
+  const handleOpenTestEditor = () => { 
+      setShowTestEditor(true); 
+  };
 
   const handleQuickSendTest = async () => {
       if (isProcessing) return; setIsProcessing(true);

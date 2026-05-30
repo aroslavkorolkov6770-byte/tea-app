@@ -26,7 +26,7 @@ export default function TestResultsModal({
 
                 <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '10px' }} className="custom-scroll">
                     {testResults
-                        .filter((res: any) => (selectedTestUser === 'Все' || res.userName === selectedTestUser) && res.testName?.toLowerCase().includes('аттестация'))
+                        .filter((res: any) => (selectedTestUser === 'Все' || res.userName === selectedTestUser))
                         .map((res: any) => {
                             const isPassed = res.score === 100;
                             const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
@@ -39,13 +39,13 @@ export default function TestResultsModal({
                                     </div>
                                     <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                                         <div style={{ fontWeight: '900', color: scoreColor, fontSize: '20px' }}>{res.score}%</div>
-                                        <span style={statusBadge(scoreColor)}>{isPassed ? 'Пройден' : 'Не пройден'}</span>
+                                        <span style={statusBadge(scoreColor) as any}>{isPassed ? 'Пройден' : 'Не пройден'}</span>
                                     </div>
                                 </div>
                             );
                     })}
-                    {testResults.filter((res: any) => (selectedTestUser === 'Все' || res.userName === selectedTestUser) && res.testName?.toLowerCase().includes('аттестация')).length === 0 && (
-                        <div style={{ textAlign: 'center', color: '#666', padding: '30px', fontWeight: 'bold', fontSize: '15px' }}>Нет результатов аттестаций</div>
+                    {testResults.filter((res: any) => (selectedTestUser === 'Все' || res.userName === selectedTestUser)).length === 0 && (
+                        <div style={{ textAlign: 'center', color: '#666', padding: '30px', fontWeight: 'bold', fontSize: '15px' }}>Нет результатов тестирований</div>
                     )}
                 </div>
             </div>
