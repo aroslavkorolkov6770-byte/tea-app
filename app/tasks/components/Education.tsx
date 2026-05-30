@@ -23,6 +23,23 @@ const stripEmoji = (str: string) => {
     return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 };
 
+// 💡 ИЗОЛИРОВАННЫЙ ВИДЕОПЛЕЕР (Защита от перезагрузки при тиках таймера)
+const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: string, descText: string }) => {
+    return (
+        <div style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px' }}>
+            {iframeStr ? (
+                <div className="video-wrapper" dangerouslySetInnerHTML={{ __html: iframeStr }} />
+            ) : (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#555', fontStyle: 'italic', background: '#111', borderRadius: '15px' }}>Видео не прикреплено</div>
+            )}
+            {descText && <p style={{...theoryText, marginTop: '20px', padding: '0 10px'} as any}>{descText}</p>}
+        </div>
+    );
+}, (prevProps, nextProps) => {
+    // React не будет перерисовывать плеер, пока не изменится сама ссылка
+    return prevProps.iframeStr === nextProps.iframeStr && prevProps.descText === nextProps.descText;
+});
+
 export default function Education({
     isAdmin,
     userId,
@@ -37,10 +54,9 @@ export default function Education({
     selectedTest, setSelectedTest, closeTestModal
 }: any) {
     
-    // --- ЛОКАЛЬНЫЕ СОСТОЯНИЯ ---
+    // --- ЛОКАЛЬНЫЕ СОСТОЯНИЯ ДЛЯ РЕДАКТОРОВ И МОДАЛОК ---
     const [showRouteForm, setShowRouteForm] = useState(false);
     
-    // 💡 ДОБАВЛЕНЫ ПОЛЯ ДЛЯ МЕДИА (ВИДЕО И ФОТО)
     const [routeFormData, setRouteFormData] = useState({ 
         id: '', title: '', time: '5 мин', section: '', subsection: '',
         mediaType: 'text', videoIframe: '', videoDesc: '',
@@ -55,7 +71,6 @@ export default function Education({
         quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] 
     });
 
-    // 💡 СОСТОЯНИЯ ДЛЯ РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ ПАПОК
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, type: 'route'|'test'|'section_route'|'section_test', targetId: string, name: string}>({
         isOpen: false, type: 'route', targetId: '', name: ''
     });
@@ -720,15 +735,12 @@ export default function Education({
                             <div onClick={closeRouteModal} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
                         </div>
 
+                        {/* 💡 ВЫВОД ИЗОЛИРОВАННОГО ВИДЕОПЛЕЕРА ИЛИ ТЕКСТА */}
                         {selectedRouteStep.mediaType === 'video' ? (
-                            <div style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px' }}>
-                                {selectedRouteStep.videoIframe ? (
-                                    <div className="video-wrapper" dangerouslySetInnerHTML={{ __html: selectedRouteStep.videoIframe }} />
-                                ) : (
-                                    <div style={{ padding: '40px', textAlign: 'center', color: '#555', fontStyle: 'italic', background: '#111', borderRadius: '15px' }}>Видео не прикреплено</div>
-                                )}
-                                {selectedRouteStep.videoDesc && <p style={{...theoryText, marginTop: '20px', padding: '0 10px'} as any}>{selectedRouteStep.videoDesc}</p>}
-                            </div>
+                            <MemoizedVideoPlayer 
+                                iframeStr={selectedRouteStep.videoIframe || ''} 
+                                descText={selectedRouteStep.videoDesc || ''} 
+                            />
                         ) : (
                             <div className="tasks-theory-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '25px', marginBottom: '35px'}}>
                                 {selectedRouteStep.h1 && (
