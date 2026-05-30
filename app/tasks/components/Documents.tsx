@@ -39,8 +39,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             return;
         }
         
-        // Если данные лежат отдельно (v2), скачивание идет через API в родительском компоненте
-        // Здесь мы обрабатываем только старые файлы или прямые base64
         if (file.data) {
             const link = document.createElement('a');
             link.href = file.data;
@@ -49,7 +47,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             link.click();
             document.body.removeChild(link);
         } else {
-            // Запрос отдельного файла с сервера
             fetch(`/api/storage?t=${Date.now()}&key=file_data_${file.id}`)
                 .then(r => r.json())
                 .then(fileBase64 => {
@@ -96,7 +93,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         if (!promptSection.name.trim()) return;
         const newSecName = promptSection.name.trim();
         const placeholder = { id: 'doc_placeholder_' + Date.now(), section: newSecName, isDocPlaceholder: true };
-        const updated = [...urgentFiles, placeholder];
+        const updated = [...(urgentFiles || []), placeholder];
         setUrgentFiles(updated);
         saveDataToServer(STORAGE_KEYS.URGENT_FILES, updated);
         setPromptSection({ isOpen: false, name: '' });
@@ -107,7 +104,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         const newName = renameSectionPrompt.newName.trim();
         const oldName = renameSectionPrompt.oldName;
 
-        const updated = urgentFiles.map((f: any) => {
+        const updated = (urgentFiles || []).map((f: any) => {
             const isDoc = f.isDocPlaceholder || !(f.id?.startsWith('deadline_') || f.isTest);
             if (isDoc && (f.section?.trim() || 'Основной раздел') === oldName) {
                 return { ...f, section: newName };
@@ -123,14 +120,13 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     const executeDelete = () => {
         let updated = [];
         if (confirmDelete.type === 'section') {
-            updated = urgentFiles.filter((f: any) => {
+            updated = (urgentFiles || []).filter((f: any) => {
                 const isDoc = f.isDocPlaceholder || !(f.id?.startsWith('deadline_') || f.isTest);
                 if (isDoc && (f.section?.trim() || 'Основной раздел') === confirmDelete.name) return false;
                 return true;
             });
         } else {
-            updated = urgentFiles.filter((f: any) => f.id !== confirmDelete.targetId);
-            // Очистка данных с сервера, если они есть
+            updated = (urgentFiles || []).filter((f: any) => f.id !== confirmDelete.targetId);
             saveDataToServer(`file_data_${confirmDelete.targetId}`, null);
         }
         setUrgentFiles(updated);
@@ -140,7 +136,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
     const handleMoveItem = (targetSection: string) => {
         if (!movingItem) return;
-        const updated = urgentFiles.map((f: any) => f.id === movingItem ? { ...f, section: targetSection } : f);
+        const updated = (urgentFiles || []).map((f: any) => f.id === movingItem ? { ...f, section: targetSection } : f);
         setUrgentFiles(updated);
         saveDataToServer(STORAGE_KEYS.URGENT_FILES, updated);
         setMovingItem(null);
@@ -153,7 +149,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         items.forEach((item: any) => {
             const sec = item.section?.trim() || 'Основной раздел';
             if (!groups[sec]) groups[sec] = [];
-            // Добавляем в массив только реальные файлы, игнорируем плейсхолдеры
             if (!item.isDocPlaceholder) {
                 groups[sec].push(item);
             }
@@ -166,19 +161,20 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
-            <div style={flexSpace}>
+            <div style={flexSpace as any}>
                <h2 style={{ fontSize: '28px', fontWeight: '900', color: '#fff', margin: 0 }}>Нормативные документы</h2>
                {isAdmin && (
-                   <button onClick={() => setPromptSection({isOpen: true, name: ''})} style={adminActionBtn}>
+                   <button onClick={() => setPromptSection({isOpen: true, name: ''})} style={adminActionBtn as any}>
                        + НОВЫЙ РАЗДЕЛ
                    </button>
                )}
             </div>
             
             <div style={{ marginBottom: '60px' }}>
-               {Object.keys(docGroups).length === 0 && !isAdmin ? (
-                   <div style={{ color: '#666', fontSize: '15px', background: '#111', padding: '40px', borderRadius: '30px', border: '1px dashed #333', textAlign: 'center' }}>
-                       Нет доступных нормативных документов.
+               {/* 💡 ИСПРАВЛЕНА ЛОГИКА ОТОБРАЖЕНИЯ ПУСТОГО СОСТОЯНИЯ */}
+               {Object.keys(docGroups).length === 0 ? (
+                   <div style={{ color: '#666', fontSize: '15px', background: '#111', padding: '40px', borderRadius: '30px', border: '1px dashed #333', textAlign: 'center', lineHeight: '1.5' }}>
+                       {isAdmin ? 'В этом разделе пока нет документов.\nНажмите «+ НОВЫЙ РАЗДЕЛ», чтобы создать первую папку.' : 'Нет доступных нормативных документов.'}
                    </div>
                ) : (
                    Object.entries(docGroups).map(([secName, items]: any) => (
@@ -200,13 +196,16 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                    </div>
                                ) : (
                                    items.map((file: any) => (
-                                       <div key={file.id} className="premium-card" style={{ padding: '20px', background: '#111', borderRadius: '15px', border: '1px solid #222', position: 'relative' }}>
+                                       <div key={file.id} className="premium-card" style={{ padding: '20px', background: '#111', borderRadius: '15px', border: '1px solid #222', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                                          
+                                          {/* 💡 ИСПРАВЛЕНА ОШИБКА С ПЕРЕМЕННЫМИ СТИЛЕЙ */}
                                           {isAdmin && (
                                               <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                                  <div onClick={(e) => { e.stopPropagation(); setMovingItem(file.id); }} style={moveIconStyle} title="Переместить">📦</div>
-                                                  <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'file', targetId: file.id, name: file.name}); }} style={delIconStyle} title="Удалить">✕</div>
+                                                  <div onClick={(e) => { e.stopPropagation(); setMovingItem(file.id); }} style={moveIconStyle as any} title="Переместить">📦</div>
+                                                  <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'file', targetId: file.id, name: file.name}); }} style={delIconStyle as any} title="Удалить">✕</div>
                                               </div>
                                           )}
+                                          
                                           <span style={{fontSize:'11px', color:'#0abab5', fontWeight:'800', marginBottom: '6px', opacity: 0.8}}>{file.date || 'Документ'}</span>
                                           <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin ? '70px' : '0'}}>📄 {file.name}</h4>
                                           
@@ -225,7 +224,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                )}
             </div>
 
-            {/* --- МИНИ-ОКНО: СОЗДАТЬ НОВЫЙ РАЗДЕЛ --- */}
+            {/* МИНИ-ОКНА АДМИНА */}
             {promptSection.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setPromptSection({isOpen: false, name: ''})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -240,7 +239,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
-            {/* --- МИНИ-ОКНО: ПЕРЕИМЕНОВАТЬ РАЗДЕЛ --- */}
             {renameSectionPrompt.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setRenameSectionPrompt({...renameSectionPrompt, isOpen: false})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -255,7 +253,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
-            {/* --- МИНИ-ОКНО: ПЕРЕМЕСТИТЬ ФАЙЛ --- */}
             {movingItem && (
                 <div style={modalOverlay as any} onClick={() => { setMovingItem(null); setMoveNewSectionName(''); }}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -273,19 +270,18 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                             <input style={adminIn as any} placeholder="Название нового раздела..." value={moveNewSectionName} onChange={e => setMoveNewSectionName(e.target.value)} />
                             <button onClick={() => {
                                 if (moveNewSectionName.trim()) handleMoveItem(moveNewSectionName.trim());
-                            }} style={{...adminActionBtn, width: '100%', padding: '16px', marginTop: '10px'} as any}>СОЗДАТЬ И ПЕРЕМЕСТИТЬ</button>
+                            }} style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '15px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', width: '100%', marginTop: '10px' }}>СОЗДАТЬ И ПЕРЕМЕСТИТЬ</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* --- СТИЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ --- */}
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, type: 'file', targetId: '', name: ''})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
                         <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>УДАЛИТЬ?</h2>
-                        <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
+                        <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>
                             {confirmDelete.type === 'section' 
                                 ? `Вы уверены, что хотите удалить весь раздел "${confirmDelete.name}" и ВСЕ документы внутри него? Это действие необратимо.` 
                                 : `Удалить документ "${confirmDelete.name}" безвозвратно?`
@@ -299,7 +295,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
-            {/* --- ПРЕДПРОСМОТР ФАЙЛА --- */}
+            {/* ПРЕДПРОСМОТР ФАЙЛА */}
             {previewFile && (
                 <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
                     <div className="tasks-modal" style={{ background: '#111', padding: '30px', borderRadius: '30px', width: '100%', maxWidth: '80%', height: '85vh', border: '1px solid #333', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
@@ -333,11 +329,11 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 }
 
 // --- СТИЛИ ---
-const flexSpace: any = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px', flexWrap: 'wrap', gap: '20px' };
-const adminActionBtn: any = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 18px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '12px' };
-const delIconStyle: any = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
-const moveIconStyle: any = { background: '#1a1a1a', color: '#fff', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
-const modalOverlay: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
-const modalContentSmall: any = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
-const adminIn: any = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
-const saveBtn: any = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '25px', fontSize: '15px', letterSpacing: '1px' };
+const flexSpace = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px', flexWrap: 'wrap', gap: '20px' };
+const adminActionBtn = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 18px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '12px' };
+const moveIconStyle = { background: '#1a1a1a', color: '#fff', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const delIconStyle = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
+const modalContentSmall = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
+const adminIn = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
+const saveBtn = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '25px', fontSize: '15px', letterSpacing: '1px' };
