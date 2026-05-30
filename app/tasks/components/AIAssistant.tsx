@@ -16,7 +16,6 @@ interface ChatSession {
     isPinned?: boolean; 
 }
 
-// 💡 ШАГ 1: Добавили прием переменной isAdmin напрямую от страницы
 export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAdmin?: boolean }) {
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -40,12 +39,10 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
     // =========================================================================
     useEffect(() => {
         const determineUser = () => {
-            // 💡 1. ЖЕЛЕЗОБЕТОННАЯ ПРОВЕРКА АДМИНА
             if (isAdmin === true || localStorage.getItem('userRole') === 'admin' || userId === 'admin') {
-                return 'admin_master'; // Идеально изолированный канал админа
+                return 'admin_master'; 
             }
 
-            // --- Блок для сотрудников (пока оставляем простым, разберемся на следующем шаге) ---
             if (userId && userId !== 'guest' && userId.trim() !== '') {
                 return 'emp_' + String(userId).replace(/[^a-zA-Z0-9_-]/g, '_');
             }
@@ -97,7 +94,6 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         };
 
         loadHistory();
-    // 💡 Реагируем на изменение isAdmin или userId от главной страницы
     }, [userId, isAdmin]); 
 
     useEffect(() => {
@@ -207,22 +203,50 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             let siteContext = "";
             if (routeCache.length > 0 || testsCache.length > 0) {
                 siteContext += "=== СЕКРЕТНЫЙ КОНТЕКСТ (БАЗА ЗНАНИЙ КОМПАНИИ ИЗ ПАНЕЛИ АДМИНА) ===\n";
+                
+                // 💡 ИСПРАВЛЕНИЕ: Группировка Теории по разделам, чтобы ИИ понимал локальную нумерацию (Урок 1, Урок 2...)
                 if (routeCache.length > 0) {
-                    siteContext += "РАЗДЕЛ 'ТЕОРИЯ':\n";
-                    routeCache.forEach((route: any, idx: number) => {
-                        siteContext += `\nТема ${idx + 1}: ${route.title}\n`;
-                        if (route.h1) siteContext += `- ${route.h1}: ${route.t1}\n`;
-                        if (route.h2) siteContext += `- ${route.h2}: ${route.t2}\n`;
-                        if (route.h3) siteContext += `- ${route.h3}: ${route.t3}\n`;
+                    siteContext += "РАЗДЕЛ 'ТЕОРИЯ' (Сгруппировано по папкам):\n";
+                    const routeGroups: Record<string, any[]> = {};
+                    routeCache.forEach((route: any) => {
+                        const sec = route.section?.trim() || 'Основной раздел';
+                        if (!routeGroups[sec]) routeGroups[sec] = [];
+                        if (!route.isPlaceholder) routeGroups[sec].push(route);
+                    });
+
+                    Object.entries(routeGroups).forEach(([secName, items]) => {
+                        siteContext += `\n📁 ПАПКА: "${secName}"\n`;
+                        items.forEach((route: any, idx: number) => {
+                            siteContext += `  - Урок ${idx + 1}: ${route.title} (ID: ${route.id})\n`;
+                            if (route.h1) siteContext += `    * ${route.h1}: ${route.t1}\n`;
+                            if (route.h2) siteContext += `    * ${route.h2}: ${route.t2}\n`;
+                            if (route.h3) siteContext += `    * ${route.h3}: ${route.t3}\n`;
+                        });
                     });
                 }
+                
+                // 💡 ИСПРАВЛЕНИЕ: Группировка Тестов по разделам
                 if (testsCache.length > 0) {
-                    siteContext += "\nРАЗДЕЛ 'ТЕСТЫ':\n";
+                    siteContext += "\nРАЗДЕЛ 'ТЕСТЫ' (Сгруппировано по папкам):\n";
+                    const testGroups: Record<string, any[]> = {};
                     testsCache.forEach((test: any) => {
-                        siteContext += `Тест: ${test.title} (${test.subtitle}). База: ${test.theory}\n`;
+                        const sec = test.section?.trim() || 'Основной раздел';
+                        if (!testGroups[sec]) testGroups[sec] = [];
+                        if (!test.isPlaceholder) testGroups[sec].push(test);
+                    });
+
+                    Object.entries(testGroups).forEach(([secName, items]) => {
+                        siteContext += `\n📋 ПАПКА: "${secName}"\n`;
+                        items.forEach((test: any, idx: number) => {
+                            siteContext += `  - Тест ${idx + 1}: ${test.title} (${test.subtitle}). База: ${test.theory}\n`;
+                        });
                     });
                 }
-                siteContext += "\n=== КОНЕЦ БАЗЫ ЗНАНИЙ ===\nОпирайся СТРОГО на этот текст.\n\n";
+                
+                siteContext += "\n=== КОНЕЦ БАЗЫ ЗНАНИЙ ===\n";
+                
+                // 💡 ИСПРАВЛЕНИЕ: Системный промпт для ИИ, чтобы он учитывал разделы при ответах
+                siteContext += "ВАЖНОЕ ПРАВИЛО НАВИГАЦИИ ПО УРОКАМ: Все уроки и тесты сгруппированы по папкам (разделам). Нумерация (Урок 1, Урок 2) начинается ЗАНОВО внутри каждой папки! Если пользователь просит 'Включи урок 1' или 'Расскажи первую тему', ты должен ОБЯЗАТЕЛЬНО понять из контекста или переспросить: 'Урок 1 из какого раздела (папки) вас интересует?'.\nОпирайся СТРОГО на этот текст.\n\n";
             }
 
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === currentActiveId);
