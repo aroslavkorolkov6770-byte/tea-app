@@ -3,10 +3,11 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-// --- ИМПОРТ НАШИХ НОВЫХ МОДУЛЕЙ ---
+// --- ИМПОРТ НАШИХ МОДУЛЕЙ ---
 import Education from './components/Education';
 import Assortment from './components/Assortment';
 import AIAssistant from './components/AIAssistant';
+import Documents from './components/Documents'; // 💡 ДОБАВЛЕН ИМПОРТ ДОКУМЕНТОВ
 
 // --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
@@ -383,7 +384,7 @@ function ShiftContent() {
             </div>
         )}
 
-        {/* --- ВКЛАДКА 2: ОБУЧЕНИЕ (ИМПОРТИРОВАННЫЙ МОДУЛЬ) --- */}
+        {/* --- ВКЛАДКА 2: ОБУЧЕНИЕ --- */}
         {activeTab === 'edu' && (
             <Education 
                 isAdmin={isAdmin}
@@ -402,7 +403,17 @@ function ShiftContent() {
             />
         )}
 
-        {/* --- ВКЛАДКА 3: АССОРТИМЕНТ (ИМПОРТИРОВАННЫЙ МОДУЛЬ) --- */}
+        {/* 💡 НОВОЕ: ВКЛАДКА 2.1 - НОРМАТИВНЫЕ ДОКУМЕНТЫ */}
+        {activeTab === 'docs' && (
+            <Documents 
+                isAdmin={isAdmin}
+                userId={userId}
+                urgentFiles={urgentFiles}
+                setUrgentFiles={setUrgentFiles}
+            />
+        )}
+
+        {/* --- ВКЛАДКА 3: АССОРТИМЕНТ --- */}
         {(activeTab === 'assortment' || activeTab === 'products') && (
             <Assortment 
                 assortmentMatrix={assortmentMatrix} 
@@ -410,7 +421,7 @@ function ShiftContent() {
             />
         )}
 
-        {/* --- ВКЛАДКА 4: ИИ ПОМОЩНИК (ИМПОРТИРОВАННЫЙ МОДУЛЬ) --- */}
+        {/* --- ВКЛАДКА 4: ИИ ПОМОЩНИК --- */}
         {activeTab === 'standards' && (
             <AIAssistant userId={userId} isAdmin={isAdmin} />
         )}
