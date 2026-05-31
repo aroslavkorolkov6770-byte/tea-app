@@ -13,7 +13,6 @@ const saveDataToServer = (key: string, data: any) => {
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
-// Умный парсер CSV для импорта из Excel
 const parseCSV = (str: string) => {
     const result = [];
     let row = [];
@@ -41,10 +40,8 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     const [products, setProducts] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     
-    // Состояние для активной категории
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     
-    // Модалки
     const [showProductForm, setShowProductForm] = useState(false);
     const [productFormData, setProductFormData] = useState({
         id: '', name: '', category: '', price: '', stock: '', desc: '', isHit: false, isHidden: false, dateAdded: ''
@@ -52,7 +49,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, id: string, name: string}>({ isOpen: false, id: '', name: '' });
     const [viewProduct, setViewProduct] = useState<any>(null);
 
-    // Загрузка данных
     useEffect(() => {
         const loadProducts = async () => {
             const cached = localStorage.getItem('th_cache_products');
@@ -104,7 +100,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         setConfirmDelete({ isOpen: false, id: '', name: '' });
     };
 
-    // ТУМБЛЕРЫ ХИТОВ И СКРЫТИЯ
     const toggleHit = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         const updated = products.map(p => p.id === id ? { ...p, isHit: !p.isHit } : p);
@@ -121,7 +116,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
     };
 
-    // СКАЧАТЬ ШАБЛОН EXCEL (CSV)
     const downloadTemplate = () => {
         const bom = "\uFEFF"; 
         const header = "Название;Категория;Цена;Остаток;Описание\n";
@@ -133,7 +127,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         link.click();
     };
 
-    // ЗАГРУЗИТЬ ТОВАРЫ ИЗ EXCEL (CSV)
     const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -174,26 +167,21 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         e.target.value = '';
     };
 
-    // ФИЛЬТРАЦИЯ
     const baseFiltered = products.filter(p => isAdmin || !p.isHidden);
     
-    // Получаем уникальные категории из базы
     const categories = Array.from(new Set(baseFiltered.map(p => p.category).filter(Boolean)));
 
-    // Поиск + Фильтр по категории
     const searchedProducts = baseFiltered.filter(p => 
         (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()))) &&
         (!selectedCategory || p.category === selectedCategory)
     );
 
-    // Хиты продаж: фильтруются и по выбранной категории!
     const hitProducts = baseFiltered.filter(p => p.isHit && (!selectedCategory || p.category === selectedCategory));
 
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
-            {/* ШАПКА И КНОПКИ АДМИНА */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
                 <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0, color: '#fff' }}>Товары и Продукты</h2>
                 {isAdmin && (
@@ -209,19 +197,17 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 )}
             </div>
 
-            {/* ПОИСК */}
             <div style={{ position: 'relative', marginBottom: '25px' }}>
                 <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5, fontSize: '14px' }}>🔍</span>
                 <input 
                     type="text" 
-                    placeholder="Поиск по названию или категории..." 
+                    placeholder="Поиск по названию..." 
                     value={searchQuery} 
                     onChange={(e) => setSearchQuery(e.target.value)} 
                     style={{ ...adminIn, paddingLeft: '45px', background: '#111', border: '1px solid #222' } as any} 
                 />
             </div>
 
-            {/* ПАНЕЛЬ КАТЕГОРИЙ */}
             {categories.length > 0 && (
                 <div className="custom-scroll" style={{ display: 'flex', gap: '10px', overflowX: 'auto', marginBottom: '35px', paddingBottom: '10px' }}>
                     <div 
@@ -254,7 +240,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 </div>
             )}
 
-            {/* 🔥 БЛОК: ХИТЫ ПРОДАЖ */}
             {!searchQuery && hitProducts.length > 0 && (
                 <div style={{ 
                     background: 'linear-gradient(135deg, rgba(255,215,0,0.05) 0%, rgba(0,0,0,0) 100%)', 
@@ -291,7 +276,15 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                         <h4 style={{ fontSize: '18px', margin: isSingle ? '0' : '0 0 20px 0', fontWeight: 'bold', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin && !isSingle ? '80px' : '0' }}>{product.name}</h4>
                                     </div>
                                     
-                                    <div className={isSingle ? "single-hit-stats" : ""} style={{ marginTop: isSingle ? '0' : 'auto', display: 'flex', justifyContent: isSingle ? 'flex-end' : 'space-between', alignItems: 'flex-end', gap: isSingle ? '40px' : '0', minWidth: isSingle ? '200px' : 'auto' }}>
+                                    <div className={isSingle ? "single-hit-stats" : ""} style={{ 
+                                        marginTop: isSingle ? '0' : 'auto', 
+                                        display: 'flex', 
+                                        justifyContent: isSingle ? 'flex-end' : 'space-between', 
+                                        alignItems: 'flex-end', 
+                                        gap: isSingle ? '40px' : '0', 
+                                        minWidth: isSingle ? '200px' : 'auto',
+                                        paddingRight: isAdmin && isSingle ? '100px' : '0'
+                                    }}>
                                         <div>
                                             <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Остаток:</div>
                                             <div style={{ fontSize: '14px', color: '#ccc', fontWeight: 'bold' }}>{product.stock || '—'}</div>
@@ -308,7 +301,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 </div>
             )}
 
-            {/* --- ОСНОВНОЙ КАТАЛОГ --- */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '25px' }}>
                 <h3 style={{ fontSize: '20px', color: '#fff', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
                     {selectedCategory ? `КАТАЛОГ: ${selectedCategory}` : 'ВЕСЬ КАТАЛОГ'}
@@ -335,7 +327,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             )}
                             
                             {isAdmin && product.isHidden && (
-                                <div style={{ position: 'absolute', top: '15px', left: '15px', background: '#ff4d4d', color: '#fff', padding: '4px 10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '10px', zIndex: 5 }}>
+                                <div style={{ position: 'absolute', top: '60px', right: '15px', background: '#ff4d4d', color: '#fff', padding: '4px 10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '10px', zIndex: 5 }}>
                                     СКРЫТО
                                 </div>
                             )}
@@ -360,7 +352,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 )}
             </div>
 
-            {/* --- РЕДАКТОР ПРОДУКТА --- */}
             {showProductForm && (
                 <div style={modalOverlay as any} onClick={() => setShowProductForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -403,7 +394,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 </div>
             )}
 
-            {/* --- ОКНО ПРОСМОТРА ПРОДУКТА --- */}
             {viewProduct && !showProductForm && (
                 <div style={modalOverlay as any} onClick={() => setViewProduct(null)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '40px', position: 'relative'} as any} onClick={e => e.stopPropagation()}>
@@ -441,7 +431,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 </div>
             )}
 
-            {/* --- ОКНО УДАЛЕНИЯ --- */}
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, id: '', name: ''})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
@@ -467,7 +456,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 
                 .hit-card:hover { border-color: #ffd700 !important; box-shadow: 0 5px 20px rgba(255,215,0,0.15); transform: translateY(-3px); }
 
-                /* 💡 СТИЛЬ ДЛЯ ИКОНОК АДМИНА */
+                /* 💡 СТИЛЬ ДЛЯ ИКОНОК АДМИНА С ОБВОДКОЙ ПРИ НАВЕДЕНИИ */
                 .admin-action-icon {
                     transition: all 0.2s ease;
                 }
@@ -502,6 +491,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                     .single-hit-stats {
                         width: 100%;
                         justify-content: space-between !important;
+                        padding-right: 0 !important;
                     }
                 }
             `}</style>
@@ -509,7 +499,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     );
 }
 
-// --- СТИЛИ ---
 const adminActionBtn = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
 const adminIn = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
 const saveBtn = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '25px', fontSize: '15px', letterSpacing: '1px' };
