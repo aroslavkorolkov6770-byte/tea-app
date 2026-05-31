@@ -13,14 +13,39 @@ const saveDataToServer = (key: string, data: any) => {
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
+// 💡 Умный парсер CSV для импорта из Excel
+const parseCSV = (str: string) => {
+    const result = [];
+    let row = [];
+    let inQuotes = false;
+    let val = '';
+    for (let i = 0; i < str.length; i++) {
+        let char = str[i];
+        if (char === '"') {
+            if (inQuotes && str[i+1] === '"') { val += '"'; i++; } 
+            else { inQuotes = !inQuotes; }
+        } else if ((char === ';' || char === ',') && !inQuotes) {
+            row.push(val.trim()); val = '';
+        } else if (char === '\n' && !inQuotes) {
+            row.push(val.trim()); result.push(row); row = []; val = '';
+        } else {
+            if (char !== '\r') val += char;
+        }
+    }
+    row.push(val.trim());
+    result.push(row);
+    return result;
+};
+
 export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId: string }) {
     const [products, setProducts] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     
     // Модалки
     const [showProductForm, setShowProductForm] = useState(false);
+    // 💡 ДОБАВЛЕНО dateAdded: '' чтобы не ругался TypeScript
     const [productFormData, setProductFormData] = useState({
-        id: '', name: '', category: '', price: '', stock: '', desc: '', image: ''
+        id: '', name: '', category: '', price: '', stock: '', desc: '', image: '', isHit: false, isHidden: false, dateAdded: ''
     });
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, id: string, name: string}>({ isOpen: false, id: '', name: '' });
     const [viewProduct, setViewProduct] = useState<any>(null);
@@ -54,7 +79,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         const newProduct = {
             ...productFormData,
             id: productFormData.id || 'prod_' + Date.now(),
-            dateAdded: new Date().toLocaleDateString('ru-RU')
+            dateAdded: productFormData.id && productFormData.dateAdded ? productFormData.dateAdded : new Date().toLocaleDateString('ru-RU')
         };
 
         let updatedProducts = [...products];
@@ -78,6 +103,23 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         setConfirmDelete({ isOpen: false, id: '', name: '' });
     };
 
+    // 💡 ТУМБЛЕРЫ ХИТОВ И СКРЫТИЯ
+    const toggleHit = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        const updated = products.map(p => p.id === id ? { ...p, isHit: !p.isHit } : p);
+        setProducts(updated);
+        localStorage.setItem('th_cache_products', JSON.stringify(updated));
+        saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
+    };
+
+    const toggleHidden = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        const updated = products.map(p => p.id === id ? { ...p, isHidden: !p.isHidden } : p);
+        setProducts(updated);
+        localStorage.setItem('th_cache_products', JSON.stringify(updated));
+        saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
+    };
+
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -92,24 +134,89 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         reader.readAsDataURL(file);
     };
 
-    const filteredProducts = products.filter(p => 
+    // 💡 СКАЧАТЬ ШАБЛОН EXCEL (CSV)
+    const downloadTemplate = () => {
+        const bom = "\uFEFF"; // Для правильной кириллицы в Excel
+        const header = "Название;Категория;Цена;Остаток;Описание;Ссылка_на_фото\n";
+        const example = "Те Гуань Инь Ван;Светлые улуны;1500;500г;Премиальный улун с цветочным ароматом;https://example.com/img.jpgn";
+        const blob = new Blob([bom + header + example], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "template_products.csv";
+        link.click();
+    };
+
+    // 💡 ЗАГРУЗИТЬ ТОВАРЫ ИЗ EXCEL (CSV)
+    const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const text = evt.target?.result as string;
+            const rows = parseCSV(text).filter(r => r.length > 1 && r[0].trim() !== ''); // Убираем пустые строки
+            
+            if (rows.length <= 1) {
+                alert("Файл пуст или содержит только заголовки.");
+                return;
+            }
+
+            const newProds = [];
+            // Пропускаем первую строку (заголовки)
+            for (let i = 1; i < rows.length; i++) {
+                const cols = rows[i];
+                newProds.push({
+                    id: 'prod_' + Date.now() + '_' + i,
+                    name: cols[0] || 'Без названия',
+                    category: cols[1] || '',
+                    price: cols[2] || '',
+                    stock: cols[3] || '',
+                    desc: cols[4] || '',
+                    image: cols[5] || '',
+                    isHit: false,
+                    isHidden: false,
+                    dateAdded: new Date().toLocaleDateString('ru-RU')
+                });
+            }
+
+            const updatedProducts = [...newProds, ...products];
+            setProducts(updatedProducts);
+            localStorage.setItem('th_cache_products', JSON.stringify(updatedProducts));
+            saveDataToServer(STORAGE_KEYS.PRODUCTS, updatedProducts);
+            alert(`✅ Успешно импортировано товаров: ${newProds.length}`);
+        };
+        reader.readAsText(file, "UTF-8");
+        e.target.value = ''; // Сбрасываем инпут
+    };
+
+    // 💡 ФИЛЬТРАЦИЯ (Обычные сотрудники не видят скрытые товары)
+    const baseFiltered = products.filter(p => isAdmin || !p.isHidden);
+    
+    const searchedProducts = baseFiltered.filter(p => 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
-    // Уникальные категории для Datalist
+    // Хиты продаж (только те, что помечены звездочкой и не скрыты от сотрудника)
+    const hitProducts = baseFiltered.filter(p => p.isHit);
+
     const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
 
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
-                <h2 style={{ fontSize: '28px', fontWeight: '900', margin: 0, color: '#fff' }}>Товары и Продукты</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
+                <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0, color: '#fff' }}>Товары и Продукты</h2>
                 {isAdmin && (
-                    <button onClick={() => {
-                        setProductFormData({ id: '', name: '', category: '', price: '', stock: '', desc: '', image: '' });
-                        setShowProductForm(true);
-                    }} style={adminActionBtn as any}>+ НОВЫЙ ТОВАР</button>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button onClick={downloadTemplate} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333'} as any}>📥 ШАБЛОН</button>
+                        <input type="file" accept=".csv" id="csv-upload" style={{display: 'none'}} onChange={handleImportCSV} />
+                        <button onClick={() => document.getElementById('csv-upload')?.click()} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333'} as any}>📤 ИМПОРТ ИЗ ФАЙЛА</button>
+                        <button onClick={() => {
+                            setProductFormData({ id: '', name: '', category: '', price: '', stock: '', desc: '', image: '', isHit: false, isHidden: false, dateAdded: '' });
+                            setShowProductForm(true);
+                        }} style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВЫЙ ТОВАР</button>
+                    </div>
                 )}
             </div>
 
@@ -124,29 +231,70 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 />
             </div>
 
+            {/* 💡 БЛОК: ХИТЫ ПРОДАЖ */}
+            {!searchQuery && hitProducts.length > 0 && (
+                <div style={{ marginBottom: '50px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                        <h3 style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>🔥 ХИТЫ ПРОДАЖ</h3>
+                        <div style={{ height: '1px', background: '#222', flex: 1 }}></div>
+                    </div>
+                    <div className="hits-scroll-container custom-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '20px', paddingBottom: '15px', scrollSnapType: 'x mandatory' }}>
+                        {hitProducts.map(product => (
+                            <div key={`hit-${product.id}`} className="premium-card hit-card" onClick={() => setViewProduct(product)} style={{ minWidth: '240px', flex: '0 0 auto', padding: 0, overflow: 'hidden', scrollSnapAlign: 'start', opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none' }}>
+                                {isAdmin && (
+                                    <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
+                                        <div onClick={(e) => toggleHit(e, product.id)} style={{...editIconStyle, background: 'rgba(0,0,0,0.7)', color: '#ffd700'} as any} title="Убрать из хитов">⭐</div>
+                                        <div onClick={(e) => toggleHidden(e, product.id)} style={{...editIconStyle, background: 'rgba(0,0,0,0.7)', color: product.isHidden ? '#ff4d4d' : '#fff'} as any} title={product.isHidden ? "Показать сотрудникам" : "Скрыть от сотрудников"}>{product.isHidden ? '🙈' : '👁️'}</div>
+                                    </div>
+                                )}
+                                <div style={{ height: '120px', background: '#222', width: '100%', position: 'relative' }}>
+                                    {product.image ? (
+                                        <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', opacity: 0.2 }}>📦</div>
+                                    )}
+                                </div>
+                                <div style={{ padding: '15px' }}>
+                                    <h4 style={{ fontSize: '14px', margin: '0 0 10px 0', fontWeight: 'bold', color: '#fff', lineHeight: '1.3' }}>{product.name}</h4>
+                                    <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '16px' }}>{product.price ? `${product.price} ₽` : '—'}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* --- ОСНОВНОЙ КАТАЛОГ --- */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '20px', color: '#fff', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>КАТАЛОГ</h3>
+                <div style={{ height: '1px', background: '#222', flex: 1 }}></div>
+            </div>
+
             <div className="premium-cards-container">
-                {filteredProducts.length === 0 ? (
+                {searchedProducts.length === 0 ? (
                     <div style={{ color: '#555', fontSize: '14px', background: '#111', padding: '30px', borderRadius: '30px', border: '1px dashed #222', textAlign: 'center', gridColumn: '1 / -1' }}>
                         Товары не найдены
                     </div>
                 ) : (
-                    filteredProducts.map((product) => (
-                        <div key={product.id} className="premium-card" onClick={() => setViewProduct(product)} style={{ padding: 0, overflow: 'hidden' }}>
+                    searchedProducts.map((product) => (
+                        <div key={product.id} className="premium-card" onClick={() => setViewProduct(product)} style={{ padding: 0, overflow: 'hidden', opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none' }}>
                             {isAdmin && (
                                 <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                    <div onClick={(e) => { 
-                                        e.stopPropagation(); 
-                                        setProductFormData(product); 
-                                        setShowProductForm(true); 
-                                    }} style={{...editIconStyle, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)'} as any} title="Редактировать">✎</div>
-                                    <div onClick={(e) => { 
-                                        e.stopPropagation(); 
-                                        setConfirmDelete({isOpen: true, id: product.id, name: product.name}); 
-                                    }} style={{...delIconStyle, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)'} as any} title="Удалить">✕</div>
+                                    <div onClick={(e) => toggleHit(e, product.id)} style={{...editIconStyle, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', color: product.isHit ? '#ffd700' : '#888'} as any} title="В хиты">⭐</div>
+                                    <div onClick={(e) => toggleHidden(e, product.id)} style={{...editIconStyle, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', color: product.isHidden ? '#ff4d4d' : '#fff'} as any} title="Скрыть/Показать">{product.isHidden ? '🙈' : '👁️'}</div>
+                                    <div onClick={(e) => { e.stopPropagation(); setProductFormData(product); setShowProductForm(true); }} style={{...editIconStyle, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)'} as any} title="Редактировать">✎</div>
+                                    <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, id: product.id, name: product.name}); }} style={{...delIconStyle, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)'} as any} title="Удалить">✕</div>
                                 </div>
                             )}
                             
-                            <div style={{ height: '140px', background: '#222', width: '100%', position: 'relative' }}>
+                            {/* Метка скрытого товара */}
+                            {isAdmin && product.isHidden && (
+                                <div style={{ position: 'absolute', top: '50px', left: '50%', transform: 'translateX(-50%)', background: '#ff4d4d', color: '#fff', padding: '5px 15px', borderRadius: '10px', fontWeight: 'bold', fontSize: '12px', zIndex: 5, whiteSpace: 'nowrap' }}>
+                                    СКРЫТ ОТ СОТРУДНИКОВ
+                                </div>
+                            )}
+
+                            <div style={{ height: '160px', background: '#222', width: '100%', position: 'relative' }}>
                                 {product.image ? (
                                     <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
@@ -194,7 +342,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Цена (₽)</div>
-                                    <input type="number" style={adminIn as any} placeholder="0" value={productFormData.price} onChange={e => setProductFormData({...productFormData, price: e.target.value})} />
+                                    <input type="text" style={adminIn as any} placeholder="0" value={productFormData.price} onChange={e => setProductFormData({...productFormData, price: e.target.value})} />
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Остаток / Вес</div>
@@ -238,7 +386,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
             {viewProduct && !showProductForm && (
                 <div style={modalOverlay as any} onClick={() => setViewProduct(null)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', padding: '0', overflow: 'hidden'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ position: 'relative', width: '100%', height: '300px', background: '#111' }}>
+                        <div style={{ position: 'relative', width: '100%', height: '350px', background: '#111' }}>
                             {viewProduct.image ? (
                                 <img src={viewProduct.image} alt={viewProduct.name} onClick={() => setZoomedImg(viewProduct.image)} style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }} />
                             ) : (
@@ -252,6 +400,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                 <div>
                                     {viewProduct.category && <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase', background: 'rgba(10,186,181,0.1)', padding: '5px 12px', borderRadius: '8px', display: 'inline-block', marginBottom: '10px'}}>{viewProduct.category}</span>}
                                     <h2 style={{fontSize:'32px', color:'#fff', fontWeight:'900', margin:'0'}}>{viewProduct.name}</h2>
+                                    {viewProduct.isHit && <div style={{ color: '#ffd700', fontWeight: 'bold', fontSize: '13px', marginTop: '5px' }}>⭐ ХИТ ПРОДАЖ</div>}
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
                                     <div style={{ fontSize: '14px', color: '#888', marginBottom: '4px' }}>Цена:</div>
@@ -296,14 +445,20 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
 
             <style jsx global>{`
                 .premium-cards-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; width: 100%; }
-                .premium-card { background: #111; border-radius: 14px; border: 1px solid #222; transition: all 0.2s ease; position: relative; cursor: pointer; display: flex; flex-direction: column; width: 100%; min-height: 140px; box-sizing: border-box; overflow: hidden; word-break: break-word; overflow-wrap: anywhere; }
+                .premium-card { background: #111; border-radius: 18px; border: 1px solid #222; transition: all 0.2s ease; position: relative; cursor: pointer; display: flex; flex-direction: column; width: 100%; min-height: 140px; box-sizing: border-box; overflow: hidden; word-break: break-word; overflow-wrap: anywhere; }
                 .premium-card:hover { border-color: #0abab5; transform: translateY(-3px); }
                 .premium-card:active { background: rgba(10, 186, 181, 0.05); border-color: #0abab5; transform: scale(0.98); }
                 
+                .hits-scroll-container::-webkit-scrollbar { height: 6px; }
+                .hits-scroll-container::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+                
+                .hit-card:hover { border-color: #ffd700; box-shadow: 0 5px 15px rgba(255,215,0,0.1); }
+
                 @media (max-width: 768px) {
                     .premium-cards-container { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
                     .premium-card h4 { font-size: 13px !important; margin-bottom: 10px !important; }
                     .tasks-modal { padding: 30px 20px !important; border-radius: 25px !important; width: 95% !important; max-height: 90vh !important; }
+                    .hit-card { min-width: 180px !important; }
                 }
             `}</style>
         </section>
