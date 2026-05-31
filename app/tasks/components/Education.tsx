@@ -37,6 +37,7 @@ const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: st
     return prevProps.iframeStr === nextProps.iframeStr && prevProps.descText === nextProps.descText;
 });
 
+// Функция рандомизации массива (Тасуем вопросы)
 const shuffleArray = (array: any[]) => {
     return [...array].sort(() => Math.random() - 0.5);
 };
@@ -420,7 +421,6 @@ export default function Education({
                     <div className="premium-cards-container"> 
                         {urgentTasks.map((file: any) => (
                             file.id && file.id.startsWith('deadline_') ? (
-                                // 💡 КЛИКАБЕЛЬНАЯ КАРТОЧКА ДЕДЛАЙНА
                                 <div key={file.id} className="premium-card deadline-card" style={{ borderColor: '#ff4d4d', borderWidth: '1px', cursor: file.linkedTestId ? 'pointer' : 'default' }}
                                      onClick={() => {
                                          if (file.linkedTestId) {
@@ -442,7 +442,6 @@ export default function Education({
                                         <div style={{ color: '#ff4d4d', fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>{file.size}</div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div style={{ color: '#555', fontSize: '11px', fontWeight: 'bold' }}>Назначено: {file.date}</div>
-                                            {/* 💡 Если есть прикрепленный тест, показываем кнопку */}
                                             {file.linkedTestId && <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold' }}>ПРОЙТИ ТЕСТ ↗</div>}
                                         </div>
                                     </div>
@@ -469,6 +468,7 @@ export default function Education({
                 )}
             </div>
 
+            {/* --- БЛОК 1: ТЕОРИЯ --- */}
             <div className="tasks-flex-space" style={flexSpace as any}>
                <h2 className="tasks-title" style={sectionTitle as any}>Теория</h2>
                {isAdmin && (
@@ -527,6 +527,7 @@ export default function Education({
                ))}
             </div>
 
+            {/* --- БЛОК 2: ТЕСТЫ --- */}
             <div className="tasks-flex-space" style={flexSpace as any}>
                 <h2 className="tasks-title" style={sectionTitle as any}>Тесты</h2>
                 {isAdmin && (
@@ -944,7 +945,7 @@ export default function Education({
 
             {testResultModal.show && (
                 <div style={{...errorOverlayStyle, zIndex: 60000} as any}>
-                    <div className="tasks-modal custom-scroll" style={{...errorModalContent, maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
+                    <div className="tasks-modal custom-scroll" style={{...errorModalContent, width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
                         <div style={{ fontSize: '70px', marginBottom: '15px' }}>{testResultModal.isPassed ? '🏆' : '❌'}</div>
                         <h2 style={{ fontSize: '28px', color: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', marginBottom: '10px', fontWeight: '900', textTransform: 'uppercase' }}>
                             {testResultModal.isTimeout ? 'ВРЕМЯ ВЫШЛО!' : (testResultModal.isPassed ? 'ТЕСТ СДАН!' : 'ТЕСТ НЕ СДАН')}
@@ -956,24 +957,22 @@ export default function Education({
                             <div style={{background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', padding: '20px', borderRadius: '15px', fontWeight: 'bold', marginBottom: '30px'}}>
                                 Вы не уложились в отведенное время. Тест автоматически завершен и считается проваленным.
                             </div>
-                        ) : (
-                            testResultModal.score === 100 ? (
-                                <div style={{background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '20px', borderRadius: '15px', fontWeight: 'bold', marginBottom: '30px'}}>Вы ответили правильно на все вопросы! Идеальный результат.</div>
-                            ) : (
-                                <div style={{textAlign: 'left', marginBottom: '30px'}}>
-                                    <h4 style={{color: '#fff', fontSize: '18px', fontWeight: '900', marginBottom: '15px'}}>Разбор ошибок:</h4>
-                                    <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-                                        {testResultModal.mistakes.map((m, idx) => (
-                                            <div key={idx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '15px', border: '1px solid #333'}}>
-                                                <p style={{color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0'}}>{m.q}</p>
-                                                <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>❌ Ваш ответ: {m.userAns}</p>
-                                                <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>✅ Верный ответ: {m.correctAns}</p>
-                                            </div>
-                                        ))}
-                                    </div>
+                        ) : testResultModal.score === 100 ? (
+                            <div style={{background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '20px', borderRadius: '15px', fontWeight: 'bold', marginBottom: '30px'}}>Вы ответили правильно на все вопросы! Идеальный результат.</div>
+                        ) : testResultModal.mistakes && testResultModal.mistakes.length > 0 ? (
+                            <div style={{textAlign: 'left', marginBottom: '30px'}}>
+                                <h4 style={{color: '#fff', fontSize: '18px', fontWeight: '900', marginBottom: '15px'}}>Разбор ошибок:</h4>
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                                    {testResultModal.mistakes.map((m, idx) => (
+                                        <div key={idx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '15px', border: '1px solid #333'}}>
+                                            <p style={{color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0'}}>{m.q}</p>
+                                            <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>❌ Ваш ответ: {m.userAns}</p>
+                                            <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>✅ Верный ответ: {m.correctAns}</p>
+                                        </div>
+                                    ))}
                                 </div>
-                            )
-                        )}
+                            </div>
+                        ) : null}
                         <button onClick={() => { setTestResultModal({show: false, score: 0, isPassed: false, title: '', mistakes: []}); closeTestModal(); }} style={{...errorBtnStyle, background: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', color: testResultModal.isPassed ? '#000' : '#fff', marginTop: 0} as any}>
                             {testResultModal.isPassed ? 'ОТЛИЧНО' : 'ПОНЯТНО'}
                         </button>
@@ -1053,7 +1052,7 @@ const errorBtnStyle: React.CSSProperties = { border: 'none', padding: '18px 40px
 const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
 const saveBtn: React.CSSProperties = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '25px', fontSize: '15px', letterSpacing: '1px' };
 const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
-const editIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#0abab5', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const editIconStyle: React.CSSProperties = { background: '#1a1a1a', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
 const delIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
 const moveIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#fff', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
 const cancelLink: React.CSSProperties = { textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
