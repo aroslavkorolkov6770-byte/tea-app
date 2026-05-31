@@ -180,15 +180,15 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     // Получаем уникальные категории из базы
     const categories = Array.from(new Set(baseFiltered.map(p => p.category).filter(Boolean)));
 
-    // Поиск + Фильтр по категории
+    // Поиск + Фильтр по категории для основного каталога
     const searchedProducts = baseFiltered.filter(p => 
         (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()))) &&
         (!selectedCategory || p.category === selectedCategory)
     );
 
-    // Хиты продаж: фильтруются и по выбранной категории!
-    const hitProducts = baseFiltered.filter(p => p.isHit && (!selectedCategory || p.category === selectedCategory));
+    // 💡 ИСПРАВЛЕНИЕ: Хиты продаж теперь ГЛОБАЛЬНЫЕ. Они всегда отображаются над каталогом, независимо от выбранной категории.
+    const hitProducts = baseFiltered.filter(p => p.isHit);
 
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
@@ -291,7 +291,15 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                         <h4 style={{ fontSize: '18px', margin: isSingle ? '0' : '0 0 20px 0', fontWeight: 'bold', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin && !isSingle ? '80px' : '0' }}>{product.name}</h4>
                                     </div>
                                     
-                                    <div className={isSingle ? "single-hit-stats" : ""} style={{ marginTop: isSingle ? '0' : 'auto', display: 'flex', justifyContent: isSingle ? 'flex-end' : 'space-between', alignItems: 'flex-end', gap: isSingle ? '40px' : '0', minWidth: isSingle ? '200px' : 'auto', paddingRight: isAdmin && isSingle ? '100px' : '0' }}>
+                                    <div className={isSingle ? "single-hit-stats" : ""} style={{ 
+                                        marginTop: isSingle ? '0' : 'auto', 
+                                        display: 'flex', 
+                                        justifyContent: isSingle ? 'flex-end' : 'space-between', 
+                                        alignItems: 'flex-end', 
+                                        gap: isSingle ? '40px' : '0', 
+                                        minWidth: isSingle ? '200px' : 'auto',
+                                        paddingRight: isAdmin && isSingle ? '100px' : '0'
+                                    }}>
                                         <div>
                                             <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Остаток:</div>
                                             <div style={{ fontSize: '14px', color: '#ccc', fontWeight: 'bold' }}>{product.stock || '—'}</div>
