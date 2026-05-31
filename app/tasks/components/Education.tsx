@@ -187,7 +187,6 @@ export default function Education({
     });
 
     const urgentTasks = visibleUrgentFiles.filter((f: any) => f.id?.startsWith('deadline_') || f.isTest);
-    
     const pendingAttestations = urgentTasks.filter((t: any) => t.isTest);
     const isLockedByUrgent = pendingAttestations.length > 0;
 
@@ -426,7 +425,21 @@ export default function Education({
                                          if (file.linkedTestId) {
                                              const targetTest = dynamicTests.find((t:any) => t.id === file.linkedTestId);
                                              if (targetTest) {
-                                                 if (isLockedByUrgent && !isAdmin) {
+                                                 // Проверка блокировки для дедлайнов (выводим точный список необходимых тестов)
+                                                 const globalIdx = realTests.findIndex((t: any) => t.id === targetTest.id);
+                                                 const unpassedTestsBefore = globalIdx > 0 ? realTests.slice(0, globalIdx).filter((t: any) => !completedTests.includes(t.id)) : [];
+
+                                                 if (unpassedTestsBefore.length > 0 && !isAdmin) {
+                                                     const missingList = unpassedTestsBefore.map((t: any) => {
+                                                         const originalIdx = realTests.findIndex((rt: any) => rt.id === t.id) + 1;
+                                                         return `— Тест ${originalIdx}: ${stripEmoji(t.title)}`;
+                                                     }).join('\n');
+                                                     
+                                                     setLockedTestAlert({
+                                                         show: true, 
+                                                         message: `Для прохождения этого дедлайна необходимо по порядку сдать предыдущие тесты:\n\n${missingList}`
+                                                     });
+                                                 } else if (isLockedByUrgent && !isAdmin) {
                                                      setLockedTestAlert({show: true, message: `Доступ к тестам закрыт.\nНе пройдены обязательные аттестации:\n${pendingAttestations.map((t:any) => '— ' + stripEmoji(t.name)).join('\n')}`});
                                                  } else {
                                                      setSelectedTest(targetTest);
@@ -561,7 +574,8 @@ export default function Education({
                                    {items.length === 0 ? <div style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>В этом разделе пока нет тестов...</div> : items.map((test: any, idx: number) => {
                                            const isDone = completedTests.includes(test.id);
                                            const globalIdx = realTests.findIndex((t: any) => t.id === test.id);
-                                           const isUnlocked = isAdmin || globalIdx <= 0 || completedTests.includes(realTests[globalIdx - 1]?.id);
+                                           // 💡 Пройденный тест всегда визуально разблокирован
+                                           const isUnlocked = isDone || isAdmin || globalIdx <= 0 || completedTests.includes(realTests[globalIdx - 1]?.id);
                                            
                                            return (
                                                <div key={test.id} onClick={() => { 
@@ -573,7 +587,14 @@ export default function Education({
                                                                message: `Доступ к обычным тестам закрыт.\nНе пройдены обязательные аттестации:\n${pendingAttestations.map((t:any) => '— ' + stripEmoji(t.name)).join('\n')}`
                                                            });
                                                        } else if (!isUnlocked && !isAdmin) {
-                                                           setLockedTestAlert({show: true, message: `Сначала необходимо успешно сдать предыдущий тест.`});
+                                                           // Блокировка обычных тестов с выводом списка
+                                                           const unpassedTestsBefore = realTests.slice(0, globalIdx).filter((t: any) => !completedTests.includes(t.id));
+                                                           const missingList = unpassedTestsBefore.map((t: any) => {
+                                                               const originalIdx = realTests.findIndex((rt: any) => rt.id === t.id) + 1;
+                                                               return `— Тест ${originalIdx}: ${stripEmoji(t.title)}`;
+                                                           }).join('\n');
+                                                           
+                                                           setLockedTestAlert({show: true, message: `Сначала необходимо по порядку сдать предыдущие тесты:\n\n${missingList}`});
                                                        } else {
                                                            setSelectedTest(test); 
                                                        }
@@ -615,6 +636,7 @@ export default function Education({
                ))}
             </div>
 
+            {/* --- МИНИ-ОКНА АДМИНА --- */}
             {promptSection.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setPromptSection({isOpen: false, type: 'route', name: ''})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -683,6 +705,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" --- */}
             {selectedRouteStep && !showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteModal}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -728,6 +751,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ --- */}
             {showRouteForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -802,6 +826,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* 💡 НОВОЕ ОКНО: ПРОСМОТР РЕЗУЛЬТАТОВ (ОШИБКИ И ОТВЕТЫ) */}
             {reviewTest && (
                <div style={modalOverlay as any} onClick={() => setReviewTest(null)}>
                   <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '800px'} as any} onClick={e => e.stopPropagation()}>
@@ -823,6 +848,7 @@ export default function Education({
                </div>
             )}
 
+            {/* --- ПРЕДПРОСМОТР ЭКРАНА ТЕСТА --- */}
             {selectedTest && !activeTestSession && !showTestForm && (
                <div style={modalOverlay as any} onClick={closeTestModal}>
                   <div className="tasks-modal" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -851,6 +877,7 @@ export default function Education({
                </div>
             )}
 
+            {/* --- АКТИВНАЯ СЕССИЯ ТЕСТА (ANTI-CHEAT + ТАЙМЕР) --- */}
             {activeTestSession && (
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={{...modalContentLarge, maxWidth: '800px'} as any}>
@@ -889,6 +916,7 @@ export default function Education({
                </div>
             )}
 
+            {/* --- СРОЧНАЯ АТТЕСТАЦИЯ (ANTI-CHEAT + ТАЙМЕР) --- */}
             {activeUrgentTest && (
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={modalContentLarge as any}>
@@ -927,6 +955,7 @@ export default function Education({
                </div>
             )}
 
+            {/* 💡 КАСТОМНОЕ ОКНО ПРЕРЫВАНИЯ ТЕСТА */}
             {cancelTestConfirm.show && (
                 <div style={modalOverlay as any} onClick={() => setCancelTestConfirm({show: false, type: 'normal'})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
@@ -943,8 +972,10 @@ export default function Education({
                 </div>
             )}
 
+            {/* --- МОДАЛКА РЕЗУЛЬТАТОВ ОСНОВНОГО ТЕСТА С ОШИБКАМИ --- */}
             {testResultModal.show && (
                 <div style={{...errorOverlayStyle, zIndex: 60000} as any}>
+                    {/* 💡 ДОБАВЛЕНО СВОЙСТВО width: '100%' */}
                     <div className="tasks-modal custom-scroll" style={{...errorModalContent, width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
                         <div style={{ fontSize: '70px', marginBottom: '15px' }}>{testResultModal.isPassed ? '🏆' : '❌'}</div>
                         <h2 style={{ fontSize: '28px', color: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', marginBottom: '10px', fontWeight: '900', textTransform: 'uppercase' }}>
@@ -959,20 +990,23 @@ export default function Education({
                             </div>
                         ) : testResultModal.score === 100 ? (
                             <div style={{background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '20px', borderRadius: '15px', fontWeight: 'bold', marginBottom: '30px'}}>Вы ответили правильно на все вопросы! Идеальный результат.</div>
-                        ) : testResultModal.mistakes && testResultModal.mistakes.length > 0 ? (
-                            <div style={{textAlign: 'left', marginBottom: '30px'}}>
-                                <h4 style={{color: '#fff', fontSize: '18px', fontWeight: '900', marginBottom: '15px'}}>Разбор ошибок:</h4>
-                                <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-                                    {testResultModal.mistakes.map((m, idx) => (
-                                        <div key={idx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '15px', border: '1px solid #333'}}>
-                                            <p style={{color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0'}}>{m.q}</p>
-                                            <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>❌ Ваш ответ: {m.userAns}</p>
-                                            <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>✅ Верный ответ: {m.correctAns}</p>
-                                        </div>
-                                    ))}
+                        ) : (
+                            /* 💡 РАЗБОР ОШИБОК ПОКАЗЫВАЕТСЯ ТОЛЬКО ЕСЛИ ОНИ ЕСТЬ (В АТТЕСТАЦИЯХ ИХ НЕТ) */
+                            testResultModal.mistakes && testResultModal.mistakes.length > 0 ? (
+                                <div style={{textAlign: 'left', marginBottom: '30px'}}>
+                                    <h4 style={{color: '#fff', fontSize: '18px', fontWeight: '900', marginBottom: '15px'}}>Разбор ошибок:</h4>
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                                        {testResultModal.mistakes.map((m, idx) => (
+                                            <div key={idx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '15px', border: '1px solid #333'}}>
+                                                <p style={{color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0'}}>{m.q}</p>
+                                                <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>❌ Ваш ответ: {m.userAns}</p>
+                                                <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>✅ Верный ответ: {m.correctAns}</p>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ) : null}
+                            ) : null
+                        )}
                         <button onClick={() => { setTestResultModal({show: false, score: 0, isPassed: false, title: '', mistakes: []}); closeTestModal(); }} style={{...errorBtnStyle, background: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', color: testResultModal.isPassed ? '#000' : '#fff', marginTop: 0} as any}>
                             {testResultModal.isPassed ? 'ОТЛИЧНО' : 'ПОНЯТНО'}
                         </button>
@@ -980,6 +1014,7 @@ export default function Education({
                 </div>
             )}
 
+            {/* 💡 ФУЛСКРИН LIGHTBOX ДЛЯ ПРОСМОТРА ФОТО */}
             {zoomedImg && (
                 <div style={lightboxOverlay as any} onClick={() => setZoomedImg(null)}>
                     <div onClick={() => setZoomedImg(null)} style={{position: 'absolute', top: '20px', right: '30px', cursor: 'pointer', fontSize: '40px', color: '#ff4d4d', fontWeight: 'bold', zIndex: 90001, textShadow: '0 2px 10px rgba(0,0,0,0.5)'}}>✕</div>
@@ -1003,6 +1038,7 @@ export default function Education({
                 .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
                 .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }
 
+                /* 💡 СТИЛИ ДЛЯ КАРТИНОК И ЗУМА */
                 .image-zoom-container { position: relative; width: 100%; height: 220px; border-radius: 15px; overflow: hidden; cursor: pointer; margin-bottom: 15px; background: #111; }
                 .image-zoom-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
                 .image-zoom-container:hover img { transform: scale(1.05); }
@@ -1052,7 +1088,7 @@ const errorBtnStyle: React.CSSProperties = { border: 'none', padding: '18px 40px
 const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
 const saveBtn: React.CSSProperties = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '25px', fontSize: '15px', letterSpacing: '1px' };
 const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
-const editIconStyle: React.CSSProperties = { background: '#1a1a1a', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
-const delIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
-const moveIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#fff', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const editIconStyle: React.CSSProperties = { background: '#1a1a1a', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0, fontWeight: 'bold' };
+const delIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0, fontWeight: 'bold' };
+const moveIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#fff', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
 const cancelLink: React.CSSProperties = { textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
