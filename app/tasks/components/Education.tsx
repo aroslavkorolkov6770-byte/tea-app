@@ -37,7 +37,6 @@ const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: st
     return prevProps.iframeStr === nextProps.iframeStr && prevProps.descText === nextProps.descText;
 });
 
-// Функция рандомизации массива (Тасуем вопросы)
 const shuffleArray = (array: any[]) => {
     return [...array].sort(() => Math.random() - 0.5);
 };
@@ -76,7 +75,6 @@ export default function Education({
 
     const [lockedTestAlert, setLockedTestAlert] = useState({show: false, message: ''});
     
-    // 💡 СОСТОЯНИЕ ДЛЯ КАСТОМНОГО ОКНА ПРЕРЫВАНИЯ ТЕСТА
     const [cancelTestConfirm, setCancelTestConfirm] = useState<{show: boolean, type: 'normal'|'urgent'}>({show: false, type: 'normal'});
     
     const [reviewTest, setReviewTest] = useState<any>(null);
@@ -146,7 +144,6 @@ export default function Education({
         setTestAnswers([]); setUrgentTestAnswers([]); setActiveAnswer(null); setTimeLeft(null);
     };
 
-    // 💡 ЛОГИКА КАСТОМНОГО ПРЕРЫВАНИЯ ТЕСТА
     const executeCancelTest = () => {
         if (cancelTestConfirm.type === 'normal') {
             setActiveTestSession(null); setCurrentQuizStep(0); setActiveAnswer(null); setTestAnswers([]); closeTestModal(); setTimeLeft(null);
@@ -160,6 +157,7 @@ export default function Education({
         const newDismissed = [...dismissedTasks, id];
         setDismissedTasks(newDismissed);
         localStorage.setItem(`th_dismissed_tasks_${userId}`, JSON.stringify(newDismissed));
+        saveDataToServer(`dismissed_tasks_${userId}`, newDismissed);
     };
 
     const visibleUrgentFiles = urgentFiles.filter((f: any) => {
@@ -422,13 +420,31 @@ export default function Education({
                     <div className="premium-cards-container"> 
                         {urgentTasks.map((file: any) => (
                             file.id && file.id.startsWith('deadline_') ? (
-                                <div key={file.id} className="premium-card deadline-card" style={{ borderColor: '#ff4d4d', borderWidth: '1px' }}>
+                                // 💡 КЛИКАБЕЛЬНАЯ КАРТОЧКА ДЕДЛАЙНА
+                                <div key={file.id} className="premium-card deadline-card" style={{ borderColor: '#ff4d4d', borderWidth: '1px', cursor: file.linkedTestId ? 'pointer' : 'default' }}
+                                     onClick={() => {
+                                         if (file.linkedTestId) {
+                                             const targetTest = dynamicTests.find((t:any) => t.id === file.linkedTestId);
+                                             if (targetTest) {
+                                                 if (isLockedByUrgent && !isAdmin) {
+                                                     setLockedTestAlert({show: true, message: `Доступ к тестам закрыт.\nНе пройдены обязательные аттестации:\n${pendingAttestations.map((t:any) => '— ' + stripEmoji(t.name)).join('\n')}`});
+                                                 } else {
+                                                     setSelectedTest(targetTest);
+                                                 }
+                                             }
+                                         }
+                                     }}
+                                >
                                     <div onClick={(e) => { e.stopPropagation(); handleDismissTask(file.id); }} style={{ position: 'absolute', top: '15px', right: '15px', cursor: 'pointer', color: '#ff4d4d', fontWeight: 'bold', fontSize: '18px', zIndex: 10 }}>✕</div>
                                     <span style={{fontSize:'12px', color:'#ff4d4d', fontWeight:'900', marginBottom: '8px', display: 'inline-block'}}>⚠️ ДЕДЛАЙН</span>
                                     <h4 style={{fontSize:'15px', margin:'0 0 10px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{file.name.replace('⚠️ Дедлайн: ', '')}</h4>
                                     <div style={{ marginTop: 'auto' }}>
                                         <div style={{ color: '#ff4d4d', fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>{file.size}</div>
-                                        <div style={{ color: '#555', fontSize: '11px', fontWeight: 'bold' }}>Назначено: {file.date}</div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ color: '#555', fontSize: '11px', fontWeight: 'bold' }}>Назначено: {file.date}</div>
+                                            {/* 💡 Если есть прикрепленный тест, показываем кнопку */}
+                                            {file.linkedTestId && <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold' }}>ПРОЙТИ ТЕСТ ↗</div>}
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -453,7 +469,6 @@ export default function Education({
                 )}
             </div>
 
-            {/* --- БЛОК 1: ТЕОРИЯ --- */}
             <div className="tasks-flex-space" style={flexSpace as any}>
                <h2 className="tasks-title" style={sectionTitle as any}>Теория</h2>
                {isAdmin && (
@@ -512,7 +527,6 @@ export default function Education({
                ))}
             </div>
 
-            {/* --- БЛОК 2: ТЕСТЫ --- */}
             <div className="tasks-flex-space" style={flexSpace as any}>
                 <h2 className="tasks-title" style={sectionTitle as any}>Тесты</h2>
                 {isAdmin && (
@@ -600,7 +614,6 @@ export default function Education({
                ))}
             </div>
 
-            {/* --- МИНИ-ОКНА АДМИНА --- */}
             {promptSection.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setPromptSection({isOpen: false, type: 'route', name: ''})}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -669,7 +682,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" --- */}
             {selectedRouteStep && !showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteModal}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -715,7 +727,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ --- */}
             {showRouteForm && (
                 <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
@@ -790,7 +801,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 НОВОЕ ОКНО: ПРОСМОТР РЕЗУЛЬТАТОВ (ОШИБКИ И ОТВЕТЫ) */}
             {reviewTest && (
                <div style={modalOverlay as any} onClick={() => setReviewTest(null)}>
                   <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '800px'} as any} onClick={e => e.stopPropagation()}>
@@ -812,7 +822,6 @@ export default function Education({
                </div>
             )}
 
-            {/* --- ПРЕДПРОСМОТР ЭКРАНА ТЕСТА --- */}
             {selectedTest && !activeTestSession && !showTestForm && (
                <div style={modalOverlay as any} onClick={closeTestModal}>
                   <div className="tasks-modal" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
@@ -841,7 +850,6 @@ export default function Education({
                </div>
             )}
 
-            {/* --- АКТИВНАЯ СЕССИЯ ТЕСТА (ANTI-CHEAT + ТАЙМЕР) --- */}
             {activeTestSession && (
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={{...modalContentLarge, maxWidth: '800px'} as any}>
@@ -880,7 +888,6 @@ export default function Education({
                </div>
             )}
 
-            {/* --- СРОЧНАЯ АТТЕСТАЦИЯ (ANTI-CHEAT + ТАЙМЕР) --- */}
             {activeUrgentTest && (
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={modalContentLarge as any}>
@@ -919,7 +926,6 @@ export default function Education({
                </div>
             )}
 
-            {/* 💡 КАСТОМНОЕ ОКНО ПРЕРЫВАНИЯ ТЕСТА */}
             {cancelTestConfirm.show && (
                 <div style={modalOverlay as any} onClick={() => setCancelTestConfirm({show: false, type: 'normal'})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
@@ -936,7 +942,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* --- МОДАЛКА РЕЗУЛЬТАТОВ ОСНОВНОГО ТЕСТА С ОШИБКАМИ --- */}
             {testResultModal.show && (
                 <div style={{...errorOverlayStyle, zIndex: 60000} as any}>
                     <div className="tasks-modal custom-scroll" style={{...errorModalContent, maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
@@ -976,7 +981,6 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 ФУЛСКРИН LIGHTBOX ДЛЯ ПРОСМОТРА ФОТО */}
             {zoomedImg && (
                 <div style={lightboxOverlay as any} onClick={() => setZoomedImg(null)}>
                     <div onClick={() => setZoomedImg(null)} style={{position: 'absolute', top: '20px', right: '30px', cursor: 'pointer', fontSize: '40px', color: '#ff4d4d', fontWeight: 'bold', zIndex: 90001, textShadow: '0 2px 10px rgba(0,0,0,0.5)'}}>✕</div>
@@ -1000,7 +1004,6 @@ export default function Education({
                 .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
                 .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }
 
-                /* 💡 СТИЛИ ДЛЯ КАРТИНОК И ЗУМА */
                 .image-zoom-container { position: relative; width: 100%; height: 220px; border-radius: 15px; overflow: hidden; cursor: pointer; margin-bottom: 15px; background: #111; }
                 .image-zoom-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
                 .image-zoom-container:hover img { transform: scale(1.05); }

@@ -70,14 +70,16 @@ function ShiftContent() {
 
       try {
           const cacheBuster = `?t=${Date.now()}`;
-          const [sFiles, cRoute, cTests, sTestsData, sRouteData, pTestsRes, sAssortment] = await Promise.all([
+          // 💡 ДОБАВЛЕН ЗАПРОС dismissed_tasks_ С СЕРВЕРА
+          const [sFiles, cRoute, cTests, sTestsData, sRouteData, pTestsRes, sAssortment, sDismissed] = await Promise.all([
               fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.URGENT_FILES}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=prog_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_TESTS}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_ROUTE}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=tea_hub_assortment_matrix_v2`).then(r => r.json()).catch(() => null)
+              fetch(`/api/storage${cacheBuster}&key=tea_hub_assortment_matrix_v2`).then(r => r.json()).catch(() => null),
+              fetch(`/api/storage${cacheBuster}&key=dismissed_tasks_${currentUserId}`).then(r => r.json()).catch(() => null)
           ]);
 
           if (Array.isArray(sFiles)) {
@@ -98,6 +100,12 @@ function ShiftContent() {
           if (Array.isArray(pTestsRes)) {
               setPassedTests(pTestsRes);
               localStorage.setItem(`th_cache_passed_tests_${currentUserId}`, JSON.stringify(pTestsRes));
+          }
+
+          // 💡 СИНХРОНИЗИРУЕМ ОТКЛОНЕННЫЕ ЗАДАЧИ
+          if (Array.isArray(sDismissed)) {
+              setDismissedTasks(sDismissed);
+              localStorage.setItem(`th_dismissed_tasks_${currentUserId}`, JSON.stringify(sDismissed));
           }
 
           if (Array.isArray(sTestsData)) {

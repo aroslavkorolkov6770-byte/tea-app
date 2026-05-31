@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
 
-// 🧩 ИМПОРТЫ НАШИХ КОМПОНЕНТОВ
 import FileManager from './components/FileManager';
 import UserManagement from './components/UserManagement';
 import StatisticsPanel from './components/StatisticsPanel';
@@ -12,15 +11,9 @@ import UserProfileModal from './components/UserProfileModal';
 import TestEditorModal from './components/TestEditorModal';
 import TestResultsModal from './components/TestResultsModal';
 
-// 🎨 ИМПОРТ СТИЛЕЙ
-import { 
-    noteOverlayStyle, noteSidebarStyle, noteTextarea, noteDeleteBtn, 
-    adminSendBtn, flexSpace, sectionTitle, adminIn, saveBtn, 
-    modalOverlay, modalContentSmall 
-} from './components/adminStyles';
+import { noteOverlayStyle, noteSidebarStyle, noteTextarea, noteDeleteBtn, adminSendBtn, flexSpace, sectionTitle, adminIn, saveBtn, modalOverlay, modalContentSmall } from './components/adminStyles';
 
 const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
-const DAYS_OF_WEEK = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 const saveDataToServer = (key: string, data: any) => {
     return fetch('/api/storage', {
@@ -52,6 +45,10 @@ export default function AdminDashboard() {
   const [noteType, setNoteType] = useState<'personal' | 'deadline'>('personal');
   const [deadlineTarget, setDeadlineTarget] = useState<string>('Все');
   const [eventTab, setEventTab] = useState<'personal' | 'deadline'>('personal');
+
+  // 💡 НОВЫЕ СОСТОЯНИЯ ДЛЯ ТЕСТОВ
+  const [dynamicTests, setDynamicTests] = useState<any[]>([]);
+  const [linkedTestId, setLinkedTestId] = useState<string>("");
 
   const [testTypesList, setTestTypesList] = useState<any[]>([{ id: 't1', name: '🎓 Итоговая аттестация' }, { id: 't2', name: '🔄 Переаттестация' }]);
   const [interactionTab, setInteractionTab] = useState<'notif' | 'test'>('notif');
@@ -86,14 +83,15 @@ export default function AdminDashboard() {
         try {
             const cacheBuster = `?t=${Date.now()}`;
             
-            const [notesRes, usersRes, testRes, filesRes, bRes, rRes, typesRes] = await Promise.all([
+            const [notesRes, usersRes, testRes, filesRes, bRes, rRes, typesRes, dynTestsRes] = await Promise.all([
                 fetch(`/api/storage${cacheBuster}&key=admin_cal_notes_v1`).catch(() => null),
                 fetch(`/api/storage${cacheBuster}&key=tea_hub_users_v1`).catch(() => null),
                 fetch(`/api/storage${cacheBuster}&key=tea_hub_test_results_v1`).catch(() => null),
                 fetch(`/api/storage${cacheBuster}&key=tea_hub_urgent_files_v1`).catch(() => null),
                 fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_basics_v2`).catch(() => null),
                 fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_route_v2`).catch(() => null),
-                fetch(`/api/storage${cacheBuster}&key=tea_hub_test_types_v1`).catch(() => null)
+                fetch(`/api/storage${cacheBuster}&key=tea_hub_test_types_v1`).catch(() => null),
+                fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_tests_v1`).catch(() => null)
             ]);
 
             if (notesRes && notesRes.ok) {
@@ -155,6 +153,11 @@ export default function AdminDashboard() {
                 if (Array.isArray(typesData) && typesData.length > 0) setTestTypesList(typesData);
             }
 
+            if (dynTestsRes && dynTestsRes.ok) {
+                const dTests = await dynTestsRes.json();
+                if (Array.isArray(dTests)) setDynamicTests(dTests);
+            }
+
             const bDb = bRes && bRes.ok ? await bRes.json() : [];
             const rDb = rRes && rRes.ok ? await rRes.json() : [];
             
@@ -179,7 +182,6 @@ export default function AdminDashboard() {
       }
   }, [testTypesList, testType]);
 
-  // СБРОС И СОХРАНЕНИЕ ЧЕРНОВИКА
   useEffect(() => {
       if (testType) {
           setTestFormData({ 
@@ -280,9 +282,18 @@ export default function AdminDashboard() {
   const isToday = (d: number) => today.getDate() === d && today.getMonth() === currentDate.getMonth() && today.getFullYear() === currentDate.getFullYear();
   const formattedSelectedDate = () => selectedDateKey ? `${selectedDateKey.split('-')[2]} ${MONTH_NAMES[parseInt(selectedDateKey.split('-')[1])]} ${selectedDateKey.split('-')[0]}` : "";
   
-  const openNotePanel = (day: number) => { const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`; setSelectedDateKey(key); setNoteText(notes[key] || ""); setNoteType('personal'); setDeadlineTarget('Все'); };
-  const closeNotePanel = () => { setSelectedDateKey(null); setNoteText(""); };
+  const openNotePanel = (day: number) => { 
+      const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`; 
+      setSelectedDateKey(key); 
+      setNoteText(notes[key] || ""); 
+      setNoteType('personal'); 
+      setDeadlineTarget('Все'); 
+      setLinkedTestId('');
+  };
+  
+  const closeNotePanel = () => { setSelectedDateKey(null); setNoteText(""); setLinkedTestId(''); };
 
+  // 💡 ЛОГИКА СОХРАНЕНИЯ ДЕДЛАЙНА С ТЕСТОМ
   const saveNote = async () => {
       if (!selectedDateKey) return;
       if (!noteText.trim()) { const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); return; }
@@ -290,19 +301,41 @@ export default function AdminDashboard() {
       try {
           const newNotes = { ...notes };
           let adminNoteText = noteText.trim();
+          
           if (noteType === 'deadline') {
               const targetName = deadlineTarget === 'Все' ? 'Всем' : users.find(u => u.id === deadlineTarget)?.name || deadlineTarget;
               adminNoteText = `[Дедлайн: ${targetName}]\n${noteText.trim()}`;
-              const newDeadlineTask = { id: 'deadline_' + Date.now(), name: '⚠️ Дедлайн: ' + noteText.trim(), size: 'Выполнить до: ' + formattedSelectedDate(), date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), target: deadlineTarget, isTest: false };
+              
+              const newDeadlineTask = { 
+                  id: 'deadline_' + Date.now(), 
+                  name: '⚠️ Дедлайн: ' + noteText.trim(), 
+                  size: 'Выполнить до: ' + formattedSelectedDate(), 
+                  date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), 
+                  target: deadlineTarget, 
+                  isTest: false,
+                  linkedTestId: linkedTestId || null // 💡 Сохраняем ID теста
+              };
+              
               const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
               const currentFiles = await res.json().catch(() => []);
               const updatedFiles = [newDeadlineTask, ...(Array.isArray(currentFiles) ? currentFiles : [])];
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
-              const pushSent = await sendPushNotification(deadlineTarget, { title: '⚠️ Новый дедлайн', body: noteText.trim(), url: '/tasks?tab=edu' });
-              const emailSent = await sendEmailNotification(deadlineTarget, '⚠️ Внимание: Новый дедлайн!', `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`);
+              
+              // 💡 Формируем URL для Deep Linking
+              const pushUrl = linkedTestId ? `/tasks?tab=edu&testId=${linkedTestId}` : '/tasks?tab=edu';
+              const pushSent = await sendPushNotification(deadlineTarget, { title: '⚠️ Новый дедлайн', body: noteText.trim(), url: pushUrl });
+              
+              let emailBody = `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`;
+              if (linkedTestId) {
+                  const tName = dynamicTests.find(t => t.id === linkedTestId)?.title || "Тест";
+                  emailBody += `\nК задаче прикреплен тест: "${tName}". Откройте платформу для прохождения.`;
+              }
+              const emailSent = await sendEmailNotification(deadlineTarget, '⚠️ Внимание: Новый дедлайн!', emailBody);
+              
               setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена. ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
           }
+          
           newNotes[selectedDateKey] = adminNoteText;
           setNotes(newNotes);
           saveDataToServer('admin_cal_notes_v1', newNotes);
@@ -503,6 +536,13 @@ export default function AdminDashboard() {
                     <select style={{ ...adminIn, marginBottom: 0, padding: '12px', cursor: 'pointer' } as any} value={deadlineTarget} onChange={e => setDeadlineTarget(e.target.value)}>
                         <option value="Все">Всем сотрудникам</option>
                         {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.id}>{u.name} ({u.login})</option>)}
+                    </select>
+                    
+                    {/* 💡 ВЫБОР ТЕСТА ИЗ БАЗЫ */}
+                    <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px', marginTop: '15px' }}>Прикрепить тест (опционально):</div>
+                    <select style={{ ...adminIn, marginBottom: 0, padding: '12px', cursor: 'pointer' } as any} value={linkedTestId} onChange={e => setLinkedTestId(e.target.value)}>
+                        <option value="">Без теста</option>
+                        {dynamicTests.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
                     </select>
                 </div>
             )}
