@@ -425,7 +425,6 @@ export default function Education({
                                          if (file.linkedTestId) {
                                              const targetTest = dynamicTests.find((t:any) => t.id === file.linkedTestId);
                                              if (targetTest) {
-                                                 // Проверка блокировки для дедлайнов (выводим точный список необходимых тестов)
                                                  const globalIdx = realTests.findIndex((t: any) => t.id === targetTest.id);
                                                  const unpassedTestsBefore = globalIdx > 0 ? realTests.slice(0, globalIdx).filter((t: any) => !completedTests.includes(t.id)) : [];
 
@@ -574,7 +573,6 @@ export default function Education({
                                    {items.length === 0 ? <div style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>В этом разделе пока нет тестов...</div> : items.map((test: any, idx: number) => {
                                            const isDone = completedTests.includes(test.id);
                                            const globalIdx = realTests.findIndex((t: any) => t.id === test.id);
-                                           // 💡 Пройденный тест всегда визуально разблокирован
                                            const isUnlocked = isDone || isAdmin || globalIdx <= 0 || completedTests.includes(realTests[globalIdx - 1]?.id);
                                            
                                            return (
@@ -587,7 +585,6 @@ export default function Education({
                                                                message: `Доступ к обычным тестам закрыт.\nНе пройдены обязательные аттестации:\n${pendingAttestations.map((t:any) => '— ' + stripEmoji(t.name)).join('\n')}`
                                                            });
                                                        } else if (!isUnlocked && !isAdmin) {
-                                                           // Блокировка обычных тестов с выводом списка
                                                            const unpassedTestsBefore = realTests.slice(0, globalIdx).filter((t: any) => !completedTests.includes(t.id));
                                                            const missingList = unpassedTestsBefore.map((t: any) => {
                                                                const originalIdx = realTests.findIndex((rt: any) => rt.id === t.id) + 1;
@@ -975,8 +972,8 @@ export default function Education({
             {/* --- МОДАЛКА РЕЗУЛЬТАТОВ ОСНОВНОГО ТЕСТА С ОШИБКАМИ --- */}
             {testResultModal.show && (
                 <div style={{...errorOverlayStyle, zIndex: 60000} as any}>
-                    {/* 💡 ДОБАВЛЕНО СВОЙСТВО width: '100%' */}
-                    <div className="tasks-modal custom-scroll" style={{...errorModalContent, width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
+                    {/* 💡 ЖЕСТКАЯ ШИРИНА ДЛЯ ПРАВИЛЬНЫХ ПРОПОРЦИЙ ОКНА */}
+                    <div className="tasks-modal custom-scroll" style={{...errorModalContent, width: '100%', minWidth: '320px', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
                         <div style={{ fontSize: '70px', marginBottom: '15px' }}>{testResultModal.isPassed ? '🏆' : '❌'}</div>
                         <h2 style={{ fontSize: '28px', color: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', marginBottom: '10px', fontWeight: '900', textTransform: 'uppercase' }}>
                             {testResultModal.isTimeout ? 'ВРЕМЯ ВЫШЛО!' : (testResultModal.isPassed ? 'ТЕСТ СДАН!' : 'ТЕСТ НЕ СДАН')}
@@ -990,23 +987,20 @@ export default function Education({
                             </div>
                         ) : testResultModal.score === 100 ? (
                             <div style={{background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '20px', borderRadius: '15px', fontWeight: 'bold', marginBottom: '30px'}}>Вы ответили правильно на все вопросы! Идеальный результат.</div>
-                        ) : (
-                            /* 💡 РАЗБОР ОШИБОК ПОКАЗЫВАЕТСЯ ТОЛЬКО ЕСЛИ ОНИ ЕСТЬ (В АТТЕСТАЦИЯХ ИХ НЕТ) */
-                            testResultModal.mistakes && testResultModal.mistakes.length > 0 ? (
-                                <div style={{textAlign: 'left', marginBottom: '30px'}}>
-                                    <h4 style={{color: '#fff', fontSize: '18px', fontWeight: '900', marginBottom: '15px'}}>Разбор ошибок:</h4>
-                                    <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-                                        {testResultModal.mistakes.map((m, idx) => (
-                                            <div key={idx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '15px', border: '1px solid #333'}}>
-                                                <p style={{color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0'}}>{m.q}</p>
-                                                <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>❌ Ваш ответ: {m.userAns}</p>
-                                                <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>✅ Верный ответ: {m.correctAns}</p>
-                                            </div>
-                                        ))}
-                                    </div>
+                        ) : testResultModal.mistakes && testResultModal.mistakes.length > 0 ? (
+                            <div style={{textAlign: 'left', marginBottom: '30px'}}>
+                                <h4 style={{color: '#fff', fontSize: '18px', fontWeight: '900', marginBottom: '15px'}}>Разбор ошибок:</h4>
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                                    {testResultModal.mistakes.map((m, idx) => (
+                                        <div key={idx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '15px', border: '1px solid #333'}}>
+                                            <p style={{color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0'}}>{m.q}</p>
+                                            <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>❌ Ваш ответ: {m.userAns}</p>
+                                            <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>✅ Верный ответ: {m.correctAns}</p>
+                                        </div>
+                                    ))}
                                 </div>
-                            ) : null
-                        )}
+                            </div>
+                        ) : null}
                         <button onClick={() => { setTestResultModal({show: false, score: 0, isPassed: false, title: '', mistakes: []}); closeTestModal(); }} style={{...errorBtnStyle, background: testResultModal.isPassed ? '#0abab5' : '#ff4d4d', color: testResultModal.isPassed ? '#000' : '#fff', marginTop: 0} as any}>
                             {testResultModal.isPassed ? 'ОТЛИЧНО' : 'ПОНЯТНО'}
                         </button>
@@ -1088,7 +1082,7 @@ const errorBtnStyle: React.CSSProperties = { border: 'none', padding: '18px 40px
 const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
 const saveBtn: React.CSSProperties = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '25px', fontSize: '15px', letterSpacing: '1px' };
 const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
-const editIconStyle: React.CSSProperties = { background: '#1a1a1a', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0, fontWeight: 'bold' };
-const delIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0, fontWeight: 'bold' };
-const moveIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#fff', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const editIconStyle: React.CSSProperties = { background: '#1a1a1a', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const delIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const moveIconStyle: React.CSSProperties = { background: '#1a1a1a', color: '#fff', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
 const cancelLink: React.CSSProperties = { textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
