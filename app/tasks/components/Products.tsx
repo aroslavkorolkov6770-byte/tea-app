@@ -41,7 +41,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     const [products, setProducts] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     
-    // 💡 Состояние для активной категории
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     
     // Модалки
@@ -104,7 +103,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         setConfirmDelete({ isOpen: false, id: '', name: '' });
     };
 
-    // 💡 ТУМБЛЕРЫ ХИТОВ И СКРЫТИЯ
+    // ТУМБЛЕРЫ ХИТОВ И СКРЫТИЯ
     const toggleHit = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         const updated = products.map(p => p.id === id ? { ...p, isHit: !p.isHit } : p);
@@ -121,7 +120,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
     };
 
-    // 💡 СКАЧАТЬ ШАБЛОН EXCEL (CSV) - Убрано фото
+    // СКАЧАТЬ ШАБЛОН EXCEL (CSV)
     const downloadTemplate = () => {
         const bom = "\uFEFF"; 
         const header = "Название;Категория;Цена;Остаток;Описание\n";
@@ -133,7 +132,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         link.click();
     };
 
-    // 💡 ЗАГРУЗИТЬ ТОВАРЫ ИЗ EXCEL (CSV) - Убрано фото
+    // ЗАГРУЗИТЬ ТОВАРЫ ИЗ EXCEL (CSV)
     const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -174,21 +173,19 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         e.target.value = '';
     };
 
-    // 💡 ФИЛЬТРАЦИЯ
+    // ФИЛЬТРАЦИЯ
     const baseFiltered = products.filter(p => isAdmin || !p.isHidden);
     
-    // Получаем уникальные категории из базы (только те, что есть)
     const categories = Array.from(new Set(baseFiltered.map(p => p.category).filter(Boolean)));
 
-    // Поиск + Фильтр по категории
     const searchedProducts = baseFiltered.filter(p => 
         (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()))) &&
         (!selectedCategory || p.category === selectedCategory)
     );
 
-    // Хиты продаж (только помеченные звездочкой)
-    const hitProducts = baseFiltered.filter(p => p.isHit);
+    // 💡 Хиты продаж теперь фильтруются и по выбранной категории
+    const hitProducts = baseFiltered.filter(p => p.isHit && (!selectedCategory || p.category === selectedCategory));
 
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
@@ -221,7 +218,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 />
             </div>
 
-            {/* 💡 ПАНЕЛЬ КАТЕГОРИЙ */}
+            {/* ПАНЕЛЬ КАТЕГОРИЙ */}
             {categories.length > 0 && (
                 <div className="custom-scroll" style={{ display: 'flex', gap: '10px', overflowX: 'auto', marginBottom: '35px', paddingBottom: '10px' }}>
                     <div 
@@ -254,8 +251,8 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 </div>
             )}
 
-            {/* 💡 КРАСИВЫЙ БЛОК: ХИТЫ ПРОДАЖ */}
-            {!searchQuery && selectedCategory === null && hitProducts.length > 0 && (
+            {/* 💡 БЛОК: ХИТЫ ПРОДАЖ */}
+            {!searchQuery && hitProducts.length > 0 && (
                 <div style={{ 
                     background: 'linear-gradient(135deg, rgba(255,215,0,0.05) 0%, rgba(0,0,0,0) 100%)', 
                     border: '1px solid rgba(255,215,0,0.2)', 
@@ -269,7 +266,8 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                         <h3 style={{ fontSize: '20px', color: '#ffd700', fontWeight: '900', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Хиты продаж</h3>
                     </div>
                     
-                    <div className="hits-scroll-container custom-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '20px', paddingBottom: '15px', scrollSnapType: 'x mandatory' }}>
+                    {/* 💡 Добавлены padding: 10px 5px 20px 5px и margin: -10px -5px 0 -5px для защиты от обрезания */}
+                    <div className="hits-scroll-container custom-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '20px', padding: '10px 5px 20px 5px', margin: '-10px -5px 0 -5px', scrollSnapType: 'x mandatory' }}>
                         {hitProducts.map(product => (
                             <div key={`hit-${product.id}`} className="premium-card hit-card" onClick={() => setViewProduct(product)} style={{ 
                                 minWidth: '280px', flex: '0 0 auto', padding: '25px', scrollSnapAlign: 'start', 
@@ -278,8 +276,8 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             }}>
                                 {isAdmin && (
                                     <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                        <div onClick={(e) => toggleHit(e, product.id)} style={{...editIconStyle, background: 'rgba(0,0,0,0.5)', color: '#ffd700', border: '1px solid #ffd700'} as any} title="Убрать из хитов">⭐</div>
-                                        <div onClick={(e) => toggleHidden(e, product.id)} style={{...editIconStyle, background: 'rgba(0,0,0,0.5)', color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title={product.isHidden ? "Показать сотрудникам" : "Скрыть от сотрудников"}>{product.isHidden ? '🚫' : '👁️'}</div>
+                                        <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...editIconStyle, background: 'rgba(0,0,0,0.5)', color: '#ffd700', border: '1px solid #ffd700'} as any} title="Убрать из хитов">⭐</div>
+                                        <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...editIconStyle, background: 'rgba(0,0,0,0.5)', color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title={product.isHidden ? "Показать сотрудникам" : "Скрыть от сотрудников"}>{product.isHidden ? '🚫' : '👁️'}</div>
                                     </div>
                                 )}
                                 
@@ -321,10 +319,10 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             
                             {isAdmin && (
                                 <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                    <div onClick={(e) => toggleHit(e, product.id)} style={{...editIconStyle, color: product.isHit ? '#ffd700' : '#666'} as any} title="В хиты">{product.isHit ? '⭐' : '☆'}</div>
-                                    <div onClick={(e) => toggleHidden(e, product.id)} style={{...editIconStyle, color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title="Скрыть/Показать">{product.isHidden ? '🚫' : '👁️'}</div>
-                                    <div onClick={(e) => { e.stopPropagation(); setProductFormData(product); setShowProductForm(true); }} style={editIconStyle as any} title="Редактировать">✎</div>
-                                    <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, id: product.id, name: product.name}); }} style={delIconStyle as any} title="Удалить">✕</div>
+                                    <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...editIconStyle, color: product.isHit ? '#ffd700' : '#666'} as any} title="В хиты">{product.isHit ? '⭐' : '☆'}</div>
+                                    <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...editIconStyle, color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title="Скрыть/Показать">{product.isHidden ? '🚫' : '👁️'}</div>
+                                    <div onClick={(e) => { e.stopPropagation(); setProductFormData(product); setShowProductForm(true); }} className="admin-action-icon" style={editIconStyle as any} title="Редактировать">✎</div>
+                                    <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, id: product.id, name: product.name}); }} className="admin-action-icon" style={delIconStyle as any} title="Удалить">✕</div>
                                 </div>
                             )}
                             
@@ -460,6 +458,17 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 
                 .hit-card:hover { border-color: #ffd700 !important; box-shadow: 0 5px 20px rgba(255,215,0,0.15); transform: translateY(-3px); }
 
+                /* 💡 СТИЛЬ ДЛЯ ИКОНОК АДМИНА */
+                .admin-action-icon {
+                    transition: all 0.2s ease;
+                }
+                .admin-action-icon:hover {
+                    box-shadow: 0 0 0 1.5px #fff !important;
+                    border-color: #fff !important;
+                    transform: scale(1.1);
+                    z-index: 20;
+                }
+
                 @media (max-width: 768px) {
                     .premium-cards-container { display: grid !important; grid-template-columns: 1fr !important; gap: 15px !important; }
                     .tasks-modal { padding: 30px 20px !important; border-radius: 25px !important; width: 95% !important; max-height: 90vh !important; }
@@ -475,9 +484,10 @@ const adminActionBtn = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', b
 const adminIn = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
 const saveBtn = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '25px', fontSize: '15px', letterSpacing: '1px' };
 const cancelLink = { textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
-const editIconStyle = { background: '#1a1a1a', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
-const delIconStyle = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
+const editIconStyle = { background: '#1a1a1a', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0, fontWeight: 'bold' };
+const delIconStyle = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0, fontWeight: 'bold' };
 const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
+const lightboxOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', zIndex: 90000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', boxSizing: 'border-box', cursor: 'zoom-out' };
 const modalContentLarge = { background: '#000', borderRadius: '40px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
 const modalContentMedium = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '550px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
 const modalContentSmall = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
