@@ -45,16 +45,16 @@ export default function InteractionCenter({
                                     {testTypesList.map((t: any) => <option key={t.id} value={t.name}>{t.name}</option>)}
                                 </select>
                                 <button onClick={() => setIsManagingTypes(true)} style={{ ...adminActionBtn, padding: '0 15px', borderRadius: '15px', background: 'rgba(10,186,181,0.1)', color: '#0abab5' } as any}>
-                                    ⚙️ Список тестов
+                                     Список тестов
                                 </button>
                             </div>
 
                             <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
                                 <button onClick={handleOpenTestEditor} disabled={isProcessing} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' } as any}>
-                                    <span>📝</span> РЕДАКТОР
+                                    <span></span> РЕДАКТОР
                                 </button>
                                 <button onClick={handleQuickSendTest} disabled={isProcessing} style={{ ...adminSendBtn, padding: '14px 25px', fontSize: '13px', borderRadius: '15px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1, flex: 1 } as any}>
-                                    {isProcessing ? 'ОТПРАВКА...' : 'БАЗОВЫЙ ШАБЛОН'}
+                                    {isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}
                                 </button>
                             </div>
                         </div>
