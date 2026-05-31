@@ -46,9 +46,12 @@ export default function AdminDashboard() {
   const [deadlineTarget, setDeadlineTarget] = useState<string>('Все');
   const [eventTab, setEventTab] = useState<'personal' | 'deadline'>('personal');
 
-  // 💡 НОВЫЕ СОСТОЯНИЯ ДЛЯ ТЕСТОВ
   const [dynamicTests, setDynamicTests] = useState<any[]>([]);
   const [linkedTestId, setLinkedTestId] = useState<string>("");
+  
+  // 💡 НОВЫЕ СОСТОЯНИЯ ДЛЯ УМНОГО ПОИСКА
+  const [testSearchQuery, setTestSearchQuery] = useState("");
+  const [showTestDropdown, setShowTestDropdown] = useState(false);
 
   const [testTypesList, setTestTypesList] = useState<any[]>([{ id: 't1', name: '🎓 Итоговая аттестация' }, { id: 't2', name: '🔄 Переаттестация' }]);
   const [interactionTab, setInteractionTab] = useState<'notif' | 'test'>('notif');
@@ -289,11 +292,17 @@ export default function AdminDashboard() {
       setNoteType('personal'); 
       setDeadlineTarget('Все'); 
       setLinkedTestId('');
+      setTestSearchQuery('');
   };
   
-  const closeNotePanel = () => { setSelectedDateKey(null); setNoteText(""); setLinkedTestId(''); };
+  const closeNotePanel = () => { 
+      setSelectedDateKey(null); 
+      setNoteText(""); 
+      setLinkedTestId(''); 
+      setTestSearchQuery('');
+  };
 
-  // 💡 ЛОГИКА СОХРАНЕНИЯ ДЕДЛАЙНА С ТЕСТОМ
+  // 💡 УМНОЕ СОХРАНЕНИЕ ДЕДЛАЙНА С АВТОГЕНЕРАЦИЕЙ ТЕСТОВ
   const saveNote = async () => {
       if (!selectedDateKey) return;
       if (!noteText.trim()) { const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); return; }
@@ -303,6 +312,44 @@ export default function AdminDashboard() {
           let adminNoteText = noteText.trim();
           
           if (noteType === 'deadline') {
+              let finalLinkedTestId = linkedTestId;
+
+              // 💡 1. Если был выбран шаблон аттестации, генерируем для него реальный тест на лету
+              if (linkedTestId.startsWith('tpl_')) {
+                  const templateName = linkedTestId.replace('tpl_', '');
+                  const newDynTest = {
+                      id: 't_' + Date.now(),
+                      title: templateName,
+                      subtitle: 'Аттестация',
+                      theory: '',
+                      section: 'Аттестации',
+                      subsection: '',
+                      timeLimit: 0,
+                      quiz: getBaseQuizTemplate()
+                  };
+                  const updatedTests = [...dynamicTests, newDynTest];
+                  setDynamicTests(updatedTests);
+                  saveDataToServer('tea_hub_dynamic_tests_v1', updatedTests);
+                  finalLinkedTestId = newDynTest.id;
+              } 
+              // 💡 2. Если админ просто вписал новое название и не выбрал ничего из списка
+              else if (testSearchQuery.trim() && !linkedTestId) {
+                  const newDynTest = {
+                      id: 't_' + Date.now(),
+                      title: testSearchQuery.trim(),
+                      subtitle: 'Индивидуальный тест',
+                      theory: '',
+                      section: 'Индивидуальные',
+                      subsection: '',
+                      timeLimit: 0,
+                      quiz: getBaseQuizTemplate()
+                  };
+                  const updatedTests = [...dynamicTests, newDynTest];
+                  setDynamicTests(updatedTests);
+                  saveDataToServer('tea_hub_dynamic_tests_v1', updatedTests);
+                  finalLinkedTestId = newDynTest.id;
+              }
+
               const targetName = deadlineTarget === 'Все' ? 'Всем' : users.find(u => u.id === deadlineTarget)?.name || deadlineTarget;
               adminNoteText = `[Дедлайн: ${targetName}]\n${noteText.trim()}`;
               
@@ -313,7 +360,7 @@ export default function AdminDashboard() {
                   date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), 
                   target: deadlineTarget, 
                   isTest: false,
-                  linkedTestId: linkedTestId || null // 💡 Сохраняем ID теста
+                  linkedTestId: finalLinkedTestId || null
               };
               
               const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
@@ -322,13 +369,12 @@ export default function AdminDashboard() {
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
               
-              // 💡 Формируем URL для Deep Linking
-              const pushUrl = linkedTestId ? `/tasks?tab=edu&testId=${linkedTestId}` : '/tasks?tab=edu';
+              const pushUrl = finalLinkedTestId ? `/tasks?tab=edu&testId=${finalLinkedTestId}` : '/tasks?tab=edu';
               const pushSent = await sendPushNotification(deadlineTarget, { title: '⚠️ Новый дедлайн', body: noteText.trim(), url: pushUrl });
               
               let emailBody = `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`;
-              if (linkedTestId) {
-                  const tName = dynamicTests.find(t => t.id === linkedTestId)?.title || "Тест";
+              if (finalLinkedTestId) {
+                  const tName = dynamicTests.find(t => t.id === finalLinkedTestId)?.title || testSearchQuery.replace('[Аттестация] ', '') || "Тест";
                   emailBody += `\nК задаче прикреплен тест: "${tName}". Откройте платформу для прохождения.`;
               }
               const emailSent = await sendEmailNotification(deadlineTarget, '⚠️ Внимание: Новый дедлайн!', emailBody);
@@ -380,9 +426,7 @@ export default function AdminDashboard() {
 
   const getBaseQuizTemplate = () => [{ q: 'Какой водой заваривать зеленый чай?', o: ['100°C', '75-80°C', '60°C', '40°C'], c: 1 }, { q: 'Что такое Гайвань?', o: ['Чайник', 'Чашка с крышкой', 'Поднос', 'Лопатка'], c: 1 }, { q: 'Какая скрутка у Те Гуань Инь?', o: ['Продольная', 'Сферическая', 'Прессованная', 'Сломанная'], c: 1 }];
 
-  const handleOpenTestEditor = () => { 
-      setShowTestEditor(true); 
-  };
+  const handleOpenTestEditor = () => { setShowTestEditor(true); };
 
   const handleQuickSendTest = async () => {
       if (isProcessing) return; setIsProcessing(true);
@@ -421,6 +465,12 @@ export default function AdminDashboard() {
   };
   const addTestQuestion = () => setTestFormData({...testFormData, quiz: [...testFormData.quiz, { q: '', o: ['', '', '', ''], c: 0 }]});
   const removeTestQuestion = (index: number) => setTestFormData({...testFormData, quiz: testFormData.quiz.filter((_, i) => i !== index)});
+
+  // 💡 ПОДГОТОВКА ДАННЫХ ДЛЯ ВЫПАДАЮЩЕГО СПИСКА
+  const allOptions = [
+      ...dynamicTests.map(t => ({ id: t.id, title: t.title, type: 'test' })),
+      ...testTypesList.map(t => ({ id: 'tpl_' + t.name, title: `[Аттестация] ${t.name}`, type: 'template' }))
+  ];
 
   if (!isMounted) return <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', display: 'flex' }}><Navigation /><div style={{ width: '260px', flexShrink: 0 }} /></div>;
 
@@ -538,12 +588,50 @@ export default function AdminDashboard() {
                         {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.id}>{u.name} ({u.login})</option>)}
                     </select>
                     
-                    {/* 💡 ВЫБОР ТЕСТА ИЗ БАЗЫ */}
-                    <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px', marginTop: '15px' }}>Прикрепить тест (опционально):</div>
-                    <select style={{ ...adminIn, marginBottom: 0, padding: '12px', cursor: 'pointer' } as any} value={linkedTestId} onChange={e => setLinkedTestId(e.target.value)}>
-                        <option value="">Без теста</option>
-                        {dynamicTests.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                    </select>
+                    {/* 💡 УМНЫЙ ВЫБОР ТЕСТА С ПОИСКОМ */}
+                    <div style={{ position: 'relative', marginTop: '15px' }}>
+                        <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Прикрепить тест (найти или создать новый):</div>
+                        <input 
+                            type="text"
+                            style={{ ...adminIn, marginBottom: 0, padding: '12px' } as any}
+                            placeholder="Введите название или выберите..."
+                            value={testSearchQuery}
+                            onChange={(e) => {
+                                setTestSearchQuery(e.target.value);
+                                setLinkedTestId(''); 
+                                setShowTestDropdown(true);
+                            }}
+                            onFocus={() => setShowTestDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowTestDropdown(false), 200)}
+                        />
+                        {showTestDropdown && (
+                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#111', border: '1px solid #333', borderRadius: '12px', maxHeight: '150px', overflowY: 'auto', zIndex: 1000, marginTop: '5px' }} className="custom-scroll">
+                                <div 
+                                    onClick={() => { setLinkedTestId(''); setTestSearchQuery(''); setShowTestDropdown(false); }}
+                                    style={{ padding: '10px 12px', cursor: 'pointer', fontSize: '13px', color: '#888', borderBottom: '1px solid #222' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+                                    onMouseLeave={(e) => e.currentTarget.style.color = '#888'}
+                                >
+                                    ❌ Без теста
+                                </div>
+                                {allOptions.filter(o => o.title.toLowerCase().includes(testSearchQuery.toLowerCase())).map(opt => (
+                                    <div 
+                                        key={opt.id}
+                                        onClick={() => {
+                                            setLinkedTestId(opt.id);
+                                            setTestSearchQuery(opt.title.replace('[Аттестация] ', ''));
+                                            setShowTestDropdown(false);
+                                        }}
+                                        style={{ padding: '10px 12px', cursor: 'pointer', fontSize: '13px', color: '#fff', borderBottom: '1px solid #222' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(10,186,181,0.2)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        {opt.title}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
