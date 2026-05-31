@@ -176,18 +176,20 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     // ФИЛЬТРАЦИЯ
     const baseFiltered = products.filter(p => isAdmin || !p.isHidden);
     
-    // Получаем уникальные категории из базы
     const categories = Array.from(new Set(baseFiltered.map(p => p.category).filter(Boolean)));
 
-    // Поиск + Фильтр по категории для основного каталога
     const searchedProducts = baseFiltered.filter(p => 
         (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()))) &&
         (!selectedCategory || p.category === selectedCategory)
     );
 
-    // Хиты продаж: глобальные
-    const hitProducts = baseFiltered.filter(p => p.isHit);
+    // 💡 ИСПРАВЛЕНИЕ: Хиты продаж теперь реагируют на поиск, но блок не исчезает целиком.
+    const hitProducts = baseFiltered.filter(p => 
+        p.isHit && 
+        (!selectedCategory || p.category === selectedCategory) &&
+        (!searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase())))
+    );
 
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
@@ -253,8 +255,8 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 </div>
             )}
 
-            {/* 🔥 БЛОК: ХИТЫ ПРОДАЖ */}
-            {!searchQuery && hitProducts.length > 0 && (
+            {/* 🔥 БЛОК: ОБЯЗАТЕЛЬНО К ПРОДАЖЕ */}
+            {hitProducts.length > 0 && (
                 <div style={{ 
                     background: 'linear-gradient(135deg, rgba(255,215,0,0.05) 0%, rgba(0,0,0,0) 100%)', 
                     border: '1px solid rgba(255,215,0,0.2)', 
@@ -265,7 +267,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '25px' }}>
                         <div style={{ fontSize: '24px', filter: 'drop-shadow(0 0 10px rgba(255,215,0,0.5))' }}>🔥</div>
-                        <h3 style={{ fontSize: '20px', color: '#ffd700', fontWeight: '900', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Хиты продаж</h3>
+                        <h3 style={{ fontSize: '20px', color: '#ffd700', fontWeight: '900', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Обязательно к продаже</h3>
                     </div>
                     
                     <div className="hits-scroll-container custom-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '20px', padding: '10px 5px 20px 5px', margin: '-10px -5px 0 -5px', scrollSnapType: 'x mandatory' }}>
@@ -280,7 +282,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                 }}>
                                     {isAdmin && (
                                         <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                            <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...editIconStyle, background: 'rgba(0,0,0,0.8)', color: '#ffd700', border: '1px solid #ffd700'} as any} title="Убрать из хитов">⭐</div>
+                                            <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...editIconStyle, background: 'rgba(0,0,0,0.8)', color: '#ffd700', border: '1px solid #ffd700'} as any} title="Убрать из обязательных">⭐</div>
                                             <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...editIconStyle, background: 'rgba(0,0,0,0.8)', color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title={product.isHidden ? "Показать сотрудникам" : "Скрыть от сотрудников"}>{product.isHidden ? '🚫' : '👁️'}</div>
                                         </div>
                                     )}
@@ -329,7 +331,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             
                             {isAdmin && (
                                 <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                    <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...editIconStyle, color: product.isHit ? '#ffd700' : '#666'} as any} title="В хиты">{product.isHit ? '⭐' : '☆'}</div>
+                                    <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...editIconStyle, color: product.isHit ? '#ffd700' : '#666'} as any} title="В обязательные">{product.isHit ? '⭐' : '☆'}</div>
                                     <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...editIconStyle, color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title="Скрыть/Показать">{product.isHidden ? '🚫' : '👁️'}</div>
                                     <div onClick={(e) => { e.stopPropagation(); setProductFormData(product); setShowProductForm(true); }} className="admin-action-icon" style={editIconStyle as any} title="Редактировать">✎</div>
                                     <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, id: product.id, name: product.name}); }} className="admin-action-icon" style={delIconStyle as any} title="Удалить">✕</div>
@@ -407,7 +409,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             <div>
                                 {viewProduct.category && <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase', background: 'rgba(10,186,181,0.1)', padding: '5px 12px', borderRadius: '8px', display: 'inline-block', marginBottom: '15px'}}>{viewProduct.category}</span>}
                                 <h2 style={{fontSize:'32px', color:'#fff', fontWeight:'900', margin:'0'}}>{viewProduct.name}</h2>
-                                {viewProduct.isHit && <div style={{ color: '#ffd700', fontWeight: 'bold', fontSize: '13px', marginTop: '10px' }}>⭐ ХИТ ПРОДАЖ</div>}
+                                {viewProduct.isHit && <div style={{ color: '#ffd700', fontWeight: 'bold', fontSize: '13px', marginTop: '10px' }}>⭐ ОБЯЗАТЕЛЬНО К ПРОДАЖЕ</div>}
                             </div>
                         </div>
 
