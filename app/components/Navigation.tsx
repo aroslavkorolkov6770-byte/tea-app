@@ -324,7 +324,6 @@ export default function Navigation() {
     router.push(link);
   };
 
-  // 💡 ОБНОВЛЕННОЕ МЕНЮ С ПОДПУНКТОМ "ПРОДУКТЫ"
   const sideItems = [
     { 
       id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', 
@@ -334,7 +333,7 @@ export default function Navigation() {
     { id: '/tasks?tab=edu', label: 'Обучение', isSubItem: false },
     { id: '/tasks?tab=docs', label: '↳ База документов', isSubItem: true },
     { id: '/tasks?tab=assortment', label: 'Ассортимент', isSubItem: false },
-    { id: '/tasks?tab=products', label: '↳ Продукты', isSubItem: true }, // 💡 НОВОЕ
+    { id: '/tasks?tab=products', label: '↳ Продукты', isSubItem: true },
     { id: '/tasks?tab=standards', label: 'ИИ Помощник', isSubItem: false },
   ];
 
@@ -635,7 +634,15 @@ export default function Navigation() {
             background: transparent;
             font-weight: 800;
             font-size: 15px;
-            transition: all 0.2s ease;
+            
+            /* 💡 Фикс прыгающих шрифтов при масштабировании и анимациях */
+            transition: transform 0.2s ease, color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            backface-visibility: hidden;
+            transform: translateZ(0);
+            will-change: transform, color, background-color;
+            
             cursor: pointer;
         }
         
@@ -652,13 +659,13 @@ export default function Navigation() {
             opacity: 1;
             color: #0abab5;
             background: transparent;
-            transform: translateX(4px);
+            transform: translateX(4px) translateZ(0);
         }
         .nav-item.sub-item.active {
             color: #0abab5;
             background: rgba(10, 186, 181, 0.1);
             opacity: 1;
-            transform: translateX(0);
+            transform: translateX(0) translateZ(0);
         }
 
         .nav-item.active:not(.sub-item) {
@@ -668,10 +675,10 @@ export default function Navigation() {
         .nav-item:not(.sub-item):hover {
             color: #0abab5;
             background: rgba(10, 186, 181, 0.05);
-            transform: translateX(6px);
+            transform: translateX(6px) translateZ(0);
         }
         .nav-item:not(.sub-item):active {
-            transform: scale(0.96) translateX(0);
+            transform: scale(0.96) translateX(0) translateZ(0);
             background: rgba(10, 186, 181, 0.15);
         }
 

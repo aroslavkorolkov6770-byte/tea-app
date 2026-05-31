@@ -49,7 +49,6 @@ export default function AdminDashboard() {
   const [dynamicTests, setDynamicTests] = useState<any[]>([]);
   const [linkedTestId, setLinkedTestId] = useState<string>("");
   
-  // 💡 НОВЫЕ СОСТОЯНИЯ ДЛЯ УМНОГО ПОИСКА
   const [testSearchQuery, setTestSearchQuery] = useState("");
   const [showTestDropdown, setShowTestDropdown] = useState(false);
 
@@ -199,20 +198,31 @@ export default function AdminDashboard() {
       }
   }, [testType]);
 
+  // 💡 ПОЛНОСТЬЮ ОБНОВЛЕННАЯ ФУНКЦИЯ ПОДПИСКИ НА PUSH С ИСПОЛЬЗОВАНИЕМ КАСТОМНЫХ МОДАЛОК
   const subscribeToPush = async () => {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return alert("Браузер не поддерживает Web Push.");
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          return setErrorModal({ show: true, text: "Браузер не поддерживает Web Push уведомления." });
+      }
+      
       const currentId = localStorage.getItem('current_user_id') || 'guest';
-      if (currentId === 'guest' || !currentId) return alert("⚠️ Перед включением уведомлений нужно войти в аккаунт!");
+      if (currentId === 'guest' || !currentId) {
+          return setErrorModal({ show: true, text: "Перед включением уведомлений нужно войти в аккаунт!" });
+      }
+      
       try {
           const permission = await Notification.requestPermission();
           setPushStatus(permission);
+          
           if (permission === 'granted') {
               const swUrl = `/sw.js?v=${Date.now()}`;
               const registration = await navigator.serviceWorker.register(swUrl);
               let subscription = await registration.pushManager.getSubscription();
+              
               if (!subscription) {
                   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-                  if (!vapidPublicKey) return alert("⚠️ Ошибка: VAPID ключ не найден!");
+                  if (!vapidPublicKey) {
+                      return setErrorModal({ show: true, text: "Ошибка: VAPID ключ не найден в конфигурации!" });
+                  }
                   const urlBase64ToUint8Array = (base64String: string) => {
                       const padding = '='.repeat((4 - base64String.length % 4) % 4);
                       const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -223,16 +233,24 @@ export default function AdminDashboard() {
                   };
                   subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) });
               }
+              
               const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
               let subs = await res.json().catch(() => []);
               if (!Array.isArray(subs)) subs = [];
+              
               if (!subs.find((s: any) => s.sub.endpoint === subscription?.endpoint)) {
                   subs.push({ userId: currentId, sub: subscription });
                   saveDataToServer('tea_hub_push_subs_v1', subs);
-                  alert("✅ Вы успешно подписались на уведомления!");
-              } else alert("✅ Вы уже были подписаны.");
-          } else alert("❌ Вы заблокировали уведомления в браузере.");
-      } catch (error) { alert("Ошибка подписки: " + error); }
+                  setShowSuccessModal({ show: true, title: 'ПОДПИСКА ОФОРМЛЕНА', text: "Устройство успешно привязано к вашему аккаунту и готово получать уведомления." });
+              } else {
+                  setShowSuccessModal({ show: true, title: 'УЖЕ ПОДПИСАНЫ', text: "Это устройство уже успешно зарегистрировано в системе." });
+              }
+          } else {
+              setErrorModal({ show: true, text: "Вы заблокировали уведомления в браузере. Разрешите их в настройках сайта." });
+          }
+      } catch (error: any) { 
+          setErrorModal({ show: true, text: `Ошибка подписки: ${error?.message || error}` }); 
+      }
   };
 
   const sendEmailNotification = async (targetUserId: string, subject: string, text: string) => {
@@ -302,7 +320,6 @@ export default function AdminDashboard() {
       setTestSearchQuery('');
   };
 
-  // 💡 УМНОЕ СОХРАНЕНИЕ ДЕДЛАЙНА С АВТОГЕНЕРАЦИЕЙ ТЕСТОВ
   const saveNote = async () => {
       if (!selectedDateKey) return;
       if (!noteText.trim()) { const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); return; }
@@ -314,7 +331,6 @@ export default function AdminDashboard() {
           if (noteType === 'deadline') {
               let finalLinkedTestId = linkedTestId;
 
-              // 💡 1. Если был выбран шаблон аттестации, генерируем для него реальный тест на лету
               if (linkedTestId.startsWith('tpl_')) {
                   const templateName = linkedTestId.replace('tpl_', '');
                   const newDynTest = {
@@ -332,7 +348,6 @@ export default function AdminDashboard() {
                   saveDataToServer('tea_hub_dynamic_tests_v1', updatedTests);
                   finalLinkedTestId = newDynTest.id;
               } 
-              // 💡 2. Если админ просто вписал новое название и не выбрал ничего из списка
               else if (testSearchQuery.trim() && !linkedTestId) {
                   const newDynTest = {
                       id: 't_' + Date.now(),
@@ -466,7 +481,6 @@ export default function AdminDashboard() {
   const addTestQuestion = () => setTestFormData({...testFormData, quiz: [...testFormData.quiz, { q: '', o: ['', '', '', ''], c: 0 }]});
   const removeTestQuestion = (index: number) => setTestFormData({...testFormData, quiz: testFormData.quiz.filter((_, i) => i !== index)});
 
-  // 💡 ПОДГОТОВКА ДАННЫХ ДЛЯ ВЫПАДАЮЩЕГО СПИСКА
   const allOptions = [
       ...dynamicTests.map(t => ({ id: t.id, title: t.title, type: 'test' })),
       ...testTypesList.map(t => ({ id: 'tpl_' + t.name, title: `[Аттестация] ${t.name}`, type: 'template' }))
@@ -588,7 +602,6 @@ export default function AdminDashboard() {
                         {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.id}>{u.name} ({u.login})</option>)}
                     </select>
                     
-                    {/* 💡 УМНЫЙ ВЫБОР ТЕСТА С ПОИСКОМ */}
                     <div style={{ position: 'relative', marginTop: '15px' }}>
                         <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Прикрепить тест (найти или создать новый):</div>
                         <input 
@@ -660,7 +673,7 @@ export default function AdminDashboard() {
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '380px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: '50px', marginBottom: '20px' }}>⛔</div>
                   <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ОШИБКА</h2>
-                  <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{errorModal.text}</p>
+                  <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px', wordBreak: 'break-word' }}>{errorModal.text}</p>
                   <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>
               </div>
           </div>
