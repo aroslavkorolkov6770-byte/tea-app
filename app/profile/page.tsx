@@ -236,10 +236,10 @@ function ProfileContent() {
         setIsEditing(false);
     };
 
-    // Сохранение логина и пароля из модального окна
+    // Сохранение только пароля из модального окна
     const handleChangeAuth = async () => {
-        if (!newLogin.trim() || !newPass.trim()) {
-            alert("Логин и пароль не могут быть пустыми!");
+        if (!newPass.trim()) {
+            alert("Пароль не может быть пустым!");
             return;
         }
         
@@ -247,17 +247,11 @@ function ProfileContent() {
             const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
             
             if (Array.isArray(users)) {
-                // Проверяем уникальность логина
-                const loginExists = users.find((u:any) => u.login === newLogin.trim() && u.id !== userId);
-                if (loginExists) {
-                    alert("Ошибка: Этот логин уже занят другим пользователем!");
-                    return;
-                }
-
-                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, login: newLogin.trim(), pass: newPass.trim() } : u);
+                // Обновляем только пароль для текущего пользователя
+                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, pass: newPass.trim() } : u);
                 saveDataToServer('tea_hub_users_v1', updatedUsers);
                 
-                alert("Данные для входа успешно обновлены!");
+                alert("Пароль успешно обновлен!");
                 setIsAuthModalOpen(false);
             }
         } catch (error) {
@@ -308,7 +302,7 @@ function ProfileContent() {
                         {isMenuOpen && (
                             <div style={contextMenuStyle}>
                                 <div onClick={handleOpenEdit} style={menuItemStyle}>Настроить данные</div>
-                                <div onClick={handleOpenAuthChange} style={menuItemStyle}>Сменить логин и пароль</div>
+                                <div onClick={handleOpenAuthChange} style={menuItemStyle}>Сменить пароль</div>
                                 <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>Выйти из аккаунта</div>
                             </div>
                         )}
@@ -407,23 +401,23 @@ function ProfileContent() {
                     </div>
                 )}
 
-                {/* МОДАЛЬНОЕ ОКНО: СМЕНА ЛОГИНА И ПАРОЛЯ */}
+                {/* МОДАЛЬНОЕ ОКНО: СМЕНА ПАРОЛЯ */}
                 {isAuthModalOpen && (
                     <div style={overlayStyle} onClick={() => setIsAuthModalOpen(false)}>
                         <div style={modalStyle} onClick={e => e.stopPropagation()}>
-                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px', color: '#fff' }}>ДАННЫЕ ДЛЯ ВХОДА</h2>
+                            <h2 style={{ marginBottom: '30px', textAlign: 'center', fontWeight: '900', letterSpacing: '1px', color: '#fff' }}>СМЕНА ПАРОЛЯ</h2>
                             <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
                                 <div>
-                                    <div style={{fontSize: '12px', color: '#888', fontWeight: 'bold', marginLeft: '5px', marginBottom: '5px'}}>Логин (используется для входа):</div>
-                                    <input type="text" value={newLogin} onChange={e => setNewLogin(e.target.value)} placeholder="Новый логин" style={inputItemStyle} />
+                                    <div style={{fontSize: '12px', color: '#888', fontWeight: 'bold', marginLeft: '5px', marginBottom: '5px'}}>Ваш логин (изменить нельзя):</div>
+                                    <div style={{ ...inputItemStyle, background: '#111', color: '#888', borderColor: '#333' } as any}>{newLogin}</div>
                                 </div>
                                 
                                 <div>
-                                    <div style={{fontSize: '12px', color: '#888', fontWeight: 'bold', marginLeft: '5px', marginBottom: '5px'}}>Пароль доступа:</div>
-                                    <input type="text" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Новый пароль" style={inputItemStyle} />
+                                    <div style={{fontSize: '12px', color: '#888', fontWeight: 'bold', marginLeft: '5px', marginBottom: '5px'}}>Новый пароль доступа:</div>
+                                    <input type="text" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Введите новый пароль" style={inputItemStyle} />
                                 </div>
                             </div>
-                            <button onClick={handleChangeAuth} style={saveButtonStyle}>СОХРАНИТЬ ДАННЫЕ</button>
+                            <button onClick={handleChangeAuth} style={saveButtonStyle}>СОХРАНИТЬ ПАРОЛЬ</button>
                             <div onClick={() => setIsAuthModalOpen(false)} style={cancelButtonStyle}>ОТМЕНА</div>
                         </div>
                     </div>
