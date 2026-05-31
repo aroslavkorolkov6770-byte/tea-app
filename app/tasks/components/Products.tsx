@@ -47,7 +47,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     // Модалки
     const [showProductForm, setShowProductForm] = useState(false);
     const [productFormData, setProductFormData] = useState({
-        id: '', name: '', category: '', price: '', stock: '', desc: '', isHit: false, isHidden: false, dateAdded: ''
+        id: '', name: '', category: '', price: '', desc: '', isHit: false, isHidden: false, dateAdded: ''
     });
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, id: string, name: string}>({ isOpen: false, id: '', name: '' });
     const [viewProduct, setViewProduct] = useState<any>(null);
@@ -124,8 +124,8 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     // СКАЧАТЬ ШАБЛОН EXCEL (CSV)
     const downloadTemplate = () => {
         const bom = "\uFEFF"; 
-        const header = "Название;Категория;Цена;Остаток;Описание\n";
-        const example = "Те Гуань Инь Ван;Светлые улуны;1500;500г;Премиальный улун с цветочным ароматом.\n";
+        const header = "Название;Категория;Цена;Описание\n";
+        const example = "Те Гуань Инь Ван;Светлые улуны;1500;Премиальный улун с цветочным ароматом.\n";
         const blob = new Blob([bom + header + example], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
@@ -156,8 +156,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                     name: cols[0] || 'Без названия',
                     category: cols[1] || '',
                     price: cols[2] || '',
-                    stock: cols[3] || '',
-                    desc: cols[4] || '',
+                    desc: cols[3] || '',
                     isHit: false,
                     isHidden: false,
                     dateAdded: new Date().toLocaleDateString('ru-RU')
@@ -187,7 +186,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         (!selectedCategory || p.category === selectedCategory)
     );
 
-    // 💡 ИСПРАВЛЕНИЕ: Хиты продаж теперь ГЛОБАЛЬНЫЕ. Они всегда отображаются над каталогом, независимо от выбранной категории.
+    // Хиты продаж: глобальные
     const hitProducts = baseFiltered.filter(p => p.isHit);
 
     return (
@@ -202,7 +201,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                         <input type="file" accept=".csv" id="csv-upload" style={{display: 'none'}} onChange={handleImportCSV} />
                         <button onClick={() => document.getElementById('csv-upload')?.click()} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333'} as any}>📤 ИМПОРТ ИЗ ФАЙЛА</button>
                         <button onClick={() => {
-                            setProductFormData({ id: '', name: '', category: '', price: '', stock: '', desc: '', isHit: false, isHidden: false, dateAdded: '' });
+                            setProductFormData({ id: '', name: '', category: '', price: '', desc: '', isHit: false, isHidden: false, dateAdded: '' });
                             setShowProductForm(true);
                         }} style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВЫЙ ТОВАР</button>
                     </div>
@@ -294,17 +293,12 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                     <div className={isSingle ? "single-hit-stats" : ""} style={{ 
                                         marginTop: isSingle ? '0' : 'auto', 
                                         display: 'flex', 
-                                        justifyContent: isSingle ? 'flex-end' : 'space-between', 
+                                        justifyContent: 'flex-end', 
                                         alignItems: 'flex-end', 
-                                        gap: isSingle ? '40px' : '0', 
                                         minWidth: isSingle ? '200px' : 'auto',
                                         paddingRight: isAdmin && isSingle ? '100px' : '0'
                                     }}>
-                                        <div>
-                                            <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Остаток:</div>
-                                            <div style={{ fontSize: '14px', color: '#ccc', fontWeight: 'bold' }}>{product.stock || '—'}</div>
-                                        </div>
-                                        <div style={{ textAlign: 'right' }}>
+                                        <div style={{ textAlign: 'right', width: '100%' }}>
                                             <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
                                             <div style={{ color: '#ffd700', fontWeight: '900', fontSize: '22px' }}>{product.price ? `${product.price} ₽` : '—'}</div>
                                         </div>
@@ -353,11 +347,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                 <h4 style={{ fontSize: '18px', margin: 0, fontWeight: 'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3' }}>{product.name}</h4>
                             </div>
                             
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '15px', borderTop: '1px solid #222' }}>
-                                <div>
-                                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Остаток:</div>
-                                    <div style={{ fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>{product.stock || '—'}</div>
-                                </div>
+                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', paddingTop: '15px', borderTop: '1px solid #222' }}>
                                 <div style={{ textAlign: 'right' }}>
                                     <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
                                     <div style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900' }}>{product.price ? `${product.price} ₽` : '—'}</div>
@@ -388,15 +378,10 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                     <input type="text" style={adminIn as any} placeholder="0" value={productFormData.price} onChange={e => setProductFormData({...productFormData, price: e.target.value})} />
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Остаток / Вес</div>
-                                    <input style={adminIn as any} placeholder="Напр. 500г или 10 шт" value={productFormData.stock} onChange={e => setProductFormData({...productFormData, stock: e.target.value})} />
+                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Категория</div>
+                                    <input list="prod-categories" style={adminIn as any} placeholder="Напр. Светлые улуны" value={productFormData.category} onChange={e => setProductFormData({...productFormData, category: e.target.value})} />
+                                    <datalist id="prod-categories">{categories.map((c: any) => <option key={c} value={c} />)}</datalist>
                                 </div>
-                            </div>
-
-                            <div>
-                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Категория</div>
-                                <input list="prod-categories" style={adminIn as any} placeholder="Напр. Светлые улуны" value={productFormData.category} onChange={e => setProductFormData({...productFormData, category: e.target.value})} />
-                                <datalist id="prod-categories">{categories.map((c: any) => <option key={c} value={c} />)}</datalist>
                             </div>
 
                             <div>
@@ -430,11 +415,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             <div>
                                 <div style={{ fontSize: '13px', color: '#888', marginBottom: '4px' }}>Цена:</div>
                                 <div style={{ fontSize: '28px', color: '#0abab5', fontWeight: '900', lineHeight: 1 }}>{viewProduct.price ? `${viewProduct.price} ₽` : '—'}</div>
-                            </div>
-                            <div style={{ width: '1px', background: '#333' }}></div>
-                            <div>
-                                <div style={{ fontSize: '13px', color: '#888', marginBottom: '4px' }}>Наличие (Остаток):</div>
-                                <div style={{ fontSize: '24px', color: '#fff', fontWeight: 'bold', lineHeight: 1 }}>{viewProduct.stock || 'Уточняйте'}</div>
                             </div>
                         </div>
 
@@ -517,7 +497,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                     }
                     .single-hit-stats {
                         width: 100%;
-                        justify-content: space-between !important;
+                        justify-content: flex-end !important;
                         padding-right: 0 !important;
                     }
                 }
