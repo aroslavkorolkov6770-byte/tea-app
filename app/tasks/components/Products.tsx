@@ -13,7 +13,7 @@ const saveDataToServer = (key: string, data: any) => {
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
-// 💡 Умный парсер CSV для импорта из Excel
+// Умный парсер CSV для импорта из Excel
 const parseCSV = (str: string) => {
     const result = [];
     let row = [];
@@ -41,6 +41,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     const [products, setProducts] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     
+    // Состояние для активной категории
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     
     // Модалки
@@ -176,15 +177,17 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     // ФИЛЬТРАЦИЯ
     const baseFiltered = products.filter(p => isAdmin || !p.isHidden);
     
+    // Получаем уникальные категории из базы
     const categories = Array.from(new Set(baseFiltered.map(p => p.category).filter(Boolean)));
 
+    // Поиск + Фильтр по категории
     const searchedProducts = baseFiltered.filter(p => 
         (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()))) &&
         (!selectedCategory || p.category === selectedCategory)
     );
 
-    // 💡 Хиты продаж теперь фильтруются и по выбранной категории
+    // Хиты продаж: фильтруются и по выбранной категории!
     const hitProducts = baseFiltered.filter(p => p.isHit && (!selectedCategory || p.category === selectedCategory));
 
     return (
@@ -211,7 +214,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5, fontSize: '14px' }}>🔍</span>
                 <input 
                     type="text" 
-                    placeholder="Поиск по названию..." 
+                    placeholder="Поиск по названию или категории..." 
                     value={searchQuery} 
                     onChange={(e) => setSearchQuery(e.target.value)} 
                     style={{ ...adminIn, paddingLeft: '45px', background: '#111', border: '1px solid #222' } as any} 
@@ -251,7 +254,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 </div>
             )}
 
-            {/* 💡 БЛОК: ХИТЫ ПРОДАЖ */}
+            {/* 🔥 БЛОК: ХИТЫ ПРОДАЖ */}
             {!searchQuery && hitProducts.length > 0 && (
                 <div style={{ 
                     background: 'linear-gradient(135deg, rgba(255,215,0,0.05) 0%, rgba(0,0,0,0) 100%)', 
@@ -266,36 +269,41 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                         <h3 style={{ fontSize: '20px', color: '#ffd700', fontWeight: '900', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Хиты продаж</h3>
                     </div>
                     
-                    {/* 💡 Добавлены padding: 10px 5px 20px 5px и margin: -10px -5px 0 -5px для защиты от обрезания */}
                     <div className="hits-scroll-container custom-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '20px', padding: '10px 5px 20px 5px', margin: '-10px -5px 0 -5px', scrollSnapType: 'x mandatory' }}>
-                        {hitProducts.map(product => (
-                            <div key={`hit-${product.id}`} className="premium-card hit-card" onClick={() => setViewProduct(product)} style={{ 
-                                minWidth: '280px', flex: '0 0 auto', padding: '25px', scrollSnapAlign: 'start', 
-                                opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none',
-                                background: '#111', border: '1px solid rgba(255,215,0,0.4)', display: 'flex', flexDirection: 'column'
-                            }}>
-                                {isAdmin && (
-                                    <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                        <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...editIconStyle, background: 'rgba(0,0,0,0.5)', color: '#ffd700', border: '1px solid #ffd700'} as any} title="Убрать из хитов">⭐</div>
-                                        <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...editIconStyle, background: 'rgba(0,0,0,0.5)', color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title={product.isHidden ? "Показать сотрудникам" : "Скрыть от сотрудников"}>{product.isHidden ? '🚫' : '👁️'}</div>
+                        {hitProducts.map(product => {
+                            const isSingle = hitProducts.length === 1;
+                            return (
+                                <div key={`hit-${product.id}`} className={`premium-card hit-card ${isSingle ? 'single-hit' : ''}`} onClick={() => setViewProduct(product)} style={{ 
+                                    minWidth: isSingle ? '100%' : '280px', flex: isSingle ? '1 1 auto' : '0 0 auto', padding: '25px', scrollSnapAlign: 'start', 
+                                    opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none',
+                                    background: '#111', border: '1px solid rgba(255,215,0,0.4)', display: 'flex', flexDirection: isSingle ? 'row' : 'column',
+                                    alignItems: isSingle ? 'center' : 'stretch', justifyContent: isSingle ? 'space-between' : 'flex-start'
+                                }}>
+                                    {isAdmin && (
+                                        <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
+                                            <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...editIconStyle, background: 'rgba(0,0,0,0.8)', color: '#ffd700', border: '1px solid #ffd700'} as any} title="Убрать из хитов">⭐</div>
+                                            <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...editIconStyle, background: 'rgba(0,0,0,0.8)', color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title={product.isHidden ? "Показать сотрудникам" : "Скрыть от сотрудников"}>{product.isHidden ? '🚫' : '👁️'}</div>
+                                        </div>
+                                    )}
+                                    
+                                    <div style={{ flex: isSingle ? '1 1 auto' : 'none' }}>
+                                        {product.category && <span style={{ background: 'rgba(255,215,0,0.1)', color: '#ffd700', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', width: 'fit-content', marginBottom: '15px', display: 'inline-block' }}>{product.category}</span>}
+                                        <h4 style={{ fontSize: '18px', margin: isSingle ? '0' : '0 0 20px 0', fontWeight: 'bold', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin && !isSingle ? '80px' : '0' }}>{product.name}</h4>
                                     </div>
-                                )}
-                                
-                                {product.category && <span style={{ background: 'rgba(255,215,0,0.1)', color: '#ffd700', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', width: 'fit-content', marginBottom: '15px' }}>{product.category}</span>}
-                                <h4 style={{ fontSize: '18px', margin: '0 0 20px 0', fontWeight: 'bold', color: '#fff', lineHeight: '1.3' }}>{product.name}</h4>
-                                
-                                <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                                    <div>
-                                        <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Остаток:</div>
-                                        <div style={{ fontSize: '14px', color: '#ccc', fontWeight: 'bold' }}>{product.stock || '—'}</div>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
-                                        <div style={{ color: '#ffd700', fontWeight: '900', fontSize: '22px' }}>{product.price ? `${product.price} ₽` : '—'}</div>
+                                    
+                                    <div className={isSingle ? "single-hit-stats" : ""} style={{ marginTop: isSingle ? '0' : 'auto', display: 'flex', justifyContent: isSingle ? 'flex-end' : 'space-between', alignItems: 'flex-end', gap: isSingle ? '40px' : '0', minWidth: isSingle ? '200px' : 'auto' }}>
+                                        <div>
+                                            <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Остаток:</div>
+                                            <div style={{ fontSize: '14px', color: '#ccc', fontWeight: 'bold' }}>{product.stock || '—'}</div>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
+                                            <div style={{ color: '#ffd700', fontWeight: '900', fontSize: '22px' }}>{product.price ? `${product.price} ₽` : '—'}</div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -327,16 +335,17 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             )}
                             
                             {isAdmin && product.isHidden && (
-                                <div style={{ position: 'absolute', top: '60px', right: '15px', background: '#ff4d4d', color: '#fff', padding: '4px 10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '10px', zIndex: 5 }}>
+                                <div style={{ position: 'absolute', top: '15px', left: '15px', background: '#ff4d4d', color: '#fff', padding: '4px 10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '10px', zIndex: 5 }}>
                                     СКРЫТО
                                 </div>
                             )}
 
-                            {product.category && <span style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', width: 'fit-content', marginBottom: '15px' }}>{product.category}</span>}
+                            <div style={{ paddingRight: isAdmin ? '130px' : '0', marginBottom: '20px', marginTop: (isAdmin && product.isHidden) ? '25px' : '0' }}>
+                                {product.category && <span style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block', marginBottom: '10px' }}>{product.category}</span>}
+                                <h4 style={{ fontSize: '18px', margin: 0, fontWeight: 'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3' }}>{product.name}</h4>
+                            </div>
                             
-                            <h4 style={{ fontSize: '18px', margin: '0 0 20px 0', fontWeight: 'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin ? '130px' : '0' }}>{product.name}</h4>
-                            
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '15px', borderTop: '1px solid #222' }}>
                                 <div>
                                     <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Остаток:</div>
                                     <div style={{ fontSize: '14px', color: '#fff', fontWeight: 'bold' }}>{product.stock || '—'}</div>
@@ -397,37 +406,37 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
             {/* --- ОКНО ПРОСМОТРА ПРОДУКТА --- */}
             {viewProduct && !showProductForm && (
                 <div style={modalOverlay as any} onClick={() => setViewProduct(null)}>
-                    <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '0', overflow: 'hidden'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ padding: '40px', position: 'relative' }}>
-                            <div onClick={() => setViewProduct(null)} style={{ position: 'absolute', top: '20px', right: '20px', cursor: 'pointer', fontSize: '28px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
-                            
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px', marginBottom: '30px', paddingRight: '30px' }}>
-                                <div>
-                                    {viewProduct.category && <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase', background: 'rgba(10,186,181,0.1)', padding: '5px 12px', borderRadius: '8px', display: 'inline-block', marginBottom: '15px'}}>{viewProduct.category}</span>}
-                                    <h2 style={{fontSize:'32px', color:'#fff', fontWeight:'900', margin:'0'}}>{viewProduct.name}</h2>
-                                    {viewProduct.isHit && <div style={{ color: '#ffd700', fontWeight: 'bold', fontSize: '13px', marginTop: '10px' }}>⭐ ХИТ ПРОДАЖ</div>}
-                                </div>
+                    <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '40px', position: 'relative'} as any} onClick={e => e.stopPropagation()}>
+                        
+                        <div onClick={() => setViewProduct(null)} style={{ position: 'absolute', top: '25px', right: '25px', cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1, zIndex: 10 }}>✕</div>
+                        
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px', marginBottom: '30px', paddingRight: '40px' }}>
+                            <div>
+                                {viewProduct.category && <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase', background: 'rgba(10,186,181,0.1)', padding: '5px 12px', borderRadius: '8px', display: 'inline-block', marginBottom: '15px'}}>{viewProduct.category}</span>}
+                                <h2 style={{fontSize:'32px', color:'#fff', fontWeight:'900', margin:'0'}}>{viewProduct.name}</h2>
+                                {viewProduct.isHit && <div style={{ color: '#ffd700', fontWeight: 'bold', fontSize: '13px', marginTop: '10px' }}>⭐ ХИТ ПРОДАЖ</div>}
                             </div>
-
-                            <div style={{ display: 'flex', gap: '40px', marginBottom: '35px', background: '#111', padding: '20px', borderRadius: '20px', border: '1px solid #222' }}>
-                                <div>
-                                    <div style={{ fontSize: '13px', color: '#888', marginBottom: '4px' }}>Цена:</div>
-                                    <div style={{ fontSize: '28px', color: '#0abab5', fontWeight: '900', lineHeight: 1 }}>{viewProduct.price ? `${viewProduct.price} ₽` : '—'}</div>
-                                </div>
-                                <div style={{ width: '1px', background: '#333' }}></div>
-                                <div>
-                                    <div style={{ fontSize: '13px', color: '#888', marginBottom: '4px' }}>Наличие (Остаток):</div>
-                                    <div style={{ fontSize: '24px', color: '#fff', fontWeight: 'bold', lineHeight: 1 }}>{viewProduct.stock || 'Уточняйте'}</div>
-                                </div>
-                            </div>
-
-                            {viewProduct.desc && (
-                                <div>
-                                    <h4 style={{ fontSize: '14px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '10px' }}>Описание</h4>
-                                    <p style={{ fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{viewProduct.desc}</p>
-                                </div>
-                            )}
                         </div>
+
+                        <div style={{ display: 'flex', gap: '40px', marginBottom: '35px', background: '#111', padding: '20px 30px', borderRadius: '20px', border: '1px solid #222' }}>
+                            <div>
+                                <div style={{ fontSize: '13px', color: '#888', marginBottom: '4px' }}>Цена:</div>
+                                <div style={{ fontSize: '28px', color: '#0abab5', fontWeight: '900', lineHeight: 1 }}>{viewProduct.price ? `${viewProduct.price} ₽` : '—'}</div>
+                            </div>
+                            <div style={{ width: '1px', background: '#333' }}></div>
+                            <div>
+                                <div style={{ fontSize: '13px', color: '#888', marginBottom: '4px' }}>Наличие (Остаток):</div>
+                                <div style={{ fontSize: '24px', color: '#fff', fontWeight: 'bold', lineHeight: 1 }}>{viewProduct.stock || 'Уточняйте'}</div>
+                            </div>
+                        </div>
+
+                        {viewProduct.desc && (
+                            <div>
+                                <h4 style={{ fontSize: '14px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '15px' }}>Описание</h4>
+                                <p style={{ fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{viewProduct.desc}</p>
+                            </div>
+                        )}
+                        
                     </div>
                 </div>
             )}
@@ -469,10 +478,31 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                     z-index: 20;
                 }
 
+                /* 💡 СТИЛЬ ДЛЯ ОДИНОЧНОГО ХИТА (РАСТЯГИВАНИЕ) */
+                .single-hit {
+                    flex-direction: row !important;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 30px 40px !important;
+                }
+
                 @media (max-width: 768px) {
                     .premium-cards-container { display: grid !important; grid-template-columns: 1fr !important; gap: 15px !important; }
                     .tasks-modal { padding: 30px 20px !important; border-radius: 25px !important; width: 95% !important; max-height: 90vh !important; }
                     .hit-card { min-width: 240px !important; }
+                    
+                    .single-hit {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        padding: 25px !important;
+                    }
+                    .single-hit h4 {
+                        margin-bottom: 20px !important;
+                    }
+                    .single-hit-stats {
+                        width: 100%;
+                        justify-content: space-between !important;
+                    }
                 }
             `}</style>
         </section>
@@ -487,7 +517,6 @@ const cancelLink = { textAlign: 'center', marginTop: '20px', color: '#666', curs
 const editIconStyle = { background: '#1a1a1a', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0, fontWeight: 'bold' };
 const delIconStyle = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0, fontWeight: 'bold' };
 const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
-const lightboxOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', zIndex: 90000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', boxSizing: 'border-box', cursor: 'zoom-out' };
 const modalContentLarge = { background: '#000', borderRadius: '40px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
 const modalContentMedium = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '550px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
 const modalContentSmall = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
