@@ -7,7 +7,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Education from './components/Education';
 import Assortment from './components/Assortment';
 import AIAssistant from './components/AIAssistant';
-import Documents from './components/Documents'; // 💡 ДОБАВЛЕН ИМПОРТ ДОКУМЕНТОВ
+import Documents from './components/Documents';
+import Products from './components/Products'; // 💡 ДОБАВЛЕН ИМПОРТ НОВОГО РАЗДЕЛА ПРОДУКТОВ
 
 // --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
@@ -16,6 +17,14 @@ const STORAGE_KEYS = {
     DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v2',     
     TESTS_PROGRESS: 'tea_hub_tests_progress_v1',
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
+};
+
+const saveDataToServer = (key: string, data: any) => {
+    return fetch('/api/storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, data })
+    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 function ShiftContent() {
@@ -70,7 +79,6 @@ function ShiftContent() {
 
       try {
           const cacheBuster = `?t=${Date.now()}`;
-          // 💡 ДОБАВЛЕН ЗАПРОС dismissed_tasks_ С СЕРВЕРА
           const [sFiles, cRoute, cTests, sTestsData, sRouteData, pTestsRes, sAssortment, sDismissed] = await Promise.all([
               fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.URGENT_FILES}`).then(r => r.json()).catch(() => null),
               fetch(`/api/storage${cacheBuster}&key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
@@ -102,7 +110,6 @@ function ShiftContent() {
               localStorage.setItem(`th_cache_passed_tests_${currentUserId}`, JSON.stringify(pTestsRes));
           }
 
-          // 💡 СИНХРОНИЗИРУЕМ ОТКЛОНЕННЫЕ ЗАДАЧИ
           if (Array.isArray(sDismissed)) {
               setDismissedTasks(sDismissed);
               localStorage.setItem(`th_dismissed_tasks_${currentUserId}`, JSON.stringify(sDismissed));
@@ -226,7 +233,6 @@ function ShiftContent() {
     };
   }, [searchParams]);
 
-  // --- ЛОВЕЦ ССЫЛОК ИЗ ПОИСКА (DEEP LINKING) ---
   const lastHandledParams = React.useRef("");
   useEffect(() => {
       if (!isMounted) return;
@@ -266,7 +272,6 @@ function ShiftContent() {
       if (handled) lastHandledParams.current = currentParams;
   }, [searchParams, dynamicRoute, dynamicTests, assortmentMatrix, completedTests, isMounted]);
 
-  // --- ФУНКЦИИ ОЧИСТКИ URL ПРИ ЗАКРЫТИИ МОДАЛОК ---
   const closeRouteModal = () => {
       setSelectedRouteStep(null);
       if (searchParams.has('routeId')) {
@@ -283,7 +288,6 @@ function ShiftContent() {
 
   if (!isMounted) return null;
 
-  // --- ВЫЧИСЛЕНИЕ СТАТИСТИКИ ---
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const testsPercent = Math.round((completedTests.length / (Math.max(dynamicTests.length, 1))) * 100);
   const totalHubPercent = testsPercent; 
@@ -309,7 +313,6 @@ function ShiftContent() {
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
-        {/* --- ПРИВЯЗКА ПУШЕЙ --- */}
         {(!isPushBound && (pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest') && (
             <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
                 <div>
@@ -411,7 +414,7 @@ function ShiftContent() {
             />
         )}
 
-        {/* 💡 НОВОЕ: ВКЛАДКА 2.1 - НОРМАТИВНЫЕ ДОКУМЕНТЫ */}
+        {/* --- ВКЛАДКА 2.1: ДОКУМЕНТЫ --- */}
         {activeTab === 'docs' && (
             <Documents 
                 isAdmin={isAdmin}
@@ -422,10 +425,18 @@ function ShiftContent() {
         )}
 
         {/* --- ВКЛАДКА 3: АССОРТИМЕНТ --- */}
-        {(activeTab === 'assortment' || activeTab === 'products') && (
+        {activeTab === 'assortment' && (
             <Assortment 
                 assortmentMatrix={assortmentMatrix} 
                 assortmentId={searchParams.get('assortmentId')} 
+            />
+        )}
+
+        {/* 💡 НОВОЕ: ВКЛАДКА 3.1: ПРОДУКТЫ */}
+        {activeTab === 'products' && (
+            <Products 
+                isAdmin={isAdmin} 
+                userId={userId}
             />
         )}
 

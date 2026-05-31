@@ -324,7 +324,7 @@ export default function Navigation() {
     router.push(link);
   };
 
-  // 💡 НОВОЕ: Вкладка "Документы" сделана как подпункт
+  // 💡 ОБНОВЛЕННОЕ МЕНЮ С ПОДПУНКТОМ "ПРОДУКТЫ"
   const sideItems = [
     { 
       id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', 
@@ -332,8 +332,9 @@ export default function Navigation() {
       isSubItem: false 
     },
     { id: '/tasks?tab=edu', label: 'Обучение', isSubItem: false },
-    { id: '/tasks?tab=docs', label: '↳ База документов', isSubItem: true }, // Стилизуем как подпункт
+    { id: '/tasks?tab=docs', label: '↳ База документов', isSubItem: true },
     { id: '/tasks?tab=assortment', label: 'Ассортимент', isSubItem: false },
+    { id: '/tasks?tab=products', label: '↳ Продукты', isSubItem: true }, // 💡 НОВОЕ
     { id: '/tasks?tab=standards', label: 'ИИ Помощник', isSubItem: false },
   ];
 
