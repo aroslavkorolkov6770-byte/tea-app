@@ -691,6 +691,66 @@ export default function Education({
                 </div>
             )}
 
+            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ (ВОССТАНОВЛЕНО) */}
+            {showTestForm && (
+                <div style={{...modalOverlay, alignItems: 'flex-start', paddingTop: '50px'} as any} onClick={() => setShowTestForm(false)}>
+                    <div className="tasks-modal custom-scroll" style={{...modalContentLarge, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
+                        <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#0abab5', fontWeight: '900', textTransform: 'uppercase' }}>{testFormData.id ? 'РЕДАКТОР ТЕСТА' : 'НОВЫЙ ТЕСТ'}</h2>
+                        
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
+                            <div><input style={adminIn as any} placeholder="Название теста" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} /></div>
+                            <div><input style={adminIn as any} placeholder="Краткое описание (подзаголовок)" value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} /></div>
+                            
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                                <div>
+                                    <input list="test-sections" style={adminIn as any} placeholder="Раздел" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
+                                    <datalist id="test-sections">{Array.from(new Set(dynamicTests.map((t: any) => t.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
+                                </div>
+                                <div>
+                                    <input list="test-subsections" style={adminIn as any} placeholder="Подраздел" value={testFormData.subsection} onChange={e => setTestFormData({...testFormData, subsection: e.target.value})} />
+                                    <datalist id="test-subsections">{Array.from(new Set(dynamicTests.map((t: any) => t.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
+                                </div>
+                            </div>
+
+                            <div><input type="number" style={adminIn as any} placeholder="Лимит времени (в минутах, 0 - без лимита)" value={testFormData.timeLimit || ''} onChange={e => setTestFormData({...testFormData, timeLimit: parseInt(e.target.value) || 0})} /></div>
+                            
+                            <div><textarea style={{...adminIn, height: '100px', resize: 'none'} as any} placeholder="Теоретическая справка (показывается перед стартом)" value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} /></div>
+                        </div>
+
+                        <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
+                            <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>ВОПРОСЫ И ОТВЕТЫ</h3>
+                            {testFormData.quiz.map((q: any, qIndex: number) => (
+                                <div key={qIndex} style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px'}}>
+                                        <div style={{color: '#0abab5', fontWeight: 'bold'}}>Вопрос {qIndex + 1}</div>
+                                        {testFormData.quiz.length > 1 && (
+                                            <div onClick={() => removeTestQuestion(qIndex)} style={{color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold'}}>✕ Удалить</div>
+                                        )}
+                                    </div>
+                                    <input style={{...adminIn, marginBottom: '15px'} as any} placeholder="Текст вопроса" value={q.q} onChange={e => updateTestQuestion(qIndex, 'q', e.target.value)} />
+                                    
+                                    <div style={{display: 'grid', gap: '10px'}}>
+                                        {[0, 1, 2, 3].map(optIndex => (
+                                            <div key={optIndex} style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                                <div 
+                                                    onClick={() => updateTestQuestion(qIndex, 'c', optIndex)}
+                                                    style={{width: '24px', height: '24px', borderRadius: '50%', border: q.c === optIndex ? '6px solid #0abab5' : '2px solid #555', cursor: 'pointer', flexShrink: 0, transition: '0.2s'}}
+                                                />
+                                                <input style={{...adminIn, padding: '10px', fontSize: '14px', flex: 1} as any} placeholder={`Вариант ${optIndex + 1}`} value={q.o[optIndex]} onChange={e => updateTestQuestion(qIndex, `o${optIndex}`, e.target.value)} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                            <button onClick={addTestQuestion} style={{...adminActionBtn, width: '100%', padding: '15px', background: 'transparent'} as any}>+ ДОБАВИТЬ ВОПРОС</button>
+                        </div>
+
+                        <button onClick={handleSaveTestForm} style={saveBtn as any}>СОХРАНИТЬ ТЕСТ</button>
+                        <div onClick={() => setShowTestForm(false)} style={cancelLink as any}>ОТМЕНА</div>
+                    </div>
+                </div>
+            )}
+
             {lockedTestAlert.show && (
                 <div style={{...errorOverlayStyle, zIndex: 50000} as any} onClick={() => setLockedTestAlert({show: false, message: ''})}>
                     <div className="tasks-modal" style={errorModalContent as any} onClick={e => e.stopPropagation()}>
@@ -744,81 +804,6 @@ export default function Education({
                         ) : (
                             <button onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn as any}>ПОДТВЕРДИТЬ ПРОХОЖДЕНИЕ</button>
                         )}
-                    </div>
-                </div>
-            )}
-
-            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ --- */}
-            {showRouteForm && (
-                <div style={{...modalOverlay, alignItems: 'center'} as any} onClick={() => setShowRouteForm(false)}>
-                    <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
-                        <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#0abab5', fontWeight: '900', textTransform: 'uppercase' }}>{routeFormData.id ? 'РЕДАКТОР ТЕМЫ' : 'НОВАЯ ТЕМА'}</h2>
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
-                            <div><input autoComplete="new-password" name={"title_" + Date.now()} style={adminIn as any} placeholder="Название темы" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} /></div>
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                <div>
-                                    <input list="route-sections" autoComplete="new-password" name={"sec_" + Date.now()} style={adminIn as any} placeholder="Раздел" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
-                                    <datalist id="route-sections">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
-                                </div>
-                                <div>
-                                    <input list="route-subsections" autoComplete="new-password" name={"subsec_" + Date.now()} style={adminIn as any} placeholder="Подраздел" value={routeFormData.subsection} onChange={e => setRouteFormData({...routeFormData, subsection: e.target.value})} />
-                                    <datalist id="route-subsections">{Array.from(new Set(dynamicRoute.map((r: any) => r.subsection).filter(Boolean))).map((subsec: any) => <option key={subsec} value={subsec} />)}</datalist>
-                                </div>
-                            </div>
-                            <div><input autoComplete="new-password" style={adminIn as any} placeholder="Время (напр. 10 мин)" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} /></div>
-                        </div>
-
-                        <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
-                            <div style={{ display: 'flex', background: '#111', borderRadius: '12px', padding: '4px', marginBottom: '20px', border: '1px solid #222' }}>
-                                <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'text'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'text' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'text' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px' }}>📝 ТЕКСТ / ФОТО</div>
-                                <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'video'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'video' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'video' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px' }}>🎥 ВИДЕО</div>
-                            </div>
-                            
-                            {routeFormData.mediaType === 'video' ? (
-                                <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                    <textarea autoComplete="new-password" style={{...adminIn, height: '100px', resize: 'none', marginBottom: '15px', fontFamily: 'monospace', fontSize: '12px', color: '#aaa'} as any} placeholder='Код вставки iframe...' value={routeFormData.videoIframe} onChange={e => setRouteFormData({...routeFormData, videoIframe: e.target.value})} />
-                                    <textarea autoComplete="new-password" style={{...adminIn, height: '100px', resize: 'none', marginBottom: 0} as any} placeholder="Текстовое описание под видео..." value={routeFormData.videoDesc} onChange={e => setRouteFormData({...routeFormData, videoDesc: e.target.value})} />
-                                </div>
-                            ) : (
-                                <div>
-                                    <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>БЛОКИ С ТЕКСТОМ (ДО 3-Х)</h3>
-                                    {[1, 2, 3].map((num) => {
-                                        const hKey = `h${num}` as keyof typeof routeFormData;
-                                        const tKey = `t${num}` as keyof typeof routeFormData;
-                                        const imgKey = `img${num}` as keyof typeof routeFormData;
-                                        const imgVal = routeFormData[imgKey] as string;
-                                        const isBase64 = imgVal && imgVal.startsWith('data:image');
-
-                                        return (
-                                            <div key={num} style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                                <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder={`Заголовок блока ${num}`} value={routeFormData[hKey]} onChange={e => setRouteFormData({...routeFormData, [hKey]: e.target.value})} />
-                                                <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder={`Текст блока ${num}...`} value={routeFormData[tKey]} onChange={e => setRouteFormData({...routeFormData, [tKey]: e.target.value})} />
-                                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                                    {!isBase64 ? (
-                                                        <input autoComplete="new-password" style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px', flex: 1} as any} placeholder="Ссылка на фото (URL)" value={imgVal} onChange={e => setRouteFormData({...routeFormData, [imgKey]: e.target.value})} />
-                                                    ) : (
-                                                        <div style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px', flex: 1, color: '#0abab5', background: 'rgba(10,186,181,0.1)', border: '1px solid rgba(10,186,181,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'} as any}>✅ Фото загружено</div>
-                                                    )}
-                                                    <input type="file" accept="image/*" id={`upload-img-${num}`} style={{ display: 'none' }} onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) {
-                                                            if (file.size > 5 * 1024 * 1024) return alert("Файл слишком большой! Максимум 5 МБ.");
-                                                            const reader = new FileReader();
-                                                            reader.onload = (ev) => setRouteFormData(prev => ({...prev, [imgKey]: ev.target?.result as string}));
-                                                            reader.readAsDataURL(file);
-                                                        }
-                                                    }}/>
-                                                    <button onClick={(e) => { e.preventDefault(); document.getElementById(`upload-img-${num}`)?.click(); }} style={{ background: '#1a1a1a', color: '#fff', border: '1px solid #333', padding: '12px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', transition: '0.2s' }}>📁</button>
-                                                    {imgVal && <button onClick={(e) => { e.preventDefault(); setRouteFormData(prev => ({...prev, [imgKey]: ''})); }} style={{ background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,77,77,0.3)', padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>✕</button>}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                        <button onClick={handleSaveRoute} style={saveBtn as any}>СОХРАНИТЬ ТЕМУ</button>
-                        <div onClick={() => setShowRouteForm(false)} style={cancelLink as any}>ОТМЕНА</div>
                     </div>
                 </div>
             )}
