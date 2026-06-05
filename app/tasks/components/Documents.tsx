@@ -26,6 +26,17 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     const [movingItem, setMovingItem] = useState<string | null>(null);
     const [moveNewSectionName, setMoveNewSectionName] = useState('');
 
+    // --- НОВЫЕ СОСТОЯНИЯ ДЛЯ ЗАГРУЗКИ (ПЕРЕНЕСЕНО ИЗ АДМИНКИ) ---
+    const [isDragging, setIsDragging] = useState(false);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [uploadSection, setUploadSection] = useState('Основной раздел');
+    const [isCreatingNewUploadSection, setIsCreatingNewUploadSection] = useState(false);
+    const [newUploadSectionName, setNewUploadSectionName] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const [successModal, setSuccessModal] = useState({ show: false, title: '', text: '' });
+    const [errorModal, setErrorModal] = useState({ show: false, text: '' });
+
     // Фильтруем ТОЛЬКО нормативные документы (исключаем дедлайны и тесты)
     const allDocs = (urgentFiles || []).filter((f: any) => {
         if (f.isDocPlaceholder) return true;
@@ -33,11 +44,102 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         return true;
     });
 
-    // 💡 Единая функция для безопасного обновления стейта, кэша и сервера (устраняет мерцание)
+    // Извлекаем существующие разделы для выпадающего списка загрузчика
+    const existingDocSections = Array.from(new Set(
+        allDocs.filter((f: any) => !f.isDocPlaceholder).map((f: any) => f.section?.trim() || 'Основной раздел')
+    ));
+
+    // 💡 Единая функция для безопасного обновления стейта, кэша и сервера
     const updateFilesState = (newFiles: any[]) => {
         setUrgentFiles(newFiles);
         localStorage.setItem('th_cache_files', JSON.stringify(newFiles));
         saveDataToServer(STORAGE_KEYS.URGENT_FILES, newFiles);
+    };
+
+    // --- ФУНКЦИИ ОТПРАВКИ УВЕДОМЛЕНИЙ (ИЗОЛИРОВАННЫЕ) ---
+    const sendPushNotification = async (targetUserId: string, payload: any) => {
+        try {
+            const subsRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`, { cache: 'no-store' });
+            const subs = await subsRes.json().catch(() => []);
+            if (!Array.isArray(subs) || subs.length === 0) return false;
+            const targetSubs = targetUserId === 'Все' ? subs : subs.filter((s: any) => s.userId === targetUserId);
+            if (targetSubs.length === 0) return false;
+            const apiRes = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptions: targetSubs.map((s: any) => s.sub), payload }) });
+            return apiRes.ok;
+        } catch (e) { return false; }
+    };
+
+    const sendEmailNotification = async (targetUserId: string, subject: string, text: string) => {
+        try {
+            const resUsers = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_users_v1`);
+            const users = await resUsers.json().catch(() => []);
+            if (!Array.isArray(users)) return false;
+
+            let emailsToSend: string[] = [];
+            if (targetUserId === 'Все') {
+                for (const u of users.filter((u:any) => u.role === 'staff')) {
+                    const email = u.email || await fetch(`/api/storage?key=profile_data_${u.id}`).then(r=>r.json()).then(d=>d?.email).catch(()=>null);
+                    if (email) emailsToSend.push(email);
+                }
+            } else {
+                const u = users.find((u:any) => u.id === targetUserId);
+                if (u) {
+                    const email = u.email || await fetch(`/api/storage?key=profile_data_${u.id}`).then(r=>r.json()).then(d=>d?.email).catch(()=>null);
+                    if (email) emailsToSend.push(email);
+                }
+            }
+            if (emailsToSend.length === 0) return false;
+            const res = await fetch('/api/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: emailsToSend.join(', '), subject, text }) });
+            return res.ok;
+        } catch (e) { return false; }
+    };
+
+    // --- ЛОГИКА ЗАГРУЗКИ ФАЙЛОВ ---
+    const handleSaveFile = async () => {
+        if (selectedFiles.length === 0 || isProcessing) return;
+        setIsProcessing(true);
+        
+        let finalSection = uploadSection.trim();
+        if (isCreatingNewUploadSection && newUploadSectionName.trim()) {
+            finalSection = newUploadSectionName.trim();
+        } else if (!finalSection || finalSection === '__NEW__') {
+            finalSection = 'Основной раздел';
+        }
+
+        try {
+            const newFilesData: any[] = [];
+            const fileNames: string[] = [];
+
+            for (const file of selectedFiles) {
+                const fileData = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result);
+                    reader.readAsDataURL(file);
+                });
+
+                const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                await saveDataToServer(`file_data_${fileId}`, fileData);
+
+                newFilesData.push({
+                    id: fileId, name: file.name, size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+                    date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
+                    section: finalSection, hasSeparateData: true 
+                });
+                fileNames.push(file.name);
+            }
+
+            const updatedFiles = [...newFilesData, ...(urgentFiles || [])];
+            updateFilesState(updatedFiles);
+            
+            const namesStr = fileNames.join(', ');
+            const pushSent = await sendPushNotification('Все', { title: '📚 Новые учебные материалы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' });
+            const emailSent = await sendEmailNotification('Все', '📚 Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`);
+
+            setSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) загружены в раздел "${finalSection}". ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
+            setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); setNewUploadSectionName('');
+        } catch(e) {
+            setErrorModal({ show: true, text: "Произошла ошибка при пакетной загрузке файлов. Возможно, файлы слишком большие." });
+        } finally { setIsProcessing(false); }
     };
 
     const handleDownloadFile = (file: any) => {
@@ -137,7 +239,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             updated = (urgentFiles || []).filter((f: any) => f.id !== confirmDelete.targetId);
             saveDataToServer(`file_data_${confirmDelete.targetId}`, null);
 
-            // 💡 Защита от пропадания папки: если мы удалили последний файл, создаем заглушку
             const sourceHasItems = updated.some((f: any) => {
                 const isDoc = f.isDocPlaceholder || !(f.id?.startsWith('deadline_') || f.isTest);
                 return isDoc && (f.section?.trim() || 'Основной раздел') === sourceSection;
@@ -159,7 +260,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
         let updated = (urgentFiles || []).map((f: any) => f.id === movingItem ? { ...f, section: targetSection } : f);
         
-        // 💡 Защита от пропадания папки: если мы забрали последний файл, оставляем заглушку
         const sourceHasItems = updated.some((f: any) => {
             const isDoc = f.isDocPlaceholder || !(f.id?.startsWith('deadline_') || f.isTest);
             return isDoc && (f.section?.trim() || 'Основной раздел') === sourceSection;
@@ -193,6 +293,60 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
+            {/* 💡 НОВЫЙ БЛОК: ЗАГРУЗЧИК ФАЙЛОВ (ТОЛЬКО ДЛЯ АДМИНА) */}
+            {isAdmin && (
+                <div style={{ marginBottom: '40px' }}>
+                    <div 
+                        style={{
+                            border: isDragging ? '2px dashed #0abab5' : '2px dashed #333',
+                            borderRadius: '30px', padding: '40px 20px', textAlign: 'center',
+                            background: '#0a0a0a', transition: '0.2s', position: 'relative',
+                            opacity: isProcessing ? 0.5 : 1
+                        }}
+                        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                        onDragLeave={() => setIsDragging(false)}
+                        onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]); }}
+                    >
+                       <div style={{ fontSize: '28px', marginBottom: '10px' }}>📁</div>
+                       <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '5px' }}>Загрузка учебных материалов</h3>
+                       
+                       {(!selectedFiles || selectedFiles.length === 0) ? (
+                           <>
+                               <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>Перетащите сюда документы (PDF, DOCX, TXT) или нажмите кнопку.</p>
+                               <input type="file" multiple id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing} onChange={(e) => { if (e.target.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.target.files as FileList)]); }} />
+                               <button onClick={() => document.getElementById('file-upload-admin')?.click()} disabled={isProcessing} style={{...adminActionBtn, padding: '12px 25px'} as any}>ВЫБРАТЬ ФАЙЛЫ</button>
+                           </>
+                       ) : (
+                           <div style={{ background: '#000', padding: '20px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', textAlign: 'left' }}>
+                               <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px', textAlign: 'center' }}>ВЫБРАНО ФАЙЛОВ: {selectedFiles.length}</div>
+                               <div className="custom-scroll" style={{ maxHeight: '100px', overflowY: 'auto', marginBottom: '15px' }}>
+                                   {selectedFiles.map((f, i) => <div key={i} style={{fontSize: '12px', color: '#aaa', marginTop: '4px'}}>📎 {f.name}</div>)}
+                               </div>
+                               <div style={{ textAlign: 'left', marginTop: '15px', marginBottom: '20px' }}>
+                                   <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold', marginBottom: '8px' }}>ВЫБЕРИТЕ ПАПКУ ДЛЯ ДОКУМЕНТОВ:</div>
+                                   {!isCreatingNewUploadSection ? (
+                                       <select style={{ width: '100%', padding: '12px', background: '#111', border: '1px solid #333', borderRadius: '10px', color: '#fff', outline: 'none', fontSize: '13px' }} value={uploadSection} onChange={e => { if (e.target.value === '__NEW__') { setIsCreatingNewUploadSection(true); setNewUploadSectionName(''); } else setUploadSection(e.target.value); }}>
+                                           {Array.from(new Set(['Основной раздел', ...existingDocSections])).map(sec => <option key={sec as string} value={sec as string}>{sec as string}</option>)}
+                                           <option value="__NEW__" style={{background: '#1a1a1a', color: '#0abab5'}}>+ Создать новую папку...</option>
+                                       </select>
+                                   ) : (
+                                       <div style={{ display: 'flex', gap: '8px' }}>
+                                           <input autoFocus style={{ flex: 1, padding: '12px', background: '#000', border: '1px solid #0abab5', borderRadius: '10px', color: '#fff', outline: 'none', fontSize: '13px' }} placeholder="Название..." value={newUploadSectionName} onChange={e => setNewUploadSectionName(e.target.value)} />
+                                           <button onClick={() => { setUploadSection(newUploadSectionName.trim() || 'Основной раздел'); setIsCreatingNewUploadSection(false); }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>ОК</button>
+                                           <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>✕</button>
+                                       </div>
+                                   )}
+                               </div>
+                               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                   <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '12px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', marginTop: 0 } as any}>{isProcessing ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ВСЕ'}</button>
+                                   <button onClick={() => { setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); }} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '12px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', marginTop: 0 } as any}>ОТМЕНИТЬ</button>
+                               </div>
+                           </div>
+                       )}
+                    </div>
+                </div>
+            )}
+
             <div style={flexSpace as any}>
                <h2 style={{ fontSize: '28px', fontWeight: '900', color: '#fff', margin: 0 }}>Нормативные документы</h2>
                {isAdmin && (
@@ -355,7 +509,29 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
-            {/* 💡 ДОБАВЛЕНЫ СТИЛИ СЕТКИ (УСТРАНЯЕТ РАСТЯГИВАНИЕ КАРТОЧЕК НА ВЕСЬ ЭКРАН) */}
+            {/* 💡 НОВЫЕ МОДАЛКИ ДЛЯ СТАТУСА ЗАГРУЗКИ */}
+            {successModal.show && (
+                <div style={modalOverlay as any} onClick={() => setSuccessModal({ show: false, title: '', text: '' })}>
+                    <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>✅</div>
+                        <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{successModal.title}</h2>
+                        <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{successModal.text}</p>
+                        <button onClick={() => setSuccessModal({ show: false, title: '', text: '' })} style={saveBtn as any}>ПОНЯТНО</button>
+                    </div>
+                </div>
+            )}
+
+            {errorModal.show && (
+                <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
+                    <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⛔</div>
+                        <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ОШИБКА</h2>
+                        <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{errorModal.text}</p>
+                        <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>
+                    </div>
+                </div>
+            )}
+
             <style jsx global>{`
                 @media (min-width: 769px) {
                     .premium-cards-container {
