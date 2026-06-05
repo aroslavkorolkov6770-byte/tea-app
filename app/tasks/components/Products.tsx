@@ -121,22 +121,35 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
     };
 
-    // 💡 НАДЕЖНОЕ СКАЧИВАНИЕ: Генерируем файл на лету прямо в браузере
-    const downloadTemplate = () => {
-        const bom = "\uFEFF"; // Маркер для Excel, чтобы он понимал кириллицу (UTF-8)
+    // 💡 ЭКСПОРТ АКТУАЛЬНЫХ ТОВАРОВ В CSV (ДЛЯ РЕДАКТИРОВАНИЯ В EXCEL)
+    const exportToCSV = () => {
+        const bom = "\uFEFF"; 
         const header = "Название;Категория;Цена;Описание\n";
-        const example = "Те Гуань Инь Ван;Светлые улуны;1500;Премиальный улун с цветочным ароматом.\n";
-        const blob = new Blob([bom + header + example], { type: 'text/csv;charset=utf-8;' });
-        
+        let csvContent = header;
+
+        if (products.length > 0) {
+            products.forEach(p => {
+                const safeName = `"${(p.name || '').toString().replace(/"/g, '""')}"`;
+                const safeCat = `"${(p.category || '').toString().replace(/"/g, '""')}"`;
+                const safePrice = `"${(p.price || '').toString().replace(/"/g, '""')}"`;
+                const safeDesc = `"${(p.desc || '').toString().replace(/"/g, '""')}"`;
+                csvContent += `${safeName};${safeCat};${safePrice};${safeDesc}\n`;
+            });
+        } else {
+            // Если база пуста, отдаем пример заполнения
+            csvContent += `"Те Гуань Инь Ван";"Светлые улуны";"1500";"Премиальный улун с цветочным ароматом."\n`;
+        }
+
+        const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = "template_products.csv";
+        link.download = `products_export_${new Date().toLocaleDateString('ru-RU').replace(/\./g, '-')}.csv`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     };
 
-    // ЗАГРУЗИТЬ ТОВАРЫ ИЗ EXCEL (CSV)
+    // 💡 УМНЫЙ ИМПОРТ ТОВАРОВ ИЗ EXCEL (С ОБНОВЛЕНИЕМ СУЩЕСТВУЮЩИХ ПО ИМЕНИ)
     const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -151,26 +164,54 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 return;
             }
 
-            const newProds = [];
+            const newProds: any[] = [];
+            let currentProds = [...products];
+            let updatedCount = 0;
+            let addedCount = 0;
+
             for (let i = 1; i < rows.length; i++) {
                 const cols = rows[i];
-                newProds.push({
-                    id: 'prod_' + Date.now() + '_' + i,
-                    name: cols[0] || 'Без названия',
-                    category: cols[1] || '',
-                    price: cols[2] || '',
-                    desc: cols[3] || '',
-                    isHit: false,
-                    isHidden: false,
-                    dateAdded: new Date().toLocaleDateString('ru-RU')
-                });
+                const name = cols[0] ? cols[0].trim() : '';
+                if (!name) continue;
+
+                const category = cols[1] ? cols[1].trim() : '';
+                const price = cols[2] ? cols[2].trim() : '';
+                const desc = cols[3] ? cols[3].trim() : '';
+
+                // Ищем товар с таким же названием (без учета регистра)
+                const existingIdx = currentProds.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+
+                if (existingIdx !== -1) {
+                    // Товар найден — ОБНОВЛЯЕМ ЕГО (не трогаем id, isHit, isHidden)
+                    currentProds[existingIdx] = {
+                        ...currentProds[existingIdx],
+                        category: category !== '' ? category : currentProds[existingIdx].category,
+                        price: price !== '' ? price : currentProds[existingIdx].price,
+                        desc: desc !== '' ? desc : currentProds[existingIdx].desc
+                    };
+                    updatedCount++;
+                } else {
+                    // Товар не найден — ДОБАВЛЯЕМ НОВЫЙ
+                    newProds.push({
+                        id: 'prod_' + Date.now() + '_' + i,
+                        name: name,
+                        category: category,
+                        price: price,
+                        desc: desc,
+                        isHit: false,
+                        isHidden: false,
+                        dateAdded: new Date().toLocaleDateString('ru-RU')
+                    });
+                    addedCount++;
+                }
             }
 
-            const updatedProducts = [...newProds, ...products];
-            setProducts(updatedProducts);
-            localStorage.setItem('th_cache_products', JSON.stringify(updatedProducts));
-            saveDataToServer(STORAGE_KEYS.PRODUCTS, updatedProducts);
-            alert(`✅ Успешно импортировано товаров: ${newProds.length}`);
+            const finalProducts = [...newProds, ...currentProds];
+            setProducts(finalProducts);
+            localStorage.setItem('th_cache_products', JSON.stringify(finalProducts));
+            saveDataToServer(STORAGE_KEYS.PRODUCTS, finalProducts);
+            
+            alert(`✅ Файл успешно обработан!\n\nДобавлено новых товаров: ${addedCount}\nОбновлено существующих: ${updatedCount}`);
         };
         reader.readAsText(file, "UTF-8");
         e.target.value = '';
@@ -201,7 +242,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0, color: '#fff' }}>Товары и Продукты</h2>
                 {isAdmin && (
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <button onClick={downloadTemplate} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333'} as any}>📥 ШАБЛОН</button>
+                        <button onClick={exportToCSV} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333'} as any}>📥 ЭКСПОРТ CSV</button>
                         <input type="file" accept=".csv" id="csv-upload" style={{display: 'none'}} onChange={handleImportCSV} />
                         <button onClick={() => document.getElementById('csv-upload')?.click()} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333'} as any}>📤 ИМПОРТ ИЗ ФАЙЛА</button>
                         <button onClick={() => {
