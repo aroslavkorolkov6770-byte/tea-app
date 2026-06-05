@@ -121,7 +121,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
     };
 
-    // 💡 ЭКСПОРТ АКТУАЛЬНЫХ ТОВАРОВ В CSV (ДЛЯ РЕДАКТИРОВАНИЯ В EXCEL)
+    // ЭКСПОРТ АКТУАЛЬНЫХ ТОВАРОВ В CSV (ДЛЯ РЕДАКТИРОВАНИЯ В EXCEL)
     const exportToCSV = () => {
         const bom = "\uFEFF"; 
         const header = "Название;Категория;Цена;Описание\n";
@@ -136,7 +136,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 csvContent += `${safeName};${safeCat};${safePrice};${safeDesc}\n`;
             });
         } else {
-            // Если база пуста, отдаем пример заполнения
             csvContent += `"Те Гуань Инь Ван";"Светлые улуны";"1500";"Премиальный улун с цветочным ароматом."\n`;
         }
 
@@ -149,7 +148,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         document.body.removeChild(link);
     };
 
-    // 💡 УМНЫЙ ИМПОРТ ТОВАРОВ ИЗ EXCEL (С ОБНОВЛЕНИЕМ СУЩЕСТВУЮЩИХ ПО ИМЕНИ)
+    // УМНЫЙ ИМПОРТ ТОВАРОВ ИЗ EXCEL
     const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -178,11 +177,9 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 const price = cols[2] ? cols[2].trim() : '';
                 const desc = cols[3] ? cols[3].trim() : '';
 
-                // Ищем товар с таким же названием (без учета регистра)
                 const existingIdx = currentProds.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
 
                 if (existingIdx !== -1) {
-                    // Товар найден — ОБНОВЛЯЕМ ЕГО (не трогаем id, isHit, isHidden)
                     currentProds[existingIdx] = {
                         ...currentProds[existingIdx],
                         category: category !== '' ? category : currentProds[existingIdx].category,
@@ -191,7 +188,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                     };
                     updatedCount++;
                 } else {
-                    // Товар не найден — ДОБАВЛЯЕМ НОВЫЙ
                     newProds.push({
                         id: 'prod_' + Date.now() + '_' + i,
                         name: name,
@@ -228,9 +224,9 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         (!selectedCategory || p.category === selectedCategory)
     );
 
+    // 💡 ИСПРАВЛЕНИЕ: Блок "Обязательно к продаже" теперь ГЛОБАЛЬНЫЙ. Убрана фильтрация по selectedCategory
     const hitProducts = baseFiltered.filter(p => 
         p.isHit && 
-        (!selectedCategory || p.category === selectedCategory) &&
         (!searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase())))
     );
 
