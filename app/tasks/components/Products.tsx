@@ -121,16 +121,15 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
     };
 
-    // СКАЧАТЬ ШАБЛОН EXCEL (CSV)
+    // 💡 СКАЧАТЬ АКТУАЛЬНЫЙ ШАБЛОН С САЙТА (ИЗ ПАПКИ PUBLIC)
     const downloadTemplate = () => {
-        const bom = "\uFEFF"; 
-        const header = "Название;Категория;Цена;Описание\n";
-        const example = "Те Гуань Инь Ван;Светлые улуны;1500;Премиальный улун с цветочным ароматом.\n";
-        const blob = new Blob([bom + header + example], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "template_products.csv";
+        // Указываем путь к файлу, который должен лежать в папке public твоего Next.js приложения
+        link.href = "/template_products.csv"; 
+        link.setAttribute("download", "template_products.csv");
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     };
 
     // ЗАГРУЗИТЬ ТОВАРЫ ИЗ EXCEL (CSV)
@@ -184,7 +183,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         (!selectedCategory || p.category === selectedCategory)
     );
 
-    // 💡 ИСПРАВЛЕНИЕ: Хиты продаж теперь реагируют на поиск, но блок не исчезает целиком.
     const hitProducts = baseFiltered.filter(p => 
         p.isHit && 
         (!selectedCategory || p.category === selectedCategory) &&
