@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
 
-import FileManager from './components/FileManager';
 import UserManagement from './components/UserManagement';
 import StatisticsPanel from './components/StatisticsPanel';
 import InteractionCenter from './components/InteractionCenter';
@@ -198,7 +197,6 @@ export default function AdminDashboard() {
       }
   }, [testType]);
 
-  // 💡 ПОЛНОСТЬЮ ОБНОВЛЕННАЯ ФУНКЦИЯ ПОДПИСКИ НА PUSH С ИСПОЛЬЗОВАНИЕМ КАСТОМНЫХ МОДАЛОК
   const subscribeToPush = async () => {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
           return setErrorModal({ show: true, text: "Браузер не поддерживает Web Push уведомления." });
@@ -339,7 +337,6 @@ export default function AdminDashboard() {
                       subtitle: 'Аттестация',
                       theory: '',
                       section: 'Аттестации',
-                      subsection: '',
                       timeLimit: 0,
                       quiz: getBaseQuizTemplate()
                   };
@@ -355,7 +352,6 @@ export default function AdminDashboard() {
                       subtitle: 'Индивидуальный тест',
                       theory: '',
                       section: 'Индивидуальные',
-                      subsection: '',
                       timeLimit: 0,
                       quiz: getBaseQuizTemplate()
                   };
@@ -506,12 +502,6 @@ export default function AdminDashboard() {
                 </div>
             )}
             
-            <FileManager 
-                urgentFiles={urgentFiles} setUrgentFiles={setUrgentFiles} isProcessing={isProcessing} setIsProcessing={setIsProcessing}
-                sendPushNotification={sendPushNotification} sendEmailNotification={sendEmailNotification}
-                setShowSuccessModal={setShowSuccessModal} setErrorModal={setErrorModal}
-            />
-
             <div className="admin-layout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px', marginBottom: '30px', marginTop: '40px' }}>
               <section style={{ minWidth: 0 }}>
                 
