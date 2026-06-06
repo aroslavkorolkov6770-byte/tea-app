@@ -15,8 +15,6 @@ const saveDataToServer = (key: string, data: any) => {
 };
 
 export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles }: any) {
-    const [previewFile, setPreviewFile] = useState<any>(null);
-
     // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ ПАПКАМИ ---
     const [promptSection, setPromptSection] = useState<{isOpen: boolean, name: string}>({ isOpen: false, name: '' });
     const [renameSectionPrompt, setRenameSectionPrompt] = useState<{isOpen: boolean, oldName: string, newName: string}>({ isOpen: false, oldName: '', newName: '' });
@@ -24,7 +22,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     
     // --- СОСТОЯНИЯ ДЛЯ ПЕРЕМЕЩЕНИЯ ФАЙЛОВ ---
     const [movingItem, setMovingItem] = useState<string | null>(null);
-    const [moveNewSectionName, setMoveNewSectionName] = useState('');
 
     // --- СОСТОЯНИЯ ДЛЯ ЗАГРУЗКИ ---
     const [isDragging, setIsDragging] = useState(false);
@@ -44,9 +41,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         return true;
     });
 
-    // Извлекаем существующие разделы для выпадающего списка загрузчика
+    // 💡 ИСПРАВЛЕНИЕ 1: Теперь мы НЕ фильтруем плейсхолдеры, чтобы свежесозданные папки отображались везде
     const existingDocSections = Array.from(new Set(
-        allDocs.filter((f: any) => !f.isDocPlaceholder).map((f: any) => f.section?.trim() || 'Основной раздел')
+        allDocs.map((f: any) => f.section?.trim() || 'Основной раздел')
     ));
 
     const updateFilesState = (newFiles: any[]) => {
@@ -173,26 +170,72 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         }
     };
 
+    // 💡 ИСПРАВЛЕНИЕ 3: Полностью изолированный предпросмотр файла в новой вкладке
     const handleOpenPreview = async (file: any) => {
         if (!file.data && !file.hasSeparateData) {
             alert("Этот файл был загружен в старой версии и недоступен для просмотра.");
             return;
         }
 
-        if (file.data) {
-            setPreviewFile(file);
-        } else {
-            try {
+        // Открываем новую вкладку сразу
+        const newWindow = window.open('', '_blank');
+        if (!newWindow) {
+            alert("Пожалуйста, разрешите всплывающие окна в браузере для предпросмотра документов.");
+            return;
+        }
+
+        // Временно показываем загрузочный экран во вкладке
+        newWindow.document.write('<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#0abab5;font-weight:bold;font-size:20px;">Подготовка документа...</div>');
+
+        try {
+            let fileBase64 = file.data;
+            if (!fileBase64 && file.hasSeparateData) {
                 const res = await fetch(`/api/storage?t=${Date.now()}&key=file_data_${file.id}`);
-                const fileBase64 = await res.json();
-                if (fileBase64) {
-                    setPreviewFile({ ...file, data: fileBase64 });
-                } else {
-                    alert("Данные файла не найдены.");
-                }
-            } catch (e) {
-                alert("Ошибка загрузки предпросмотра.");
+                fileBase64 = await res.json();
             }
+
+            if (!fileBase64) {
+                newWindow.document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#ff4d4d;font-weight:bold;font-size:20px;">Данные файла не найдены.</div>';
+                return;
+            }
+
+            const isUnsupported = file.name?.toLowerCase().match(/\.(docx|doc|xls|xlsx|ppt|pptx|zip|rar)$/i);
+
+            // Перезаписываем документ новой вкладки чистым кодом предпросмотра
+            newWindow.document.open();
+            newWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="ru">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Предпросмотр: ${file.name}</title>
+                    <style>
+                        body { margin: 0; padding: 0; background: #0d0f0d; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+                        iframe, object, embed { width: 100%; height: 100%; border: none; flex: 1; background: #fff; }
+                        .unsupported { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #fff; font-family: 'Inter', sans-serif; text-align: center; padding: 20px; }
+                        .btn { background: #0abab5; color: #000; padding: 15px 35px; border-radius: 14px; text-decoration: none; font-weight: 900; margin-top: 25px; font-size: 16px; transition: 0.2s; cursor: pointer; border: none; display: inline-block; }
+                        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(10,186,181,0.3); }
+                    </style>
+                </head>
+                <body>
+                    ${isUnsupported 
+                        ? `<div class="unsupported">
+                               <div style="font-size: 70px; margin-bottom: 20px;">📄</div>
+                               <h2 style="margin: 0 0 15px 0; font-size: 24px;">Формат не поддерживается</h2>
+                               <p style="color: #aaa; margin: 0; max-width: 450px; line-height: 1.5; font-size: 15px;">
+                                   К сожалению, браузеры не могут отобразить этот тип файла прямо во вкладке. Вы можете безопасно скачать его на своё устройство.
+                               </p>
+                               <a href="${fileBase64}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ ↓</a>
+                           </div>` 
+                        : `<iframe src="${fileBase64}"></iframe>`
+                    }
+                </body>
+                </html>
+            `);
+            newWindow.document.close();
+        } catch (e) {
+            newWindow.document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#ff4d4d;font-weight:bold;font-size:20px;">Произошла ошибка при загрузке документа.</div>';
         }
     };
 
@@ -251,6 +294,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         setConfirmDelete({ isOpen: false, type: 'file', targetId: '', name: '' });
     };
 
+    // 💡 ИСПРАВЛЕНИЕ 2: Очищенная функция перемещения (без создания новых разделов)
     const handleMoveItem = (targetSection: string) => {
         if (!movingItem) return;
         
@@ -270,7 +314,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
         updateFilesState(updated);
         setMovingItem(null);
-        setMoveNewSectionName('');
     };
 
     // --- ГРУППИРОВКА ФАЙЛОВ ПО РАЗДЕЛАМ ---
@@ -292,7 +335,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
-            {/* 💡 НОВЫЙ БЛОК ЗАГРУЗКИ (ОБНОВЛЕННЫЙ ДИЗАЙН И ФИКС ВЕРСТКИ) */}
+            {/* БЛОК ЗАГРУЗКИ (ОБНОВЛЕННЫЙ ДИЗАЙН) */}
             {isAdmin && (
                 <div style={{ marginBottom: '40px' }}>
                     {(!selectedFiles || selectedFiles.length === 0) ? (
@@ -458,25 +501,20 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
+            {/* 💡 ИСПРАВЛЕНИЕ 2: Модалка перемещения теперь использует ТОЛЬКО существующие папки */}
             {movingItem && (
-                <div style={modalOverlay as any} onClick={() => { setMovingItem(null); setMoveNewSectionName(''); }}>
+                <div style={modalOverlay as any} onClick={() => setMovingItem(null)}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
                         <h2 style={{color: '#0abab5', textAlign: 'center', marginBottom: '20px', fontWeight: '900', textTransform: 'uppercase'}}>Переместить документ</h2>
                         
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto', marginBottom: '20px'}} className="custom-scroll">
-                            <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginLeft: '5px' }}>Выбрать существующий:</div>
-                            {Array.from(new Set(allDocs.map((i: any) => i.section?.trim() || 'Основной раздел'))).map((sec: any) => (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto', marginBottom: '10px'}} className="custom-scroll">
+                            <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginLeft: '5px' }}>Выберите папку:</div>
+                            {existingDocSections.map((sec: any) => (
                                 <button key={sec} onClick={() => handleMoveItem(sec)} style={{...adminIn, textAlign: 'left', cursor: 'pointer', background: '#1a1a1a', border: '1px solid #333'} as any}>{sec}</button>
                             ))}
                         </div>
 
-                        <div style={{ borderTop: '1px solid #222', paddingTop: '20px' }}>
-                            <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Или создать новый раздел:</div>
-                            <input style={adminIn as any} placeholder="Название нового раздела..." value={moveNewSectionName} onChange={e => setMoveNewSectionName(e.target.value)} />
-                            <button onClick={() => {
-                                if (moveNewSectionName.trim()) handleMoveItem(moveNewSectionName.trim());
-                            }} style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '15px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', width: '100%', marginTop: '10px' }}>СОЗДАТЬ И ПЕРЕМЕСТИТЬ</button>
-                        </div>
+                        <button onClick={() => setMovingItem(null)} style={{ ...saveBtn, background: '#333', color: '#fff', marginTop: '10px' } as any}>ОТМЕНА</button>
                     </div>
                 </div>
             )}
@@ -500,37 +538,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
-            {/* ПРЕДПРОСМОТР ФАЙЛА */}
-            {previewFile && (
-                <div style={modalOverlay as any} onClick={() => setPreviewFile(null)}>
-                    <div className="tasks-modal" style={{ background: '#111', padding: '30px', borderRadius: '30px', width: '100%', maxWidth: '80%', height: '85vh', border: '1px solid #333', display: 'flex', flexDirection: 'column' } as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
-                            <h2 style={{ color: '#0abab5', fontWeight: '900', fontSize: '18px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{previewFile?.name}</h2>
-                            <div onClick={() => setPreviewFile(null)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
-                        </div>
-                        <div style={{ flex: 1, width: '100%', background: '#fff', borderRadius: '15px', overflow: 'hidden' }}>
-                            {previewFile.data ? (
-                                previewFile.name?.toLowerCase().match(/\.(docx|doc|xls|xlsx|ppt|pptx|zip|rar)$/i) ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', textAlign: 'center', padding: '20px' }}>
-                                        <div style={{ fontSize: '60px', marginBottom: '15px' }}>📄</div>
-                                        <h3 style={{ margin: '0 0 10px 0', fontSize: '20px' }}>Формат не поддерживается</h3>
-                                        <p style={{ color: '#555', fontSize: '14px', maxWidth: '350px', lineHeight: '1.5' }}>Браузеры не умеют открывать этот формат прямо внутри сайта. Вы можете скачать файл.</p>
-                                        <button onClick={() => handleDownloadFile(previewFile)} style={{ ...saveBtn, width: 'auto', padding: '12px 30px', marginTop: '20px', borderRadius: '12px' } as any}>СКАЧАТЬ ФАЙЛ</button>
-                                    </div>
-                                ) : (
-                                    <iframe src={previewFile.data} style={{ width: '100%', height: '100%', border: 'none' }} title="Предпросмотр файла" />
-                                )
-                            ) : (
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '20px' }}>
-                                    Загрузка документа...
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 💡 НОВЫЕ МОДАЛКИ ДЛЯ СТАТУСА ЗАГРУЗКИ */}
             {successModal.show && (
                 <div style={modalOverlay as any} onClick={() => setSuccessModal({ show: false, title: '', text: '' })}>
                     <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
@@ -553,7 +560,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
-            {/* 💡 СТИЛИ СЕТКИ (УСТРАНЯЕТ РАСТЯГИВАНИЕ И ОБЕСПЕЧИВАЕТ АДАПТИВНОСТЬ) */}
             <style jsx global>{`
                 @media (min-width: 769px) {
                     .premium-cards-container {
