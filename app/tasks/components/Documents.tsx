@@ -14,6 +14,27 @@ const saveDataToServer = (key: string, data: any) => {
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
+// 💡 НОВЫЙ КОНВЕРТЕР: Превращает текстовый код файла в настоящий виртуальный файл
+// Это решает проблему зависания PDF-файлов и позволяет скачивать тяжелые файлы
+const base64ToBlobUrl = (base64Data: string) => {
+    try {
+        const arr = base64Data.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        return URL.createObjectURL(blob);
+    } catch (e) {
+        console.error("Ошибка конвертации Blob", e);
+        return base64Data; // Фолбэк на старый метод, если что-то пошло не так
+    }
+};
+
 export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles }: any) {
     // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ ПАПКАМИ ---
     const [promptSection, setPromptSection] = useState<{isOpen: boolean, name: string}>({ isOpen: false, name: '' });
@@ -41,7 +62,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         return true;
     });
 
-    // 💡 ИСПРАВЛЕНИЕ 1: Теперь мы НЕ фильтруем плейсхолдеры, чтобы свежесозданные папки отображались везде
     const existingDocSections = Array.from(new Set(
         allDocs.map((f: any) => f.section?.trim() || 'Основной раздел')
     ));
@@ -138,53 +158,50 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         } finally { setIsProcessing(false); }
     };
 
-    const handleDownloadFile = (file: any) => {
+    // 💡 ИСПРАВЛЕНИЕ: Скачивание файлов теперь работает надежно для файлов любого веса
+    const handleDownloadFile = async (file: any) => {
         if (!file.data && !file.hasSeparateData) {
             alert("Этот файл был загружен в старой версии платформы и недоступен.");
             return;
         }
         
-        if (file.data) {
+        try {
+            let fileBase64 = file.data;
+            if (!fileBase64 && file.hasSeparateData) {
+                const res = await fetch(`/api/storage?t=${Date.now()}&key=file_data_${file.id}`);
+                fileBase64 = await res.json();
+            }
+
+            if (!fileBase64) {
+                alert("Файл не найден на сервере.");
+                return;
+            }
+
+            const objectUrl = base64ToBlobUrl(fileBase64);
             const link = document.createElement('a');
-            link.href = file.data;
+            link.href = objectUrl;
             link.download = file.name;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        } else {
-            fetch(`/api/storage?t=${Date.now()}&key=file_data_${file.id}`)
-                .then(r => r.json())
-                .then(fileBase64 => {
-                    if (fileBase64) {
-                        const link = document.createElement('a');
-                        link.href = fileBase64;
-                        link.download = file.name;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                    } else {
-                        alert("Файл не найден на сервере.");
-                    }
-                })
-                .catch(() => alert("Ошибка при скачивании файла."));
+        } catch (e) {
+            alert("Ошибка при скачивании файла.");
         }
     };
 
-    // 💡 ИСПРАВЛЕНИЕ 3: Полностью изолированный предпросмотр файла в новой вкладке
+    // 💡 ИСПРАВЛЕНИЕ: Интеллектуальный предпросмотр (PDF открываются сразу, Word/Excel предлагают скачивание)
     const handleOpenPreview = async (file: any) => {
         if (!file.data && !file.hasSeparateData) {
             alert("Этот файл был загружен в старой версии и недоступен для просмотра.");
             return;
         }
 
-        // Открываем новую вкладку сразу
         const newWindow = window.open('', '_blank');
         if (!newWindow) {
             alert("Пожалуйста, разрешите всплывающие окна в браузере для предпросмотра документов.");
             return;
         }
 
-        // Временно показываем загрузочный экран во вкладке
         newWindow.document.write('<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#0abab5;font-weight:bold;font-size:20px;">Подготовка документа...</div>');
 
         try {
@@ -195,13 +212,14 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             }
 
             if (!fileBase64) {
-                newWindow.document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#ff4d4d;font-weight:bold;font-size:20px;">Данные файла не найдены.</div>';
+                newWindow.document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#ff4d4d;font-weight:bold;font-size:20px;">Данные файла не найдены на сервере.</div>';
                 return;
             }
 
+            const objectUrl = base64ToBlobUrl(fileBase64);
             const isUnsupported = file.name?.toLowerCase().match(/\.(docx|doc|xls|xlsx|ppt|pptx|zip|rar)$/i);
+            const fileExt = file.name.split('.').pop()?.toUpperCase() || 'ФАЙЛ';
 
-            // Перезаписываем документ новой вкладки чистым кодом предпросмотра
             newWindow.document.open();
             newWindow.document.write(`
                 <!DOCTYPE html>
@@ -214,7 +232,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         body { margin: 0; padding: 0; background: #0d0f0d; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
                         iframe, object, embed { width: 100%; height: 100%; border: none; flex: 1; background: #fff; }
                         .unsupported { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #fff; font-family: 'Inter', sans-serif; text-align: center; padding: 20px; }
-                        .btn { background: #0abab5; color: #000; padding: 15px 35px; border-radius: 14px; text-decoration: none; font-weight: 900; margin-top: 25px; font-size: 16px; transition: 0.2s; cursor: pointer; border: none; display: inline-block; }
+                        .btn { background: #0abab5; color: #000; padding: 15px 35px; border-radius: 14px; text-decoration: none; font-weight: 900; margin-top: 30px; font-size: 16px; transition: 0.2s; cursor: pointer; border: none; display: inline-block; }
                         .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(10,186,181,0.3); }
                     </style>
                 </head>
@@ -222,13 +240,14 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     ${isUnsupported 
                         ? `<div class="unsupported">
                                <div style="font-size: 70px; margin-bottom: 20px;">📄</div>
-                               <h2 style="margin: 0 0 15px 0; font-size: 24px;">Формат не поддерживается</h2>
-                               <p style="color: #aaa; margin: 0; max-width: 450px; line-height: 1.5; font-size: 15px;">
-                                   К сожалению, браузеры не могут отобразить этот тип файла прямо во вкладке. Вы можете безопасно скачать его на своё устройство.
+                               <h2 style="margin: 0 0 15px 0; font-size: 26px;">Формат ${fileExt} не поддерживается браузером</h2>
+                               <p style="color: #aaa; margin: 0; max-width: 500px; line-height: 1.6; font-size: 15px;">
+                                   К сожалению, веб-браузеры физически не умеют открывать документы Microsoft Office внутри вкладок.
+                                   <br/><br/>Но вы можете безопасно скачать этот файл на своё устройство и открыть его в соответствующей программе.
                                </p>
-                               <a href="${fileBase64}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ ↓</a>
+                               <a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ ↓</a>
                            </div>` 
-                        : `<iframe src="${fileBase64}"></iframe>`
+                        : `<iframe src="${objectUrl}"></iframe>`
                     }
                 </body>
                 </html>
@@ -294,7 +313,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         setConfirmDelete({ isOpen: false, type: 'file', targetId: '', name: '' });
     };
 
-    // 💡 ИСПРАВЛЕНИЕ 2: Очищенная функция перемещения (без создания новых разделов)
     const handleMoveItem = (targetSection: string) => {
         if (!movingItem) return;
         
@@ -501,7 +519,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
-            {/* 💡 ИСПРАВЛЕНИЕ 2: Модалка перемещения теперь использует ТОЛЬКО существующие папки */}
             {movingItem && (
                 <div style={modalOverlay as any} onClick={() => setMovingItem(null)}>
                     <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
