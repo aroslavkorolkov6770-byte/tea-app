@@ -22,6 +22,11 @@ const stripEmoji = (str: string) => {
     return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 };
 
+const normalizeText = (text: string) => {
+    if (!text) return '';
+    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+};
+
 const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: string, descText: string }) => {
     return (
         <div style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
@@ -37,7 +42,6 @@ const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: st
     return prevProps.iframeStr === nextProps.iframeStr && prevProps.descText === nextProps.descText;
 });
 
-// Функция рандомизации массива (Тасуем вопросы)
 const shuffleArray = (array: any[]) => {
     return [...array].sort(() => Math.random() - 0.5);
 };
@@ -64,6 +68,7 @@ export default function Education({
     });
 
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, type: 'route'|'test'|'section_route'|'section_test', targetId: string, name: string}>({ isOpen: false, type: 'route', targetId: '', name: '' });
+    const [confirmSectionDelete, setConfirmSectionDelete] = useState({ isOpen: false, type: 'route' as 'route'|'test', name: '' });
     const [renameSectionPrompt, setRenameSectionPrompt] = useState<{isOpen: boolean, type: 'route'|'test', oldName: string, newName: string}>({ isOpen: false, type: 'route', oldName: '', newName: '' });
     const [promptSection, setPromptSection] = useState<{isOpen: boolean, type: 'route'|'test', name: string}>({ isOpen: false, type: 'route', name: '' });
     const [movingItem, setMovingItem] = useState<{id: string, type: 'route' | 'test'} | null>(null);
@@ -117,7 +122,7 @@ export default function Education({
                 const notifRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_notifications_v1`);
                 const notifs = await notifRes.json().catch(() => []);
                 const newNotif = {
-                    id: Date.now(), title: '⚠️ Провал по таймеру',
+                    id: Date.now(), title: 'Провал по таймеру',
                     text: `Сотрудник ${currentUserName} не успел пройти аттестацию "${testTarget.title || testTarget.name}". Время вышло!`,
                     time: formattedTime, target: 'u_admin' 
                 };
@@ -252,13 +257,7 @@ export default function Education({
     };
 
     const executeDelete = () => {
-        if (confirmDelete.type === 'section_route') {
-            const updated = dynamicRoute.filter((r: any) => (r.section?.trim() || 'Основной раздел') !== confirmDelete.targetId);
-            updateRouteState(updated);
-        } else if (confirmDelete.type === 'section_test') {
-            const updated = dynamicTests.filter((t: any) => (t.section?.trim() || 'Основной раздел') !== confirmDelete.targetId);
-            updateTestsState(updated);
-        } else if (confirmDelete.type === 'route') {
+        if (confirmDelete.type === 'route') {
             const itemToDelete = dynamicRoute.find((r: any) => r.id === confirmDelete.targetId);
             const sourceSection = itemToDelete?.section?.trim() || 'Основной раздел';
             const updated = dynamicRoute.filter((r: any) => r.id !== confirmDelete.targetId);
@@ -303,18 +302,20 @@ export default function Education({
         setPromptSection({ isOpen: false, type: 'route', name: '' });
     };
 
-    const groupItems = (items: any[]) => {
-        const groups: Record<string, any[]> = {};
-        items.forEach((item: any) => {
-            const sec = item.section?.trim() || 'Основной раздел';
-            if (!groups[sec]) groups[sec] = [];
-            if (!item.isPlaceholder) groups[sec].push(item);
-        });
+    const theoryGroups = (dynamicRoute || []).reduce((groups: any, step: any) => {
+        const sec = step.section || 'Основной раздел';
+        if (!groups[sec]) groups[sec] = [];
+        groups[sec].push(step);
         return groups;
-    };
+    }, {});
 
-    const theoryGroups = groupItems(dynamicRoute || []);
-    const testGroups = groupItems(dynamicTests || []);
+    const testGroups = (dynamicTests || []).reduce((groups: any, test: any) => {
+        const sec = test.section || 'Основной раздел';
+        if (!groups[sec]) groups[sec] = [];
+        groups[sec].push(test);
+        return groups;
+    }, {});
+    
     const realTests = (dynamicTests || []).filter((t: any) => !t.isPlaceholder);
 
     const handleTestAnswer = (idx: number) => {
@@ -408,7 +409,7 @@ export default function Education({
             {/* --- СРОЧНО К ПРОХОЖДЕНИЮ --- */}
             <div style={{ marginBottom: '50px', width: '100%', boxSizing: 'border-box' }}>
                 <div className="tasks-flex-space" style={flexSpace as any}>
-                    <h2 className="tasks-title" style={{ ...sectionTitle, color: '#0abab5', margin: 0 } as any}>Срочно к прохождению</h2>
+                    <h2 className="tasks-title" style={{ ...sectionTitle, color: '#ff4d4d', margin: 0 } as any}>Срочно к прохождению</h2>
                 </div>
                 {urgentTasks.length > 0 ? (
                     <div className="premium-cards-container"> 
@@ -441,20 +442,40 @@ export default function Education({
                                          }
                                      }}
                                 >
-                                    <div onClick={(e) => { e.stopPropagation(); handleDismissTask(file.id); }} style={{ position: 'absolute', top: '15px', right: '15px', cursor: 'pointer', zIndex: 10 }}>
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M18 6L6 18M6 6L18 18" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </svg>
-                                    </div>
-                                    <div style={{ paddingRight: '35px' }}>
-                                        <span style={{fontSize:'12px', color:'#ff4d4d', fontWeight:'900', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M12 9V13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '15px', marginBottom: '15px' }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <span style={{fontSize:'12px', color:'#ff4d4d', fontWeight:'900', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M12 9V13M12 17H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                                ДЕДЛАЙН
+                                            </span>
+                                            <h4 style={{fontSize:'15px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{file.name.replace('⚠️ Дедлайн: ', '').replace('Дедлайн: ', '')}</h4>
+                                        </div>
+                                        <div onClick={(e) => { e.stopPropagation(); handleDismissTask(file.id); }} className="card-icon-btn del-btn" title="Закрыть" style={{ border: 'none', background: 'transparent', flexShrink: 0 }}>
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M18 6L6 18M6 6L18 18" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                             </svg>
-                                            ДЕДЛАЙН
-                                        </span>
-                                        <h4 style={{fontSize:'15px', margin:'0 0 10px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{file.name.replace('⚠️ Дедлайн: ', '')}</h4>
+                                        </div>
                                     </div>
+                                    
+                                    <div style={boxesFlexWrapStyle as any}>
+                                        {file.outlinedItems && file.outlinedItems.map((item: string, idx: number) => (
+                                            <div key={idx} style={{
+                                                border: '1px solid #ff4d4d',
+                                                borderRadius: '8px',
+                                                padding: '6px 10px',
+                                                fontSize: '11px',
+                                                color: '#ff4d4d',
+                                                fontWeight: 'bold',
+                                                background: 'rgba(255, 77, 77, 0.05)',
+                                                whiteSpace: 'normal',
+                                                wordBreak: 'break-word',
+                                                lineHeight: '1.4'
+                                            }}>{normalizeText(item)}</div>
+                                        ))}
+                                    </div>
+
                                     <div style={{ marginTop: 'auto' }}>
                                         <div style={{ color: '#ff4d4d', fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>{file.size}</div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -469,14 +490,18 @@ export default function Education({
                                     if (file.timeLimit > 0) setTimeLeft(file.timeLimit * 60);
                                     else setTimeLeft(null);
                                 }}>
-                                    <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M12 4L2 9L12 14L22 9L12 4Z" fill="rgba(10,186,181,0.2)" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                            <path d="M6 11V16C6 16 9 19 12 19C15 19 18 16 18 16V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </svg>
-                                        АТТЕСТАЦИЯ
-                                    </span>
-                                    <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(file.name)}</h4>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '15px', marginBottom: '15px' }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M12 4L2 9L12 14L22 9L12 4Z" fill="rgba(10,186,181,0.2)" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    <path d="M6 11V16C6 16 9 19 12 19C15 19 18 16 18 16V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                                АТТЕСТАЦИЯ
+                                            </span>
+                                            <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3'}}>{stripEmoji(file.name)}</h4>
+                                        </div>
+                                    </div>
                                     <div style={{ marginTop: 'auto' }}>
                                         <div style={cardFooter as any}><span>Пройти тестирование</span><span style={{color: '#0abab5'}}>{file.quiz?.length || 0} вопр.</span></div>
                                     </div>
@@ -510,8 +535,8 @@ export default function Education({
                    <div key={secName} style={{ marginBottom: '40px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
-                               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                   <path d="M22 19A2 2 0 0 1 20 21H4A2 2 0 0 1 2 19V5A2 2 0 0 1 4 3H9L11 5H20A2 2 0 0 1 22 7V19Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '8px', marginBottom: '-4px'}}>
+                                   <path d="M22 19A2 2 0 0 1 20 21H4A2 2 0 0 1 2 19V5A2 2 0 0 1 4 3H9L11 5H20A2 2 0 0 1 22 7V19Z" fill="rgba(10,186,181,0.1)" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                </svg>
                                {secName}
                            </h3>
@@ -524,7 +549,7 @@ export default function Education({
                                        </svg>
                                        РЕДАКТИРОВАТЬ
                                    </span>
-                                   <span onClick={() => setConfirmDelete({isOpen: true, type: 'section_route', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                   <span onClick={() => setConfirmSectionDelete({isOpen: true, type: 'route', name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '3px', marginBottom: '-2px'}}>
                                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                                        </svg>
@@ -535,38 +560,58 @@ export default function Education({
                        </div>
                        
                        <div className="premium-cards-container">
-                           {items.length === 0 ? <div style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>В этом разделе пока нет материалов...</div> : items.map((step: any, idx: number) => {
+                           {items.filter((step: any) => step.h1 !== 'DELETE_ME').map((step: any, idx: number) => {
                                    const isDone = completedRoute.includes(step.id);
                                    return (
                                        <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="premium-card">
-                                          {isAdmin && (
-                                              <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
-                                                  <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} className="card-icon-btn move-btn" title="Переместить">
-                                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                  </div>
-                                                  <div onClick={(e) => { e.stopPropagation(); setRouteFormData({ id: step.id, title: step.title, time: step.time || '5 мин', section: step.section || '', mediaType: step.mediaType || 'text', videoIframe: step.videoIframe || '', videoDesc: step.videoDesc || '', h1: step.h1, t1: step.t1, img1: step.img1 || '', h2: step.h2, t2: step.t2, img2: step.img2 || '', h3: step.h3, t3: step.t3, img3: step.img3 || '' }); setShowRouteForm(true); }} className="card-icon-btn edit-btn" title="Редактировать">
-                                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                  </div>
-                                                  <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} className="card-icon-btn del-btn" title="Удалить">
-                                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                  </div>
+                                          
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '15px', marginBottom: '15px' }}>
+                                              <div style={{ flex: 1, minWidth: 0 }}>
+                                                  <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px', display: 'block'}}>Урок {idx+1}</span>
+                                                  <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
+                                                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '1px'}}>
+                                                          <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="rgba(10,186,181,0.15)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M14 2V8H20" fill="rgba(10,186,181,0.3)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M8 13H16" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M8 17H13" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                      </svg>
+                                                      <span>{stripEmoji(step.title)}</span>
+                                                  </h4>
                                               </div>
-                                          )}
-                                          <div style={{ paddingRight: isAdmin ? '125px' : '0', marginBottom: '15px' }}>
-                                              <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '6px', display: 'block'}}>Урок {idx+1}</span>
-                                              <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
-                                                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '1px'}}>
-                                                      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="rgba(10,186,181,0.15)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M14 2V8H20" fill="rgba(10,186,181,0.3)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M8 13H16" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M8 17H13" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                  </svg>
-                                                  <span>{stripEmoji(step.title)}</span>
-                                              </h4>
+                                              
+                                              {isAdmin && (
+                                                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, zIndex: 10 }} onClick={e => e.stopPropagation()}>
+                                                      <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} className="card-icon-btn move-btn" title="Переместить">
+                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                      </div>
+                                                      <div onClick={(e) => { e.stopPropagation(); setRouteFormData({ id: step.id, title: step.title, time: step.time || '5 мин', section: step.section || '', mediaType: step.mediaType || 'text', videoIframe: step.videoIframe || '', videoDesc: step.videoDesc || '', h1: step.h1, t1: step.t1, img1: step.img1 || '', h2: step.h2, t2: step.t2, img2: step.img2 || '', h3: step.h3, t3: step.t3, img3: step.img3 || '' }); setShowRouteForm(true); }} className="card-icon-btn edit-btn" title="Редактировать">
+                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                      </div>
+                                                      <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} className="card-icon-btn del-btn" title="Удалить">
+                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                      </div>
+                                                  </div>
+                                              )}
                                           </div>
+                                          
                                           <div style={{ marginTop: 'auto' }}>
                                               <div style={pBarBg as any}><div style={pBarFill(isDone ? 100 : 0) as any} /></div>
-                                              <div style={cardFooter as any}><span>{isDone ? 'Выполнено' : 'Начать'}</span><span>{step.mediaType === 'video' ? '🎥 Видео' : '📝 Чтение'} • {step.time}</span></div>
+                                              <div style={cardFooter as any}>
+                                                  <span>{isDone ? 'Выполнено' : 'Начать'}</span>
+                                                  <span>
+                                                      {step.mediaType === 'video' ? (
+                                                          <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M23 7L16 12L23 17V7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                              Видео
+                                                          </span>
+                                                      ) : (
+                                                          <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M6.5 2H20V22H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                              Чтение
+                                                          </span>
+                                                      )} • {step.time}
+                                                  </span>
+                                              </div>
                                           </div>
                                        </div>
                                    );
@@ -596,8 +641,10 @@ export default function Education({
                    <div key={secName} style={{ marginBottom: '40px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
-                               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                   <path d="M22 19A2 2 0 0 1 20 21H4A2 2 0 0 1 2 19V5A2 2 0 0 1 4 3H9L11 5H20A2 2 0 0 1 22 7V19Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '8px', marginBottom: '-4px'}}>
+                                   <path d="M9 2H15A1 1 0 0 1 16 3V5A1 1 0 0 1 15 6H9A1 1 0 0 1 8 5V3A1 1 0 0 1 9 2Z" fill="rgba(10,186,181,0.1)" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                   <path d="M8 4H5A2 2 0 0 0 3 6V20A2 2 0 0 0 5 22H19A2 2 0 0 0 21 20V6A2 2 0 0 0 19 4H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                   <path d="M9 12H15M9 16H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                </svg>
                                {secName}
                            </h3>
@@ -610,7 +657,7 @@ export default function Education({
                                        </svg>
                                        РЕДАКТИРОВАТЬ
                                    </span>
-                                   <span onClick={() => setConfirmDelete({isOpen: true, type: 'section_test', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                   <span onClick={() => setConfirmSectionDelete({isOpen: true, type: 'test', name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '3px', marginBottom: '-2px'}}>
                                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                                        </svg>
@@ -621,7 +668,7 @@ export default function Education({
                        </div>
                        
                        <div className="premium-cards-container">
-                           {items.length === 0 ? <div style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>В этом разделе пока нет тестов...</div> : items.map((test: any, idx: number) => {
+                           {items.filter((test: any) => test.quiz && test.quiz.length > 0).map((test: any, idx: number) => {
                                    const isDone = completedTests.includes(test.id);
                                    const globalIdx = realTests.findIndex((t: any) => t.id === test.id);
                                    const isUnlocked = isDone || isAdmin || globalIdx <= 0 || completedTests.includes(realTests[globalIdx - 1]?.id);
@@ -656,39 +703,42 @@ export default function Education({
                                               </svg>
                                           </div>}
                                           
-                                          {isAdmin && (
-                                               <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
-                                                   <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} className="card-icon-btn move-btn" title="Переместить">
-                                                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                   </div>
-                                                   <div onClick={(e) => { 
-                                                       e.stopPropagation(); 
-                                                       setTestFormData({
-                                                           id: test.id, title: test.title, subtitle: test.subtitle, theory: test.theory,
-                                                           section: test.section || '', timeLimit: test.timeLimit || 0,
-                                                           quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }]
-                                                       }); 
-                                                       setShowTestForm(true); 
-                                                   }} className="card-icon-btn edit-btn" title="Редактировать">
-                                                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                   </div>
-                                                   <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'test', targetId: test.id, name: test.title}); }} className="card-icon-btn del-btn" title="Удалить">
-                                                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                   </div>
-                                               </div>
-                                           )}
-
-                                          <div style={{ paddingRight: isAdmin ? '125px' : '0', marginBottom: '15px' }}>
-                                              <span style={{fontSize:'12px', color: isUnlocked ? '#0abab5' : '#555', fontWeight:'800', marginBottom: '6px', opacity: isUnlocked ? 1 : 0.5, display: 'block'}}>Тест {idx+1}</span>
-                                              <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: isUnlocked ? '#fff' : '#666', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
-                                                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '1px'}}>
-                                                      <path d="M9 2H15C15.5523 2 16 2.44772 16 3V5C16 5.55228 15.5523 6 15 6H9C8.44772 6 8 5.55228 8 5V3C8 2.44772 8.44772 2 9 2Z" fill={isUnlocked ? "rgba(10,186,181,0.15)" : "rgba(102,102,102,0.15)"} stroke={isUnlocked ? "#0abab5" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M8 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4H16" stroke={isUnlocked ? "#0abab5" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M9 12L11 14L15 10" stroke={isUnlocked ? "#0abab5" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                  </svg>
-                                                  <span>{stripEmoji(test.title)}</span>
-                                              </h4>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '15px', marginBottom: '15px' }}>
+                                              <div style={{ flex: 1, minWidth: 0, opacity: isUnlocked ? 1 : 0.5 }}>
+                                                  <span style={{fontSize:'12px', color: isUnlocked ? '#0abab5' : '#555', fontWeight:'800', marginBottom: '6px', display: 'block'}}>Тест {idx+1}</span>
+                                                  <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: isUnlocked ? '#fff' : '#666', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
+                                                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '1px'}}>
+                                                          <path d="M9 2H15C15.5523 2 16 2.44772 16 3V5C16 5.55228 15.5523 6 15 6H9C8.44772 6 8 5.55228 8 5V3C8 2.44772 8.44772 2 9 2Z" fill={isUnlocked ? "rgba(10,186,181,0.15)" : "rgba(102,102,102,0.15)"} stroke={isUnlocked ? "#0abab5" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M8 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4H16" stroke={isUnlocked ? "#0abab5" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M9 12L11 14L15 10" stroke={isUnlocked ? "#0abab5" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                      </svg>
+                                                      <span>{stripEmoji(test.title)}</span>
+                                                  </h4>
+                                              </div>
+                                              
+                                              {isAdmin && (
+                                                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, zIndex: 10 }} onClick={e => e.stopPropagation()}>
+                                                      <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} className="card-icon-btn move-btn" title="Переместить">
+                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                      </div>
+                                                      <div onClick={(e) => { 
+                                                          e.stopPropagation(); 
+                                                          setTestFormData({
+                                                              id: test.id, title: test.title, subtitle: test.subtitle, theory: test.theory,
+                                                              section: test.section || '', timeLimit: test.timeLimit || 0,
+                                                              quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }]
+                                                          }); 
+                                                          setShowTestForm(true); 
+                                                      }} className="card-icon-btn edit-btn" title="Редактировать">
+                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                      </div>
+                                                      <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'test', targetId: test.id, name: test.title}); }} className="card-icon-btn del-btn" title="Удалить">
+                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                      </div>
+                                                  </div>
+                                              )}
                                           </div>
+
                                           <div style={{ marginTop: 'auto', opacity: isUnlocked ? 1 : 0.5 }}>
                                               <div style={pBarBg as any}><div style={pBarFill(isDone ? 100 : 0) as any} /></div>
                                               <div style={cardFooter as any}><span>{isDone ? 'Сдан' : 'Не сдан'}</span><span>{test.quiz?.length || 0} вопр.</span></div>
@@ -723,7 +773,72 @@ export default function Education({
                         <input style={adminIn as any} autoFocus placeholder="Новое название" value={renameSectionPrompt.newName} onChange={e => setRenameSectionPrompt({...renameSectionPrompt, newName: e.target.value})} />
                         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                             <button onClick={() => setRenameSectionPrompt({...renameSectionPrompt, isOpen: false})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
-                            <button onClick={confirmRenameSection} style={{ ...saveBtn, flex: 1, marginTop: 0 } as any}>СОХРАНИТЬ</button>
+                            <button onClick={() => {
+                                if (!renameSectionPrompt.newName.trim()) return;
+                                const newName = renameSectionPrompt.newName.trim();
+                                const oldName = renameSectionPrompt.oldName;
+                                if (renameSectionPrompt.type === 'route') {
+                                    const updated = dynamicRoute.map((r: any) => (r.section || 'Основной раздел') === oldName ? { ...r, section: newName } : r);
+                                    updateRouteState(updated);
+                                } else {
+                                    const updated = dynamicTests.map((t: any) => (t.section || 'Основной раздел') === oldName ? { ...t, section: newName } : t);
+                                    updateTestsState(updated);
+                                }
+                                setRenameSectionPrompt({ isOpen: false, type: 'route', oldName: '', newName: '' });
+                            }} style={{ ...saveBtn, flex: 1, marginTop: 0 } as any}>СОХРАНИТЬ</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {confirmSectionDelete.isOpen && (
+                <div style={modalOverlay as any} onClick={() => setConfirmSectionDelete({isOpen: false, type: 'route', name: ''})}>
+                    <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ marginBottom: '20px' }}>
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#ff4d4d" strokeWidth="2"/>
+                                <path d="M12 8V13" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round"/>
+                                <circle cx="12" cy="16" r="1" fill="#ff4d4d"/>
+                            </svg>
+                        </div>
+                        <h2 style={{color: '#ff4d4d', fontWeight: '900', marginBottom: '15px'}}>УДАЛИТЬ РАЗДЕЛ?</h2>
+                        <p style={{color: '#ccc', fontSize: '14px', marginBottom: '25px'}}>Вы уверены, что хотите удалить раздел "{confirmSectionDelete.name}" и ВСЕ карточки внутри него?</p>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <button onClick={() => setConfirmSectionDelete({isOpen: false, type: 'route', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button onClick={() => {
+                                if (confirmSectionDelete.type === 'route') {
+                                    const updated = dynamicRoute.filter((r: any) => (r.section || 'Основной раздел') !== confirmSectionDelete.name);
+                                    updateRouteState(updated);
+                                } else {
+                                    const updated = dynamicTests.filter((t: any) => (t.section || 'Основной раздел') !== confirmSectionDelete.name);
+                                    updateTestsState(updated);
+                                }
+                                setConfirmSectionDelete({ isOpen: false, type: 'route', name: '' });
+                            }} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, marginTop: 0 } as any}>УДАЛИТЬ ВСЕ</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {confirmDelete.isOpen && (
+                <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})}>
+                    <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ marginBottom: '20px' }}>
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#ff4d4d" strokeWidth="2"/>
+                                <path d="M12 8V13" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round"/>
+                                <circle cx="12" cy="16" r="1" fill="#ff4d4d"/>
+                            </svg>
+                        </div>
+                        <h2 style={{color: '#ff4d4d', fontWeight: '900', marginBottom: '15px'}}>УДАЛИТЬ КАРТОЧКУ?</h2>
+                        <p style={{color: '#ccc', fontSize: '14px', marginBottom: '25px'}}>Вы уверены, что хотите удалить карточку?</p>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <button onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button onClick={() => {
+                                if (confirmDelete.type === 'route') updateRouteState(dynamicRoute.filter((r: any) => r.id !== confirmDelete.targetId));
+                                else updateTestsState(dynamicTests.filter((t: any) => t.id !== confirmDelete.targetId));
+                                setConfirmDelete({ isOpen: false, type: 'route', targetId: '', name: '' });
+                            }} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, marginTop: 0 } as any}>УДАЛИТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -741,26 +856,6 @@ export default function Education({
                         <div style={{ borderTop: '1px solid #222', paddingTop: '20px' }}>
                             <input style={adminIn as any} placeholder="Название нового раздела..." value={moveNewSectionName} onChange={e => setMoveNewSectionName(e.target.value)} />
                             <button onClick={() => { if (moveNewSectionName.trim()) handleMoveItem(moveNewSectionName.trim()); }} style={{...adminActionBtn, marginTop: '10px', width: '100%', padding: '16px'} as any}>СОЗДАТЬ И ПЕРЕМЕСТИТЬ</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {confirmDelete.isOpen && (
-                <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})}>
-                    <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ marginBottom: '20px' }}>
-                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#ff4d4d" strokeWidth="2"/>
-                                <path d="M12 8V13" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round"/>
-                                <circle cx="12" cy="16" r="1" fill="#ff4d4d"/>
-                            </svg>
-                        </div>
-                        <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>УДАЛИТЬ?</h2>
-                        <p style={{ color: '#ccc', fontSize: '14px', marginBottom: '25px' }}>Вы уверены, что хотите удалить карточку?</p>
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                            <button onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
-                            <button onClick={executeDelete} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, marginTop: 0 } as any}>УДАЛИТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -806,16 +901,15 @@ export default function Education({
                                     return (
                                         <div key={num} className="tasks-theory-block" style={theoryBlock as any}>
                                             {img && (
-                                                <div className="image-zoom-container" onClick={() => setZoomedImg(img)}>
-                                                    <img src={img} alt="" />
-                                                    <div className="zoom-overlay">
-                                                        <div className="zoom-icon">
-                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <path d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                                <path d="M21 21L16.65 16.65" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                                <path d="M11 8V14M8 11H14" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                            </svg>
-                                                        </div>
+                                                <div className="image-zoom-container" style={{position:'relative', width:'100%', height:'200px', borderRadius:'15px', overflow:'hidden', cursor:'pointer', marginBottom:'15px'}} onClick={() => setZoomedImg(img)}>
+                                                    <img src={img} alt="" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                                                    <div style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.3)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:'13px', fontWeight:'bold'}}>
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '8px'}}>
+                                                            <path d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                            <path d="M21 21L16.65 16.65" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                            <path d="M11 8V14M8 11H14" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                        </svg>
+                                                        Нажмите, чтобы увеличить
                                                     </div>
                                                 </div>
                                             )}
@@ -830,85 +924,75 @@ export default function Education({
                         {completedRoute.includes(selectedRouteStep.id) ? (
                             <button onClick={closeRouteModal} style={{...checkKnowledgeBtn, background: '#111', color: '#0abab5', border: '1px solid #0abab5'} as any}>МАТЕРИАЛ ПРОЙДЕН (ЗАКРЫТЬ)</button>
                         ) : (
-                            <button onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn as any}>ПОДТВЕРДИТЬ ПРОХОЖДЕНИЕ</button>
+                            <button onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn as any}>Я ИЗУЧИЛ МАТЕРИАЛ</button>
                         )}
                     </div>
                 </div>
             )}
 
-            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ (СТРОГИЙ, КОМПАКТНЫЙ СТИЛЬ) */}
+            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ --- */}
             {showRouteForm && (
                 <div style={modalOverlay as any} onClick={() => setShowRouteForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto', padding: '40px 30px'} as any} onClick={e => e.stopPropagation()}>
-                        <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#0abab5', fontWeight: '900', textTransform: 'uppercase' }}>
-                            {routeFormData.id ? 'РЕДАКТОР ТЕМЫ' : 'НОВАЯ ТЕМА'}
+                        <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontWeight: '900' }}>
+                            {routeFormData.id ? 'Редактировать тему' : 'Новая тема'}
                         </h2>
                         
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
-                            <div>
-                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название темы *</div>
-                                <input autoComplete="new-password" name={"title_" + Date.now()} style={adminIn as any} placeholder="Например: История чая" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
-                            </div>
-                            
+                            <input autoComplete="new-password" name={"title_" + Date.now()} style={adminIn as any} placeholder="Название темы (напр. История чая)" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                <div>
-                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел</div>
-                                    <input list="route-sections" autoComplete="new-password" name={"sec_" + Date.now()} style={adminIn as any} placeholder="Напр. Основной раздел" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
-                                    <datalist id="route-sections">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Время на изучение</div>
-                                    <input autoComplete="new-password" style={adminIn as any} placeholder="Напр. 10 мин" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
-                                </div>
+                                <input list="route-sections" autoComplete="new-password" name={"sec_" + Date.now()} style={adminIn as any} placeholder="Раздел (Основной раздел)" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
+                                <datalist id="route-sections">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
+                                <input autoComplete="new-password" style={adminIn as any} placeholder="Время (напр. 10 мин)" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
                             </div>
                         </div>
 
                         <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
-                            <div style={{ display: 'flex', background: '#111', borderRadius: '12px', padding: '4px', marginBottom: '20px', border: '1px solid #222' }}>
-                                <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'text'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'text' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'text' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px' }}>📝 ТЕКСТ / ФОТО</div>
-                                <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'video'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'video' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'video' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px' }}>🎥 ВИДЕО</div>
+                            <div style={{ display: 'flex', background: '#000', borderRadius: '12px', padding: '5px', marginBottom: '20px' }}>
+                                <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'text'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'text' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'text' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M6.5 2H20V22H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                    Текст и фото
+                                </div>
+                                <div onClick={() => setRouteFormData({...routeFormData, mediaType: 'video'})} style={{ flex: 1, textAlign: 'center', padding: '10px', borderRadius: '10px', background: routeFormData.mediaType === 'video' ? '#0abab5' : 'transparent', color: routeFormData.mediaType === 'video' ? '#000' : '#888', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M23 7L16 12L23 17V7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                    Видеоплеер
+                                </div>
                             </div>
                             
                             {routeFormData.mediaType === 'video' ? (
-                                <div style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                    <textarea autoComplete="new-password" style={{...adminIn, height: '100px', resize: 'none', marginBottom: '15px', fontFamily: 'monospace', fontSize: '12px', color: '#aaa'} as any} placeholder='Код вставки iframe...' value={routeFormData.videoIframe} onChange={e => setRouteFormData({...routeFormData, videoIframe: e.target.value})} />
-                                    <textarea autoComplete="new-password" style={{...adminIn, height: '100px', resize: 'none', marginBottom: 0} as any} placeholder="Текстовое описание под видео..." value={routeFormData.videoDesc} onChange={e => setRouteFormData({...routeFormData, videoDesc: e.target.value})} />
+                                <div>
+                                    <textarea autoComplete="new-password" style={{...adminIn, height: '100px', resize: 'none', marginBottom: '15px', fontFamily: 'monospace', fontSize: '12px'} as any} placeholder='Код iframe для плеера (напр. <iframe src="..."></iframe>)' value={routeFormData.videoIframe} onChange={e => setRouteFormData({...routeFormData, videoIframe: e.target.value})} />
+                                    <textarea autoComplete="new-password" style={{...adminIn, height: '100px', resize: 'none', marginBottom: 0} as any} placeholder="Текстовое описание под плеером..." value={routeFormData.videoDesc} onChange={e => setRouteFormData({...routeFormData, videoDesc: e.target.value})} />
                                 </div>
                             ) : (
                                 <div>
-                                    <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>БЛОКИ С ТЕКСТОМ (ДО 3-Х)</h3>
+                                    <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>Блоки теории (макс. 3)</h3>
                                     {[1, 2, 3].map((num) => {
                                         const hKey = `h${num}` as keyof typeof routeFormData;
                                         const tKey = `t${num}` as keyof typeof routeFormData;
                                         const imgKey = `img${num}` as keyof typeof routeFormData;
-                                        const imgVal = routeFormData[imgKey] as string;
-                                        const isBase64 = imgVal && imgVal.startsWith('data:image');
 
                                         return (
                                             <div key={num} style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
-                                                <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', padding: '12px', marginBottom: '10px'} as any} placeholder={`Заголовок блока ${num}`} value={routeFormData[hKey]} onChange={e => setRouteFormData({...routeFormData, [hKey]: e.target.value})} />
+                                                <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', marginBottom: '10px'} as any} placeholder={`Заголовок блока ${num}`} value={routeFormData[hKey]} onChange={e => setRouteFormData({...routeFormData, [hKey]: e.target.value})} />
                                                 <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none', marginBottom: '10px'} as any} placeholder={`Текст блока ${num}...`} value={routeFormData[tKey]} onChange={e => setRouteFormData({...routeFormData, [tKey]: e.target.value})} />
                                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                                    {!isBase64 ? (
-                                                        <input autoComplete="new-password" style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px', flex: 1} as any} placeholder="Ссылка на фото (URL)" value={imgVal} onChange={e => setRouteFormData({...routeFormData, [imgKey]: e.target.value})} />
-                                                    ) : (
-                                                        <div style={{...adminIn, padding: '12px', marginBottom: '0', fontSize: '13px', flex: 1, color: '#0abab5', background: 'rgba(10,186,181,0.1)', border: '1px solid rgba(10,186,181,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'} as any}>✅ Фото загружено</div>
-                                                    )}
+                                                    <input autoComplete="new-password" style={{...adminIn, marginBottom: '0', fontSize: '13px', flex: 1} as any} placeholder="Ссылка на фото (URL)" value={routeFormData[imgKey]} onChange={e => setRouteFormData({...routeFormData, [imgKey]: e.target.value})} />
                                                     <input type="file" accept="image/*" id={`upload-img-${num}`} style={{ display: 'none' }} onChange={(e) => {
                                                         const file = e.target.files?.[0];
                                                         if (file) {
-                                                            if (file.size > 5 * 1024 * 1024) return alert("Файл слишком большой! Максимум 5 МБ.");
                                                             const reader = new FileReader();
                                                             reader.onload = (ev) => setRouteFormData(prev => ({...prev, [imgKey]: ev.target?.result as string}));
                                                             reader.readAsDataURL(file);
                                                         }
                                                     }}/>
-                                                    <button onClick={(e) => { e.preventDefault(); document.getElementById(`upload-img-${num}`)?.click(); }} style={{ background: '#1a1a1a', color: '#fff', border: '1px solid #333', padding: '12px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                        </svg>
-                                                    </button>
-                                                    {imgVal && <button onClick={(e) => { e.preventDefault(); setRouteFormData(prev => ({...prev, [imgKey]: ''})); }} style={{ background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,77,77,0.3)', padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>✕</button>}
+                                                    <button onClick={(e) => { e.preventDefault(); document.getElementById(`upload-img-${num}`)?.click(); }} style={{ background: '#111', color: '#fff', border: '1px solid #333', padding: '12px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>Загрузить фото</button>
                                                 </div>
                                             </div>
                                         );
@@ -922,75 +1006,76 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ (СТРОГИЙ, КОМПАКТНЫЙ СТИЛЬ) */}
+            {/* --- ПРЕДПРОСМОТР КАРТОЧКИ "ТЕСТ" --- */}
+            {selectedTest && (
+               <div style={modalOverlay as any} onClick={closeTestModal}>
+                  <div className="tasks-modal" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
+                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'25px'}}>
+                        <div>
+                            <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase'}}>ТЕСТИРОВАНИЕ</span>
+                            <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', marginTop:'5px', marginBottom:'15px'}}>{selectedTest.title}</h2>
+                            <p style={{fontSize:'14px', color:'#0abab5', fontWeight:'bold', margin:0, lineHeight:'1.4'}}>{selectedTest.subtitle}</p>
+                        </div>
+                        <div onClick={closeTestModal} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold', paddingLeft:'15px'}}>✕</div>
+                     </div>
+                     <div style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '30px'}}>
+                         <p style={{fontSize:'14px', color:'#ccc', lineHeight:'1.5', margin:'0 0 15px 0'}}>{selectedTest.theory}</p>
+                         <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #1a1a1a', paddingTop:'15px'}}>
+                             <span style={{fontSize:'13px', color:'#888', fontWeight:'bold'}}>Вопросов: <span style={{color:'#fff'}}>{selectedTest.quiz.length}</span></span>
+                             <span style={{fontSize:'13px', color:'#888', fontWeight:'bold'}}>Порог: <span style={{color:'#0abab5'}}>80%</span></span>
+                         </div>
+                     </div>
+                     <button style={saveBtn as any}>НАЧАТЬ ТЕСТИРОВАНИЕ</button>
+                  </div>
+               </div>
+            )}
+
+            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ --- */}
             {showTestForm && (
                 <div style={modalOverlay as any} onClick={() => setShowTestForm(false)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto', padding: '40px 30px'} as any} onClick={e => e.stopPropagation()}>
-                        <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#0abab5', fontWeight: '900', textTransform: 'uppercase' }}>
-                            {testFormData.id ? 'РЕДАКТОР ТЕСТА' : 'НОВЫЙ ТЕСТ'}
+                        <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontWeight: '900' }}>
+                            {testFormData.id ? 'Редактировать тест' : 'Новый тест'}
                         </h2>
                         
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
-                            <div>
-                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название теста *</div>
-                                <input style={adminIn as any} placeholder="Например: Основы заваривания" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
-                            </div>
-                            
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                <div>
-                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Раздел</div>
-                                    <input list="test-sections" style={adminIn as any} placeholder="Напр. Основной раздел" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
-                                    <datalist id="test-sections">{Array.from(new Set(dynamicTests.map((t: any) => t.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Лимит времени (мин)</div>
-                                    <input type="number" style={adminIn as any} placeholder="0 - без лимита" value={testFormData.timeLimit || ''} onChange={e => setTestFormData({...testFormData, timeLimit: parseInt(e.target.value) || 0})} />
-                                </div>
-                            </div>
-
-                            <div>
-                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Краткое описание (подзаголовок)</div>
-                                <input style={adminIn as any} placeholder="Описание для карточки..." value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
-                            </div>
-
-                            <div>
-                                <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Теоретическая справка (перед тестом)</div>
-                                <textarea style={{...adminIn, height: '80px', resize: 'none'} as any} placeholder="Текст, который увидит сотрудник перед стартом..." value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
-                            </div>
+                            <input autoComplete="new-password" style={adminIn as any} placeholder="Название теста" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
+                            <input autoComplete="new-password" list="test-sections" style={adminIn as any} placeholder="Раздел" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
+                            <datalist id="test-sections">{Array.from(new Set(dynamicTests.map((t: any) => t.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
+                            <input autoComplete="new-password" style={adminIn as any} placeholder="Краткое описание" value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
+                            <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none'} as any} placeholder="Теория перед тестом..." value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
                         </div>
 
                         <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                                <h3 style={{fontSize: '16px', color: '#0abab5', fontWeight: '900', margin: 0}}>ВОПРОСЫ И ОТВЕТЫ</h3>
+                                <h3 style={{fontSize: '16px', color: '#0abab5', fontWeight: '900', margin: 0}}>Вопросы ({testFormData.quiz.length})</h3>
+                                <button onClick={addTestQuestion} style={adminActionBtn as any}>+ ДОБАВИТЬ ВОПРОС</button>
                             </div>
                             
                             {testFormData.quiz.map((q: any, qIndex: number) => (
                                 <div key={qIndex} style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
                                     <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px'}}>
                                         <div style={{color: '#0abab5', fontWeight: 'bold'}}>Вопрос {qIndex + 1}</div>
-                                        {testFormData.quiz.length > 1 && (
-                                            <div onClick={() => removeTestQuestion(qIndex)} style={{color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                Удалить
-                                            </div>
-                                        )}
+                                        <div onClick={() => removeTestQuestion(qIndex)} style={{color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                            Удалить
+                                        </div>
                                     </div>
-                                    <input style={{...adminIn, marginBottom: '15px'} as any} placeholder="Текст вопроса" value={q.q} onChange={e => updateTestQuestion(qIndex, 'q', e.target.value)} />
+                                    <input autoComplete="new-password" style={{...adminIn, marginBottom: '15px'} as any} placeholder="Текст вопроса" value={q.q} onChange={e => updateTestQuestion(qIndex, 'q', e.target.value)} />
                                     
                                     <div style={{display: 'grid', gap: '10px'}}>
                                         {[0, 1, 2, 3].map(optIndex => (
                                             <div key={optIndex} style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                                                 <div 
                                                     onClick={() => updateTestQuestion(qIndex, 'c', optIndex)}
-                                                    style={{width: '24px', height: '24px', borderRadius: '50%', border: q.c === optIndex ? '6px solid #0abab5' : '2px solid #555', cursor: 'pointer', flexShrink: 0, transition: '0.2s'}}
+                                                    style={{width: '20px', height: '20px', borderRadius: '50%', border: q.c === optIndex ? '6px solid #0abab5' : '2px solid #555', cursor: 'pointer', flexShrink: 0}}
                                                 />
-                                                <input style={{...adminIn, padding: '10px', fontSize: '14px', flex: 1} as any} placeholder={`Вариант ${optIndex + 1}`} value={q.o[optIndex]} onChange={e => updateTestQuestion(qIndex, `o${optIndex}`, e.target.value)} />
+                                                <input autoComplete="new-password" style={{...adminIn, padding: '10px', fontSize: '14px', marginBottom: '0', flex: 1} as any} placeholder={`Вариант ${optIndex + 1}`} value={q.o[optIndex]} onChange={e => updateTestQuestion(qIndex, `o${optIndex}`, e.target.value)} />
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             ))}
-                            <button onClick={addTestQuestion} style={{...adminActionBtn, width: '100%', padding: '15px', background: 'transparent'} as any}>+ ДОБАВИТЬ ВОПРОС</button>
                         </div>
 
                         <button onClick={handleSaveTestForm} style={saveBtn as any}>СОХРАНИТЬ ТЕСТ</button>
@@ -1012,7 +1097,7 @@ export default function Education({
                              <div key={i} style={{background: '#111', padding: '20px', borderRadius: '20px', border: '1px solid #222'}}>
                                  <p style={{fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '15px'}}>{i+1}. {q.q}</p>
                                  <div style={{background: 'rgba(10,186,181,0.1)', border: '1px solid rgba(10,186,181,0.3)', padding: '15px', borderRadius: '15px', color: '#0abab5', fontWeight: 'bold', fontSize: '14px'}}>
-                                     ✅ Верный ответ: {q.o[q.c]}
+                                     ✓ Верный ответ: {q.o[q.c]}
                                  </div>
                              </div>
                          ))}
@@ -1055,7 +1140,7 @@ export default function Education({
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={{...modalContentLarge, maxWidth: '800px'} as any}>
                      <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
-                        <div onClick={() => setCancelTestConfirm({show: true, type: 'normal'})} style={{...backLink, margin:0, color: '#ff4d4d', flex: 1} as any}>← ПРЕРВАТЬ</div>
+                        <div onClick={() => setCancelTestConfirm({show: true, type: 'normal'})} style={backLink as any}>← ПРЕРВАТЬ</div>
                         
                         <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', textAlign:'center', flex: 2, padding: '0 20px'}}>{stripEmoji(activeTestSession.title)}</h2>
                         
@@ -1067,9 +1152,14 @@ export default function Education({
                                     color: timeLeft < 60 ? '#ff4d4d' : '#0abab5',
                                     padding: '8px 15px', borderRadius: '12px', fontWeight: '900', fontSize: '18px',
                                     boxShadow: timeLeft < 60 ? '0 0 10px rgba(255, 77, 77, 0.4)' : 'none',
-                                    display: 'inline-block'
+                                    display: 'inline-flex', alignItems: 'center', gap: '8px'
                                 }}>
-                                    ⏳ {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginBottom: '-1px'}}>
+                                        <path d="M12 2V22M6 2H18M6 22H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M12 2C12 2 7 5 7 12C7 19 12 22 12 22" fill="currentColor" opacity="0.3"/>
+                                        <path d="M12 2C12 2 17 5 17 12C17 19 12 22 12 22" fill="currentColor" opacity="0.3"/>
+                                    </svg>
+                                    {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
                                 </div>
                             )}
                         </div>
@@ -1094,7 +1184,7 @@ export default function Education({
                <div style={modalOverlay as any}>
                   <div className="tasks-modal" style={modalContentLarge as any}>
                      <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
-                        <div onClick={() => setCancelTestConfirm({show: true, type: 'urgent'})} style={{...backLink, margin:0, color: '#ff4d4d', flex: 1} as any}>← ОТЛОЖИТЬ</div>
+                        <div onClick={() => setCancelTestConfirm({show: true, type: 'urgent'})} style={backLink as any}>← ОТЛОЖИТЬ</div>
                         
                         <h2 style={{fontSize:'28px', color:'#0abab5', fontWeight:'900', textAlign:'center', flex: 2, padding: '0 20px'}}>{stripEmoji(activeUrgentTest.name)}</h2>
                         
@@ -1106,9 +1196,14 @@ export default function Education({
                                     color: timeLeft < 60 ? '#ff4d4d' : '#0abab5',
                                     padding: '8px 15px', borderRadius: '12px', fontWeight: '900', fontSize: '18px',
                                     boxShadow: timeLeft < 60 ? '0 0 10px rgba(255, 77, 77, 0.4)' : 'none',
-                                    display: 'inline-block'
+                                    display: 'inline-flex', alignItems: 'center', gap: '8px'
                                 }}>
-                                    ⏳ {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginBottom: '-1px'}}>
+                                        <path d="M12 2V22M6 2H18M6 22H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M12 2C12 2 7 5 7 12C7 19 12 22 12 22" fill="currentColor" opacity="0.3"/>
+                                        <path d="M12 2C12 2 17 5 17 12C17 19 12 22 12 22" fill="currentColor" opacity="0.3"/>
+                                    </svg>
+                                    {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
                                 </div>
                             )}
                         </div>
@@ -1187,8 +1282,8 @@ export default function Education({
                                     {testResultModal.mistakes.map((m, idx) => (
                                         <div key={idx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '15px', border: '1px solid #333'}}>
                                             <p style={{color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0'}}>{m.q}</p>
-                                            <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>❌ Ваш ответ: {m.userAns}</p>
-                                            <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>✅ Верный ответ: {m.correctAns}</p>
+                                            <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>✕ Ваш ответ: {m.userAns}</p>
+                                            <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>✓ Верный ответ: {m.correctAns}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -1247,6 +1342,7 @@ export default function Education({
                 .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
                 .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }
 
+                /* 💡 СТИЛИ ДЛЯ КАРТИНОК И ЗУМА */
                 .image-zoom-container { position: relative; width: 100%; height: 220px; border-radius: 15px; overflow: hidden; cursor: pointer; margin-bottom: 15px; background: #111; }
                 .image-zoom-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
                 .image-zoom-container:hover img { transform: scale(1.05); }
@@ -1257,10 +1353,20 @@ export default function Education({
                 .tasks-theory-block { word-break: break-word; overflow-wrap: anywhere; }
 
                 @media (max-width: 768px) {
-                    .premium-cards-container { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
-                    .premium-card { padding: 15px !important; min-height: 120px !important; }
-                    .premium-card h4 { font-size: 13px !important; margin-bottom: 10px !important; }
-                    .premium-card span { font-size: 10px !important; }
+                    /* 💡 Решение проблемы: 1 колонка на мобильных, чтобы карточки не ломали свою ширину */
+                    .premium-cards-container { 
+                        display: grid !important; 
+                        grid-template-columns: 1fr !important; 
+                        gap: 15px !important; 
+                    }
+                    .premium-card { 
+                        width: 100% !important; 
+                        max-width: none !important; 
+                        padding: 20px !important; 
+                        min-height: 120px !important; 
+                    }
+                    .premium-card h4 { font-size: 15px !important; }
+                    .tasks-title { font-size: 24px !important; }
                     .tasks-theory-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
                     .tasks-quiz-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
                     .tasks-modal { padding: 30px 20px !important; border-radius: 25px !important; width: 95% !important; max-height: 90vh !important; }
@@ -1277,23 +1383,24 @@ export default function Education({
 const pBarBg: React.CSSProperties = { height: '8px', background: '#222', borderRadius: '4px', marginTop: '15px', marginBottom: '10px' };
 const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '4px', transition: '1s' });
 const sectionTitle: React.CSSProperties = { fontSize: '28px', fontWeight: '900', marginBottom: '35px' };
-const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '800', color: '#666' };
-const backLink: React.CSSProperties = { color: '#0abab5', fontWeight: '900', marginBottom: '30px', cursor: 'pointer', display: 'inline-block', fontSize: '15px' };
-const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
-const lightboxOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', zIndex: 90000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', boxSizing: 'border-box', cursor: 'zoom-out' };
-const modalContentLarge: React.CSSProperties = { background: '#000', padding: '60px', borderRadius: '50px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
-const modalContentMedium: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '550px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
-const modalContentSmall: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
-const theoryBlock: React.CSSProperties = { background: '#0d0d0d', padding: '30px', borderRadius: '25px', border: '1px solid #222', wordBreak: 'break-word', overflowWrap: 'anywhere' };
-const theoryLabel: React.CSSProperties = { fontSize: '15px', fontWeight: '800', color: '#0abab5', letterSpacing: '0.5px', marginBottom: '12px', wordBreak: 'break-word', overflowWrap: 'anywhere' };
-const theoryText: React.CSSProperties = { fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' };
-const checkKnowledgeBtn: React.CSSProperties = { width: '100%', padding: '25px', background: 'transparent', border: '2px solid #0abab5', color: '#0abab5', borderRadius: '20px', fontWeight: '900', fontSize: '18px', cursor: 'pointer', transition: '0.3s' };
-const quizBox: React.CSSProperties = { borderTop: '1px solid #222', paddingTop: '40px', marginTop: '10px' };
 const flexSpace: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px', flexWrap: 'wrap', gap: '20px' };
+const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
+const cardFooter: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '800', color: '#666' };
+const modalOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
+const modalContentLarge: React.CSSProperties = { background: '#000', padding: '60px', borderRadius: '50px', maxWidth: '1100px', width: '100%', border: '1px solid #222', maxHeight: '90vh', overflowY: 'auto' };
+const modalContentSmall: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
+const modalContentMedium: React.CSSProperties = { background: '#111', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '550px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
+const checkKnowledgeBtn: React.CSSProperties = { width: '100%', padding: '25px', background: 'transparent', border: '2px solid #0abab5', color: '#0abab5', borderRadius: '20px', fontWeight: '900', fontSize: '18px', cursor: 'pointer', transition: '0.3s' };
+const theoryBlock: React.CSSProperties = { background: '#0d0d0d', padding: '30px', borderRadius: '25px', border: '1px solid #222' };
+const theoryLabel: React.CSSProperties = { fontSize: '15px', fontWeight: '800', color: '#0abab5', letterSpacing: '0.5px', marginBottom: '12px' };
+const theoryText: React.CSSProperties = { fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, whiteSpace: 'pre-wrap' };
+const lightboxOverlay: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' };
+const boxesFlexWrapStyle = { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' };
+const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '15px', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
+const saveBtn: React.CSSProperties = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '15px', fontSize: '15px', letterSpacing: '1px' };
+const cancelLink: React.CSSProperties = { textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
 const errorOverlayStyle: React.CSSProperties = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', zIndex: 40000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(12px)' };
 const errorModalContent: React.CSSProperties = { background: '#111', padding: '50px', borderRadius: '40px', border: '2px solid #222', textAlign: 'center', maxWidth: '450px', boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)' };
 const errorBtnStyle: React.CSSProperties = { border: 'none', padding: '18px 40px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize: '15px', letterSpacing: '1px', marginTop: '15px', width: '100%' };
-const adminIn: React.CSSProperties = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
-const saveBtn: React.CSSProperties = { width: '100%', padding: '18px', background: '#0abab5', color: '#000', border: 'none', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', marginTop: '25px', fontSize: '15px', letterSpacing: '1px' };
-const adminActionBtn: React.CSSProperties = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 20px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px', letterSpacing: '1px', transition: '0.2s' };
-const cancelLink: React.CSSProperties = { textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
+const quizBox: React.CSSProperties = { borderTop: '1px solid #222', paddingTop: '40px', marginTop: '10px' };
+const backLink: React.CSSProperties = { color: '#0abab5', fontWeight: '900', marginBottom: '30px', cursor: 'pointer', display: 'inline-block', fontSize: '15px' };
