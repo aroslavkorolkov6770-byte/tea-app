@@ -54,7 +54,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     const [successModal, setSuccessModal] = useState({ show: false, title: '', text: '' });
     const [errorModal, setErrorModal] = useState({ show: false, text: '' });
 
-    // Фильтруем ТОЛЬКО нормативные документы (исключаем дедлайны и тесты)
+    // Фильтруем ТОЛЬКО нормативные документы
     const allDocs = (urgentFiles || []).filter((f: any) => {
         if (f.isDocPlaceholder) return true;
         if (f.id?.startsWith('deadline_') || f.isTest) return false;
@@ -215,13 +215,11 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             }
 
             const objectUrl = base64ToBlobUrl(fileBase64);
-            
             const isDocx = file.name?.toLowerCase().endsWith('.docx');
             const isUnsupported = file.name?.toLowerCase().match(/\.(doc|xls|xlsx|ppt|pptx|zip|rar)$/i);
             const fileExt = file.name.split('.').pop()?.toUpperCase() || 'ФАЙЛ';
 
             newWindow.document.open();
-            // 💡 ИСПРАВЛЕНИЕ: Переписаны стили для docx-wrapper, чтобы убрать серые вложенные коробки
             newWindow.document.write(`
                 <!DOCTYPE html>
                 <html lang="ru">
@@ -238,16 +236,8 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         
                         /* Стили специально для чистого отображения DOCX */
                         #docx-container { width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
-                        
-                        /* Переопределяем стандартный фон библиотеки docx-preview */
                         .docx-wrapper { background: transparent !important; padding: 50px 20px !important; }
-                        .docx-wrapper > section.docx { 
-                            box-shadow: 0 20px 60px rgba(0,0,0,0.8) !important; 
-                            border-radius: 10px !important; 
-                            margin-bottom: 30px !important;
-                            border: none !important;
-                        }
-                        
+                        .docx-wrapper > section.docx { box-shadow: 0 20px 60px rgba(0,0,0,0.8) !important; border-radius: 10px !important; margin-bottom: 30px !important; border: none !important; }
                         .docx-loading { margin-top: 150px; font-size: 20px; color: #0abab5; font-family: sans-serif; font-weight: bold; text-align: center; width: 100%; }
                     </style>
                     ${isDocx ? `
@@ -267,9 +257,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                     const container = document.getElementById("docx-container");
                                     const loading = document.getElementById("loading");
                                     docx.renderAsync(blob, container)
-                                        .then(() => {
-                                            loading.style.display = 'none';
-                                        })
+                                        .then(() => { loading.style.display = 'none'; })
                                         .catch(err => {
                                             loading.innerHTML = '<span style="color:#ff4d4d">❌ Ошибка при чтении документа.</span><br/><br/><a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ ↓</a>';
                                             console.error(err);
@@ -282,7 +270,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         </script>
                     ` : isUnsupported ? `
                         <div class="unsupported">
-                            <div style="font-size: 70px; margin-bottom: 20px;">📄</div>
+                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 20px;">
+                                <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M14 2V8H20" stroke="#0abab5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
                             <h2 style="margin: 0 0 15px 0; font-size: 26px;">Формат ${fileExt} не поддерживается браузером</h2>
                             <p style="color: #aaa; margin: 0; max-width: 500px; line-height: 1.6; font-size: 15px;">
                                 К сожалению, этот формат пока нельзя открыть прямо во вкладке.
@@ -396,7 +387,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
-            {/* БЛОК ЗАГРУЗКИ (ОБНОВЛЕННЫЙ ДИЗАЙН) */}
+            {/* БЛОК ЗАГРУЗКИ */}
             {isAdmin && (
                 <div style={{ marginBottom: '40px' }}>
                     {(!selectedFiles || selectedFiles.length === 0) ? (
@@ -414,7 +405,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                             }}
                             onClick={() => document.getElementById('file-upload-admin')?.click()}
                         >
-                            <div style={{ fontSize: '40px', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))' }}>📁</div>
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))' }}>
+                                <path d="M22 19A2 2 0 0 1 20 21H4A2 2 0 0 1 2 19V5A2 2 0 0 1 4 3H9L11 5H20A2 2 0 0 1 22 7V19Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
                             <div>
                                 <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#fff', margin: '0 0 8px 0' }}>Загрузить документы</h3>
                                 <p style={{ color: '#666', fontSize: '14px', margin: 0, maxWidth: '400px', lineHeight: '1.5' }}>
@@ -431,19 +424,20 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                 <div style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>{selectedFiles.length} файлов</div>
                             </div>
 
-                            <div className="upload-settings-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', alignItems: 'start' }}>
-                                {/* Левая колонка: Файлы */}
+                            <div className="upload-settings-grid">
                                 <div style={{ background: '#0a0a0a', borderRadius: '16px', border: '1px solid #1a1a1a', padding: '15px', maxHeight: '200px', overflowY: 'auto' }} className="custom-scroll">
                                     {selectedFiles.map((f, i) => (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i !== selectedFiles.length - 1 ? '1px dashed #222' : 'none' }}>
-                                            <span style={{ fontSize: '16px' }}>📄</span>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+                                                <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M14 2V8H20" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
                                             <span style={{ fontSize: '13px', color: '#ccc', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
                                             <span style={{ fontSize: '11px', color: '#666', flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(2)} MB</span>
                                         </div>
                                     ))}
                                 </div>
 
-                                {/* Правая колонка: Настройки */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', height: '100%' }}>
                                     <div>
                                         <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Папка для сохранения:</div>
@@ -490,11 +484,21 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                    Object.entries(docGroups).map(([secName, items]: any) => (
                        <div key={secName} style={{ marginBottom: '40px' }}>
                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
-                               <h3 style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>📁 {secName}</h3>
+                               <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
+                                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                       <path d="M22 19A2 2 0 0 1 20 21H4A2 2 0 0 1 2 19V5A2 2 0 0 1 4 3H9L11 5H20A2 2 0 0 1 22 7V19Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                   </svg>
+                                   {secName}
+                               </h3>
                                {isAdmin && secName !== 'Основной раздел' && (
                                    <div style={{display: 'flex', gap: '15px'}}>
                                        <span onClick={() => setRenameSectionPrompt({isOpen: true, oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✎ РЕДАКТИРОВАТЬ</span>
-                                       <span onClick={() => setConfirmDelete({isOpen: true, type: 'section', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✕ УДАЛИТЬ</span>
+                                       <span onClick={() => setConfirmDelete({isOpen: true, type: 'section', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '3px', marginBottom: '-2px'}}>
+                                               <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                                           </svg>
+                                           УДАЛИТЬ
+                                       </span>
                                    </div>
                                )}
                            </div>
@@ -509,20 +513,44 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                        <div key={file.id} className="premium-card">
                                           
                                           {isAdmin && (
-                                              <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                                  <div onClick={(e) => { e.stopPropagation(); setMovingItem(file.id); }} style={moveIconStyle as any} title="Переместить">📦</div>
-                                                  <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'file', targetId: file.id, name: file.name}); }} style={delIconStyle as any} title="Удалить">✕</div>
+                                              <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
+                                                  <div onClick={(e) => { e.stopPropagation(); setMovingItem(file.id); }} className="card-icon-btn move-btn" title="Переместить">
+                                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                          <path d="M21 8L12 13L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M12 22V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M21 8V16C21 16.5304 20.7893 17.0391 20.4142 17.4142C20.0391 17.7893 19.5304 18 19 18H5C4.46957 18 3.96086 17.7893 3.58579 17.4142C3.21071 17.0391 3 16.5304 3 16V8C3 7.46957 3.21071 6.96086 3.58579 6.58579C3.96086 6.21071 4.46957 6 5 6H19C19.5304 6 20.0391 6.21071 20.4142 6.58579C20.7893 6.96086 21 7.46957 21 8Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                      </svg>
+                                                  </div>
+                                                  <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'file', targetId: file.id, name: file.name}); }} className="card-icon-btn del-btn" title="Удалить">
+                                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                          <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                      </svg>
+                                                  </div>
                                               </div>
                                           )}
                                           
-                                          <span style={{fontSize:'11px', color:'#0abab5', fontWeight:'800', marginBottom: '6px', opacity: 0.8}}>{file.date || 'Документ'}</span>
-                                          <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin ? '70px' : '0'}}>📄 {file.name}</h4>
+                                          {/* 💡 Обертка с отступом для мобильной версии, чтобы текст не лез под иконки */}
+                                          <div style={{ paddingRight: isAdmin ? '85px' : '0' }}>
+                                              <div style={{fontSize:'11px', color:'#0abab5', fontWeight:'800', marginBottom: '8px', opacity: 0.8}}>{file.date || 'Документ'}</div>
+                                              
+                                              <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '8px'}}>
+                                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '2px'}}>
+                                                      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                      <path d="M14 2V8H20" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                  </svg>
+                                                  <span>{file.name}</span>
+                                              </h4>
+                                          </div>
                                           
-                                          <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px', fontWeight: 'bold' }}>Вес: {file.size}</div>
+                                          <div style={{ color: '#555', fontSize: '12px', marginBottom: '20px', fontWeight: 'bold' }}>Вес: {file.size}</div>
                                           
-                                          <div style={{ marginTop: 'auto', display: 'flex', gap: '15px' }}>
-                                              <div onClick={() => handleOpenPreview(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' }}>ОТКРЫТЬ</div>
-                                              <div onClick={() => handleDownloadFile(file)} style={{ color: '#0abab5', fontSize: '12px', fontWeight: '900', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' }}>СКАЧАТЬ ↓</div>
+                                          {/* 💡 Новые кнопки с обводкой */}
+                                          <div style={{ marginTop: 'auto', display: 'flex', gap: '10px' }}>
+                                              <button onClick={() => handleOpenPreview(file)} className="doc-action-btn">ОТКРЫТЬ</button>
+                                              <button onClick={() => handleDownloadFile(file)} className="doc-action-btn">СКАЧАТЬ ↓</button>
                                           </div>
                                        </div>
                                    ))
@@ -582,7 +610,13 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, type: 'file', targetId: '', name: ''})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                        <div style={{ marginBottom: '20px' }}>
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#ff4d4d" strokeWidth="2"/>
+                                <path d="M12 8V13" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round"/>
+                                <circle cx="12" cy="16" r="1" fill="#ff4d4d"/>
+                            </svg>
+                        </div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>УДАЛИТЬ?</h2>
                         <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>
                             {confirmDelete.type === 'section' 
@@ -601,7 +635,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             {successModal.show && (
                 <div style={modalOverlay as any} onClick={() => setSuccessModal({ show: false, title: '', text: '' })}>
                     <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ fontSize: '50px', marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>✅</div>
+                        <div style={{ marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="2"/>
+                                <path d="M8 12L11 15L16 9" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        </div>
                         <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{successModal.title}</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{successModal.text}</p>
                         <button onClick={() => setSuccessModal({ show: false, title: '', text: '' })} style={saveBtn as any}>ПОНЯТНО</button>
@@ -612,7 +651,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             {errorModal.show && (
                 <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
                     <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⛔</div>
+                        <div style={{ marginBottom: '20px' }}>
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="rgba(255,77,77,0.1)" stroke="#ff4d4d" strokeWidth="2"/>
+                                <path d="M15 9L9 15M9 9L15 15" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round"/>
+                            </svg>
+                        </div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ОШИБКА</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{errorModal.text}</p>
                         <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>
@@ -639,11 +683,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
                 .premium-card {
                     background: #111;
-                    border-radius: 14px; 
+                    border-radius: 16px; 
                     border: 1px solid #222;
                     transition: all 0.2s ease;
                     position: relative;
-                    cursor: pointer;
                     display: flex;
                     flex-direction: column;
                     width: 100%;
@@ -654,15 +697,48 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 }
 
                 .premium-card:hover {
-                    border-color: #0abab5;
-                    transform: translateY(-3px);
+                    border-color: #333;
                 }
 
-                .premium-card:active {
-                    background: rgba(10, 186, 181, 0.05); 
-                    border-color: #0abab5;
-                    transform: scale(0.98); 
+                /* 💡 СТИЛИ ДЛЯ НОВЫХ КНОПОК И ИКОНОК */
+                .doc-action-btn {
+                    background: rgba(10,186,181,0.05);
+                    color: #0abab5;
+                    border: 1px solid rgba(10,186,181,0.3);
+                    border-radius: 10px;
+                    padding: 10px 0;
+                    font-size: 11px;
+                    font-weight: 900;
+                    cursor: pointer;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    flex: 1;
+                    text-align: center;
+                    transition: all 0.2s ease;
+                    font-family: inherit;
                 }
+                .doc-action-btn:hover {
+                    background: rgba(10,186,181,0.15);
+                    transform: translateY(-2px);
+                }
+
+                .card-icon-btn {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    border: 1px solid #333;
+                    background: #1a1a1a;
+                }
+                .move-btn { color: #fff; }
+                .move-btn:hover { background: rgba(255,255,255,0.1); border-color: #888; transform: scale(1.05); }
+
+                .del-btn { color: #ff4d4d; }
+                .del-btn:hover { background: rgba(255,77,77,0.1); border-color: #ff4d4d; transform: scale(1.05); }
 
                 @media (max-width: 768px) {
                     .upload-settings-grid {
@@ -671,17 +747,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     }
                     .premium-cards-container { 
                         display: grid !important;
-                        grid-template-columns: repeat(2, 1fr) !important;
-                        gap: 10px !important; 
+                        grid-template-columns: 1fr !important;
+                        gap: 15px !important; 
                     }
-                    .premium-card {
-                        width: 100% !important;
-                        max-width: none !important; 
-                        padding: 15px !important;
-                        min-height: 120px !important;
-                    }
-                    .premium-card h4 { font-size: 13px !important; margin-bottom: 10px !important; }
-                    .premium-card span { font-size: 10px !important; }
                 }
             `}</style>
         </section>
@@ -691,8 +759,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 // --- СТИЛИ ---
 const flexSpace = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px', flexWrap: 'wrap', gap: '20px' };
 const adminActionBtn = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 18px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '12px' };
-const moveIconStyle = { background: '#1a1a1a', color: '#fff', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
-const delIconStyle = { background: '#1a1a1a', color: '#ff4d4d', border: '1px solid #333', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', transition: '0.2s', flexShrink: 0, fontWeight: 'bold' };
 const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
 const modalContentSmall = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
 const adminIn = { width: '100%', padding: '16px', background: '#000', border: '1px solid #333', borderRadius: '15px', color: '#fff', marginBottom: '0', outline: 'none', fontSize: '15px', boxSizing: 'border-box' };
