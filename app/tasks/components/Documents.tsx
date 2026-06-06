@@ -26,7 +26,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     const [movingItem, setMovingItem] = useState<string | null>(null);
     const [moveNewSectionName, setMoveNewSectionName] = useState('');
 
-    // --- НОВЫЕ СОСТОЯНИЯ ДЛЯ ЗАГРУЗКИ (ПЕРЕНЕСЕНО ИЗ АДМИНКИ) ---
+    // --- СОСТОЯНИЯ ДЛЯ ЗАГРУЗКИ ---
     const [isDragging, setIsDragging] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [uploadSection, setUploadSection] = useState('Основной раздел');
@@ -49,14 +49,13 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         allDocs.filter((f: any) => !f.isDocPlaceholder).map((f: any) => f.section?.trim() || 'Основной раздел')
     ));
 
-    // 💡 Единая функция для безопасного обновления стейта, кэша и сервера
     const updateFilesState = (newFiles: any[]) => {
         setUrgentFiles(newFiles);
         localStorage.setItem('th_cache_files', JSON.stringify(newFiles));
         saveDataToServer(STORAGE_KEYS.URGENT_FILES, newFiles);
     };
 
-    // --- ФУНКЦИИ ОТПРАВКИ УВЕДОМЛЕНИЙ (ИЗОЛИРОВАННЫЕ) ---
+    // --- ФУНКЦИИ ОТПРАВКИ УВЕДОМЛЕНИЙ ---
     const sendPushNotification = async (targetUserId: string, payload: any) => {
         try {
             const subsRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`, { cache: 'no-store' });
@@ -293,57 +292,79 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
-            {/* 💡 НОВЫЙ БЛОК: ЗАГРУЗЧИК ФАЙЛОВ (ТОЛЬКО ДЛЯ АДМИНА) */}
+            {/* 💡 НОВЫЙ БЛОК ЗАГРУЗКИ (ОБНОВЛЕННЫЙ ДИЗАЙН И ФИКС ВЕРСТКИ) */}
             {isAdmin && (
                 <div style={{ marginBottom: '40px' }}>
-                    <div 
-                        style={{
-                            border: isDragging ? '2px dashed #0abab5' : '2px dashed #333',
-                            borderRadius: '30px', padding: '40px 20px', textAlign: 'center',
-                            background: '#0a0a0a', transition: '0.2s', position: 'relative',
-                            opacity: isProcessing ? 0.5 : 1
-                        }}
-                        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                        onDragLeave={() => setIsDragging(false)}
-                        onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]); }}
-                    >
-                       <div style={{ fontSize: '28px', marginBottom: '10px' }}>📁</div>
-                       <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '5px' }}>Загрузка учебных материалов</h3>
-                       
-                       {(!selectedFiles || selectedFiles.length === 0) ? (
-                           <>
-                               <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>Перетащите сюда документы (PDF, DOCX, TXT) или нажмите кнопку.</p>
-                               <input type="file" multiple id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing} onChange={(e) => { if (e.target.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.target.files as FileList)]); }} />
-                               <button onClick={() => document.getElementById('file-upload-admin')?.click()} disabled={isProcessing} style={{...adminActionBtn, padding: '12px 25px'} as any}>ВЫБРАТЬ ФАЙЛЫ</button>
-                           </>
-                       ) : (
-                           <div style={{ background: '#000', padding: '20px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', textAlign: 'left' }}>
-                               <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px', textAlign: 'center' }}>ВЫБРАНО ФАЙЛОВ: {selectedFiles.length}</div>
-                               <div className="custom-scroll" style={{ maxHeight: '100px', overflowY: 'auto', marginBottom: '15px' }}>
-                                   {selectedFiles.map((f, i) => <div key={i} style={{fontSize: '12px', color: '#aaa', marginTop: '4px'}}>📎 {f.name}</div>)}
-                               </div>
-                               <div style={{ textAlign: 'left', marginTop: '15px', marginBottom: '20px' }}>
-                                   <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold', marginBottom: '8px' }}>ВЫБЕРИТЕ ПАПКУ ДЛЯ ДОКУМЕНТОВ:</div>
-                                   {!isCreatingNewUploadSection ? (
-                                       <select style={{ width: '100%', padding: '12px', background: '#111', border: '1px solid #333', borderRadius: '10px', color: '#fff', outline: 'none', fontSize: '13px' }} value={uploadSection} onChange={e => { if (e.target.value === '__NEW__') { setIsCreatingNewUploadSection(true); setNewUploadSectionName(''); } else setUploadSection(e.target.value); }}>
-                                           {Array.from(new Set(['Основной раздел', ...existingDocSections])).map(sec => <option key={sec as string} value={sec as string}>{sec as string}</option>)}
-                                           <option value="__NEW__" style={{background: '#1a1a1a', color: '#0abab5'}}>+ Создать новую папку...</option>
-                                       </select>
-                                   ) : (
-                                       <div style={{ display: 'flex', gap: '8px' }}>
-                                           <input autoFocus style={{ flex: 1, padding: '12px', background: '#000', border: '1px solid #0abab5', borderRadius: '10px', color: '#fff', outline: 'none', fontSize: '13px' }} placeholder="Название..." value={newUploadSectionName} onChange={e => setNewUploadSectionName(e.target.value)} />
-                                           <button onClick={() => { setUploadSection(newUploadSectionName.trim() || 'Основной раздел'); setIsCreatingNewUploadSection(false); }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>ОК</button>
-                                           <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>✕</button>
-                                       </div>
-                                   )}
-                               </div>
-                               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                   <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, padding: '12px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', marginTop: 0 } as any}>{isProcessing ? 'ЗАГРУЗКА...' : 'ЗАГРУЗИТЬ ВСЕ'}</button>
-                                   <button onClick={() => { setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); }} disabled={isProcessing} style={{ ...saveBtn, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '12px 20px', width: 'auto', fontSize: '12px', borderRadius: '10px', marginTop: 0 } as any}>ОТМЕНИТЬ</button>
-                               </div>
-                           </div>
-                       )}
-                    </div>
+                    {(!selectedFiles || selectedFiles.length === 0) ? (
+                        <div 
+                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                            onDragLeave={() => setIsDragging(false)}
+                            onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]); }}
+                            style={{
+                                border: isDragging ? '2px dashed #0abab5' : '2px dashed #222',
+                                borderRadius: '24px', padding: '50px 20px', textAlign: 'center',
+                                background: isDragging ? 'rgba(10,186,181,0.05)' : '#0d0f0d',
+                                transition: 'all 0.3s ease', cursor: 'pointer',
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px',
+                                opacity: isProcessing ? 0.5 : 1
+                            }}
+                            onClick={() => document.getElementById('file-upload-admin')?.click()}
+                        >
+                            <div style={{ fontSize: '40px', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))' }}>📁</div>
+                            <div>
+                                <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#fff', margin: '0 0 8px 0' }}>Загрузить документы</h3>
+                                <p style={{ color: '#666', fontSize: '14px', margin: 0, maxWidth: '400px', lineHeight: '1.5' }}>
+                                    Перетащите сюда файлы (PDF, DOCX, TXT) или нажмите на это окно для выбора с устройства
+                                </p>
+                            </div>
+                            <input type="file" multiple id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing} onChange={(e) => { if (e.target.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.target.files as FileList)]); }} />
+                            <div style={{...adminActionBtn, padding: '12px 30px', marginTop: '10px'} as any}>ВЫБРАТЬ ФАЙЛЫ</div>
+                        </div>
+                    ) : (
+                        <div style={{ background: '#111', padding: '30px', borderRadius: '24px', border: '1px solid #222', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '15px' }}>
+                                <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#0abab5', margin: 0 }}>Подготовка к загрузке</h3>
+                                <div style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>{selectedFiles.length} файлов</div>
+                            </div>
+
+                            <div className="upload-settings-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', alignItems: 'start' }}>
+                                {/* Левая колонка: Файлы */}
+                                <div style={{ background: '#0a0a0a', borderRadius: '16px', border: '1px solid #1a1a1a', padding: '15px', maxHeight: '200px', overflowY: 'auto' }} className="custom-scroll">
+                                    {selectedFiles.map((f, i) => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i !== selectedFiles.length - 1 ? '1px dashed #222' : 'none' }}>
+                                            <span style={{ fontSize: '16px' }}>📄</span>
+                                            <span style={{ fontSize: '13px', color: '#ccc', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
+                                            <span style={{ fontSize: '11px', color: '#666', flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Правая колонка: Настройки */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', height: '100%' }}>
+                                    <div>
+                                        <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Папка для сохранения:</div>
+                                        {!isCreatingNewUploadSection ? (
+                                           <select style={adminIn as any} value={uploadSection} onChange={e => { if (e.target.value === '__NEW__') { setIsCreatingNewUploadSection(true); setNewUploadSectionName(''); } else setUploadSection(e.target.value); }}>
+                                               {Array.from(new Set(['Основной раздел', ...existingDocSections])).map(sec => <option key={sec as string} value={sec as string}>{sec as string}</option>)}
+                                               <option value="__NEW__" style={{background: '#1a1a1a', color: '#0abab5'}}>+ Создать новую папку...</option>
+                                           </select>
+                                       ) : (
+                                           <div style={{ display: 'flex', gap: '8px' }}>
+                                               <input autoFocus style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} placeholder="Название..." value={newUploadSectionName} onChange={e => setNewUploadSectionName(e.target.value)} />
+                                               <button onClick={() => { setUploadSection(newUploadSectionName.trim() || 'Основной раздел'); setIsCreatingNewUploadSection(false); }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>ОК</button>
+                                               <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>✕</button>
+                                           </div>
+                                       )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', paddingTop: '10px' }}>
+                                       <button onClick={() => { setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); }} disabled={isProcessing} style={{ ...saveBtn, marginTop: 0, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', flex: 1, padding: '14px' } as any}>ОТМЕНА</button>
+                                       <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, marginTop: 0, flex: 2, padding: '14px' } as any}>{isProcessing ? 'ОБРАБОТКА...' : 'ЗАГРУЗИТЬ'}</button>
+                                   </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -513,7 +534,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             {successModal.show && (
                 <div style={modalOverlay as any} onClick={() => setSuccessModal({ show: false, title: '', text: '' })}>
                     <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>✅</div>
+                        <div style={{ fontSize: '50px', marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>✅</div>
                         <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{successModal.title}</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{successModal.text}</p>
                         <button onClick={() => setSuccessModal({ show: false, title: '', text: '' })} style={saveBtn as any}>ПОНЯТНО</button>
@@ -532,6 +553,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
+            {/* 💡 СТИЛИ СЕТКИ (УСТРАНЯЕТ РАСТЯГИВАНИЕ И ОБЕСПЕЧИВАЕТ АДАПТИВНОСТЬ) */}
             <style jsx global>{`
                 @media (min-width: 769px) {
                     .premium-cards-container {
@@ -540,6 +562,13 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         gap: 20px;
                         width: 100%;
                     }
+                }
+
+                .upload-settings-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 30px;
+                    align-items: start;
                 }
 
                 .premium-card {
@@ -570,6 +599,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 }
 
                 @media (max-width: 768px) {
+                    .upload-settings-grid {
+                        grid-template-columns: 1fr !important;
+                        gap: 20px !important;
+                    }
                     .premium-cards-container { 
                         display: grid !important;
                         grid-template-columns: repeat(2, 1fr) !important;
