@@ -187,7 +187,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         }
     };
 
-    // 💡 ИСПРАВЛЕНИЕ: Интеллектуальный предпросмотр с внедрением docx-preview
+    // Интеллектуальный предпросмотр
     const handleOpenPreview = async (file: any) => {
         if (!file.data && !file.hasSeparateData) {
             alert("Этот файл был загружен в старой версии и недоступен для просмотра.");
@@ -216,13 +216,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
             const objectUrl = base64ToBlobUrl(fileBase64);
             
-            // Проверяем тип файла
             const isDocx = file.name?.toLowerCase().endsWith('.docx');
-            // Убрали docx из списка неподдерживаемых
             const isUnsupported = file.name?.toLowerCase().match(/\.(doc|xls|xlsx|ppt|pptx|zip|rar)$/i);
             const fileExt = file.name.split('.').pop()?.toUpperCase() || 'ФАЙЛ';
 
             newWindow.document.open();
+            // 💡 ИСПРАВЛЕНИЕ: Переписаны стили для docx-wrapper, чтобы убрать серые вложенные коробки
             newWindow.document.write(`
                 <!DOCTYPE html>
                 <html lang="ru">
@@ -231,15 +230,25 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Предпросмотр: ${file.name}</title>
                     <style>
-                        body { margin: 0; padding: 0; background: #0d0f0d; height: 100vh; display: flex; flex-direction: column; ${isDocx ? 'overflow: auto; align-items: center;' : 'overflow: hidden;'} }
+                        body { margin: 0; padding: 0; background: #0d0f0d; height: 100vh; display: flex; flex-direction: column; ${isDocx ? 'overflow: auto;' : 'overflow: hidden;'} }
                         iframe, object, embed { width: 100%; height: 100%; border: none; flex: 1; background: #fff; }
                         .unsupported { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #fff; font-family: 'Inter', sans-serif; text-align: center; padding: 20px; }
                         .btn { background: #0abab5; color: #000; padding: 15px 35px; border-radius: 14px; text-decoration: none; font-weight: 900; margin-top: 30px; font-size: 16px; transition: 0.2s; cursor: pointer; border: none; display: inline-block; }
                         .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(10,186,181,0.3); }
                         
-                        /* Стили специально для DOCX контейнера */
-                        #docx-container { width: 100%; max-width: 1000px; background: white; min-height: 100vh; box-shadow: 0 0 30px rgba(0,0,0,0.5); padding: 40px; box-sizing: border-box; }
-                        .docx-loading { margin-top: 150px; font-size: 20px; color: #0abab5; font-family: sans-serif; font-weight: bold; }
+                        /* Стили специально для чистого отображения DOCX */
+                        #docx-container { width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
+                        
+                        /* Переопределяем стандартный фон библиотеки docx-preview */
+                        .docx-wrapper { background: transparent !important; padding: 50px 20px !important; }
+                        .docx-wrapper > section.docx { 
+                            box-shadow: 0 20px 60px rgba(0,0,0,0.8) !important; 
+                            border-radius: 10px !important; 
+                            margin-bottom: 30px !important;
+                            border: none !important;
+                        }
+                        
+                        .docx-loading { margin-top: 150px; font-size: 20px; color: #0abab5; font-family: sans-serif; font-weight: bold; text-align: center; width: 100%; }
                     </style>
                     ${isDocx ? `
                     <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
@@ -248,10 +257,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </head>
                 <body>
                     ${isDocx ? `
-                        <div id="loading" class="docx-loading">⏳ Загрузка и обработка DOCX документа...</div>
-                        <div id="docx-container" style="display: none;"></div>
+                        <div id="docx-container">
+                            <div id="loading" class="docx-loading">⏳ Обработка документа...</div>
+                        </div>
                         <script>
-                            // Загружаем Blob по локальной ссылке и скармливаем библиотеке
                             fetch("${objectUrl}")
                                 .then(res => res.blob())
                                 .then(blob => {
@@ -260,10 +269,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                     docx.renderAsync(blob, container)
                                         .then(() => {
                                             loading.style.display = 'none';
-                                            container.style.display = 'block';
                                         })
                                         .catch(err => {
-                                            loading.innerText = '❌ Ошибка при чтении документа. Возможно, сложный формат или файл поврежден.';
+                                            loading.innerHTML = '<span style="color:#ff4d4d">❌ Ошибка при чтении документа.</span><br/><br/><a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ ↓</a>';
                                             console.error(err);
                                         });
                                 })
