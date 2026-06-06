@@ -54,7 +54,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     const [successModal, setSuccessModal] = useState({ show: false, title: '', text: '' });
     const [errorModal, setErrorModal] = useState({ show: false, text: '' });
 
-    // Фильтруем ТОЛЬКО нормативные документы
+    // Фильтруем ТОЛЬКО нормативные документы (исключаем дедлайны и тесты)
     const allDocs = (urgentFiles || []).filter((f: any) => {
         if (f.isDocPlaceholder) return true;
         if (f.id?.startsWith('deadline_') || f.isTest) return false;
@@ -210,7 +210,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             }
 
             if (!fileBase64) {
-                newWindow.document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#ff4d4d;font-weight:bold;font-size:20px;">Данные файла не найдены на сервере.</div>';
+                newWindow.document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#ff4d4d;font-weight:bold;font-size:20px;">Данные файла не найден на сервере.</div>';
                 return;
             }
 
@@ -516,42 +516,43 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                               <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
                                                   <div onClick={(e) => { e.stopPropagation(); setMovingItem(file.id); }} className="card-icon-btn move-btn" title="Переместить">
                                                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                          <path d="M21 8L12 13L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                          <path d="M12 22V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                          <path d="M21 8V16C21 16.5304 20.7893 17.0391 20.4142 17.4142C20.0391 17.7893 19.5304 18 19 18H5C4.46957 18 3.96086 17.7893 3.58579 17.4142C3.21071 17.0391 3 16.5304 3 16V8C3 7.46957 3.21071 6.96086 3.58579 6.58579C3.96086 6.21071 4.46957 6 5 6H19C19.5304 6 20.0391 6.21071 20.4142 6.58579C20.7893 6.96086 21 7.46957 21 8Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                       </svg>
                                                   </div>
                                                   <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'file', targetId: file.id, name: file.name}); }} className="card-icon-btn del-btn" title="Удалить">
                                                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                          <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                          <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                          <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                          <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                          <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                       </svg>
                                                   </div>
                                               </div>
                                           )}
                                           
-                                          {/* 💡 Обертка с отступом для мобильной версии, чтобы текст не лез под иконки */}
-                                          <div style={{ paddingRight: isAdmin ? '85px' : '0' }}>
+                                          {/* 💡 Обертка с отступом, чтобы текст не лез под иконки */}
+                                          <div style={{ paddingRight: isAdmin ? '85px' : '0', marginBottom: '15px' }}>
                                               <div style={{fontSize:'11px', color:'#0abab5', fontWeight:'800', marginBottom: '8px', opacity: 0.8}}>{file.date || 'Документ'}</div>
                                               
-                                              <h4 style={{fontSize:'16px', margin:'0 0 15px 0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '8px'}}>
-                                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '2px'}}>
-                                                      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M14 2V8H20" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                              <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
+                                                  {/* 💡 Новый премиальный векторный значок документа */}
+                                                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '1px'}}>
+                                                      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="rgba(10,186,181,0.15)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                      <path d="M14 2V8H20" fill="rgba(10,186,181,0.3)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                      <path d="M8 13H16" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                      <path d="M8 17H13" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                   </svg>
                                                   <span>{file.name}</span>
                                               </h4>
                                           </div>
                                           
-                                          <div style={{ color: '#555', fontSize: '12px', marginBottom: '20px', fontWeight: 'bold' }}>Вес: {file.size}</div>
-                                          
-                                          {/* 💡 Новые кнопки с обводкой */}
-                                          <div style={{ marginTop: 'auto', display: 'flex', gap: '10px' }}>
-                                              <button onClick={() => handleOpenPreview(file)} className="doc-action-btn">ОТКРЫТЬ</button>
-                                              <button onClick={() => handleDownloadFile(file)} className="doc-action-btn">СКАЧАТЬ ↓</button>
+                                          {/* 💡 Фикс скачущего текста: блок кнопок и веса прижат к низу карточки */}
+                                          <div style={{ marginTop: 'auto' }}>
+                                              <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px', fontWeight: 'bold' }}>Вес: {file.size}</div>
+                                              <div style={{ display: 'flex', gap: '10px' }}>
+                                                  <button onClick={() => handleOpenPreview(file)} className="doc-action-btn">ОТКРЫТЬ</button>
+                                                  <button onClick={() => handleDownloadFile(file)} className="doc-action-btn">СКАЧАТЬ ↓</button>
+                                              </div>
                                           </div>
+                                          
                                        </div>
                                    ))
                                )}
