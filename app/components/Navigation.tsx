@@ -403,19 +403,31 @@ export default function Navigation() {
               </div>
              
              <div style={topActions} className="top-actions">
+                {/* 💡 Заменен эмодзи колокольчика на векторный SVG */}
                 <div onClick={() => setIsNotifOpen(true)} className="top-icon-btn" style={topIcon}>
-                  🔔
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 22C13.1046 22 14 21.1046 14 20H10C10 21.1046 10.8954 22 12 22Z" fill="currentColor"/>
+                      <path d="M18 16V11C18 7.93 16.36 5.36 13.5 4.68V4C13.5 3.17 12.83 2.5 12 2.5C11.17 2.5 10.5 3.17 10.5 4V4.68C7.64 5.36 6 7.92 6 11V16L4 18V19H20V18L18 16ZM16 17H8V11C8 8.52 9.51 6.5 12 6.5C14.49 6.5 16 8.52 16 11V17Z" fill="currentColor"/>
+                  </svg>
                   {notifications.length > 0 && (
-                    <div style={{ position: 'absolute', top: '-2px', right: '-2px', width: '10px', height: '10px', background: '#ff4d4d', borderRadius: '50%' }}></div>
+                    <div style={{ position: 'absolute', top: '-4px', right: '-4px', width: '12px', height: '12px', background: '#ff4d4d', borderRadius: '50%', border: '2px solid #111' }}></div>
                   )}
                 </div>
                 
+                {/* 💡 Заменен эмодзи профиля на векторный SVG */}
                 <div onClick={() => setIsProfileOpen(!isProfileOpen)} style={profileTrigger}>
-                   👤
+                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: '#888' }}>
+                       <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="currentColor"/>
+                   </svg>
                    {isProfileOpen && (
                      <div style={profileDropdown}>
-                        <Link href="/profile" className="drop-item">👤 Мой Профиль</Link>
-                        <div onClick={handleLogout} className="drop-item logout-item" style={{ borderBottom: 'none' }}>Выйти</div>
+                        <Link href="/profile" className="drop-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="currentColor"/>
+                            </svg>
+                            Мой Профиль
+                        </Link>
+                        <div onClick={handleLogout} className="drop-item logout-item" style={{ borderBottom: 'none', paddingLeft: '20px' }}>Выйти</div>
                      </div>
                    )}
                 </div>
@@ -708,8 +720,9 @@ export default function Navigation() {
             background: rgba(10, 186, 181, 0.1);
         }
 
+        /* 💡 Новые стили для кнопок в хедере */
         .top-icon-btn:hover {
-            opacity: 1 !important;
+            color: #fff !important;
             transform: scale(1.1);
         }
 
@@ -796,8 +809,8 @@ const searchInput: any = { background: 'none', border: 'none', color: '#fff', ou
 const searchDropdownStyle: any = { position: 'absolute', top: '55px', left: 0, width: '100%', background: '#111', border: '1px solid #222', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.8)', zIndex: 10005, display: 'flex', flexDirection: 'column' };
 const searchResultItem: any = { padding: '16px 20px', borderBottom: '1px solid #1a1a1a', cursor: 'pointer', transition: '0.2s' };
 const topActions: any = { display: 'flex', alignItems: 'center', gap: '30px' };
-const topIcon: any = { position: 'relative', fontSize: '22px', color: '#fff', cursor: 'pointer', opacity: 0.5, transition: '0.3s' };
-const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', cursor: 'pointer', position: 'relative' };
+const topIcon: any = { position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', cursor: 'pointer', transition: '0.3s' };
+const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' };
 const profileDropdown: any = { position: 'absolute', top: '65px', right: 0, background: '#111', border: '1px solid #222', borderRadius: '20px', width: '220px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', zIndex: 10003 };
 const notifOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.4)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };
 const notifSidebarStyle = { width: '350px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.4s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.5)', overflowY: 'auto' };
