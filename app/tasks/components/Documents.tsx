@@ -14,8 +14,7 @@ const saveDataToServer = (key: string, data: any) => {
     }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
-// 💡 НОВЫЙ КОНВЕРТЕР: Превращает текстовый код файла в настоящий виртуальный файл
-// Это решает проблему зависания PDF-файлов и позволяет скачивать тяжелые файлы
+// Конвертер: Превращает текстовый код файла в настоящий виртуальный файл
 const base64ToBlobUrl = (base64Data: string) => {
     try {
         const arr = base64Data.split(',');
@@ -31,7 +30,7 @@ const base64ToBlobUrl = (base64Data: string) => {
         return URL.createObjectURL(blob);
     } catch (e) {
         console.error("Ошибка конвертации Blob", e);
-        return base64Data; // Фолбэк на старый метод, если что-то пошло не так
+        return base64Data;
     }
 };
 
@@ -158,7 +157,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         } finally { setIsProcessing(false); }
     };
 
-    // 💡 ИСПРАВЛЕНИЕ: Скачивание файлов теперь работает надежно для файлов любого веса
     const handleDownloadFile = async (file: any) => {
         if (!file.data && !file.hasSeparateData) {
             alert("Этот файл был загружен в старой версии платформы и недоступен.");
@@ -189,7 +187,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         }
     };
 
-    // 💡 ИСПРАВЛЕНИЕ: Интеллектуальный предпросмотр (PDF открываются сразу, Word/Excel предлагают скачивание)
+    // 💡 ИСПРАВЛЕНИЕ: Интеллектуальный предпросмотр с внедрением docx-preview
     const handleOpenPreview = async (file: any) => {
         if (!file.data && !file.hasSeparateData) {
             alert("Этот файл был загружен в старой версии и недоступен для просмотра.");
@@ -217,7 +215,11 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             }
 
             const objectUrl = base64ToBlobUrl(fileBase64);
-            const isUnsupported = file.name?.toLowerCase().match(/\.(docx|doc|xls|xlsx|ppt|pptx|zip|rar)$/i);
+            
+            // Проверяем тип файла
+            const isDocx = file.name?.toLowerCase().endsWith('.docx');
+            // Убрали docx из списка неподдерживаемых
+            const isUnsupported = file.name?.toLowerCase().match(/\.(doc|xls|xlsx|ppt|pptx|zip|rar)$/i);
             const fileExt = file.name.split('.').pop()?.toUpperCase() || 'ФАЙЛ';
 
             newWindow.document.open();
@@ -229,26 +231,60 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Предпросмотр: ${file.name}</title>
                     <style>
-                        body { margin: 0; padding: 0; background: #0d0f0d; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+                        body { margin: 0; padding: 0; background: #0d0f0d; height: 100vh; display: flex; flex-direction: column; ${isDocx ? 'overflow: auto; align-items: center;' : 'overflow: hidden;'} }
                         iframe, object, embed { width: 100%; height: 100%; border: none; flex: 1; background: #fff; }
                         .unsupported { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #fff; font-family: 'Inter', sans-serif; text-align: center; padding: 20px; }
                         .btn { background: #0abab5; color: #000; padding: 15px 35px; border-radius: 14px; text-decoration: none; font-weight: 900; margin-top: 30px; font-size: 16px; transition: 0.2s; cursor: pointer; border: none; display: inline-block; }
                         .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(10,186,181,0.3); }
+                        
+                        /* Стили специально для DOCX контейнера */
+                        #docx-container { width: 100%; max-width: 1000px; background: white; min-height: 100vh; box-shadow: 0 0 30px rgba(0,0,0,0.5); padding: 40px; box-sizing: border-box; }
+                        .docx-loading { margin-top: 150px; font-size: 20px; color: #0abab5; font-family: sans-serif; font-weight: bold; }
                     </style>
+                    ${isDocx ? `
+                    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+                    <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
+                    ` : ''}
                 </head>
                 <body>
-                    ${isUnsupported 
-                        ? `<div class="unsupported">
-                               <div style="font-size: 70px; margin-bottom: 20px;">📄</div>
-                               <h2 style="margin: 0 0 15px 0; font-size: 26px;">Формат ${fileExt} не поддерживается браузером</h2>
-                               <p style="color: #aaa; margin: 0; max-width: 500px; line-height: 1.6; font-size: 15px;">
-                                   К сожалению, веб-браузеры физически не умеют открывать документы Microsoft Office внутри вкладок.
-                                   <br/><br/>Но вы можете безопасно скачать этот файл на своё устройство и открыть его в соответствующей программе.
-                               </p>
-                               <a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ ↓</a>
-                           </div>` 
-                        : `<iframe src="${objectUrl}"></iframe>`
-                    }
+                    ${isDocx ? `
+                        <div id="loading" class="docx-loading">⏳ Загрузка и обработка DOCX документа...</div>
+                        <div id="docx-container" style="display: none;"></div>
+                        <script>
+                            // Загружаем Blob по локальной ссылке и скармливаем библиотеке
+                            fetch("${objectUrl}")
+                                .then(res => res.blob())
+                                .then(blob => {
+                                    const container = document.getElementById("docx-container");
+                                    const loading = document.getElementById("loading");
+                                    docx.renderAsync(blob, container)
+                                        .then(() => {
+                                            loading.style.display = 'none';
+                                            container.style.display = 'block';
+                                        })
+                                        .catch(err => {
+                                            loading.innerText = '❌ Ошибка при чтении документа. Возможно, сложный формат или файл поврежден.';
+                                            console.error(err);
+                                        });
+                                })
+                                .catch(err => {
+                                    document.getElementById("loading").innerText = '❌ Ошибка при получении файла.';
+                                    console.error(err);
+                                });
+                        </script>
+                    ` : isUnsupported ? `
+                        <div class="unsupported">
+                            <div style="font-size: 70px; margin-bottom: 20px;">📄</div>
+                            <h2 style="margin: 0 0 15px 0; font-size: 26px;">Формат ${fileExt} не поддерживается браузером</h2>
+                            <p style="color: #aaa; margin: 0; max-width: 500px; line-height: 1.6; font-size: 15px;">
+                                К сожалению, этот формат пока нельзя открыть прямо во вкладке.
+                                <br/><br/>Но вы можете безопасно скачать этот файл на своё устройство и открыть его в соответствующей программе.
+                            </p>
+                            <a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ ↓</a>
+                        </div>
+                    ` : `
+                        <iframe src="${objectUrl}"></iframe>
+                    `}
                 </body>
                 </html>
             `);
@@ -340,7 +376,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         items.forEach((item: any) => {
             const sec = item.section?.trim() || 'Основной раздел';
             if (!groups[sec]) groups[sec] = [];
-            // Добавляем в массив только реальные файлы, игнорируем плейсхолдеры
             if (!item.isDocPlaceholder) {
                 groups[sec].push(item);
             }
