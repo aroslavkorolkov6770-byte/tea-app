@@ -351,11 +351,7 @@ export default function Navigation() {
           <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="sidebar-toggle-fixed"
-              style={{
-                  ...sidebarToggleStyle,
-                  top: isSidebarOpen ? '40px' : '22px',
-                  left: isSidebarOpen ? '28px' : '20px'
-              } as any}
+              style={sidebarToggleStyle as any}
               aria-label="Переключить меню"
           >
               <MenuIcon />
@@ -375,6 +371,7 @@ export default function Navigation() {
                             className={`nav-item ${isActive ? 'active' : ''} ${item.isSubItem ? 'sub-item' : ''}`}
                             onClick={() => { if (typeof window !== 'undefined' && window.innerWidth <= 768) setIsSidebarOpen(false); }}
                         >
+                            {item.isSubItem && <span className="sub-item-arrow" aria-hidden="true">↳</span>}
                             <span>{item.label}</span>
                         </Link>
                     );
@@ -382,7 +379,7 @@ export default function Navigation() {
              </nav>
           </aside>
 
-          <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '0', transition: '0.3s ease' }} className="nav-topbar">
+          <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '72px', transition: '0.3s ease' }} className="nav-topbar">
              <div style={searchBox} className="search-box-container">
                 <span style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}><SearchIcon /></span>
                 <input 
@@ -424,8 +421,8 @@ export default function Navigation() {
                 </div>
                 
                 {/* Заменен эмодзи профиля на векторный SVG */}
-                <div onClick={() => setIsProfileOpen(!isProfileOpen)} style={profileTrigger}>
-                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: '#888' }}>
+                <div onClick={() => setIsProfileOpen(!isProfileOpen)} className="top-icon-btn" style={profileTrigger}>
+                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                        <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="currentColor"/>
                    </svg>
                    {isProfileOpen && (
@@ -676,17 +673,35 @@ export default function Navigation() {
             opacity: 0.7;
             font-weight: 700;
         }
+        .sub-item-arrow {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            margin-right: 8px;
+            color: rgba(255, 255, 255, 0.52);
+            font-size: 14px;
+            line-height: 1;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
         .nav-item.sub-item:hover {
             opacity: 1;
             color: #0abab5;
             background: transparent;
             transform: translateX(4px) translateZ(0);
         }
+        .nav-item.sub-item:hover .sub-item-arrow {
+            color: #0abab5;
+            transform: translateX(1px);
+        }
         .nav-item.sub-item.active {
             color: #0abab5;
             background: rgba(10, 186, 181, 0.1);
             opacity: 1;
             transform: translateX(0) translateZ(0);
+        }
+        .nav-item.sub-item.active .sub-item-arrow {
+            color: #0abab5;
         }
 
         .nav-item.active:not(.sub-item) {
@@ -738,12 +753,14 @@ export default function Navigation() {
         .sidebar-mobile-overlay { display: none; }
         .sidebar-toggle-fixed {
             position: fixed;
+            top: 22px;
+            left: 30px;
             z-index: 10006;
             width: 36px;
             height: 36px;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid #222;
             border-radius: 10px;
-            background: rgba(255,255,255,0.02);
+            background: #111;
             color: #fff;
             display: inline-flex;
             align-items: center;
@@ -751,7 +768,19 @@ export default function Navigation() {
             cursor: pointer;
             padding: 0;
             box-shadow: none;
-            transition: top 0.3s ease, left 0.3s ease;
+            transition: top 0.3s ease, left 0.3s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+
+        .sidebar-toggle-fixed:hover {
+            border-color: #0abab5;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(10, 186, 181, 0.45), 0 0 14px rgba(10, 186, 181, 0.55), 0 0 28px rgba(10, 186, 181, 0.28);
+            transform: translateY(1px) scale(0.97);
+            background: rgba(10, 186, 181, 0.12);
+        }
+
+        .sidebar-toggle-fixed:active {
+            transform: translateY(2px) scale(0.95);
+            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(10, 186, 181, 0.52), 0 0 16px rgba(10, 186, 181, 0.62), 0 0 32px rgba(10, 186, 181, 0.32);
         }
 
         @media (max-width: 768px) {
@@ -829,8 +858,8 @@ function SearchIcon() {
 const guestHeader: any = { position: 'fixed', top: '20px', right: '40px', zIndex: 1000 };
 const loginBtn: any = { background: '#0ABAB5', color: '#000', padding: '12px 35px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize:'14px' };
 
-const sidebarStyle: any = { width: '260px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };
-const logoArea: any = { display: 'flex', alignItems: 'center', gap: '12px', color: '#fff', marginBottom: '50px', paddingLeft: '10px', position: 'sticky', top: '0', background: '#000', zIndex: 2, paddingTop: '0', paddingBottom: '14px' };
+const sidebarStyle: any = { width: '260px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '22px 20px 40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };
+const logoArea: any = { display: 'flex', alignItems: 'center', minHeight: '36px', gap: '15px', color: '#fff', marginBottom: '50px', paddingLeft: '58px' };
 const logoIcon: any = { fontSize: '24px', cursor: 'pointer' };
 const warningBadgeStyle: any = { width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 15px auto' };
 const logoText: any = { fontSize: '20px', fontWeight: '900', letterSpacing: '1px', color: '#fff' };
@@ -843,21 +872,8 @@ const searchDropdownStyle: any = { position: 'absolute', top: '55px', left: 0, w
 const searchResultItem: any = { padding: '16px 20px', borderBottom: '1px solid #1a1a1a', cursor: 'pointer', transition: '0.2s' };
 const topActions: any = { display: 'flex', alignItems: 'center', gap: '30px' };
 const topIcon: any = { position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', cursor: 'pointer', transition: '0.3s' };
-const sidebarToggleStyle: React.CSSProperties = {
-    width: '36px',
-    height: '36px',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '10px',
-    background: 'rgba(255,255,255,0.02)',
-    color: '#fff',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    padding: 0,
-    flexShrink: 0
-};
-const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' };
+const sidebarToggleStyle: React.CSSProperties = { width: '36px', height: '36px', border: '1px solid #222', borderRadius: '10px', background: '#111', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0 };
+const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', color: '#888', transition: '0.3s' };
 const profileDropdown: any = { position: 'absolute', top: '65px', right: 0, background: '#111', border: '1px solid #222', borderRadius: '20px', width: '220px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', zIndex: 10003 };
 const notifOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.4)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };
 const notifSidebarStyle = { width: '350px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.4s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.5)', overflowY: 'auto' };
