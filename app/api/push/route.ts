@@ -1,16 +1,29 @@
 import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 
-// Настраиваем VAPID ключи сервера (mailto нужен для идентификации сервера отправителя)
-webpush.setVapidDetails(
-    'mailto:admin@tea-hub.ru',
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY as string,
-    process.env.VAPID_PRIVATE_KEY as string
-);
+const configureWebPush = () => {
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+    if (!publicKey || !privateKey) {
+        return false;
+    }
+
+    // Настраиваем VAPID ключи только при реальной отправке, чтобы сборка не падала без .env.
+    webpush.setVapidDetails('mailto:admin@tea-hub.ru', publicKey, privateKey);
+    return true;
+};
 
 export async function POST(req: Request) {
     try {
         const { subscriptions, payload } = await req.json();
+
+        if (!configureWebPush()) {
+            return NextResponse.json(
+                { error: 'VAPID ключи для Push-уведомлений не настроены на сервере' },
+                { status: 500 }
+            );
+        }
 
         // Если подписок нет, корректно отвечаем фронтенду
         if (!subscriptions || subscriptions.length === 0) {

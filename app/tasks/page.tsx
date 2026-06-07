@@ -8,7 +8,7 @@ import Education from './components/Education';
 import Assortment from './components/Assortment';
 import AIAssistant from './components/AIAssistant';
 import Documents from './components/Documents';
-import Products from './components/Products'; // 💡 ДОБАВЛЕН ИМПОРТ НОВОГО РАЗДЕЛА ПРОДУКТОВ
+import Products from './components/Products'; // ДОБАВЛЕН ИМПОРТ НОВОГО РАЗДЕЛА ПРОДУКТОВ
 
 // --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
@@ -142,7 +142,7 @@ function ShiftContent() {
       }
       const currentId = localStorage.getItem('current_user_id') || 'guest';
       if (currentId === 'guest' || !currentId) {
-          alert("⚠️ Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве! Пожалуйста, сначала авторизуйтесь под логином сотрудника и попробуйте снова.");
+          alert(" Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве! Пожалуйста, сначала авторизуйтесь под логином сотрудника и попробуйте снова.");
           return;
       }
       try {
@@ -192,9 +192,9 @@ function ShiftContent() {
               localStorage.setItem('tea_hub_push_bound', 'true');
               setIsPushBound(true);
 
-              alert(`🎉 Устройство успешно зарегистрировано и привязано к вашему аккаунту!`);
+              alert(` Устройство успешно зарегистрировано и привязано к вашему аккаунту!`);
           } else {
-              alert("❌ Вы заблокировали уведомления в браузере.");
+              alert(" Вы заблокировали уведомления в браузере.");
           }
       } catch (error) {
           console.error('Ошибка подписки на Push:', error);
@@ -336,7 +336,7 @@ function ShiftContent() {
                                 {totalHubPercent}% <span style={{fontSize:'15px', opacity:0.4, fontWeight:'500'}}>общего прогресса HUB</span>
                             </div>
                         </div>
-                        <div style={rankBadge}>{totalHubPercent < 40 ? '🌱 НОВИЧОК' : totalHubPercent < 80 ? '⚖️ ЭРУДИТ' : '🏮 МАСТЕР'}</div>
+                        <div style={rankBadge}>{totalHubPercent < 40 ? ' НОВИЧОК' : totalHubPercent < 80 ? ' ЭРУДИТ' : ' МАСТЕР'}</div>
                     </div>
 
                     <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '30px', marginBottom: '30px' }}>
@@ -432,7 +432,7 @@ function ShiftContent() {
             />
         )}
 
-        {/* 💡 НОВОЕ: ВКЛАДКА 3.1: ПРОДУКТЫ */}
+        {/* НОВОЕ: ВКЛАДКА 3.1: ПРОДУКТЫ */}
         {activeTab === 'products' && (
             <Products 
                 isAdmin={isAdmin} 

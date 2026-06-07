@@ -51,7 +51,7 @@ export default function InteractionCenter({
 
                             <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
                                 <button onClick={handleOpenTestEditor} disabled={isProcessing} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' } as any}>
-                                    <span></span> РЕДАКТОР
+                                    РЕДАКТОР
                                 </button>
                                 <button onClick={handleQuickSendTest} disabled={isProcessing} style={{ ...adminSendBtn, padding: '14px 25px', fontSize: '13px', borderRadius: '15px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1, flex: 1 } as any}>
                                     {isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}
@@ -62,11 +62,11 @@ export default function InteractionCenter({
                 )}
             </div>
 
-            {/* 💡 МОДАЛЬНОЕ ОКНО ДЛЯ УПРАВЛЕНИЯ ТИПАМИ ТЕСТОВ */}
+            {/* МОДАЛЬНОЕ ОКНО ДЛЯ УПРАВЛЕНИЯ ТИПАМИ ТЕСТОВ */}
             {isManagingTypes && (
                 <div style={modalOverlay as any} onClick={() => setIsManagingTypes(false)}>
                     <div className="admin-modal-content custom-scroll" style={{ ...modalContentSmall, position: 'relative', maxWidth: '500px' } as any} onClick={e => e.stopPropagation()}>
-                        <div onClick={() => setIsManagingTypes(false)} style={{ position: 'absolute', top: '20px', right: '25px', cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>✕</div>
+                        <div onClick={() => setIsManagingTypes(false)} style={{ position: 'absolute', top: '20px', right: '25px', cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1 }}>X</div>
                         
                         <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '25px', textAlign: 'center', textTransform: 'uppercase', fontSize: '18px' }}>
                             УПРАВЛЕНИЕ СПИСКОМ ТЕСТОВ
@@ -102,7 +102,7 @@ export default function InteractionCenter({
                                                 handleUpdateTestTypes(newL);
                                                 if (testType === t.name) setTestType(newL[0].name);
                                             }}>
-                                            ✕ Удалить
+                                            X Удалить
                                         </span>
                                     )}
                                 </div>

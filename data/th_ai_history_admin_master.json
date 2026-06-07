@@ -1,0 +1,21 @@
+[
+  {
+    "id": "chat_1780788685538",
+    "title": "ntvf 1...",
+    "messages": [
+      {
+        "id": "msg_1780788698650",
+        "role": "user",
+        "content": "ntvf 1",
+        "timestamp": "02:31"
+      },
+      {
+        "id": "msg_1780788699831",
+        "role": "ai",
+        "content": " СИСТЕМНАЯ ОШИБКА:\n\n\"Ошибка Яндекса 401\"",
+        "timestamp": "02:31"
+      }
+    ],
+    "updatedAt": 1780788698651
+  }
+]

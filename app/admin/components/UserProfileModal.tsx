@@ -6,6 +6,13 @@ import {
     contactCardStyle, contactIconStyle 
 } from './adminStyles';
 
+const avatarFallbackText = {
+    color: '#0abab5',
+    fontSize: '32px',
+    fontWeight: '900',
+    letterSpacing: '2px'
+};
+
 export default function UserProfileModal({
     selectedProfileUser, setSelectedProfileUser, userProfiles, usersStats,
     totalRouteSteps, totalBasicsModules, userAvatars, testResults,
@@ -30,12 +37,12 @@ export default function UserProfileModal({
             <div className="custom-scroll" style={{ background: '#0d0f0d', padding: '40px 20px', borderRadius: '40px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #333' } as any} onClick={e => e.stopPropagation()}>
                 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                    <div onClick={() => { setSelectedProfileUser(null); setEditAuthMode(false); }} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
+                    <div onClick={() => { setSelectedProfileUser(null); setEditAuthMode(false); }} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>X</div>
                 </div>
 
                 <section style={profileHeaderCardStyle as any}>
                     <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
-                        {profileAvatar ? <img src={profileAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" /> : <span style={{ fontSize: '45px' }}>👤</span>}
+                        {profileAvatar ? <img src={profileAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" /> : <span style={avatarFallbackText as any}>TH</span>}
                     </div>
                     <h2 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', color: '#fff' }}>{selectedProfileUser.name}</h2>
                     <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>ЧАЙНЫЙ МАСТЕР (УЧЕНИК)</p>
@@ -85,16 +92,16 @@ export default function UserProfileModal({
 
                 <h3 style={profileSectionTitle as any}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
-                    <div title="Старт" style={{ ...badgeStyle, opacity: routeLen >= 1 ? 1 : 0.1 } as any}>🌱</div>
-                    <div title="План" style={{ ...badgeStyle, opacity: routeLen >= 5 ? 1 : 0.1 } as any}>🚀</div>
-                    <div title="Теория" style={{ ...badgeStyle, opacity: basicsLen >= 5 ? 1 : 0.1 } as any}>📚</div>
-                    <div title="Мастер" style={{ ...badgeStyle, opacity: basicsLen >= 10 ? 1 : 0.1 } as any}>🏮</div>
+                    <div title="Старт" style={{ ...badgeStyle, opacity: routeLen >= 1 ? 1 : 0.1 } as any}>START</div>
+                    <div title="План" style={{ ...badgeStyle, opacity: routeLen >= 5 ? 1 : 0.1 } as any}>PLAN</div>
+                    <div title="Теория" style={{ ...badgeStyle, opacity: basicsLen >= 5 ? 1 : 0.1 } as any}>THEORY</div>
+                    <div title="Мастер" style={{ ...badgeStyle, opacity: basicsLen >= 10 ? 1 : 0.1 } as any}>MASTER</div>
                 </div>
 
                 <h3 style={profileSectionTitle as any}>СВЯЗЬ</h3>
                 <section style={contactCardStyle as any}>
                     <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                        <div style={contactIconStyle as any}>💬</div>
+                        <div style={contactIconStyle as any}>i</div>
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{tg || 'telegram не указан'}</div>
                             <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{email || 'e-mail не указан'}</div>

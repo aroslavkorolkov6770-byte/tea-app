@@ -51,7 +51,7 @@ export default function AdminDashboard() {
   const [testSearchQuery, setTestSearchQuery] = useState("");
   const [showTestDropdown, setShowTestDropdown] = useState(false);
 
-  const [testTypesList, setTestTypesList] = useState<any[]>([{ id: 't1', name: '🎓 Итоговая аттестация' }, { id: 't2', name: '🔄 Переаттестация' }]);
+  const [testTypesList, setTestTypesList] = useState<any[]>([{ id: 't1', name: ' Итоговая аттестация' }, { id: 't2', name: ' Переаттестация' }]);
   const [interactionTab, setInteractionTab] = useState<'notif' | 'test'>('notif');
   const [selectedStaff, setSelectedStaff] = useState("Все");
   const [notifText, setNotifText] = useState("");
@@ -366,7 +366,7 @@ export default function AdminDashboard() {
               
               const newDeadlineTask = { 
                   id: 'deadline_' + Date.now(), 
-                  name: '⚠️ Дедлайн: ' + noteText.trim(), 
+                  name: ' Дедлайн: ' + noteText.trim(), 
                   size: 'Выполнить до: ' + formattedSelectedDate(), 
                   date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), 
                   target: deadlineTarget, 
@@ -381,14 +381,14 @@ export default function AdminDashboard() {
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
               
               const pushUrl = finalLinkedTestId ? `/tasks?tab=edu&testId=${finalLinkedTestId}` : '/tasks?tab=edu';
-              const pushSent = await sendPushNotification(deadlineTarget, { title: '⚠️ Новый дедлайн', body: noteText.trim(), url: pushUrl });
+              const pushSent = await sendPushNotification(deadlineTarget, { title: ' Новый дедлайн', body: noteText.trim(), url: pushUrl });
               
               let emailBody = `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`;
               if (finalLinkedTestId) {
                   const tName = dynamicTests.find(t => t.id === finalLinkedTestId)?.title || testSearchQuery.replace('[Аттестация] ', '') || "Тест";
                   emailBody += `\nК задаче прикреплен тест: "${tName}". Откройте платформу для прохождения.`;
               }
-              const emailSent = await sendEmailNotification(deadlineTarget, '⚠️ Внимание: Новый дедлайн!', emailBody);
+              const emailSent = await sendEmailNotification(deadlineTarget, ' Внимание: Новый дедлайн!', emailBody);
               
               setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена. ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
           }
@@ -574,7 +574,7 @@ export default function AdminDashboard() {
           <div style={noteSidebarStyle as any} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0abab5' }}>ЗАМЕТКА</h2>
-              <div onClick={closeNotePanel} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5 }}>✕</div>
+              <div onClick={closeNotePanel} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5 }}>X</div>
             </div>
             <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '20px', color: '#ccc' }}>Дата: {formattedSelectedDate()}</p>
             
@@ -615,7 +615,7 @@ export default function AdminDashboard() {
                                     onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
                                     onMouseLeave={(e) => e.currentTarget.style.color = '#888'}
                                 >
-                                    ❌ Без теста
+                                     Без теста
                                 </div>
                                 {allOptions.filter(o => o.title.toLowerCase().includes(testSearchQuery.toLowerCase())).map(opt => (
                                     <div 
@@ -650,7 +650,7 @@ export default function AdminDashboard() {
       {showSuccessModal.show && (
           <div style={modalOverlay as any} onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '420px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
-                  <div style={{ fontSize: '50px', marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>✅</div>
+                  <div style={{ fontSize: '50px', marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>OK</div>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{showSuccessModal.title}</h2>
                   <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.6', marginBottom: '25px' }}>{showSuccessModal.text}</p>
                   <button onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })} style={saveBtn as any}>ПОНЯТНО</button>
@@ -661,7 +661,7 @@ export default function AdminDashboard() {
       {errorModal.show && (
           <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
               <div className="admin-modal-content" style={{ ...modalContentSmall, maxWidth: '380px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
-                  <div style={{ fontSize: '50px', marginBottom: '20px' }}>⛔</div>
+                  <div style={{ width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 20px auto' }}>!</div>
                   <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ОШИБКА</h2>
                   <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px', wordBreak: 'break-word' }}>{errorModal.text}</p>
                   <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>

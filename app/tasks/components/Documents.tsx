@@ -147,8 +147,8 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             updateFilesState(updatedFiles);
             
             const namesStr = fileNames.join(', ');
-            const pushSent = await sendPushNotification('Все', { title: '📚 Новые учебные материалы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' });
-            const emailSent = await sendEmailNotification('Все', '📚 Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`);
+            const pushSent = await sendPushNotification('Все', { title: ' Новые учебные материалы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' });
+            const emailSent = await sendEmailNotification('Все', ' Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`);
 
             setSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) загружены в раздел "${finalSection}". ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
             setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); setNewUploadSectionName('');
@@ -259,12 +259,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                     docx.renderAsync(blob, container)
                                         .then(() => { loading.style.display = 'none'; })
                                         .catch(err => {
-                                            loading.innerHTML = '<span style="color:#ff4d4d">❌ Ошибка при чтении документа.</span><br/><br/><a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ ↓</a>';
+                                            loading.innerHTML = '<span style="color:#ff4d4d"> Ошибка при чтении документа.</span><br/><br/><a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ </a>';
                                             console.error(err);
                                         });
                                 })
                                 .catch(err => {
-                                    document.getElementById("loading").innerText = '❌ Ошибка при получении файла.';
+                                    document.getElementById("loading").innerText = ' Ошибка при получении файла.';
                                     console.error(err);
                                 });
                         </script>
@@ -279,7 +279,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                 К сожалению, этот формат пока нельзя открыть прямо во вкладке.
                                 <br/><br/>Но вы можете безопасно скачать этот файл на своё устройство и открыть его в соответствующей программе.
                             </p>
-                            <a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ ↓</a>
+                            <a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ </a>
                         </div>
                     ` : `
                         <iframe src="${objectUrl}"></iframe>
@@ -450,7 +450,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                            <div style={{ display: 'flex', gap: '8px' }}>
                                                <input autoFocus style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} placeholder="Название..." value={newUploadSectionName} onChange={e => setNewUploadSectionName(e.target.value)} />
                                                <button onClick={() => { setUploadSection(newUploadSectionName.trim() || 'Основной раздел'); setIsCreatingNewUploadSection(false); }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>ОК</button>
-                                               <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>✕</button>
+                                               <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>X</button>
                                            </div>
                                        )}
                                     </div>
@@ -492,7 +492,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                </h3>
                                {isAdmin && secName !== 'Основной раздел' && (
                                    <div style={{display: 'flex', gap: '15px'}}>
-                                       <span onClick={() => setRenameSectionPrompt({isOpen: true, oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✎ РЕДАКТИРОВАТЬ</span>
+                                       <span onClick={() => setRenameSectionPrompt({isOpen: true, oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}> РЕДАКТИРОВАТЬ</span>
                                        <span onClick={() => setConfirmDelete({isOpen: true, type: 'section', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '3px', marginBottom: '-2px'}}>
                                                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
@@ -528,12 +528,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                               </div>
                                           )}
                                           
-                                          {/* 💡 Обертка с отступом, чтобы текст не лез под иконки */}
+                                          {/* Обертка с отступом, чтобы текст не лез под иконки */}
                                           <div style={{ paddingRight: isAdmin ? '85px' : '0', marginBottom: '15px' }}>
                                               <div style={{fontSize:'11px', color:'#0abab5', fontWeight:'800', marginBottom: '8px', opacity: 0.8}}>{file.date || 'Документ'}</div>
                                               
                                               <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
-                                                  {/* 💡 Новый премиальный векторный значок документа */}
+                                                  {/* Новый премиальный векторный значок документа */}
                                                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '1px'}}>
                                                       <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="rgba(10,186,181,0.15)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                       <path d="M14 2V8H20" fill="rgba(10,186,181,0.3)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -544,12 +544,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                               </h4>
                                           </div>
                                           
-                                          {/* 💡 Фикс скачущего текста: блок кнопок и веса прижат к низу карточки */}
+                                          {/* Фикс скачущего текста: блок кнопок и веса прижат к низу карточки */}
                                           <div style={{ marginTop: 'auto' }}>
                                               <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px', fontWeight: 'bold' }}>Вес: {file.size}</div>
                                               <div style={{ display: 'flex', gap: '10px' }}>
                                                   <button onClick={() => handleOpenPreview(file)} className="doc-action-btn">ОТКРЫТЬ</button>
-                                                  <button onClick={() => handleDownloadFile(file)} className="doc-action-btn">СКАЧАТЬ ↓</button>
+                                                  <button onClick={() => handleDownloadFile(file)} className="doc-action-btn">СКАЧАТЬ </button>
                                               </div>
                                           </div>
                                           
@@ -701,7 +701,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     border-color: #333;
                 }
 
-                /* 💡 СТИЛИ ДЛЯ НОВЫХ КНОПОК И ИКОНОК */
+                /* СТИЛИ ДЛЯ НОВЫХ КНОПОК И ИКОНОК */
                 .doc-action-btn {
                     background: rgba(10,186,181,0.05);
                     color: #0abab5;

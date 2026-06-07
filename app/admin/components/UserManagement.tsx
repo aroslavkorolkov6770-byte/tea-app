@@ -69,7 +69,7 @@ export default function UserManagement({
             </div>
 
             <div style={{ marginBottom: '20px', position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5 }}>🔍</span>
+                <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5, display: 'flex', alignItems: 'center' }}><SearchIcon /></span>
                 <input type="text" placeholder="Поиск по имени или логину..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' } as any} />
             </div>
             
@@ -85,7 +85,7 @@ export default function UserManagement({
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                         <div style={{ width: '45px', height: '45px', borderRadius: '15px', background: '#222', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            {avatarImg ? <img src={avatarImg} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span>👤</span>}
+                                            {avatarImg ? <img src={avatarImg} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={avatarFallbackText as any}>TH</span>}
                                         </div>
                                         <div>
                                             <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
@@ -93,7 +93,7 @@ export default function UserManagement({
                                         </div>
                                     </div>
                                     {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
-                                        <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>✕</div>
+                                        <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>X</div>
                                     )}
                                 </div>
                                 <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
@@ -122,8 +122,8 @@ export default function UserManagement({
                         
                         <div style={{ textAlign: 'left', marginBottom: '15px', color: '#888', fontSize: '13px', fontWeight: 'bold', marginLeft: '5px' }}>Роль пользователя:</div>
                         <select style={adminIn as any} value={newUser.role} onChange={e=>setNewUser({...newUser, role: e.target.value})}>
-                            <option value="staff">🍵 Чайный мастер (Сотрудник)</option>
-                            <option value="admin">👑 Администратор</option>
+                            <option value="staff"> Чайный мастер (Сотрудник)</option>
+                            <option value="admin"> Администратор</option>
                         </select>
                         <button onClick={handleCreateUser} style={{...saveBtn, marginTop: '20px'} as any}>СОЗДАТЬ УЧЕТКУ</button>
                         <div onClick={()=>setShowUserForm(false)} style={{textAlign:'center', marginTop:'20px', cursor:'pointer', color:'#666', fontWeight:'bold'}}>ОТМЕНА</div>
@@ -134,7 +134,7 @@ export default function UserManagement({
             {confirmModal.show && (
                 <div style={modalOverlay as any} onClick={() => setConfirmModal({ show: false, id: '' })}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                        <div style={warningBadgeStyle as any}>!</div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>УДАЛИТЬ?</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', marginBottom: '25px' }}>Вы уверены, что хотите удалить сотрудника?</p>
                         <div style={{ display: 'flex', gap: '15px' }}>
@@ -147,3 +147,34 @@ export default function UserManagement({
         </>
     );
 }
+
+function SearchIcon() {
+    return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10.5 18C14.6421 18 18 14.6421 18 10.5C18 6.35786 14.6421 3 10.5 3C6.35786 3 3 6.35786 3 10.5C3 14.6421 6.35786 18 10.5 18Z" stroke="currentColor" strokeWidth="2" />
+            <path d="M16 16L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+const avatarFallbackText = {
+    color: '#0abab5',
+    fontSize: '16px',
+    fontWeight: '900',
+    letterSpacing: '1px'
+};
+
+const warningBadgeStyle = {
+    width: '60px',
+    height: '60px',
+    borderRadius: '18px',
+    border: '1px solid rgba(255,77,77,0.35)',
+    background: 'rgba(255,77,77,0.08)',
+    color: '#ff4d4d',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '32px',
+    fontWeight: '900',
+    margin: '0 auto 20px auto'
+};

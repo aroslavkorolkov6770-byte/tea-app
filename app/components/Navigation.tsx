@@ -331,9 +331,9 @@ export default function Navigation() {
       isSubItem: false 
     },
     { id: '/tasks?tab=edu', label: 'Обучение', isSubItem: false },
-    { id: '/tasks?tab=docs', label: '↳ База документов', isSubItem: true },
+    { id: '/tasks?tab=docs', label: 'База документов', isSubItem: true },
     { id: '/tasks?tab=assortment', label: 'Ассортимент', isSubItem: false },
-    { id: '/tasks?tab=products', label: '↳ Продукты', isSubItem: true },
+    { id: '/tasks?tab=products', label: 'Продукты', isSubItem: true },
     { id: '/tasks?tab=standards', label: 'ИИ Помощник', isSubItem: false },
   ];
 
@@ -349,9 +349,13 @@ export default function Navigation() {
 
           <aside style={{ ...sidebarStyle, left: isSidebarOpen ? 0 : '-260px', transition: '0.3s ease' }} className="nav-sidebar">
             <div style={logoArea}>
-                <div onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="desktop-hamburger" style={logoIcon}>≡</div>
+                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="desktop-hamburger" style={iconButtonStyle as any} aria-label="Переключить меню">
+                    <MenuIcon />
+                </button>
                 <span style={logoText}>Меню</span>
-                <div onClick={() => setIsSidebarOpen(false)} className="mobile-close-btn" style={{ marginLeft: 'auto', fontSize: '24px', cursor: 'pointer', color: '#ff4d4d' }}>✕</div>
+                <button onClick={() => setIsSidebarOpen(false)} className="mobile-close-btn" style={{ ...iconButtonStyle, marginLeft: 'auto', color: '#ff4d4d' } as any} aria-label="Закрыть меню">
+                    <CloseIcon />
+                </button>
              </div>
              <nav style={sideNav}>
                 {sideItems.map(item => {
@@ -372,10 +376,16 @@ export default function Navigation() {
 
           <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '0', transition: '0.3s ease' }} className="nav-topbar">
              <div style={searchBox} className="search-box-container">
-                {!isSidebarOpen && <div onClick={() => setIsSidebarOpen(true)} className="desktop-hamburger" style={{ cursor: 'pointer', fontSize: '20px', marginRight: '10px' }}>☰</div>}
-                <div onClick={() => setIsSidebarOpen(true)} className="mobile-hamburger" style={{ cursor: 'pointer', fontSize: '24px' }}>☰</div>
+                {!isSidebarOpen && (
+                    <button onClick={() => setIsSidebarOpen(true)} className="desktop-hamburger" style={{ ...iconButtonStyle, marginRight: '10px' } as any} aria-label="Открыть меню">
+                        <MenuIcon />
+                    </button>
+                )}
+                <button onClick={() => setIsSidebarOpen(true)} className="mobile-hamburger" style={iconButtonStyle as any} aria-label="Открыть меню">
+                    <MenuIcon />
+                </button>
                 
-                <span style={{opacity: 0.5}}>🔍</span>
+                <span style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}><SearchIcon /></span>
                 <input 
                   type="text" 
                   placeholder="Поиск по базе знаний..." 
@@ -403,7 +413,7 @@ export default function Navigation() {
               </div>
              
              <div style={topActions} className="top-actions">
-                {/* 💡 Заменен эмодзи колокольчика на векторный SVG */}
+                {/* Заменен эмодзи колокольчика на векторный SVG */}
                 <div onClick={() => setIsNotifOpen(true)} className="top-icon-btn" style={topIcon}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 22C13.1046 22 14 21.1046 14 20H10C10 21.1046 10.8954 22 12 22Z" fill="currentColor"/>
@@ -414,7 +424,7 @@ export default function Navigation() {
                   )}
                 </div>
                 
-                {/* 💡 Заменен эмодзи профиля на векторный SVG */}
+                {/* Заменен эмодзи профиля на векторный SVG */}
                 <div onClick={() => setIsProfileOpen(!isProfileOpen)} style={profileTrigger}>
                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: '#888' }}>
                        <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="currentColor"/>
@@ -443,7 +453,7 @@ export default function Navigation() {
                       {notifications.length > 0 && (
                           <span onClick={clearAllNotifications} style={{ fontSize: '11px', color: '#ff4d4d', cursor: 'pointer', fontWeight: '900', textTransform: 'uppercase', borderBottom: '1px dashed #ff4d4d', transition: '0.2s', whiteSpace: 'nowrap' }}>Очистить всё</span>
                       )}
-                      <div onClick={() => setIsNotifOpen(false)} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5, flexShrink: 0 }}>✕</div>
+                      <div onClick={() => setIsNotifOpen(false)} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5, flexShrink: 0 }}>X</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -454,7 +464,7 @@ export default function Navigation() {
                       <div key={n.id} style={notifItemStyle as any}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
                           <div style={{ fontSize: '14px', fontWeight: '900', color: '#0abab5' }}>{n.title}</div>
-                          <div onClick={() => removeNotification(n.id)} style={{ cursor: 'pointer', fontSize: '16px', color: '#666', paddingLeft: '10px' }}>✕</div>
+                          <div onClick={() => removeNotification(n.id)} style={{ cursor: 'pointer', fontSize: '16px', color: '#666', paddingLeft: '10px' }}>X</div>
                         </div>
                         <div style={{ fontSize: '13px', color: '#ccc', lineHeight: '1.4' }}>{n.text}</div>
                         <div style={{ fontSize: '10px', color: '#555', marginTop: '10px', fontWeight: 'bold' }}>{n.time}</div>
@@ -483,7 +493,7 @@ export default function Navigation() {
                   boxSizing: 'border-box',
                   animation: 'scaleIn 0.2s ease'
               }} onClick={e => e.stopPropagation()}>
-                  <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
+                  <div style={warningBadgeStyle as any}>!</div>
                   <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
                   <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{errorMessage}</p>
                   <div onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ЗАКРЫТЬ</div>
@@ -522,7 +532,7 @@ export default function Navigation() {
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'
                             }}
                         >
-                            {isConsentGiven && <span style={{ color: '#0abab5', fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
+                            {isConsentGiven && <span style={{ color: '#0abab5', fontSize: '14px', fontWeight: 'bold' }}>OK</span>}
                         </div>
                         <div style={{ color: '#888', fontSize: '12px', lineHeight: '1.4', textAlign: 'left' }}>
                             Я даю согласие на <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
@@ -537,7 +547,7 @@ export default function Navigation() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             <div onClick={handleCaptchaClick} style={teaGuardCheckboxStyle(isCaptchaVerified) as any}>
                                 {isCaptchaLoading && <div className="captcha-spinner"></div>}
-                                {isCaptchaVerified && <span style={{ color: '#0abab5', fontSize: '24px', fontWeight: 'bold' }}>✓</span>}
+                                {isCaptchaVerified && <span style={{ color: '#0abab5', fontSize: '24px', fontWeight: 'bold' }}>OK</span>}
                             </div>
                             <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>Я человек</span>
                         </div>
@@ -647,7 +657,7 @@ export default function Navigation() {
             font-weight: 800;
             font-size: 15px;
             
-            /* 💡 Фикс прыгающих шрифтов при масштабировании и анимациях */
+            /* Фикс прыгающих шрифтов при масштабировании и анимациях */
             transition: transform 0.2s ease, color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
@@ -658,7 +668,7 @@ export default function Navigation() {
             cursor: pointer;
         }
         
-        /* 💡 СТИЛИ ДЛЯ ПОДПУНКТОВ МЕНЮ */
+        /* СТИЛИ ДЛЯ ПОДПУНКТОВ МЕНЮ */
         .nav-item.sub-item {
             font-size: 13px;
             padding: 10px 16px 10px 30px;
@@ -720,7 +730,7 @@ export default function Navigation() {
             background: rgba(10, 186, 181, 0.1);
         }
 
-        /* 💡 Новые стили для кнопок в хедере */
+        /* Новые стили для кнопок в хедере */
         .top-icon-btn:hover {
             color: #fff !important;
             transform: scale(1.1);
@@ -793,6 +803,31 @@ export default function Navigation() {
   );
 }
 
+function MenuIcon() {
+    return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 7H20M4 12H20M4 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function SearchIcon() {
+    return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10.5 18C14.6421 18 18 14.6421 18 10.5C18 6.35786 14.6421 3 10.5 3C6.35786 3 3 6.35786 3 10.5C3 14.6421 6.35786 18 10.5 18Z" stroke="currentColor" strokeWidth="2" />
+            <path d="M16 16L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function CloseIcon() {
+    return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+    );
+}
+
 // --- СТИЛИ ---
 const guestHeader: any = { position: 'fixed', top: '20px', right: '40px', zIndex: 1000 };
 const loginBtn: any = { background: '#0ABAB5', color: '#000', padding: '12px 35px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize:'14px' };
@@ -800,6 +835,8 @@ const loginBtn: any = { background: '#0ABAB5', color: '#000', padding: '12px 35p
 const sidebarStyle: any = { width: '260px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };
 const logoArea: any = { display: 'flex', alignItems: 'center', gap: '15px', color: '#fff', marginBottom: '50px', paddingLeft: '10px' };
 const logoIcon: any = { fontSize: '24px', cursor: 'pointer' };
+const iconButtonStyle: any = { width: '36px', height: '36px', border: '1px solid #222', borderRadius: '10px', background: '#111', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0 };
+const warningBadgeStyle: any = { width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 15px auto' };
 const logoText: any = { fontSize: '20px', fontWeight: '900', letterSpacing: '1px', color: '#fff' };
 const sideNav: any = { display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 };
 
