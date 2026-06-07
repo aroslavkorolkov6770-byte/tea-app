@@ -348,15 +348,22 @@ export default function Navigation() {
         <>
           {isSidebarOpen && <div className="sidebar-mobile-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
 
+          <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="sidebar-toggle-fixed"
+              style={{
+                  ...sidebarToggleStyle,
+                  top: isSidebarOpen ? '40px' : '22px',
+                  left: isSidebarOpen ? '28px' : '20px'
+              } as any}
+              aria-label="Переключить меню"
+          >
+              <MenuIcon />
+          </button>
+
           <aside style={{ ...sidebarStyle, left: isSidebarOpen ? 0 : '-260px', transition: '0.3s ease' }} className="nav-sidebar">
             <div style={logoArea}>
-                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="desktop-hamburger" style={iconButtonStyle as any} aria-label="Переключить меню">
-                    <MenuIcon />
-                </button>
                 <span style={logoText}>Меню</span>
-                <button onClick={() => setIsSidebarOpen(false)} className="mobile-close-btn" style={{ ...iconButtonStyle, marginLeft: 'auto', color: '#ff4d4d' } as any} aria-label="Закрыть меню">
-                    <CloseIcon />
-                </button>
              </div>
              <nav style={sideNav}>
                 {sideItems.map(item => {
@@ -377,15 +384,6 @@ export default function Navigation() {
 
           <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '0', transition: '0.3s ease' }} className="nav-topbar">
              <div style={searchBox} className="search-box-container">
-                {!isSidebarOpen && (
-                    <button onClick={() => setIsSidebarOpen(true)} className="desktop-hamburger" style={{ ...iconButtonStyle, marginRight: '10px' } as any} aria-label="Открыть меню">
-                        <MenuIcon />
-                    </button>
-                )}
-                <button onClick={() => setIsSidebarOpen(true)} className="mobile-hamburger" style={iconButtonStyle as any} aria-label="Открыть меню">
-                    <MenuIcon />
-                </button>
-                
                 <span style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}><SearchIcon /></span>
                 <input 
                   type="text" 
@@ -536,7 +534,7 @@ export default function Navigation() {
                             {isConsentGiven && <span style={{ color: '#0abab5', display: 'inline-flex' }}><CustomIcon name="check" size={16} color="#0abab5" /></span>}
                         </div>
                         <div style={{ color: '#888', fontSize: '12px', lineHeight: '1.4', textAlign: 'left' }}>
-                            Я даю согласие на <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
+                            Я даю согласие на <a href="/privacy?doc=processing#processing" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
                         </div>
                     </div>
                 </>
@@ -738,8 +736,23 @@ export default function Navigation() {
         }
 
         .sidebar-mobile-overlay { display: none; }
-        .mobile-hamburger { display: none; }
-        .mobile-close-btn { display: none; }
+        .sidebar-toggle-fixed {
+            position: fixed;
+            z-index: 10006;
+            width: 36px;
+            height: 36px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.02);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            box-shadow: none;
+            transition: top 0.3s ease, left 0.3s ease;
+        }
 
         @media (max-width: 768px) {
             .nav-topbar {
@@ -758,12 +771,6 @@ export default function Navigation() {
                 z-index: 10004;
                 backdrop-filter: blur(5px);
             }
-            .mobile-hamburger { 
-                display: block !important; 
-                margin-right: 10px; 
-                color: #fff;
-            }
-
             .search-box-container {
                 width: 100% !important;
                 max-width: 100% !important;
@@ -776,9 +783,6 @@ export default function Navigation() {
                 min-width: 0 !important;
                 text-overflow: ellipsis !important;
             }
-            
-            .desktop-hamburger { display: none !important; }
-            .mobile-close-btn { display: block !important; }
             
             .guest-header {
                 right: 15px !important;
@@ -821,22 +825,13 @@ function SearchIcon() {
     );
 }
 
-function CloseIcon() {
-    return (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-    );
-}
-
 // --- СТИЛИ ---
 const guestHeader: any = { position: 'fixed', top: '20px', right: '40px', zIndex: 1000 };
 const loginBtn: any = { background: '#0ABAB5', color: '#000', padding: '12px 35px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize:'14px' };
 
 const sidebarStyle: any = { width: '260px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };
-const logoArea: any = { display: 'flex', alignItems: 'center', gap: '15px', color: '#fff', marginBottom: '50px', paddingLeft: '10px' };
+const logoArea: any = { display: 'flex', alignItems: 'center', gap: '12px', color: '#fff', marginBottom: '50px', paddingLeft: '10px', position: 'sticky', top: '0', background: '#000', zIndex: 2, paddingTop: '0', paddingBottom: '14px' };
 const logoIcon: any = { fontSize: '24px', cursor: 'pointer' };
-const iconButtonStyle: any = { width: '36px', height: '36px', border: '1px solid #222', borderRadius: '10px', background: '#111', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0 };
 const warningBadgeStyle: any = { width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 15px auto' };
 const logoText: any = { fontSize: '20px', fontWeight: '900', letterSpacing: '1px', color: '#fff' };
 const sideNav: any = { display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 };
@@ -848,6 +843,20 @@ const searchDropdownStyle: any = { position: 'absolute', top: '55px', left: 0, w
 const searchResultItem: any = { padding: '16px 20px', borderBottom: '1px solid #1a1a1a', cursor: 'pointer', transition: '0.2s' };
 const topActions: any = { display: 'flex', alignItems: 'center', gap: '30px' };
 const topIcon: any = { position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', cursor: 'pointer', transition: '0.3s' };
+const sidebarToggleStyle: React.CSSProperties = {
+    width: '36px',
+    height: '36px',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '10px',
+    background: 'rgba(255,255,255,0.02)',
+    color: '#fff',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    padding: 0,
+    flexShrink: 0
+};
 const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' };
 const profileDropdown: any = { position: 'absolute', top: '65px', right: 0, background: '#111', border: '1px solid #222', borderRadius: '20px', width: '220px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', zIndex: 10003 };
 const notifOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.4)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };

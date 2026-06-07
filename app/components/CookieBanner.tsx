@@ -36,9 +36,8 @@ export default function CookieBanner() {
           Мы используем файлы cookie для сохранения вашей сессии. Согласны ли вы оставаться в системе на этом устройстве, чтобы не вводить логин и пароль каждый раз?
         </p>
         
-        {/* Кликабельные ссылки теперь ведут на отдельную страницу документов */}
         <p style={{ margin: '0 0 20px 0', fontSize: '11px', color: '#888', lineHeight: '1.5' }}>
-          Ознакомьтесь с <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={linkStyle}>Политикой конфиденциальности</a> и <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={linkStyle}>Соглашением с файлами cookie</a>.
+          Ознакомьтесь с <a href="/privacy?doc=privacy#privacy" style={linkStyle}>Политикой конфиденциальности</a> и <a href="/privacy?doc=cookies#cookies" style={linkStyle}>Соглашением с файлами cookie</a>.
         </p>
 
         <div style={{ display: 'flex', gap: '10px' }}>

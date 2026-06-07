@@ -263,7 +263,7 @@ export default function LoginPage() {
                         {isConsentGiven && <span style={{ color: '#0abab5', display: 'inline-flex' }}><CustomIcon name="check" size={16} color="#0abab5" /></span>}
                     </div>
                     <div style={{ color: '#888', fontSize: '12px', lineHeight: '1.4' }}>
-                        Я даю согласие на <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
+                        Я даю согласие на <a href="/privacy?doc=processing#processing" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
                     </div>
                 </div>
             </div>
