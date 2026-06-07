@@ -26,8 +26,15 @@ export default function StatisticsPanel({
                 const avatarImg = userAvatars[user.id] || user.avatar;
 
                 return (
-                    <div key={user.id} style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px' }}>
+                    <div
+                        key={user.id}
+                        className="admin-user-card"
+                        style={{ background: '#0d0d0d', borderRadius: '25px', padding: '25px', border: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '15px' }}
+                    >
+                        <div
+                            className="admin-user-avatar-col"
+                            style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: '0 0 250px', minWidth: 0 }}
+                        >
                             <div style={{ width: '55px', height: '55px', borderRadius: '18px', background: '#222', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {avatarImg ? <img src={avatarImg} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#0abab5', fontSize: '16px', fontWeight: '900', letterSpacing: '1px' }}>TH</span>}
                             </div>
@@ -38,24 +45,30 @@ export default function StatisticsPanel({
                             </div>
                         </div>
 
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ТЕОРИЯ</div>
+                        <div
+                            className="admin-user-bars-col"
+                            style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px', minWidth: 0 }}
+                        >
+                            <div className="admin-user-progress-row" style={{ display: 'flex', alignItems: 'center', gap: '15px', minWidth: 0 }}>
+                                <div className="admin-user-progress-label" style={{ width: '52px', flexShrink: 0, fontSize: '11px', fontWeight: '900', color: '#555' }}>ТЕОРИЯ</div>
                                 <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
                                     <div style={{ width: `${theoryPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
                                 </div>
-                                <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{theoryPercent}%</div>
+                                <div className="admin-user-progress-value" style={{ width: '45px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{theoryPercent}%</div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ТЕСТЫ</div>
+                            <div className="admin-user-progress-row" style={{ display: 'flex', alignItems: 'center', gap: '15px', minWidth: 0 }}>
+                                <div className="admin-user-progress-label" style={{ width: '52px', flexShrink: 0, fontSize: '11px', fontWeight: '900', color: '#555' }}>ТЕСТЫ</div>
                                 <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
                                     <div style={{ width: `${testsPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
                                 </div>
-                                <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{testsPercent}%</div>
+                                <div className="admin-user-progress-value" style={{ width: '45px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{testsPercent}%</div>
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '12px', height: '50px', alignItems: 'flex-end', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
+                        <div
+                            className="admin-user-actions-col"
+                            style={{ display: 'flex', gap: '12px', height: '50px', alignItems: 'flex-end', borderLeft: '1px solid #222', paddingLeft: '30px', flexShrink: 0 }}
+                        >
                             <div style={barStyle(theoryPercent) as any} />
                             <div style={barStyle(testsPercent) as any} />
                         </div>

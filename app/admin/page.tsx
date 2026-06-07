@@ -699,10 +699,13 @@ export default function AdminDashboard() {
             .admin-section-title { font-size: 20px !important; margin-bottom: 20px !important; }
             .admin-flex-space { flex-direction: column; align-items: flex-start !important; gap: 15px !important; margin-bottom: 25px !important; }
             .admin-user-grid { grid-template-columns: 1fr !important; }
-            .admin-user-card { flex-direction: column !important; align-items: flex-start !important; gap: 20px !important; padding: 20px !important; }
+            .admin-user-card { flex-direction: column !important; align-items: flex-start !important; gap: 16px !important; padding: 16px !important; border-radius: 20px !important; }
             .admin-user-avatar-col { flex: auto !important; width: 100% !important; margin-bottom: 0 !important; }
-            .admin-user-bars-col { border-left: none !important; padding-left: 0 !important; width: 100% !important; border-top: 1px solid #222; padding-top: 20px !important; }
-            .admin-user-actions-col { border-left: none !important; padding-left: 0 !important; width: 100% !important; justify-content: flex-end; height: auto !important; border-top: 1px solid #222; padding-top: 20px !important; }
+            .admin-user-bars-col { border-left: none !important; padding-left: 0 !important; width: 100% !important; border-top: 1px solid #222; padding-top: 16px !important; }
+            .admin-user-actions-col { border-left: none !important; padding-left: 0 !important; width: 100% !important; justify-content: flex-end; height: auto !important; border-top: 1px solid #222; padding-top: 16px !important; }
+            .admin-user-progress-row { gap: 8px !important; }
+            .admin-user-progress-label { width: 56px !important; font-size: 10px !important; }
+            .admin-user-progress-value { width: 40px !important; font-size: 12px !important; }
             .interaction-center-tabs { flex-direction: column; }
             .interaction-center-tabs > div { border-left: none !important; border-bottom: 1px solid #222; }
             .interaction-center-row { flex-direction: column; align-items: stretch !important; gap: 15px !important; }
