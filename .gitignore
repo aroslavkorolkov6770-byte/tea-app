@@ -23,6 +23,10 @@
 # misc
 .DS_Store
 *.pem
+data/file_data_*.json
+data/tea_hub_products_v1.json
+data/tea_hub_urgent_files_v1.json
+data/th_ai_history_*.json
 
 # debug
 npm-debug.log*
