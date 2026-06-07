@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
+import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 // --- ИМПОРТ НАШИХ МОДУЛЕЙ ---
@@ -17,14 +18,6 @@ const STORAGE_KEYS = {
     DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v2',     
     TESTS_PROGRESS: 'tea_hub_tests_progress_v1',
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
-};
-
-const saveDataToServer = (key: string, data: any) => {
-    return fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 function ShiftContent() {
@@ -57,42 +50,29 @@ function ShiftContent() {
   const [isPushBound, setIsPushBound] = useState(false);
 
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
-      if (typeof window !== 'undefined') {
-          const cachedFiles = localStorage.getItem('th_cache_files');
-          const cachedRoute = localStorage.getItem('th_cache_route');
-          const cachedTests = localStorage.getItem('th_cache_tests');
-          const cachedProgRoute = localStorage.getItem(`th_prog_route_${currentUserId}`);
-          const cachedProgTests = localStorage.getItem(`th_prog_tests_${currentUserId}`);
-          const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
-          const cachedDismissed = localStorage.getItem(`th_dismissed_tasks_${currentUserId}`);
-          const cachedAssortment = localStorage.getItem('th_cache_assortment_matrix_v2');
-
-          if (cachedFiles) setUrgentFiles(JSON.parse(cachedFiles));
-          if (cachedRoute) setDynamicRoute(JSON.parse(cachedRoute));
-          if (cachedTests) setDynamicTests(JSON.parse(cachedTests));
-          if (cachedProgRoute) setCompletedRoute(JSON.parse(cachedProgRoute));
-          if (cachedProgTests) setCompletedTests(JSON.parse(cachedProgTests));
-          if (cachedPassedTests) setPassedTests(JSON.parse(cachedPassedTests));
-          if (cachedDismissed) setDismissedTasks(JSON.parse(cachedDismissed));
-          if (cachedAssortment) setAssortmentMatrix(JSON.parse(cachedAssortment));
-      }
-
       try {
-          const cacheBuster = `?t=${Date.now()}`;
-          const [sFiles, cRoute, cTests, sTestsData, sRouteData, pTestsRes, sAssortment, sDismissed] = await Promise.all([
-              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.URGENT_FILES}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=prog_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_TESTS}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_ROUTE}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=tea_hub_assortment_matrix_v2`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=dismissed_tasks_${currentUserId}`).then(r => r.json()).catch(() => null)
+          const storageData = await fetchStorageBatch([
+              STORAGE_KEYS.URGENT_FILES,
+              `prog_route_${currentUserId}`,
+              `prog_tests_${currentUserId}`,
+              STORAGE_KEYS.DYNAMIC_TESTS,
+              STORAGE_KEYS.DYNAMIC_ROUTE,
+              `th_passed_tests_${currentUserId}`,
+              'tea_hub_assortment_matrix_v2',
+              `dismissed_tasks_${currentUserId}`,
           ]);
+
+          const sFiles = storageData[STORAGE_KEYS.URGENT_FILES];
+          const cRoute = storageData[`prog_route_${currentUserId}`];
+          const cTests = storageData[`prog_tests_${currentUserId}`];
+          const sTestsData = storageData[STORAGE_KEYS.DYNAMIC_TESTS];
+          const sRouteData = storageData[STORAGE_KEYS.DYNAMIC_ROUTE];
+          const pTestsRes = storageData[`th_passed_tests_${currentUserId}`];
+          const sAssortment = storageData['tea_hub_assortment_matrix_v2'];
+          const sDismissed = storageData[`dismissed_tasks_${currentUserId}`];
 
           if (Array.isArray(sFiles)) {
               setUrgentFiles(sFiles);
-              localStorage.setItem('th_cache_files', JSON.stringify(sFiles));
           }
 
           if (Array.isArray(cRoute)) {
@@ -117,17 +97,14 @@ function ShiftContent() {
 
           if (Array.isArray(sTestsData)) {
               setDynamicTests(sTestsData);
-              localStorage.setItem('th_cache_tests', JSON.stringify(sTestsData));
           }
 
           if (Array.isArray(sRouteData)) {
               setDynamicRoute(sRouteData);
-              localStorage.setItem('th_cache_route', JSON.stringify(sRouteData));
           }
 
           if (Array.isArray(sAssortment)) {
               setAssortmentMatrix(sAssortment);
-              localStorage.setItem('th_cache_assortment_matrix_v2', JSON.stringify(sAssortment));
           }
 
       } catch (e) {

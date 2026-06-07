@@ -1,18 +1,11 @@
 "use client";
 import React, { useState } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
+import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 
 // --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
-};
-
-const saveDataToServer = (key: string, data: any) => {
-    return fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 // Конвертер: Превращает текстовый код файла в настоящий виртуальный файл
@@ -68,7 +61,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
     const updateFilesState = (newFiles: any[]) => {
         setUrgentFiles(newFiles);
-        localStorage.setItem('th_cache_files', JSON.stringify(newFiles));
         saveDataToServer(STORAGE_KEYS.URGENT_FILES, newFiles);
     };
 
@@ -87,20 +79,32 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
     const sendEmailNotification = async (targetUserId: string, subject: string, text: string) => {
         try {
-            const resUsers = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_users_v1`);
-            const users = await resUsers.json().catch(() => []);
+            const storageData = await fetchStorageBatch(['tea_hub_users_v1']);
+            const users = storageData['tea_hub_users_v1'];
             if (!Array.isArray(users)) return false;
 
             let emailsToSend: string[] = [];
+            const targetUsers = targetUserId === 'Все'
+                ? users.filter((u: any) => u.role === 'staff')
+                : users.filter((u: any) => u.id === targetUserId);
+
+            const missingProfileKeys = targetUsers
+                .filter((u: any) => !u.email)
+                .map((u: any) => `profile_data_${u.id}`);
+
+            const profileDataMap = missingProfileKeys.length > 0
+                ? await fetchStorageBatch(missingProfileKeys)
+                : {};
+
             if (targetUserId === 'Все') {
-                for (const u of users.filter((u:any) => u.role === 'staff')) {
-                    const email = u.email || await fetch(`/api/storage?key=profile_data_${u.id}`).then(r=>r.json()).then(d=>d?.email).catch(()=>null);
+                for (const u of targetUsers) {
+                    const email = u.email || profileDataMap[`profile_data_${u.id}`]?.email;
                     if (email) emailsToSend.push(email);
                 }
             } else {
-                const u = users.find((u:any) => u.id === targetUserId);
+                const u = targetUsers[0];
                 if (u) {
-                    const email = u.email || await fetch(`/api/storage?key=profile_data_${u.id}`).then(r=>r.json()).then(d=>d?.email).catch(()=>null);
+                    const email = u.email || profileDataMap[`profile_data_${u.id}`]?.email;
                     if (email) emailsToSend.push(email);
                 }
             }
@@ -123,26 +127,26 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         }
 
         try {
-            const newFilesData: any[] = [];
-            const fileNames: string[] = [];
-
-            for (const file of selectedFiles) {
+            const fileNames = selectedFiles.map((file) => file.name);
+            const newFilesData = await Promise.all(selectedFiles.map(async (file, index) => {
                 const fileData = await new Promise((resolve) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target?.result);
                     reader.readAsDataURL(file);
                 });
 
-                const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                const fileId = 'file_' + Date.now() + '_' + index + '_' + Math.random().toString(36).substr(2, 5);
                 await saveDataToServer(`file_data_${fileId}`, fileData);
 
-                newFilesData.push({
-                    id: fileId, name: file.name, size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+                return {
+                    id: fileId,
+                    name: file.name,
+                    size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
                     date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
-                    section: finalSection, hasSeparateData: true 
-                });
-                fileNames.push(file.name);
-            }
+                    section: finalSection,
+                    hasSeparateData: true,
+                };
+            }));
 
             const updatedFiles = [...newFilesData, ...(urgentFiles || [])];
             updateFilesState(updatedFiles);

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
 import CustomIcon from '@/app/components/CustomIcon';
+import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 
 import UserManagement from './components/UserManagement';
 import StatisticsPanel from './components/StatisticsPanel';
@@ -14,14 +15,6 @@ import TestResultsModal from './components/TestResultsModal';
 import { noteOverlayStyle, noteSidebarStyle, noteTextarea, noteDeleteBtn, adminSendBtn, flexSpace, sectionTitle, adminIn, saveBtn, modalOverlay, modalContentSmall } from './components/adminStyles';
 
 const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
-
-const saveDataToServer = (key: string, data: any) => {
-    return fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
-};
 
 export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
@@ -83,92 +76,75 @@ export default function AdminDashboard() {
 
     const loadAllData = async () => {
         try {
-            const cacheBuster = `?t=${Date.now()}`;
-            
-            const [notesRes, usersRes, testRes, filesRes, bRes, rRes, typesRes, dynTestsRes] = await Promise.all([
-                fetch(`/api/storage${cacheBuster}&key=admin_cal_notes_v1`).catch(() => null),
-                fetch(`/api/storage${cacheBuster}&key=tea_hub_users_v1`).catch(() => null),
-                fetch(`/api/storage${cacheBuster}&key=tea_hub_test_results_v1`).catch(() => null),
-                fetch(`/api/storage${cacheBuster}&key=tea_hub_urgent_files_v1`).catch(() => null),
-                fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_basics_v2`).catch(() => null),
-                fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_route_v2`).catch(() => null),
-                fetch(`/api/storage${cacheBuster}&key=tea_hub_test_types_v1`).catch(() => null),
-                fetch(`/api/storage${cacheBuster}&key=tea_hub_dynamic_tests_v1`).catch(() => null)
+            const storageData = await fetchStorageBatch([
+                'admin_cal_notes_v1',
+                'tea_hub_users_v1',
+                'tea_hub_test_results_v1',
+                'tea_hub_urgent_files_v1',
+                'tea_hub_dynamic_route_v2',
+                'tea_hub_test_types_v1',
+                'tea_hub_dynamic_tests_v1',
             ]);
 
-            if (notesRes && notesRes.ok) {
-                const notesData = await notesRes.json();
-                if (notesData && !Array.isArray(notesData)) setNotes(notesData);
+            const notesData = storageData['admin_cal_notes_v1'];
+            if (notesData && !Array.isArray(notesData)) setNotes(notesData);
+
+            let usersData = storageData['tea_hub_users_v1'];
+            if (!Array.isArray(usersData) || usersData.length === 0) {
+                usersData = [{ id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' }];
+                saveDataToServer('tea_hub_users_v1', usersData);
+            }
+            setUsers(usersData);
+
+            const testData = storageData['tea_hub_test_results_v1'];
+            setTestResults(Array.isArray(testData) ? testData : []);
+
+            const filesData = storageData['tea_hub_urgent_files_v1'];
+            if (Array.isArray(filesData)) setUrgentFiles(filesData);
+
+            const typesData = storageData['tea_hub_test_types_v1'];
+            if (Array.isArray(typesData) && typesData.length > 0) setTestTypesList(typesData);
+
+            const loadedTests = storageData['tea_hub_dynamic_tests_v1'];
+            const dynamicRouteData = storageData['tea_hub_dynamic_route_v2'];
+
+            if (Array.isArray(loadedTests)) {
+                setDynamicTests(loadedTests);
             }
 
-            if (usersRes && usersRes.ok) {
-                let usersData = await usersRes.json();
-                if (!Array.isArray(usersData) || usersData.length === 0) {
-                    usersData = [{ id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' }];
-                    saveDataToServer('tea_hub_users_v1', usersData);
+            setTotalBasicsModules(Array.isArray(loadedTests) ? loadedTests.length : 0);
+            setTotalRouteSteps(Array.isArray(dynamicRouteData) ? dynamicRouteData.length : 5);
+
+            const stats: Record<string, {route: number, basics: number}> = {};
+            const avatarsFound: Record<string, string> = {};
+            const profilesFound: Record<string, any> = {};
+            const profileKeys = usersData.map((u: any) => `profile_data_${u.id}`);
+            const staffUsers = usersData.filter((u: any) => u.role === 'staff');
+            const progressKeys = staffUsers.flatMap((u: any) => [`prog_route_${u.id}`, `prog_tests_${u.id}`]);
+            const relatedData = await fetchStorageBatch([...profileKeys, ...progressKeys]);
+
+            for (const u of usersData) {
+                if (u.avatar) avatarsFound[u.id] = u.avatar;
+
+                const profData = relatedData[`profile_data_${u.id}`];
+                if (profData && !Array.isArray(profData)) {
+                    profilesFound[u.id] = profData;
+                    if (profData.avatar) avatarsFound[u.id] = profData.avatar;
                 }
-                setUsers(usersData);
 
-                const stats: Record<string, {route: number, basics: number}> = {};
-                const avatarsFound: Record<string, string> = {};
-                const profilesFound: Record<string, any> = {};
-
-                await Promise.all(usersData.map(async (u: any) => {
-                    if (u.avatar) avatarsFound[u.id] = u.avatar;
-                    try {
-                        const profData = await fetch(`/api/storage${cacheBuster}&key=profile_data_${u.id}`).then(r => r.json()).catch(() => null);
-                        if (profData && !Array.isArray(profData)) {
-                            profilesFound[u.id] = profData;
-                            if (profData.avatar) avatarsFound[u.id] = profData.avatar;
-                        }
-                    } catch(e) {}
-
-                    if (u.role === 'staff') {
-                        try {
-                            const [uRouteData, uTestsData] = await Promise.all([
-                                fetch(`/api/storage${cacheBuster}&key=prog_route_${u.id}`).then(r => r.json()).catch(() => []),
-                                fetch(`/api/storage${cacheBuster}&key=prog_tests_${u.id}`).then(r => r.json()).catch(() => [])
-                            ]);
-                            stats[u.id] = { route: Array.isArray(uRouteData) ? uRouteData.length : 0, basics: Array.isArray(uTestsData) ? uTestsData.length : 0 };
-                        } catch(e) {
-                            stats[u.id] = { route: 0, basics: 0 };
-                        }
-                    }
-                }));
-                setUsersStats(stats);
-                setUserAvatars(avatarsFound);
-                setUserProfiles(profilesFound);
-            }
-
-            if (testRes && testRes.ok) {
-                let testData = await testRes.json();
-                setTestResults(Array.isArray(testData) ? testData : []);
-            }
-
-            if (filesRes && filesRes.ok) {
-                const filesData = await filesRes.json();
-                if (Array.isArray(filesData)) setUrgentFiles(filesData);
-            }
-
-            if (typesRes && typesRes.ok) {
-                const typesData = await typesRes.json();
-                if (Array.isArray(typesData) && typesData.length > 0) setTestTypesList(typesData);
-            }
-
-            let dTests: any[] = [];
-            if (dynTestsRes && dynTestsRes.ok) {
-                const loadedTests = await dynTestsRes.json();
-                if (Array.isArray(loadedTests)) {
-                    dTests = loadedTests;
-                    setDynamicTests(loadedTests);
+                if (u.role === 'staff') {
+                    const uRouteData = relatedData[`prog_route_${u.id}`];
+                    const uTestsData = relatedData[`prog_tests_${u.id}`];
+                    stats[u.id] = {
+                        route: Array.isArray(uRouteData) ? uRouteData.length : 0,
+                        basics: Array.isArray(uTestsData) ? uTestsData.length : 0,
+                    };
                 }
             }
 
-            const bDb = bRes && bRes.ok ? await bRes.json() : [];
-            const rDb = rRes && rRes.ok ? await rRes.json() : [];
-            
-            setTotalBasicsModules(Array.isArray(dTests) ? dTests.length : 0);
-            setTotalRouteSteps(Array.isArray(rDb) ? rDb.length : 5);
+            setUsersStats(stats);
+            setUserAvatars(avatarsFound);
+            setUserProfiles(profilesFound);
 
         } catch (error) { console.error("Error", error); }
     };

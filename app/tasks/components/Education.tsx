@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
+import { saveDataToServer } from '@/app/lib/storageClient';
 
 const STORAGE_KEYS = {
     ONBOARD_ROUTE: 'tea_hub_onboard_route_v2',
@@ -8,14 +9,6 @@ const STORAGE_KEYS = {
     DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v2',     
     TESTS_PROGRESS: 'tea_hub_tests_progress_v1',
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
-};
-
-const saveDataToServer = (key: string, data: any) => {
-    return fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 const stripEmoji = (str: string) => {
@@ -95,8 +88,8 @@ export default function Education({
     const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
     const [zoomedImg, setZoomedImg] = useState<string | null>(null);
 
-    const updateRouteState = (newData: any[]) => { setDynamicRoute(newData); localStorage.setItem('th_cache_route', JSON.stringify(newData)); saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newData); };
-    const updateTestsState = (newData: any[]) => { setDynamicTests(newData); localStorage.setItem('th_cache_tests', JSON.stringify(newData)); saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, newData); };
+    const updateRouteState = (newData: any[]) => { setDynamicRoute(newData); saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newData); };
+    const updateTestsState = (newData: any[]) => { setDynamicTests(newData); saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, newData); };
 
     useEffect(() => {
         let timerId: any;

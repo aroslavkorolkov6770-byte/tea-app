@@ -1,17 +1,10 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import CustomIcon from '../../components/CustomIcon';
+import { saveDataToServer } from '@/app/lib/storageClient';
 
 const STORAGE_KEYS = {
     PRODUCTS: 'tea_hub_products_v1'
-};
-
-const saveDataToServer = (key: string, data: any) => {
-    return fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 // Умный парсер CSV для импорта из Excel
@@ -58,16 +51,12 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     // Загрузка данных
     useEffect(() => {
         const loadProducts = async () => {
-            const cached = localStorage.getItem('th_cache_products');
-            if (cached) setProducts(JSON.parse(cached));
-
             try {
-                const res = await fetch(`/api/storage?t=${Date.now()}&key=${STORAGE_KEYS.PRODUCTS}`);
+                const res = await fetch(`/api/storage?key=${STORAGE_KEYS.PRODUCTS}`, { cache: 'no-store' });
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data)) {
                         setProducts(data);
-                        localStorage.setItem('th_cache_products', JSON.stringify(data));
                     }
                 }
             } catch (e) {
@@ -94,7 +83,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         }
 
         setProducts(updatedProducts);
-        localStorage.setItem('th_cache_products', JSON.stringify(updatedProducts));
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updatedProducts);
         setShowProductForm(false);
     };
@@ -102,7 +90,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     const executeDelete = () => {
         const updatedProducts = products.filter(p => p.id !== confirmDelete.id);
         setProducts(updatedProducts);
-        localStorage.setItem('th_cache_products', JSON.stringify(updatedProducts));
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updatedProducts);
         setConfirmDelete({ isOpen: false, id: '', name: '' });
     };
@@ -112,7 +99,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         e.stopPropagation();
         const updated = products.map(p => p.id === id ? { ...p, isHit: !p.isHit } : p);
         setProducts(updated);
-        localStorage.setItem('th_cache_products', JSON.stringify(updated));
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
     };
 
@@ -120,7 +106,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         e.stopPropagation();
         const updated = products.map(p => p.id === id ? { ...p, isHidden: !p.isHidden } : p);
         setProducts(updated);
-        localStorage.setItem('th_cache_products', JSON.stringify(updated));
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
     };
 
@@ -207,7 +192,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
 
             const finalProducts = [...newProds, ...currentProds];
             setProducts(finalProducts);
-            localStorage.setItem('th_cache_products', JSON.stringify(finalProducts));
             saveDataToServer(STORAGE_KEYS.PRODUCTS, finalProducts);
             
             setSuccessModal({

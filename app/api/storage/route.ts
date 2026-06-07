@@ -14,21 +14,65 @@ const sanitizeKey = (key: string) => {
     return key.replace(/[^a-zA-Z0-9_-]/g, '_');
 };
 
-export async function GET(request: Request) {
-    const { searchParams } = new URL(request.url);
-    const rawKey = searchParams.get('key');
-
-    if (!rawKey) {
-        return NextResponse.json({ error: 'Не указан ключ данных' }, { status: 400 });
+const ensureDataDir = () => {
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
     }
+};
 
+const readStorageValue = (rawKey: string) => {
     const safeKey = sanitizeKey(rawKey);
     const filePath = path.join(dataDir, `${safeKey}.json`);
 
+    if (!fs.existsSync(filePath)) {
+        return [];
+    }
+
+    const fileData = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(fileData);
+};
+
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const rawKey = searchParams.get('key');
+    const rawKeys = searchParams.get('keys');
+
+    if (!rawKey && !rawKeys) {
+        return NextResponse.json({ error: 'Не указан ключ данных' }, { status: 400 });
+    }
+
     try {
-        if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir, { recursive: true });
+        ensureDataDir();
+
+        if (rawKeys) {
+            const keys = rawKeys
+                .split(',')
+                .map((key) => key.trim())
+                .filter(Boolean);
+
+            const result: Record<string, any> = {};
+
+            for (const key of keys) {
+                try {
+                    result[key] = readStorageValue(key);
+                } catch (error) {
+                    console.error(`Ошибка чтения ключа ${key}:`, error);
+                    result[key] = [];
+                }
+            }
+
+            return NextResponse.json(result, {
+                status: 200,
+                headers: {
+                    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                },
+            });
         }
+
+        const safeKey = sanitizeKey(rawKey as string);
+        const filePath = path.join(dataDir, `${safeKey}.json`);
 
         if (fs.existsSync(filePath)) {
             const fileData = fs.readFileSync(filePath, 'utf8');
@@ -68,9 +112,7 @@ export async function POST(request: Request) {
         const safeKey = sanitizeKey(rawKey);
         const filePath = path.join(dataDir, `${safeKey}.json`);
         
-        if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir, { recursive: true });
-        }
+        ensureDataDir();
 
         // Записываем данные в локальный файл
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
