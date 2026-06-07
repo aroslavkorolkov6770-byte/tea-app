@@ -74,11 +74,11 @@ export async function POST(request: Request) {
 
         // Записываем данные в локальный файл
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-        console.log(`✅ [УСПЕХ] Файл сохранен: ${filePath}`);
+        console.log(`OK [УСПЕХ] Файл сохранен: ${filePath}`);
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('❌ Ошибка записи:', error);
+        console.error(' Ошибка записи:', error);
         return NextResponse.json({ error: 'Ошибка сервера' }, { status: 500 });
     }
 }

@@ -343,7 +343,7 @@ function AssortmentNode({
     const isTarget = targetId === node.id;
     const hasChildren = node.children && node.children.length > 0;
 
-    // 💡 Тот самый фикс! Теперь мы берем текст из desc или из content, поэтому описание не пропадает
+    // Тот самый фикс! Теперь мы берем текст из desc или из content, поэтому описание не пропадает
     const descText = node.desc || node.content;
 
     useEffect(() => {
@@ -365,7 +365,7 @@ function AssortmentNode({
                     <span style={{ marginRight: '12px', color: '#0abab5', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.15s', fontSize: '12px', flexShrink: 0 }}>
                         {hasChildren ? '▶' : '•'}
                     </span>
-                    {/* 💡 Фикс переноса текста заголовка */}
+                    {/* Фикс переноса текста заголовка */}
                     <span style={{ fontWeight: depth === 0 ? 'bold' : 'normal', fontSize: depth === 0 ? '18px' : '16px', wordBreak: 'break-word', lineHeight: '1.3' }}>{node.title}</span>
                 </div>
                 
@@ -373,17 +373,17 @@ function AssortmentNode({
                 {isAdmin && (
                     <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                         <button onClick={() => onMove(node.id, 'up')} title="Переместить выше" style={adminIconBtn as any}>↑</button>
-                        <button onClick={() => onMove(node.id, 'down')} title="Переместить ниже" style={adminIconBtn as any}>↓</button>
-                        <button onClick={() => onAdd(node.id)} title="Добавить подраздел" style={adminIconBtn as any}>➕</button>
-                        <button onClick={() => onEdit(node)} title="Редактировать" style={adminIconBtn as any}>✎</button>
-                        <button onClick={() => onDelete(node.id)} title="Удалить" style={{...adminIconBtn, color: '#ff4d4d'} as any}>✕</button>
+                        <button onClick={() => onMove(node.id, 'down')} title="Переместить ниже" style={adminIconBtn as any}></button>
+                        <button onClick={() => onAdd(node.id)} title="Добавить подраздел" style={adminIconBtn as any}>+</button>
+                        <button onClick={() => onEdit(node)} title="Редактировать" style={adminIconBtn as any}></button>
+                        <button onClick={() => onDelete(node.id)} title="Удалить" style={{...adminIconBtn, color: '#ff4d4d'} as any}>X</button>
                     </div>
                 )}
             </div>
             
             {isOpen && (
                 <div style={{ marginTop: '8px', animation: 'fadeInUp 0.2s ease' }}>
-                    {/* 💡 Фикс переноса текста и отображения старых описаний */}
+                    {/* Фикс переноса текста и отображения старых описаний */}
                     {descText && (
                         <div style={{ padding: '12px 18px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1a1a1a', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
                             {descText}
@@ -512,7 +512,7 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
             const editRecursive = (nodes: any[]): any[] => {
                 return nodes.map(n => {
                     if (n.id === modalConfig.data.id) {
-                        // 💡 Обновляем узел и удаляем старое свойство content, так как мы теперь используем только desc
+                        // Обновляем узел и удаляем старое свойство content, так как мы теперь используем только desc
                         const updatedNode = { ...n, ...newNode };
                         delete updatedNode.content;
                         return updatedNode;
@@ -570,7 +570,7 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                                 <input style={adminIn as any} placeholder="Например: 1.1 Зеленый чай" value={modalConfig.data.title} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, title: e.target.value}})} />
                             </div>
                             
-                            {/* 💡 Одно большое поле описания без возможности растягивания */}
+                            {/* Одно большое поле описания без возможности растягивания */}
                             <div>
                                 <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Описание раздела/товара</div>
                                 <textarea style={{...adminIn, height: '200px', resize: 'none'} as any} placeholder="Опишите этот товар или категорию..." value={modalConfig.data.desc} onChange={e => setModalConfig({...modalConfig, data: {...modalConfig.data, desc: e.target.value}})} />
@@ -587,7 +587,7 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, id: null})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ fontSize: '50px', marginBottom: '20px' }}>⚠️</div>
+                        <div style={{ width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 20px auto' }}>!</div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>УДАЛИТЬ РАЗДЕЛ?</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
                             Вы уверены, что хотите удалить этот раздел и все его вложения? Это действие необратимо.

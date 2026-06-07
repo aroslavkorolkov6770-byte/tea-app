@@ -121,14 +121,14 @@ function ProfileContent() {
         }
         
         if (userId === 'guest' || !userId) {
-            alert("⚠️ Перед включением уведомлений нужно войти в аккаунт!");
+            alert(" Перед включением уведомлений нужно войти в аккаунт!");
             return;
         }
 
         try {
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
-                alert("❌ Вы заблокировали уведомления в браузере. Разрешите их в настройках сайта.");
+                alert(" Вы заблокировали уведомления в браузере. Разрешите их в настройках сайта.");
                 return;
             }
 
@@ -142,7 +142,7 @@ function ProfileContent() {
 
             const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
             if (!vapidPublicKey) {
-                alert("⚠️ Ошибка: VAPID ключ не найден в .env");
+                alert(" Ошибка: VAPID ключ не найден в .env");
                 return;
             }
 
@@ -174,7 +174,7 @@ function ProfileContent() {
             
             setPushBtnText('ПЕРЕПРИВЯЗАТЬ УСТРОЙСТВО');
             setPushBtnColor('#4CAF50');
-            alert("✅ Устройство успешно привязано к вашему аккаунту!");
+            alert("OK Устройство успешно привязано к вашему аккаунту!");
 
         } catch (error: any) {
             console.error('Ошибка подписки на Push:', error);
@@ -311,7 +311,7 @@ function ProfileContent() {
                             {profile.avatar ? (
                                 <img src={profile.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
                             ) : (
-                                <span style={{ fontSize: '45px' }}>{userRole === 'admin' ? '👑' : '👤'}</span>
+                                <span style={avatarFallbackText as any}>{userRole === 'admin' ? 'AD' : 'TH'}</span>
                             )}
                         </div>
 
@@ -340,7 +340,7 @@ function ProfileContent() {
                     <h3 style={sectionTitle}>СВЯЗЬ</h3>
                     <section style={contactCardStyle}>
                         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                            <div style={contactIconStyle}>💬</div>
+                            <div style={contactIconStyle}>i</div>
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{profile.tg || 'Telegram не указан'}</div>
                                 <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{profile.email || 'E-mail не указан'}</div>
@@ -430,7 +430,7 @@ function ProfileContent() {
                             
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                                 <h2 style={{ margin: 0, fontWeight: '900', color: '#fff', fontSize: '24px' }}>НАСТРОЙКА УВЕДОМЛЕНИЙ</h2>
-                                <div onClick={() => setIsHelpModalOpen(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>✕</div>
+                                <div onClick={() => setIsHelpModalOpen(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>X</div>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: '#000', borderRadius: '15px', padding: '4px', marginBottom: '30px', border: '1px solid #222' }}>
@@ -565,7 +565,8 @@ const barBg: any = { width: '100%', height: '10px', background: '#000', borderRa
 const barFill: any = { height: '100%', background: '#0abab5', transition: '1.2s cubic-bezier(0.4, 0, 0.2, 1)' };
 
 const contactCardStyle: any = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222' };
-const contactIconStyle: any = { width: '45px', height: '45px', background: '#000', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' };
+const contactIconStyle: any = { width: '45px', height: '45px', background: '#000', color: '#0abab5', border: '1px solid rgba(10,186,181,0.25)', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '900', fontFamily: 'Inter, sans-serif' };
+const avatarFallbackText: any = { color: '#0abab5', fontSize: '32px', fontWeight: '900', letterSpacing: '2px' };
 
 const overlayStyle: any = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px', backdropFilter: 'blur(10px)', boxSizing: 'border-box' };
 

@@ -40,7 +40,7 @@ export default function LoginPage() {
   const [regTg, setRegTg] = useState("");
   const [regPhone, setRegPhone] = useState("");
 
-  // 💡 НОВОЕ: Состояние для галочки согласия
+  // НОВОЕ: Состояние для галочки согласия
   const [isConsentGiven, setIsConsentGiven] = useState(false);
 
   // Состояния уведомлений
@@ -145,7 +145,7 @@ export default function LoginPage() {
   };
 
   const handleRegister = async () => {
-      // 💡 НОВОЕ: Проверка галочки согласия
+      // НОВОЕ: Проверка галочки согласия
       if (!isConsentGiven) {
           setErrorMessage("ОШИБКА: Для регистрации необходимо дать согласие на обработку персональных данных.");
           return;
@@ -248,7 +248,7 @@ export default function LoginPage() {
                 <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
                 <input type="text" placeholder="Номер телефона (только цифры)" value={regPhone} onChange={(e)=>setRegPhone(e.target.value.replace(/\D/g, ''))} style={inputS} />
 
-                {/* 💡 НОВОЕ: Блок с галочкой согласия */}
+                {/* НОВОЕ: Блок с галочкой согласия */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '5px', marginBottom: '20px' }}>
                     <div 
                         onClick={() => setIsConsentGiven(!isConsentGiven)}
@@ -259,7 +259,7 @@ export default function LoginPage() {
                             display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'
                         }}
                     >
-                        {isConsentGiven && <span style={{ color: '#0abab5', fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
+                        {isConsentGiven && <span style={{ color: '#0abab5', fontSize: '14px', fontWeight: 'bold' }}>OK</span>}
                     </div>
                     <div style={{ color: '#888', fontSize: '12px', lineHeight: '1.4' }}>
                         Я даю согласие на <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
@@ -274,7 +274,7 @@ export default function LoginPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                         <div onClick={handleCaptchaClick} style={teaGuardCheckboxStyle(isCaptchaVerified) as any}>
                             {isCaptchaLoading && <div className="captcha-spinner"></div>}
-                            {isCaptchaVerified && <span style={{ color: '#0abab5', fontSize: '24px', fontWeight: 'bold' }}>✓</span>}
+                            {isCaptchaVerified && <span style={{ color: '#0abab5', fontSize: '24px', fontWeight: 'bold' }}>OK</span>}
                         </div>
                         <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>Я человек</span>
                     </div>
@@ -323,7 +323,7 @@ export default function LoginPage() {
       {errorMessage && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40000 }} onClick={() => setErrorMessage("")}>
               <div style={{ background: '#111', padding: '40px 30px', borderRadius: '30px', width: '90%', maxWidth: '380px', border: '1px solid #333', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)', animation: 'scaleIn 0.2s ease' }} onClick={e => e.stopPropagation()}>
-                  <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
+                  <div style={warningBadgeStyle as any}>!</div>
                   <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
                   <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{errorMessage}</p>
                   <div onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ПОНЯТНО</div>
@@ -425,3 +425,18 @@ const teaGuardCheckboxStyle = (isVerified: boolean) => ({
     transition: '0.2s ease',
     boxShadow: isVerified ? '0 0 10px rgba(10,186,181,0.2)' : 'none'
 });
+
+const warningBadgeStyle = {
+    width: '60px',
+    height: '60px',
+    borderRadius: '18px',
+    border: '1px solid rgba(255,77,77,0.35)',
+    background: 'rgba(255,77,77,0.08)',
+    color: '#ff4d4d',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '32px',
+    fontWeight: '900',
+    margin: '0 auto 15px auto'
+};

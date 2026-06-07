@@ -41,7 +41,7 @@ export default function TestEditorModal({
                         <input autoComplete="new-password" style={{...adminIn, color: '#0abab5', fontWeight: 'bold'} as any} placeholder="Например: Итоговый экзамен" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
                     </div>
                     
-                    {/* 💡 НОВЫЙ БЛОК ТАЙМЕРА */}
+                    {/* НОВЫЙ БЛОК ТАЙМЕРА */}
                     <div>
                         <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '8px', marginLeft: '5px', textTransform: 'uppercase' }}>Лимит времени на тест:</div>
                         <div style={{ display: 'flex', gap: '20px', alignItems: 'center', background: '#000', padding: '15px 20px', borderRadius: '20px', border: '1px solid #222', flexWrap: 'wrap' }}>
@@ -96,7 +96,7 @@ export default function TestEditorModal({
                                             justifyContent: 'center'
                                         }}
                                     >
-                                        {t === 0 ? '♾️ Без лимита' : `${t} мин`}
+                                        {t === 0 ? 'Без лимита Без лимита' : `${t} мин`}
                                     </div>
                                 ))}
                             </div>
@@ -108,7 +108,7 @@ export default function TestEditorModal({
                     <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>ВОПРОСЫ ({testFormData.quiz.length})</h3>
                     {testFormData.quiz.map((q: any, qIdx: number) => (
                         <div key={qIdx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '20px', position: 'relative'}}>
-                            {testFormData.quiz.length > 1 && <div onClick={() => removeTestQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'} as any}>✕</div>}
+                            {testFormData.quiz.length > 1 && <div onClick={() => removeTestQuestion(qIdx)} style={{...delIconStyle, position: 'absolute', top: '15px', right: '15px'} as any}>X</div>}
                             
                             <input autoComplete="new-password" style={{...adminIn, fontWeight: 'bold', marginBottom: '15px', paddingRight: '40px'} as any} placeholder="Текст вопроса..." value={q.q} onChange={e => updateTestQuestion(qIdx, 'q', e.target.value)} />
                             

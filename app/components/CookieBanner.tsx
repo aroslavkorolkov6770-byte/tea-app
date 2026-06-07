@@ -31,7 +31,7 @@ export default function CookieBanner() {
   return (
     <>
       <div style={bannerStyle as any}>
-        <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#0abab5', fontWeight: '900' }}>Авторизация и сессия 🍪</h3>
+        <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#0abab5', fontWeight: '900' }}>Авторизация и сессия </h3>
         <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#ccc', lineHeight: '1.5' }}>
           Мы используем файлы cookie для сохранения вашей сессии. Согласны ли вы оставаться в системе на этом устройстве, чтобы не вводить логин и пароль каждый раз?
         </p>

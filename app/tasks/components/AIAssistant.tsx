@@ -218,7 +218,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                         items.forEach((route: any, idx: number) => {
                             siteContext += `  - Урок ${idx + 1}: ${route.title} (ID: ${route.id})\n`;
                             
-                            // 💡 ИСПРАВЛЕНИЕ: Теперь ИИ видит описание видеоуроков
+                            // ИСПРАВЛЕНИЕ: Теперь ИИ видит описание видеоуроков
                             if (route.mediaType === 'video') {
                                 if (route.videoDesc) siteContext += `    * Описание видео: ${route.videoDesc}\n`;
                             } else {
@@ -240,7 +240,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                     });
 
                     Object.entries(testGroups).forEach(([secName, items]) => {
-                        siteContext += `\n📋 ПАПКА: "${secName}"\n`;
+                        siteContext += `\n📁 ПАПКА: "${secName}"\n`;
                         items.forEach((test: any, idx: number) => {
                             siteContext += `  - Тест ${idx + 1}: ${test.title} (${test.subtitle}). База: ${test.theory}\n`;
                         });
@@ -270,7 +270,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
 
             const data = await response.json();
 
-            // 💡 ИСПРАВЛЕНИЕ: Перехват ошибки о закончившихся токенах (внутри ответа 200 OK)
+            // ИСПРАВЛЕНИЕ: Перехват ошибки о закончившихся токенах (внутри ответа 200 OK)
             if (data.error) {
                 const errStr = JSON.stringify(data.error).toLowerCase();
                 if (errStr.includes('quota') || errStr.includes('token') || errStr.includes('limit') || errStr.includes('баланс') || errStr.includes('429')) {
@@ -311,11 +311,11 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
 
         } catch (error: any) {
             console.error("❌ ОШИБКА:", error);
-            
+
             let displayError = `🚨 СИСТЕМНАЯ ОШИБКА:\n\n${error.message}`;
             const errStr = error.message?.toLowerCase() || '';
             
-            // 💡 ИСПРАВЛЕНИЕ: Перехват системной ошибки о токенах
+            // ИСПРАВЛЕНИЕ: Перехват системной ошибки о токенах
             if (errStr.includes('token') || errStr.includes('quota') || errStr.includes('429') || errStr.includes('402') || errStr.includes('limit') || errStr.includes('баланс') || errStr.includes('too many requests')) {
                 displayError = "⚠️ Токены закончились, просьба обратиться к администратору.";
             }
@@ -456,7 +456,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                                         <div className={`ai-avatar ${msg.role}`}>
                                             {msg.role === 'user' ? '👤' : '🤖'}
                                         </div>
-                                        <div className={`ai-bubble ${msg.role}`} style={msg.content.includes('🚨 СИСТЕМНАЯ ОШИБКА') || msg.content.includes('🚨 СЫРОЙ ОТВЕТ') ? { border: '1px solid #ff4d4d', background: 'rgba(255,77,77,0.1)' } : {}}>
+                                        <div className={`ai-bubble ${msg.role}`} style={msg.content.includes('СИСТЕМНАЯ ОШИБКА') || msg.content.includes('СЫРОЙ ОТВЕТ') ? { border: '1px solid #ff4d4d', background: 'rgba(255,77,77,0.1)' } : {}}>
                                             {msg.content}
                                         </div>
                                     </div>
@@ -510,7 +510,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             {showClearConfirm && (
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', zIndex: 50000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
                     <div style={{ background: '#111', padding: '40px', borderRadius: '30px', border: '1px solid #333', textAlign: 'center', maxWidth: '400px', width: '90%' }}>
-                        <div style={{ fontSize: '50px', marginBottom: '15px' }}>⚠️</div>
+                        <div style={{ width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 15px auto' }}>!</div>
                         <h2 style={{ fontSize: '22px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ИСТОРИЮ?</h2>
                         <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '30px', lineHeight: '1.5' }}>
                             Вы собираетесь безвозвратно удалить все диалоги с нейросетью. Это действие нельзя отменить.

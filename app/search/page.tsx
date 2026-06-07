@@ -250,7 +250,7 @@ function ProductsContent() {
             {dayProduct && (
               <div onClick={() => setSelectedTea(dayProduct)} style={dayTeaCard as any}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#000', fontSize: '11px', fontWeight: '900' }}>
-                  <span style={{ fontSize: '24px' }}>⭐</span> 
+                  <span style={dayBadgeMark as any}>DAY</span>
                   <span>{dayProduct.type.toUpperCase() } ДНЯ</span>
                 </div>
                 <h2 style={{ color: '#000', fontSize: '36px', margin: '12px 0' }}>{dayProduct.name}</h2>
@@ -265,7 +265,7 @@ function ProductsContent() {
               {topCats.map(c => (
                 <div key={c} style={{ position: 'relative' }}>
                   <div onClick={() => {setTopCategory(c); setActiveCategory("Все"); setActiveStrength("Все");}} style={{ ...badge, backgroundColor: topCategory === c ? '#0abab5' : '#161816', color: topCategory === c ? '#000' : '#fff' } as any}>{c}</div>
-                  {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'top', val:c})}} style={delXStyle as any}>✕</span>}
+                  {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'top', val:c})}} style={delXStyle as any}>X</span>}
                 </div>
               ))}
               {isAdmin && <div onClick={() => setAddItemModal({type:'top'})} style={addPlusStyle as any}>+</div>}
@@ -277,7 +277,7 @@ function ProductsContent() {
                 {(subsMap[topCategory] || []).map(s => (
                   <div key={s} style={{ position: 'relative' }}>
                     <div onClick={() => setActiveCategory(s)} style={{ ...badge, fontSize: '13px', backgroundColor: activeCategory === s ? '#333' : '#161816' } as any}>{s}</div>
-                    {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'sub', val:s})}} style={delXStyle as any}>✕</span>}
+                    {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'sub', val:s})}} style={delXStyle as any}>X</span>}
                   </div>
                 ))}
                 {isAdmin && <div onClick={() => setAddItemModal({type:'sub'})} style={{...addPlusStyle, minWidth:'40px', height:'35px'} as any}>+</div>}
@@ -291,7 +291,7 @@ function ProductsContent() {
                   {(strengthsMap[topCategory] || []).map(s => (
                   <div key={s} style={{ position: 'relative' }}>
                       <div onClick={() => setActiveStrength(s)} style={{ ...badge, fontSize: '12px', padding: '8px 16px', backgroundColor: activeStrength === s ? '#0abab5' : '#111', color: activeStrength === s ? '#000' : '#fff' } as any}>{s}</div>
-                      {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'strength', val:s})}} style={delXStyle as any}>✕</span>}
+                      {isAdmin && <span onClick={(e)=>{e.stopPropagation(); setConfirmDelete({type:'strength', val:s})}} style={delXStyle as any}>X</span>}
                   </div>
                   ))}
                   {isAdmin && <div onClick={() => setAddItemModal({type:'strength'})} style={{...addPlusStyle, minWidth:'40px', height:'32px'} as any}>+</div>}
@@ -302,15 +302,15 @@ function ProductsContent() {
               {filtered.map(p => (
                 <div key={p.id} onClick={() => setSelectedTea(p)} style={productRow as any}>
                   <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: 0, fontSize: '18px' }}>{p.name} {p.isDayTea && "⭐"}</h3>
+                    <h3 style={{ margin: 0, fontSize: '18px' }}>{p.name} {p.isDayTea && <span style={inlineStatusBadge as any}>ДНЯ</span>}</h3>
                     <p style={{ margin: '5px 0 0 0', color: '#444', fontSize: '13px' }}>{p.summary}</p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {isAdmin && (
                       <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                        <span onClick={(e) => { e.stopPropagation(); toggleDayProduct(p); }} style={{ fontSize: '20px', cursor: 'pointer', color: p.isDayTea ? '#0abab5' : '#333' }}>⭐</span>
-                        <span onClick={(e) => { e.stopPropagation(); setEditingId(p.id); setFormData(p); setShowForm(true); }} style={{ color: '#0abab5', cursor: 'pointer' }}>✎</span>
-                        <span onClick={(e) => { e.stopPropagation(); setProductToDelete(p); }} style={{ color: '#ff7675', cursor: 'pointer' }}>✕</span>
+                        <span onClick={(e) => { e.stopPropagation(); toggleDayProduct(p); }} style={{ ...smallActionBadge, color: p.isDayTea ? '#0abab5' : '#666', borderColor: p.isDayTea ? '#0abab5' : '#333' } as any}>ДНЯ</span>
+                        <span onClick={(e) => { e.stopPropagation(); setEditingId(p.id); setFormData(p); setShowForm(true); }} style={{ ...smallActionBadge, color: '#0abab5', borderColor: '#0abab5' } as any}>ПРАВКА</span>
+                        <span onClick={(e) => { e.stopPropagation(); setProductToDelete(p); }} style={{ color: '#ff7675', cursor: 'pointer' }}>X</span>
                       </div>
                     )}
                     <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '11px', border: '1px solid #4CAF5044', padding: '4px 10px', borderRadius: '8px' }}>{p.strength}</div>
@@ -325,7 +325,7 @@ function ProductsContent() {
               <div style={adminSidebar as any}>
                 <h3 style={{ color: '#0abab5', fontSize: '14px', marginBottom: '25px', textAlign: 'center', fontWeight: '900' }}>МАСТЕР-ПАНЕЛЬ</h3>
                 <button onClick={() => { setEditingId(null); setFormData({name:'', type: topCategory==='Все' ? topCats[0] : topCategory, category: (subsMap[topCategory] || [])[0] || '', strength: (strengthsMap[topCategory] || [])[0] || ''}); setShowForm(true); }} style={saveBtn as any}>+ НОВЫЙ ПРОДУКТ</button>
-                <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Используйте <b>+</b> и <b>✕</b> прямо в плитках фильтров.</p>
+                <p style={{ fontSize: '11px', color: '#444', textAlign: 'center', marginTop: '20px', lineHeight: '1.5' }}>Используйте <b>+</b> и <b>X</b> прямо в плитках фильтров.</p>
               </div>
             </aside>
           )}
@@ -376,12 +376,12 @@ function ProductsContent() {
               <div style={fullImageWrap as any}><img src={selectedTea.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={selectedTea.name} /></div>
               <p style={{ fontSize: '20px', lineHeight: '1.8', color: '#ccc', marginBottom: '40px' }}>{selectedTea.desc}</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
-                <div style={infoBox as any}><div style={infoTag as any}>🌍 РЕГИОН</div>{selectedTea.region || '—'}</div>
-                <div style={infoBox as any}><div style={infoTag as any}>🌡️ ЗАВАРИВАНИЕ</div>{selectedTea.brewGuide || selectedTea.info}</div>
-                <div style={infoBox as any}><div style={infoTag as any}>💡 СОВЕТ</div>{selectedTea.advice || '—'}</div>
-                <div style={infoBox as any}><div style={infoTag as any}>🔄 ОТЛИЧИЕ</div>{selectedTea.analogsDiff || '—'}</div>
+                <div style={infoBox as any}><div style={infoTag as any}> РЕГИОН</div>{selectedTea.region || '—'}</div>
+                <div style={infoBox as any}><div style={infoTag as any}> ЗАВАРИВАНИЕ</div>{selectedTea.brewGuide || selectedTea.info}</div>
+                <div style={infoBox as any}><div style={infoTag as any}>СОВЕТ</div>{selectedTea.advice || '—'}</div>
+                <div style={infoBox as any}><div style={infoTag as any}> ОТЛИЧИЕ</div>{selectedTea.analogsDiff || '—'}</div>
               </div>
-              <button onClick={() => { setQuizResults({}); setShowQuiz(true); }} style={checkBtn as any}>🧠 ПРОВЕРИТЬ СЕБЯ</button>
+              <button onClick={() => { setQuizResults({}); setShowQuiz(true); }} style={checkBtn as any}> ПРОВЕРИТЬ СЕБЯ</button>
             </div>
           </div>
         )}
@@ -407,7 +407,7 @@ function ProductsContent() {
               <input style={adminIn as any} placeholder="Регион" value={formData.region} onChange={e => setFormData({...formData, region: e.target.value})} />
               <input style={adminIn as any} placeholder="Советы" value={formData.advice} onChange={e => setFormData({...formData, advice: e.target.value})} />
               <input style={adminIn as any} placeholder="URL фото" value={formData.img} onChange={e => setFormData({...formData, img: e.target.value})} />
-              <label style={{ display: 'flex', gap: '10px', marginBottom: '20px', cursor: 'pointer' }}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> Продукт дня ⭐</label>
+              <label style={{ display: 'flex', gap: '10px', marginBottom: '20px', cursor: 'pointer' }}><input type="checkbox" checked={formData.isDayTea} onChange={e => setFormData({...formData, isDayTea: e.target.checked})} /> Продукт дня </label>
               <button onClick={handleSaveProduct} style={saveBtn as any}>СОХРАНИТЬ</button>
               <div onClick={() => setShowForm(false)} style={{ textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer' }}>ОТМЕНА</div>
             </div>
@@ -428,7 +428,7 @@ function ProductsContent() {
                       const isSelected = quizResults[selectedTea.id as number]?.includes(oIdx);
                       return (
                         <div key={oIdx} onClick={() => setQuizResults({...quizResults, [selectedTea.id as number]: [...(quizResults[selectedTea.id as number] || []), oIdx]})} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#0abab5' : '#d32f2f') : '#000', borderRadius: '12px', cursor: 'pointer', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' } as any}>
-                          {opt} <span>{isSelected && (isCorrect ? '✅' : '❌')}</span>
+                          {opt} <span>{isSelected && (isCorrect ? 'OK' : '')}</span>
                         </div>
                       );
                     })}
@@ -456,6 +456,9 @@ const modalContentSmall = { background: '#161816', padding: '40px', borderRadius
 const badge = { padding: '10px 24px', borderRadius: '25px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' };
 const inputStyle = { width: '100%', padding: '18px', borderRadius: '15px', background: '#161816', border: '1px solid #222', color: '#fff', marginBottom: '25px', outline: 'none' };
 const dayTeaCard = { background: 'linear-gradient(135deg, #0abab5 0%, #161816 100%)', padding: '40px', borderRadius: '35px', border: '1px solid #0abab5', cursor: 'pointer', marginBottom: '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' };
+const dayBadgeMark = { background: '#000', color: '#0abab5', border: '1px solid rgba(10,186,181,0.4)', borderRadius: '8px', padding: '4px 8px', fontSize: '10px', fontWeight: '900', letterSpacing: '1px' };
+const inlineStatusBadge = { display: 'inline-block', marginLeft: '8px', color: '#0abab5', border: '1px solid rgba(10,186,181,0.35)', borderRadius: '8px', padding: '2px 6px', fontSize: '10px', fontWeight: '900', verticalAlign: 'middle' };
+const smallActionBadge = { cursor: 'pointer', border: '1px solid #333', borderRadius: '8px', padding: '5px 8px', fontSize: '10px', fontWeight: '900', letterSpacing: '0.5px' };
 const strengthFilterRow = { background: '#121412', padding: '12px', borderRadius: '20px', border: '1px solid #222', marginBottom: '25px', display: 'flex', gap: '10px', overflowX: 'auto' as any, alignItems: 'center' };
 const productRow = { background: '#161816', padding: '24px 30px', borderRadius: '25px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' };
 const adminSidebar = { background: '#161816', padding: '30px', borderRadius: '35px', border: '1px solid #222' };

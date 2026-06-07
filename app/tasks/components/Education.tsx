@@ -450,7 +450,7 @@ export default function Education({
                                                 </svg>
                                                 ДЕДЛАЙН
                                             </span>
-                                            <h4 style={{fontSize:'15px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{file.name.replace('⚠️ Дедлайн: ', '').replace('Дедлайн: ', '')}</h4>
+                                            <h4 style={{fontSize:'15px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.4'}}>{file.name.replace(' Дедлайн: ', '').replace('Дедлайн: ', '')}</h4>
                                         </div>
                                         <div onClick={(e) => { e.stopPropagation(); handleDismissTask(file.id); }} className="card-icon-btn del-btn" title="Закрыть" style={{ border: 'none', background: 'transparent', flexShrink: 0 }}>
                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -886,7 +886,7 @@ export default function Education({
                                 <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase'}}>ТЕОРИЯ • {selectedRouteStep.time}</span>
                                 <h2 style={{fontSize:'28px', color:'#fff', fontWeight:'900', marginTop:'5px', margin:'0'}}>{selectedRouteStep.title}</h2>
                             </div>
-                            <div onClick={closeRouteModal} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>✕</div>
+                            <div onClick={closeRouteModal} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>X</div>
                         </div>
 
                         {selectedRouteStep.mediaType === 'video' ? (
@@ -1016,7 +1016,7 @@ export default function Education({
                             <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', marginTop:'5px', marginBottom:'15px'}}>{selectedTest.title}</h2>
                             <p style={{fontSize:'14px', color:'#0abab5', fontWeight:'bold', margin:0, lineHeight:'1.4'}}>{selectedTest.subtitle}</p>
                         </div>
-                        <div onClick={closeTestModal} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold', paddingLeft:'15px'}}>✕</div>
+                        <div onClick={closeTestModal} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold', paddingLeft:'15px'}}>X</div>
                      </div>
                      <div style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '30px'}}>
                          <p style={{fontSize:'14px', color:'#ccc', lineHeight:'1.5', margin:'0 0 15px 0'}}>{selectedTest.theory}</p>
@@ -1084,20 +1084,20 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 НОВОЕ ОКНО: ПРОСМОТР РЕЗУЛЬТАТОВ (ОШИБКИ И ОТВЕТЫ) */}
+            {/* НОВОЕ ОКНО: ПРОСМОТР РЕЗУЛЬТАТОВ (ОШИБКИ И ОТВЕТЫ) */}
             {reviewTest && (
                <div style={modalOverlay as any} onClick={() => setReviewTest(null)}>
                   <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '800px'} as any} onClick={e => e.stopPropagation()}>
                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'30px'}}>
                         <h2 style={{fontSize:'24px', color:'#0abab5', fontWeight:'900', margin:0, textTransform: 'uppercase'}}>ОБЗОР ТЕСТА: {stripEmoji(reviewTest.title || reviewTest.name)}</h2>
-                        <div onClick={() => setReviewTest(null)} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold'}}>✕</div>
+                        <div onClick={() => setReviewTest(null)} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold'}}>X</div>
                      </div>
                      <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
                          {reviewTest.quiz.map((q: any, i: number) => (
                              <div key={i} style={{background: '#111', padding: '20px', borderRadius: '20px', border: '1px solid #222'}}>
                                  <p style={{fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '15px'}}>{i+1}. {q.q}</p>
                                  <div style={{background: 'rgba(10,186,181,0.1)', border: '1px solid rgba(10,186,181,0.3)', padding: '15px', borderRadius: '15px', color: '#0abab5', fontWeight: 'bold', fontSize: '14px'}}>
-                                     ✓ Верный ответ: {q.o[q.c]}
+                                     OK Верный ответ: {q.o[q.c]}
                                  </div>
                              </div>
                          ))}
@@ -1116,7 +1116,7 @@ export default function Education({
                             <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', marginTop:'5px', marginBottom:'15px'}}>{selectedTest.title}</h2>
                             <p style={{fontSize:'14px', color:'#0abab5', fontWeight:'bold', margin:0, lineHeight:'1.4'}}>{selectedTest.subtitle}</p>
                         </div>
-                        <div onClick={closeTestModal} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold', paddingLeft:'15px'}}>✕</div>
+                        <div onClick={closeTestModal} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold', paddingLeft:'15px'}}>X</div>
                      </div>
                      <div style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '30px'}}>
                          <p style={{fontSize:'14px', color:'#ccc', lineHeight:'1.5', margin:'0 0 15px 0'}}>{selectedTest.theory}</p>
@@ -1223,7 +1223,7 @@ export default function Education({
                </div>
             )}
 
-            {/* 💡 КАСТОМНОЕ ОКНО ПРЕРЫВАНИЯ ТЕСТА */}
+            {/* КАСТОМНОЕ ОКНО ПРЕРЫВАНИЯ ТЕСТА */}
             {cancelTestConfirm.show && (
                 <div style={modalOverlay as any} onClick={() => setCancelTestConfirm({show: false, type: 'normal'})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
@@ -1249,7 +1249,7 @@ export default function Education({
             {/* --- МОДАЛКА РЕЗУЛЬТАТОВ ОСНОВНОГО ТЕСТА С ОШИБКАМИ --- */}
             {testResultModal.show && (
                 <div style={{...errorOverlayStyle, zIndex: 60000} as any}>
-                    {/* 💡 ЖЕСТКАЯ ШИРИНА ДЛЯ ПРАВИЛЬНЫХ ПРОПОРЦИЙ ОКНА */}
+                    {/* ЖЕСТКАЯ ШИРИНА ДЛЯ ПРАВИЛЬНЫХ ПРОПОРЦИЙ ОКНА */}
                     <div className="tasks-modal custom-scroll" style={{...errorModalContent, width: '100%', minWidth: '320px', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
                         <div style={{ marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>
                             {testResultModal.isPassed ? (
@@ -1282,8 +1282,8 @@ export default function Education({
                                     {testResultModal.mistakes.map((m, idx) => (
                                         <div key={idx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '15px', border: '1px solid #333'}}>
                                             <p style={{color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0'}}>{m.q}</p>
-                                            <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>✕ Ваш ответ: {m.userAns}</p>
-                                            <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>✓ Верный ответ: {m.correctAns}</p>
+                                            <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>X Ваш ответ: {m.userAns}</p>
+                                            <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>OK Верный ответ: {m.correctAns}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -1296,10 +1296,10 @@ export default function Education({
                 </div>
             )}
 
-            {/* 💡 ФУЛСКРИН LIGHTBOX ДЛЯ ПРОСМОТРА ФОТО */}
+            {/* ФУЛСКРИН LIGHTBOX ДЛЯ ПРОСМОТРА ФОТО */}
             {zoomedImg && (
                 <div style={lightboxOverlay as any} onClick={() => setZoomedImg(null)}>
-                    <div onClick={() => setZoomedImg(null)} style={{position: 'absolute', top: '20px', right: '30px', cursor: 'pointer', fontSize: '40px', color: '#ff4d4d', fontWeight: 'bold', zIndex: 90001, textShadow: '0 2px 10px rgba(0,0,0,0.5)'}}>✕</div>
+                    <div onClick={() => setZoomedImg(null)} style={{position: 'absolute', top: '20px', right: '30px', cursor: 'pointer', fontSize: '40px', color: '#ff4d4d', fontWeight: 'bold', zIndex: 90001, textShadow: '0 2px 10px rgba(0,0,0,0.5)'}}>X</div>
                     <img src={zoomedImg} style={{maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '15px'}} alt="Zoomed" />
                 </div>
             )}
@@ -1317,7 +1317,7 @@ export default function Education({
                 .deadline-card:hover { border-color: #ff4d4d !important; box-shadow: 0 8px 25px rgba(255, 77, 77, 0.15) !important; }
                 .deadline-card:active { background: rgba(255, 77, 77, 0.05) !important; border-color: #ff4d4d !important; }
 
-                /* 💡 СТИЛИ КНОПОК ДЕЙСТВИЙ (АДМИН) */
+                /* СТИЛИ КНОПОК ДЕЙСТВИЙ (АДМИН) */
                 .card-icon-btn {
                     width: 34px;
                     height: 34px;
@@ -1342,7 +1342,7 @@ export default function Education({
                 .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
                 .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }
 
-                /* 💡 СТИЛИ ДЛЯ КАРТИНОК И ЗУМА */
+                /* СТИЛИ ДЛЯ КАРТИНОК И ЗУМА */
                 .image-zoom-container { position: relative; width: 100%; height: 220px; border-radius: 15px; overflow: hidden; cursor: pointer; margin-bottom: 15px; background: #111; }
                 .image-zoom-container img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
                 .image-zoom-container:hover img { transform: scale(1.05); }
@@ -1353,7 +1353,7 @@ export default function Education({
                 .tasks-theory-block { word-break: break-word; overflow-wrap: anywhere; }
 
                 @media (max-width: 768px) {
-                    /* 💡 Решение проблемы: 1 колонка на мобильных, чтобы карточки не ломали свою ширину */
+                    /* Решение проблемы: 1 колонка на мобильных, чтобы карточки не ломали свою ширину */
                     .premium-cards-container { 
                         display: grid !important; 
                         grid-template-columns: 1fr !important; 

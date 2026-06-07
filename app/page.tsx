@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 // --- ХЕЛПЕР ДЛЯ ЧТЕНИЯ COOKIES ---
 const getAppCookie = (name: string) => {
+    try {
     if (typeof document === 'undefined') return null;
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
@@ -12,38 +13,50 @@ const getAppCookie = (name: string) => {
         const raw = parts.pop()?.split(';').shift();
         return raw ? decodeURIComponent(raw) : null;
     }
+    } catch (error) {
+        console.error('Ошибка чтения cookie:', error);
+    }
     return null;
 };
 
+const getBrowserStorageValue = (storage: Storage | undefined, key: string) => {
+    try {
+        return storage?.getItem(key) ?? null;
+    } catch (error) {
+        console.error(`Ошибка чтения ${key} из хранилища браузера:`, error);
+        return null;
+    }
+};
+
 export default function Home() {
-  const [isMounted, setIsMounted] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const cookieAuth = getAppCookie('isLoggedIn');
-    const localAuth = localStorage.getItem('isLoggedIn');
-    const isLoggedIn = cookieAuth === 'true' || localAuth === 'true';
+    try {
+        const cookieAuth = getAppCookie('isLoggedIn');
+        const localAuth = getBrowserStorageValue(window.localStorage, 'isLoggedIn');
+        const sessionAuth = getBrowserStorageValue(window.sessionStorage, 'isLoggedIn');
+        const isLoggedIn = cookieAuth === 'true' || localAuth === 'true' || sessionAuth === 'true';
 
-    const cookieRole = getAppCookie('userRole');
-    const localRole = localStorage.getItem('userRole');
-    const role = cookieRole || localRole;
+        const cookieRole = getAppCookie('userRole');
+        const localRole = getBrowserStorageValue(window.localStorage, 'userRole');
+        const sessionRole = getBrowserStorageValue(window.sessionStorage, 'userRole');
+        const role = cookieRole || localRole || sessionRole;
 
-    if (isLoggedIn) {
-        if (role === 'admin') {
-            router.push('/admin');
-        } else {
-            router.push('/tasks?tab=welcome');
+        if (isLoggedIn) {
+            if (role === 'admin') {
+                router.push('/admin');
+            } else {
+                router.push('/tasks?tab=welcome');
+            }
         }
-    } else {
+    } catch (error) {
+        console.error('Ошибка проверки авторизации на главной странице:', error);
+    } finally {
         setIsCheckingAuth(false);
-        setIsMounted(true);
     }
   }, [router]);
-
-  if (isCheckingAuth || !isMounted) {
-      return <div style={{ minHeight: '100vh', backgroundColor: '#000' }} />;
-  }
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative', color: '#fff', fontFamily: 'Inter, sans-serif', overflowX: 'hidden' }}>
@@ -69,6 +82,9 @@ export default function Home() {
             <div className="home-badge" style={badgeStyle}>Мастер Платформа</div>
             <h1 style={heroTitleStyle}>TEA <span style={{ color: '#0ABAB5' }}>HUB</span></h1>
             <p style={heroSubTitleStyle}>Среда для обучения и развития. <br/> Ваш путь от новичка до эксперта.</p>
+            {isCheckingAuth && (
+                <p style={authCheckTextStyle}>Проверяем вход...</p>
+            )}
           </section>
 
           <section className="home-features" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', marginBottom: '100px' }}>
@@ -116,5 +132,6 @@ export default function Home() {
 // --- СТИЛИ ---
 const heroTitleStyle = { fontSize: 'calc(32px + 4vw)', fontWeight: '900', color: '#fff', margin: '20px 0', lineHeight: '1', letterSpacing: '-2px' };
 const heroSubTitleStyle = { color: '#aaa', fontSize: '19px', maxWidth: '750px', margin: '0 auto', lineHeight: '1.6' };
+const authCheckTextStyle = { color: '#0ABAB5', fontSize: '13px', fontWeight: '800', marginTop: '18px', textTransform: 'uppercase' as any, letterSpacing: '1px' };
 const badgeStyle = { display: 'inline-block', background: 'rgba(255,255,255,0.05)', color: '#0ABAB5', padding: '8px 20px', borderRadius: '50px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' as any, letterSpacing: '1.5px', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', marginBottom: '20px' };
 const infoBoxStyle = { background: 'rgba(20,20,20,0.6)', padding: '50px 40px', borderRadius: '40px', border: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(15px)', textAlign: 'center' as any, transition: '0.3s ease' };
