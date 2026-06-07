@@ -41,6 +41,8 @@ const parseCSV = (str: string) => {
 export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId: string }) {
     const [products, setProducts] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [successModal, setSuccessModal] = useState({ show: false, title: '', text: '' });
+    const [errorModal, setErrorModal] = useState({ show: false, text: '' });
     
     // Состояние для активной категории
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -160,7 +162,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
             const rows = parseCSV(text).filter(r => r.length > 1 && r[0].trim() !== '');
             
             if (rows.length <= 1) {
-                alert("Файл пуст или содержит только заголовки.");
+                setErrorModal({ show: true, text: 'Файл пуст или содержит только заголовки.' });
                 return;
             }
 
@@ -208,7 +210,11 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
             localStorage.setItem('th_cache_products', JSON.stringify(finalProducts));
             saveDataToServer(STORAGE_KEYS.PRODUCTS, finalProducts);
             
-            alert(`Файл успешно обработан!\n\nДобавлено новых товаров: ${addedCount}\nОбновлено существующих: ${updatedCount}`);
+            setSuccessModal({
+                show: true,
+                title: 'Импорт завершён',
+                text: `Добавлено новых товаров: ${addedCount}. Обновлено существующих: ${updatedCount}.`
+            });
         };
         reader.readAsText(file, "UTF-8");
         e.target.value = '';
@@ -484,6 +490,38 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             <button onClick={() => setConfirmDelete({isOpen: false, id: '', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
                             <button onClick={executeDelete} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, marginTop: 0 } as any}>УДАЛИТЬ</button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {successModal.show && (
+                <div style={modalOverlay as any} onClick={() => setSuccessModal({ show: false, title: '', text: '' })}>
+                    <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="2"/>
+                                <path d="M8 12L11 15L16 9" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        </div>
+                        <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{successModal.title}</h2>
+                        <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{successModal.text}</p>
+                        <button onClick={() => setSuccessModal({ show: false, title: '', text: '' })} style={saveBtn as any}>ПОНЯТНО</button>
+                    </div>
+                </div>
+            )}
+
+            {errorModal.show && (
+                <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
+                    <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ marginBottom: '20px' }}>
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="rgba(255,77,77,0.1)" stroke="#ff4d4d" strokeWidth="2"/>
+                                <path d="M15 9L9 15M9 9L15 15" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round"/>
+                            </svg>
+                        </div>
+                        <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
+                        <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{errorModal.text}</p>
+                        <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff' } as any}>ПОНЯТНО</button>
                     </div>
                 </div>
             )}

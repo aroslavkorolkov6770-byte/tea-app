@@ -290,18 +290,24 @@ function ShiftContent() {
 
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const testsPercent = Math.round((completedTests.length / (Math.max(dynamicTests.length, 1))) * 100);
-  const totalHubPercent = testsPercent; 
+  const totalHubPercent = Math.round((routePercent + testsPercent) / 2);
 
+  const statusSteps = [
+      { min: 0, label: 'НОВИЧОК', hint: 'Первый этап адаптации' },
+      { min: 15, label: 'ОСВАИВАЕТСЯ', hint: 'Погружение в базу знаний' },
+      { min: 35, label: 'УВЕРЕННЫЙ СТАРТ', hint: 'Хорошая рабочая база' },
+      { min: 55, label: 'В РАБОЧЕМ РИТМЕ', hint: 'Стабильное продвижение' },
+      { min: 75, label: 'СИЛЬНЫЙ СОТРУДНИК', hint: 'Высокий уровень освоения' },
+      { min: 90, label: 'МАСТЕР HUB', hint: 'Почти полный контроль материалов' }
+  ];
+  const currentStatus = [...statusSteps].reverse().find(step => totalHubPercent >= step.min) || statusSteps[0];
   const pct = totalHubPercent;
   const startX = 0;
   const startY = 100;
   const endX = pct;
-  const endY = 100 - pct; 
   const cpX = pct * 0.5;
-  const cpY = 100;
   const dotY = Math.max(pct, 2);
   const lineEndY = 100 - dotY;
-
   const pathArea = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY} L ${endX} ${startY} Z`;
   const pathLine = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY}`;
 
@@ -333,10 +339,10 @@ function ShiftContent() {
                         <div>
                             <div style={{fontSize:'11px', fontWeight:'900', color:'#0abab5', letterSpacing:'2px', marginBottom:'8px', textTransform:'uppercase'}}>ОБЩАЯ ДИНАМИКА РАЗВИТИЯ</div>
                             <div className="tasks-big-val" style={{fontSize:'48px', fontWeight:'900', color:'#fff', display:'flex', alignItems:'baseline', gap:'12px'}}>
-                                {totalHubPercent}% <span style={{fontSize:'15px', opacity:0.4, fontWeight:'500'}}>общего прогресса HUB</span>
+                                {totalHubPercent}%
                             </div>
                         </div>
-                        <div style={rankBadge}>{totalHubPercent < 40 ? ' НОВИЧОК' : totalHubPercent < 80 ? ' ЭРУДИТ' : ' МАСТЕР'}</div>
+                        <div style={rankBadge}>{currentStatus.label}</div>
                     </div>
 
                     <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '30px', marginBottom: '30px' }}>
@@ -346,7 +352,7 @@ function ShiftContent() {
                         {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(v => (
                             <div key={`v-${v}`} style={{ position: 'absolute', bottom: 0, left: `${v}%`, height: '100%', borderLeft: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
                         ))}
-                        
+
                         <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, overflow: 'visible' }}>
                             <defs>
                                 <linearGradient id="flatGrad" x1="0" y1="0" x2="0" y2="1">
@@ -380,16 +386,12 @@ function ShiftContent() {
                               {dynamicRoute.map((step, i) => (
                                   <div key={i} style={segment(completedRoute.includes(step.id))} />
                               ))}
-                          </div>
-                      </div>
-                      
-                      <div className="tasks-stat-card" style={statCardMain}>
-                         <div style={cardHeaderLabel}>ПРОГРЕСС ТЕСТИРОВАНИЯ</div>
-                         <div className="tasks-big-val" style={bigStatVal}>{testsPercent}%</div>
-                         <p style={cardSubText}>пройдено тестов</p>
-                         <div style={pBarBg}>
-                             <div style={pBarFill(testsPercent)} />
                          </div>
+                         {dynamicRoute.length === 0 && (
+                             <div style={{ ...pBarBg, marginTop: '18px' }}>
+                                 <div style={pBarFill(0)} />
+                             </div>
+                         )}
                       </div>
                 </div>
             </div>
