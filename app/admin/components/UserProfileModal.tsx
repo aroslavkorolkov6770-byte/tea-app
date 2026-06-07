@@ -82,11 +82,11 @@ export default function UserProfileModal({
 
                 <section style={progressSectionStyle as any}>
                     <div style={{ marginBottom: '25px' }}>
-                        <div style={labelRow as any}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{routeLen}/{totalRouteSteps}</span></div>
+                        <div style={labelRow as any}><span style={{color:'#888'}}>ТЕОРИЯ</span><span style={{color:'#0abab5'}}>{routeLen}/{totalRouteSteps}</span></div>
                         <div style={barBg as any}><div style={{ ...barFill, width: `${planPercent}%` } as any} /></div>
                     </div>
                     <div style={{ marginBottom: '10px' }}>
-                        <div style={labelRow as any}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{basicsLen}/{totalBasicsModules}</span></div>
+                        <div style={labelRow as any}><span style={{color:'#888'}}>ТЕСТЫ</span><span style={{color:'#0abab5'}}>{basicsLen}/{totalBasicsModules}</span></div>
                         <div style={barBg as any}><div style={{ ...barFill, width: `${basicsPercent}%` } as any} /></div>
                     </div>
                 </section>

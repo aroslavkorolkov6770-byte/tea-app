@@ -1313,11 +1313,11 @@ export default function Education({
                 .test-answer-btn:hover { border-color: #0abab5; background: rgba(10, 186, 181, 0.05); transform: translateY(-2px); }
                 .test-answer-btn.selected { background: #0abab5 !important; color: #000 !important; border-color: #0abab5 !important; transform: scale(0.98); }
                 
-                .premium-cards-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; width: 100%; align-items: stretch; }
-                .premium-card { background: #111; border-radius: 14px; border: 1px solid #222; transition: all 0.2s ease; position: relative; cursor: pointer; display: flex; flex-direction: column; width: 100%; min-height: 196px; padding: 20px; box-sizing: border-box; overflow: hidden; word-break: normal; overflow-wrap: break-word; }
+                .premium-cards-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; width: 100%; align-items: stretch; }
+                .premium-card { background: #111; border-radius: 14px; border: 1px solid #222; transition: all 0.2s ease; position: relative; cursor: pointer; display: flex; flex-direction: column; width: 100%; min-height: 148px; padding: 16px; box-sizing: border-box; overflow: hidden; word-break: normal; overflow-wrap: break-word; }
                 .premium-card:hover { border-color: #0abab5; transform: translateY(-3px); }
                 .premium-card:active { background: rgba(10, 186, 181, 0.05); border-color: #0abab5; transform: scale(0.98); }
-                .premium-card h4 { min-height: 64px; }
+                .premium-card h4 { min-height: 44px; }
                 .deadline-card:hover { border-color: #ff4d4d !important; box-shadow: 0 8px 25px rgba(255, 77, 77, 0.15) !important; }
                 .deadline-card:active { background: rgba(255, 77, 77, 0.05) !important; border-color: #ff4d4d !important; }
 
@@ -1361,15 +1361,15 @@ export default function Education({
                     .premium-cards-container { 
                         display: grid !important; 
                         grid-template-columns: 1fr !important; 
-                        gap: 15px !important; 
+                        gap: 12px !important; 
                     }
                     .premium-card { 
                         width: 100% !important; 
                         max-width: none !important; 
-                        padding: 20px !important; 
-                        min-height: 180px !important; 
+                        padding: 16px !important; 
+                        min-height: 136px !important; 
                     }
-                    .premium-card h4 { font-size: 15px !important; min-height: 58px !important; }
+                    .premium-card h4 { font-size: 15px !important; min-height: 42px !important; }
                     .tasks-title { font-size: 24px !important; }
                     .tasks-theory-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
                     .tasks-quiz-grid { grid-template-columns: 1fr !important; gap: 15px !important; }

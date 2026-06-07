@@ -20,9 +20,9 @@ export default function StatisticsPanel({
 
             {staffUsers.map((user: any) => {
                 const routeLen = usersStats[user.id]?.route || 0;
-                const basicsLen = usersStats[user.id]?.basics || 0;
-                const planPercent = Math.round((routeLen / (totalRouteSteps || 1)) * 100);
-                const basicsPercent = Math.round((basicsLen / (totalBasicsModules || 1)) * 100);
+                const testsLen = usersStats[user.id]?.basics || 0;
+                const theoryPercent = Math.round((routeLen / (totalRouteSteps || 1)) * 100);
+                const testsPercent = Math.round((testsLen / (totalBasicsModules || 1)) * 100);
                 const avatarImg = userAvatars[user.id] || user.avatar;
 
                 return (
@@ -40,24 +40,24 @@ export default function StatisticsPanel({
 
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ПЛАН</div>
+                                <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ТЕОРИЯ</div>
                                 <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
-                                    <div style={{ width: `${planPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
+                                    <div style={{ width: `${theoryPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
                                 </div>
-                                <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{planPercent}%</div>
+                                <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{theoryPercent}%</div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>БАЗА</div>
+                                <div style={{ width: '45px', fontSize: '11px', fontWeight: '900', color: '#555' }}>ТЕСТЫ</div>
                                 <div style={{ flex: 1, height: '8px', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
-                                    <div style={{ width: `${basicsPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
+                                    <div style={{ width: `${testsPercent}%`, height: '100%', background: '#0abab5', borderRadius: '10px', transition: '1.5s ease' }} />
                                 </div>
-                                <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{basicsPercent}%</div>
+                                <div style={{ width: '45px', fontSize: '13px', fontWeight: '900', color: '#0abab5', textAlign: 'right' }}>{testsPercent}%</div>
                             </div>
                         </div>
 
                         <div style={{ display: 'flex', gap: '12px', height: '50px', alignItems: 'flex-end', borderLeft: '1px solid #222', paddingLeft: '30px' }}>
-                            <div style={barStyle(planPercent) as any} />
-                            <div style={barStyle(basicsPercent) as any} />
+                            <div style={barStyle(theoryPercent) as any} />
+                            <div style={barStyle(testsPercent) as any} />
                         </div>
                     </div>
                 )

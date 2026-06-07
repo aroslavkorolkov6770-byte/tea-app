@@ -125,11 +125,11 @@ export default function AdminDashboard() {
 
                     if (u.role === 'staff') {
                         try {
-                            const [uRouteData, uBasicsData] = await Promise.all([
+                            const [uRouteData, uTestsData] = await Promise.all([
                                 fetch(`/api/storage${cacheBuster}&key=prog_route_${u.id}`).then(r => r.json()).catch(() => []),
-                                fetch(`/api/storage${cacheBuster}&key=prog_basics_${u.id}`).then(r => r.json()).catch(() => [])
+                                fetch(`/api/storage${cacheBuster}&key=prog_tests_${u.id}`).then(r => r.json()).catch(() => [])
                             ]);
-                            stats[u.id] = { route: Array.isArray(uRouteData) ? uRouteData.length : 0, basics: Array.isArray(uBasicsData) ? uBasicsData.length : 0 };
+                            stats[u.id] = { route: Array.isArray(uRouteData) ? uRouteData.length : 0, basics: Array.isArray(uTestsData) ? uTestsData.length : 0 };
                         } catch(e) {
                             stats[u.id] = { route: 0, basics: 0 };
                         }
@@ -155,15 +155,19 @@ export default function AdminDashboard() {
                 if (Array.isArray(typesData) && typesData.length > 0) setTestTypesList(typesData);
             }
 
+            let dTests: any[] = [];
             if (dynTestsRes && dynTestsRes.ok) {
-                const dTests = await dynTestsRes.json();
-                if (Array.isArray(dTests)) setDynamicTests(dTests);
+                const loadedTests = await dynTestsRes.json();
+                if (Array.isArray(loadedTests)) {
+                    dTests = loadedTests;
+                    setDynamicTests(loadedTests);
+                }
             }
 
             const bDb = bRes && bRes.ok ? await bRes.json() : [];
             const rDb = rRes && rRes.ok ? await rRes.json() : [];
             
-            setTotalBasicsModules((Array.isArray(bDb) ? bDb : []).reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) || 50);
+            setTotalBasicsModules(Array.isArray(dTests) ? dTests.length : 0);
             setTotalRouteSteps(Array.isArray(rDb) ? rDb.length : 5);
 
         } catch (error) { console.error("Error", error); }

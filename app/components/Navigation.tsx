@@ -786,11 +786,18 @@ export default function Navigation() {
         @media (max-width: 768px) {
             .nav-topbar {
                 left: 0 !important;
-                padding: 0 10px !important;
+                padding: 0 10px 0 72px !important;
                 height: 70px !important;
             }
             .nav-sidebar {
                 z-index: 10005 !important;
+            }
+            .sidebar-toggle-fixed {
+                top: 16px !important;
+                left: 16px !important;
+                width: 40px !important;
+                height: 40px !important;
+                border-radius: 12px !important;
             }
             .sidebar-mobile-overlay {
                 display: block !important;
@@ -800,11 +807,12 @@ export default function Navigation() {
                 z-index: 10004;
                 backdrop-filter: blur(5px);
             }
+
             .search-box-container {
                 width: 100% !important;
                 max-width: 100% !important;
                 padding: 8px 12px !important;
-                margin-right: 10px !important;
+                margin-right: 0 !important;
                 flex: 1 !important;
                 min-width: 50px !important;
             }
@@ -812,7 +820,7 @@ export default function Navigation() {
                 min-width: 0 !important;
                 text-overflow: ellipsis !important;
             }
-            
+
             .guest-header {
                 right: 15px !important;
                 top: 15px !important;
