@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
+import CustomIcon from '@/app/components/CustomIcon';
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
@@ -250,7 +251,7 @@ function ProductsContent() {
             {dayProduct && (
               <div onClick={() => setSelectedTea(dayProduct)} style={dayTeaCard as any}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#000', fontSize: '11px', fontWeight: '900' }}>
-                  <span style={dayBadgeMark as any}>DAY</span>
+                  <CustomIcon name="day" size={20} color="#000" />
                   <span>{dayProduct.type.toUpperCase() } ДНЯ</span>
                 </div>
                 <h2 style={{ color: '#000', fontSize: '36px', margin: '12px 0' }}>{dayProduct.name}</h2>
@@ -302,15 +303,15 @@ function ProductsContent() {
               {filtered.map(p => (
                 <div key={p.id} onClick={() => setSelectedTea(p)} style={productRow as any}>
                   <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: 0, fontSize: '18px' }}>{p.name} {p.isDayTea && <span style={inlineStatusBadge as any}>ДНЯ</span>}</h3>
+                    <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>{p.name} {p.isDayTea && <span style={inlineStatusBadge as any}><CustomIcon name="day" size={14} color="#0abab5" /></span>}</h3>
                     <p style={{ margin: '5px 0 0 0', color: '#444', fontSize: '13px' }}>{p.summary}</p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {isAdmin && (
                       <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                        <span onClick={(e) => { e.stopPropagation(); toggleDayProduct(p); }} style={{ ...smallActionBadge, color: p.isDayTea ? '#0abab5' : '#666', borderColor: p.isDayTea ? '#0abab5' : '#333' } as any}>ДНЯ</span>
-                        <span onClick={(e) => { e.stopPropagation(); setEditingId(p.id); setFormData(p); setShowForm(true); }} style={{ ...smallActionBadge, color: '#0abab5', borderColor: '#0abab5' } as any}>ПРАВКА</span>
-                        <span onClick={(e) => { e.stopPropagation(); setProductToDelete(p); }} style={{ color: '#ff7675', cursor: 'pointer' }}>X</span>
+                        <span onClick={(e) => { e.stopPropagation(); toggleDayProduct(p); }} style={{ ...smallActionBadge, color: p.isDayTea ? '#0abab5' : '#666', borderColor: p.isDayTea ? '#0abab5' : '#333' } as any}><CustomIcon name="day" size={15} color={p.isDayTea ? '#0abab5' : '#666'} /></span>
+                        <span onClick={(e) => { e.stopPropagation(); setEditingId(p.id); setFormData(p); setShowForm(true); }} style={{ ...smallActionBadge, color: '#0abab5', borderColor: '#0abab5' } as any}><CustomIcon name="edit" size={15} color="#0abab5" /></span>
+                        <span onClick={(e) => { e.stopPropagation(); setProductToDelete(p); }} style={{ color: '#ff7675', cursor: 'pointer', display: 'inline-flex' }}><CustomIcon name="close" size={18} color="#ff7675" /></span>
                       </div>
                     )}
                     <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '11px', border: '1px solid #4CAF5044', padding: '4px 10px', borderRadius: '8px' }}>{p.strength}</div>
@@ -376,12 +377,12 @@ function ProductsContent() {
               <div style={fullImageWrap as any}><img src={selectedTea.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={selectedTea.name} /></div>
               <p style={{ fontSize: '20px', lineHeight: '1.8', color: '#ccc', marginBottom: '40px' }}>{selectedTea.desc}</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
-                <div style={infoBox as any}><div style={infoTag as any}> РЕГИОН</div>{selectedTea.region || '—'}</div>
-                <div style={infoBox as any}><div style={infoTag as any}> ЗАВАРИВАНИЕ</div>{selectedTea.brewGuide || selectedTea.info}</div>
-                <div style={infoBox as any}><div style={infoTag as any}>СОВЕТ</div>{selectedTea.advice || '—'}</div>
-                <div style={infoBox as any}><div style={infoTag as any}> ОТЛИЧИЕ</div>{selectedTea.analogsDiff || '—'}</div>
+                <div style={infoBox as any}><div style={infoTag as any}><CustomIcon name="globe" size={16} color="#0abab5" /> РЕГИОН</div>{selectedTea.region || '—'}</div>
+                <div style={infoBox as any}><div style={infoTag as any}><CustomIcon name="brew" size={16} color="#0abab5" /> ЗАВАРИВАНИЕ</div>{selectedTea.brewGuide || selectedTea.info}</div>
+                <div style={infoBox as any}><div style={infoTag as any}><CustomIcon name="idea" size={16} color="#0abab5" /> СОВЕТ</div>{selectedTea.advice || '—'}</div>
+                <div style={infoBox as any}><div style={infoTag as any}><CustomIcon name="refresh" size={16} color="#0abab5" /> ОТЛИЧИЕ</div>{selectedTea.analogsDiff || '—'}</div>
               </div>
-              <button onClick={() => { setQuizResults({}); setShowQuiz(true); }} style={checkBtn as any}> ПРОВЕРИТЬ СЕБЯ</button>
+              <button onClick={() => { setQuizResults({}); setShowQuiz(true); }} style={{...checkBtn, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '10px'} as any}><CustomIcon name="brain" size={20} color="#000" /> ПРОВЕРИТЬ СЕБЯ</button>
             </div>
           </div>
         )}
@@ -427,8 +428,8 @@ function ProductsContent() {
                       const isCorrect = oIdx === q.c;
                       const isSelected = quizResults[selectedTea.id as number]?.includes(oIdx);
                       return (
-                        <div key={oIdx} onClick={() => setQuizResults({...quizResults, [selectedTea.id as number]: [...(quizResults[selectedTea.id as number] || []), oIdx]})} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#0abab5' : '#d32f2f') : '#000', borderRadius: '12px', cursor: 'pointer', border: '1px solid #222', display: 'flex', justifyContent: 'space-between' } as any}>
-                          {opt} <span>{isSelected && (isCorrect ? 'OK' : '')}</span>
+                        <div key={oIdx} onClick={() => setQuizResults({...quizResults, [selectedTea.id as number]: [...(quizResults[selectedTea.id as number] || []), oIdx]})} style={{ padding: '18px', background: isSelected ? (isCorrect ? '#0abab5' : '#d32f2f') : '#000', borderRadius: '12px', cursor: 'pointer', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' } as any}>
+                          {opt} <span>{isSelected && (isCorrect ? <CustomIcon name="check" size={18} color="#000" /> : <CustomIcon name="x" size={18} color="#fff" />)}</span>
                         </div>
                       );
                     })}

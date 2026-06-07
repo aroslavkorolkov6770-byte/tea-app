@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import CustomIcon from '@/app/components/CustomIcon';
 
 // --- ПОЛНАЯ БАЗА АССОРТИМЕНТА (ТОВАРНАЯ МАТРИЦА) ---
 export const INITIAL_ASSORTMENT = [
@@ -372,11 +373,19 @@ function AssortmentNode({
                 {/* ПАНЕЛЬ АДМИНА ДЛЯ КАЖДОЙ СТРОКИ */}
                 {isAdmin && (
                     <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => onMove(node.id, 'up')} title="Переместить выше" style={adminIconBtn as any}>↑</button>
-                        <button onClick={() => onMove(node.id, 'down')} title="Переместить ниже" style={adminIconBtn as any}></button>
-                        <button onClick={() => onAdd(node.id)} title="Добавить подраздел" style={adminIconBtn as any}>+</button>
-                        <button onClick={() => onEdit(node)} title="Редактировать" style={adminIconBtn as any}></button>
-                        <button onClick={() => onDelete(node.id)} title="Удалить" style={{...adminIconBtn, color: '#ff4d4d'} as any}>X</button>
+                        <button onClick={() => onMove(node.id, 'up')} title="Переместить выше" style={adminIconBtn as any}>
+                            <MoveArrowIcon direction="up" />
+                        </button>
+                        <button onClick={() => onMove(node.id, 'down')} title="Переместить ниже" style={adminIconBtn as any}>
+                            <MoveArrowIcon direction="down" />
+                        </button>
+                        <button onClick={() => onAdd(node.id)} title="Добавить подраздел" style={adminIconBtn as any}>
+                            <PlusIcon />
+                        </button>
+                        <button onClick={() => onEdit(node)} title="Редактировать" style={adminIconBtn as any}>
+                            <CustomIcon name="edit" size={15} color="#0abab5" />
+                        </button>
+                        <button onClick={() => onDelete(node.id)} title="Удалить" style={{...adminIconBtn, color: '#ff4d4d'} as any}><CustomIcon name="close" size={15} color="#ff4d4d" /></button>
                     </div>
                 )}
             </div>
@@ -395,6 +404,23 @@ function AssortmentNode({
                 </div>
             )}
         </div>
+    );
+}
+
+function MoveArrowIcon({ direction }: { direction: 'up' | 'down' }) {
+    const points = direction === 'up' ? '12 5 6 11 10 11 10 19 14 19 14 11 18 11 12 5' : '12 19 18 13 14 13 14 5 10 5 10 13 6 13 12 19';
+    return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <polygon points={points} fill="#0abab5" />
+        </svg>
+    );
+}
+
+function PlusIcon() {
+    return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 5V19M5 12H19" stroke="#0abab5" strokeWidth="3" strokeLinecap="round" />
+        </svg>
     );
 }
 
@@ -587,7 +613,7 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, id: null})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 20px auto' }}>!</div>
+                        <div style={{ width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>УДАЛИТЬ РАЗДЕЛ?</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>
                             Вы уверены, что хотите удалить этот раздел и все его вложения? Это действие необратимо.

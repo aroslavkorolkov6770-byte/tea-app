@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from 'react';
+import CustomIcon from '@/app/components/CustomIcon';
 
 // --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
@@ -147,8 +148,8 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             updateFilesState(updatedFiles);
             
             const namesStr = fileNames.join(', ');
-            const pushSent = await sendPushNotification('Все', { title: ' Новые учебные материалы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' });
-            const emailSent = await sendEmailNotification('Все', ' Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`);
+            const pushSent = await sendPushNotification('Все', { title: 'Новые учебные материалы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' });
+            const emailSent = await sendEmailNotification('Все', 'Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`);
 
             setSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) загружены в раздел "${finalSection}". ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
             setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); setNewUploadSectionName('');
@@ -405,9 +406,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                             }}
                             onClick={() => document.getElementById('file-upload-admin')?.click()}
                         >
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))' }}>
-                                <path d="M22 19A2 2 0 0 1 20 21H4A2 2 0 0 1 2 19V5A2 2 0 0 1 4 3H9L11 5H20A2 2 0 0 1 22 7V19Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
+                            <CustomIcon name="folder" size={48} color="#0abab5" />
                             <div>
                                 <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#fff', margin: '0 0 8px 0' }}>Загрузить документы</h3>
                                 <p style={{ color: '#666', fontSize: '14px', margin: 0, maxWidth: '400px', lineHeight: '1.5' }}>
@@ -428,10 +427,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                 <div style={{ background: '#0a0a0a', borderRadius: '16px', border: '1px solid #1a1a1a', padding: '15px', maxHeight: '200px', overflowY: 'auto' }} className="custom-scroll">
                                     {selectedFiles.map((f, i) => (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i !== selectedFiles.length - 1 ? '1px dashed #222' : 'none' }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-                                                <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M14 2V8H20" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                            </svg>
+                                            <CustomIcon name="attachment" size={14} color="#ccc" />
                                             <span style={{ fontSize: '13px', color: '#ccc', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
                                             <span style={{ fontSize: '11px', color: '#666', flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(2)} MB</span>
                                         </div>
@@ -450,7 +446,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                            <div style={{ display: 'flex', gap: '8px' }}>
                                                <input autoFocus style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} placeholder="Название..." value={newUploadSectionName} onChange={e => setNewUploadSectionName(e.target.value)} />
                                                <button onClick={() => { setUploadSection(newUploadSectionName.trim() || 'Основной раздел'); setIsCreatingNewUploadSection(false); }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>ОК</button>
-                                               <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>X</button>
+                                               <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><CustomIcon name="close" size={15} color="#fff" /></button>
                                            </div>
                                        )}
                                     </div>
@@ -485,14 +481,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                        <div key={secName} style={{ marginBottom: '40px' }}>
                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
-                                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                       <path d="M22 19A2 2 0 0 1 20 21H4A2 2 0 0 1 2 19V5A2 2 0 0 1 4 3H9L11 5H20A2 2 0 0 1 22 7V19Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                   </svg>
+                                   <CustomIcon name="folder" size={22} color="#0abab5" />
                                    {secName}
                                </h3>
                                {isAdmin && secName !== 'Основной раздел' && (
                                    <div style={{display: 'flex', gap: '15px'}}>
-                                       <span onClick={() => setRenameSectionPrompt({isOpen: true, oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}> РЕДАКТИРОВАТЬ</span>
+                                       <span onClick={() => setRenameSectionPrompt({isOpen: true, oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '5px' }}><CustomIcon name="edit" size={12} color="#0abab5" /> РЕДАКТИРОВАТЬ</span>
                                        <span onClick={() => setConfirmDelete({isOpen: true, type: 'section', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '3px', marginBottom: '-2px'}}>
                                                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
@@ -534,12 +528,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                               
                                               <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
                                                   {/* Новый премиальный векторный значок документа */}
-                                                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '1px'}}>
-                                                      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="rgba(10,186,181,0.15)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M14 2V8H20" fill="rgba(10,186,181,0.3)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M8 13H16" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M8 17H13" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                  </svg>
+                                                  <CustomIcon name="file" size={22} color="#0abab5" />
                                                   <span>{file.name}</span>
                                               </h4>
                                           </div>
@@ -549,7 +538,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                               <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px', fontWeight: 'bold' }}>Вес: {file.size}</div>
                                               <div style={{ display: 'flex', gap: '10px' }}>
                                                   <button onClick={() => handleOpenPreview(file)} className="doc-action-btn">ОТКРЫТЬ</button>
-                                                  <button onClick={() => handleDownloadFile(file)} className="doc-action-btn">СКАЧАТЬ </button>
+                                                  <button onClick={() => handleDownloadFile(file)} className="doc-action-btn"><CustomIcon name="download" size={14} color="#0abab5" /> СКАЧАТЬ</button>
                                               </div>
                                           </div>
                                           

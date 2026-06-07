@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { flexSpace, sectionTitle, actionBtn, adminIn, userCardStyle, modalOverlay, modalContentSmall, saveBtn } from './adminStyles';
+import CustomIcon from '@/app/components/CustomIcon';
 
 const saveDataToServer = (key: string, data: any) => {
     return fetch('/api/storage', {
@@ -93,7 +94,7 @@ export default function UserManagement({
                                         </div>
                                     </div>
                                     {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
-                                        <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>X</div>
+                                        <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex' }}><CustomIcon name="close" size={15} color="#ff4d4d" /></div>
                                     )}
                                 </div>
                                 <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
@@ -134,7 +135,7 @@ export default function UserManagement({
             {confirmModal.show && (
                 <div style={modalOverlay as any} onClick={() => setConfirmModal({ show: false, id: '' })}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={warningBadgeStyle as any}>!</div>
+                        <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>УДАЛИТЬ?</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', marginBottom: '25px' }}>Вы уверены, что хотите удалить сотрудника?</p>
                         <div style={{ display: 'flex', gap: '15px' }}>

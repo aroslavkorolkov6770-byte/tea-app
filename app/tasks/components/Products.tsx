@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import CustomIcon from '../../components/CustomIcon';
 
 const STORAGE_KEYS = {
     PRODUCTS: 'tea_hub_products_v1'
@@ -207,7 +208,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
             localStorage.setItem('th_cache_products', JSON.stringify(finalProducts));
             saveDataToServer(STORAGE_KEYS.PRODUCTS, finalProducts);
             
-            alert(`OK Файл успешно обработан!\n\nДобавлено новых товаров: ${addedCount}\nОбновлено существующих: ${updatedCount}`);
+            alert(`Файл успешно обработан!\n\nДобавлено новых товаров: ${addedCount}\nОбновлено существующих: ${updatedCount}`);
         };
         reader.readAsText(file, "UTF-8");
         e.target.value = '';
@@ -238,9 +239,9 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0, color: '#fff' }}>Товары и Продукты</h2>
                 {isAdmin && (
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <button onClick={exportToCSV} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333'} as any}> ЭКСПОРТ CSV</button>
+                        <button onClick={exportToCSV} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333', display: 'inline-flex', alignItems: 'center', gap: '8px'} as any}><CustomIcon name="download" size={16} color="#aaa" /> ЭКСПОРТ CSV</button>
                         <input type="file" accept=".csv" id="csv-upload" style={{display: 'none'}} onChange={handleImportCSV} />
-                        <button onClick={() => document.getElementById('csv-upload')?.click()} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333'} as any}> ИМПОРТ ИЗ ФАЙЛА</button>
+                        <button onClick={() => document.getElementById('csv-upload')?.click()} style={{...adminActionBtn, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: '1px solid #333', display: 'inline-flex', alignItems: 'center', gap: '8px'} as any}><CustomIcon name="upload" size={16} color="#aaa" /> ИМПОРТ ИЗ ФАЙЛА</button>
                         <button onClick={() => {
                             setProductFormData({ id: '', name: '', category: '', price: '', desc: '', isHit: false, isHidden: false, dateAdded: '' });
                             setShowProductForm(true);
@@ -307,7 +308,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                     boxShadow: '0 10px 30px rgba(255,215,0,0.03)'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '25px' }}>
-                        <div style={hitBadgeStyle as any}>ХИТ</div>
+                        <CustomIcon name="flame" size={30} color="#ffd700" />
                         <h3 style={{ fontSize: '20px', color: '#ffd700', fontWeight: '900', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Обязательно к продаже</h3>
                     </div>
                     
@@ -323,8 +324,8 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                 }}>
                                     {isAdmin && (
                                         <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                            <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...textIconStyle, background: 'rgba(0,0,0,0.8)', color: '#ffd700', border: '1px solid #ffd700'} as any} title="Убрать из обязательных">ХИТ</div>
-                                            <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...textIconStyle, background: 'rgba(0,0,0,0.8)', color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title={product.isHidden ? "Показать сотрудникам" : "Скрыть от сотрудников"}>{product.isHidden ? 'СКР' : 'ВИД'}</div>
+                                            <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...textIconStyle, background: 'rgba(0,0,0,0.8)', color: '#ffd700', border: '1px solid #ffd700'} as any} title="Убрать из обязательных"><CustomIcon name="flame" size={16} color="#ffd700" /></div>
+                                            <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...textIconStyle, background: 'rgba(0,0,0,0.8)', color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title={product.isHidden ? "Показать сотрудникам" : "Скрыть от сотрудников"}><CustomIcon name={product.isHidden ? 'hidden' : 'eye'} size={16} color={product.isHidden ? '#ff4d4d' : '#0abab5'} /></div>
                                         </div>
                                     )}
                                     
@@ -372,10 +373,10 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                             
                             {isAdmin && (
                                 <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
-                                    <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...textIconStyle, color: product.isHit ? '#ffd700' : '#666'} as any} title="В обязательные">{product.isHit ? 'ХИТ' : 'H'}</div>
-                                    <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...textIconStyle, color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title="Скрыть/Показать">{product.isHidden ? 'СКР' : 'ВИД'}</div>
-                                    <div onClick={(e) => { e.stopPropagation(); setProductFormData(product); setShowProductForm(true); }} className="admin-action-icon" style={textIconStyle as any} title="Редактировать">ПР</div>
-                                    <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, id: product.id, name: product.name}); }} className="admin-action-icon" style={delIconStyle as any} title="Удалить">X</div>
+                                    <div onClick={(e) => toggleHit(e, product.id)} className="admin-action-icon" style={{...textIconStyle, color: product.isHit ? '#ffd700' : '#666'} as any} title="В обязательные"><CustomIcon name={product.isHit ? 'flame' : 'star'} size={16} color={product.isHit ? '#ffd700' : '#666'} /></div>
+                                    <div onClick={(e) => toggleHidden(e, product.id)} className="admin-action-icon" style={{...textIconStyle, color: product.isHidden ? '#ff4d4d' : '#0abab5'} as any} title="Скрыть/Показать"><CustomIcon name={product.isHidden ? 'hidden' : 'eye'} size={16} color={product.isHidden ? '#ff4d4d' : '#0abab5'} /></div>
+                                    <div onClick={(e) => { e.stopPropagation(); setProductFormData(product); setShowProductForm(true); }} className="admin-action-icon" style={textIconStyle as any} title="Редактировать"><CustomIcon name="edit" size={16} color="#0abab5" /></div>
+                                    <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, id: product.id, name: product.name}); }} className="admin-action-icon" style={delIconStyle as any} title="Удалить"><CustomIcon name="close" size={16} color="#ff4d4d" /></div>
                                 </div>
                             )}
                             
@@ -444,13 +445,13 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 <div style={modalOverlay as any} onClick={() => setViewProduct(null)}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '40px', position: 'relative'} as any} onClick={e => e.stopPropagation()}>
                         
-                        <div onClick={() => setViewProduct(null)} style={{ position: 'absolute', top: '25px', right: '25px', cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold', lineHeight: 1, zIndex: 10 }}>X</div>
+                        <div onClick={() => setViewProduct(null)} style={{ position: 'absolute', top: '25px', right: '25px', cursor: 'pointer', color: '#ff4d4d', lineHeight: 1, zIndex: 10, display: 'inline-flex' }}><CustomIcon name="close" size={24} color="#ff4d4d" /></div>
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px', marginBottom: '30px', paddingRight: '40px' }}>
                             <div>
                                 {viewProduct.category && <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase', background: 'rgba(10,186,181,0.1)', padding: '5px 12px', borderRadius: '8px', display: 'inline-block', marginBottom: '15px'}}>{viewProduct.category}</span>}
                                 <h2 style={{fontSize:'32px', color:'#fff', fontWeight:'900', margin:'0'}}>{viewProduct.name}</h2>
-                                {viewProduct.isHit && <div style={{ color: '#ffd700', fontWeight: 'bold', fontSize: '13px', marginTop: '10px' }}> ОБЯЗАТЕЛЬНО К ПРОДАЖЕ</div>}
+                                {viewProduct.isHit && <div style={{ color: '#ffd700', fontWeight: 'bold', fontSize: '13px', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}><CustomIcon name="flame" size={16} color="#ffd700" /> ОБЯЗАТЕЛЬНО К ПРОДАЖЕ</div>}
                             </div>
                         </div>
 
@@ -476,7 +477,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
             {confirmDelete.isOpen && (
                 <div style={modalOverlay as any} onClick={() => setConfirmDelete({isOpen: false, id: '', name: ''})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={{ width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 20px auto' }}>!</div>
+                        <div style={{ width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>УДАЛИТЬ ТОВАР?</h2>
                         <p style={{ color: '#ccc', fontSize: '14px', marginBottom: '25px' }}>Вы уверены, что хотите безвозвратно удалить "{confirmDelete.name}"?</p>
                         <div style={{ display: 'flex', gap: '15px' }}>

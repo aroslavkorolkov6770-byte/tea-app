@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import CustomIcon from '@/app/components/CustomIcon';
 import { 
     modalOverlay, profileHeaderCardStyle, profileSectionTitle, 
     progressSectionStyle, labelRow, barBg, barFill, badgeStyle, 
@@ -92,16 +93,16 @@ export default function UserProfileModal({
 
                 <h3 style={profileSectionTitle as any}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
-                    <div title="Старт" style={{ ...badgeStyle, opacity: routeLen >= 1 ? 1 : 0.1 } as any}>START</div>
-                    <div title="План" style={{ ...badgeStyle, opacity: routeLen >= 5 ? 1 : 0.1 } as any}>PLAN</div>
-                    <div title="Теория" style={{ ...badgeStyle, opacity: basicsLen >= 5 ? 1 : 0.1 } as any}>THEORY</div>
-                    <div title="Мастер" style={{ ...badgeStyle, opacity: basicsLen >= 10 ? 1 : 0.1 } as any}>MASTER</div>
+                    <div title="Старт" style={{ ...badgeStyle, opacity: routeLen >= 1 ? 1 : 0.1 } as any}><CustomIcon name="sprout" size={22} color="#0abab5" /></div>
+                    <div title="План" style={{ ...badgeStyle, opacity: routeLen >= 5 ? 1 : 0.1 } as any}><CustomIcon name="rocket" size={22} color="#0abab5" /></div>
+                    <div title="Теория" style={{ ...badgeStyle, opacity: basicsLen >= 5 ? 1 : 0.1 } as any}><CustomIcon name="book" size={22} color="#0abab5" /></div>
+                    <div title="Мастер" style={{ ...badgeStyle, opacity: basicsLen >= 10 ? 1 : 0.1 } as any}><CustomIcon name="lantern" size={22} color="#0abab5" /></div>
                 </div>
 
                 <h3 style={profileSectionTitle as any}>СВЯЗЬ</h3>
                 <section style={contactCardStyle as any}>
                     <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                        <div style={contactIconStyle as any}>i</div>
+                        <div style={contactIconStyle as any}><CustomIcon name="chat" size={22} color="#0abab5" /></div>
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{tg || 'telegram не указан'}</div>
                             <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{email || 'e-mail не указан'}</div>
