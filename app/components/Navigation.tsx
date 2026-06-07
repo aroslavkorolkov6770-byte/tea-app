@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import CustomIcon from '@/app/components/CustomIcon';
 
 // --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES ---
 const setAppCookie = (name: string, value: string, days: number | null = 7) => {
@@ -493,7 +494,7 @@ export default function Navigation() {
                   boxSizing: 'border-box',
                   animation: 'scaleIn 0.2s ease'
               }} onClick={e => e.stopPropagation()}>
-                  <div style={warningBadgeStyle as any}>!</div>
+                  <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                   <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
                   <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{errorMessage}</p>
                   <div onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ЗАКРЫТЬ</div>
@@ -532,7 +533,7 @@ export default function Navigation() {
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'
                             }}
                         >
-                            {isConsentGiven && <span style={{ color: '#0abab5', fontSize: '14px', fontWeight: 'bold' }}>OK</span>}
+                            {isConsentGiven && <span style={{ color: '#0abab5', display: 'inline-flex' }}><CustomIcon name="check" size={16} color="#0abab5" /></span>}
                         </div>
                         <div style={{ color: '#888', fontSize: '12px', lineHeight: '1.4', textAlign: 'left' }}>
                             Я даю согласие на <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
@@ -547,7 +548,7 @@ export default function Navigation() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             <div onClick={handleCaptchaClick} style={teaGuardCheckboxStyle(isCaptchaVerified) as any}>
                                 {isCaptchaLoading && <div className="captcha-spinner"></div>}
-                                {isCaptchaVerified && <span style={{ color: '#0abab5', fontSize: '24px', fontWeight: 'bold' }}>OK</span>}
+                                {isCaptchaVerified && <span style={{ color: '#0abab5', display: 'inline-flex' }}><CustomIcon name="check" size={24} color="#0abab5" /></span>}
                             </div>
                             <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>Я человек</span>
                         </div>

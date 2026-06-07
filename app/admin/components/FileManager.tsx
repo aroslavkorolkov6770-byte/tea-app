@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { uploadZoneStyle, actionBtn, adminIn, saveBtn, modalOverlay, modalContentSmall } from './adminStyles';
+import CustomIcon from '@/app/components/CustomIcon';
 
 const saveDataToServer = (key: string, data: any) => {
     return fetch('/api/storage', {
@@ -168,7 +169,7 @@ export default function FileManager({
               onDragLeave={() => setIsDragging(false)}
               onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]); }}
             >
-               <div style={docBadgeStyle as any}>DOC</div>
+               <div style={docBadgeStyle as any}><CustomIcon name="file" size={24} color="#0abab5" /></div>
                <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '5px' }}>Загрузка учебных материалов</h3>
                
                {(!selectedFiles || selectedFiles.length === 0) ? (
@@ -182,7 +183,7 @@ export default function FileManager({
                    <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', textAlign: 'left' }}>
                        <div style={{ color: '#0abab5', fontWeight: '900', fontSize: '14px', marginBottom: '10px', textAlign: 'center' }}>ВЫБРАНО ФАЙЛОВ: {selectedFiles.length}</div>
                        <div className="custom-scroll" style={{ maxHeight: '100px', overflowY: 'auto', marginBottom: '15px' }}>
-                           {selectedFiles.map((f, i) => <div key={i} style={{fontSize: '12px', color: '#aaa', marginTop: '4px'}}> {f.name}</div>)}
+                           {selectedFiles.map((f, i) => <div key={i} style={{fontSize: '12px', color: '#aaa', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px'}}><CustomIcon name="attachment" size={13} color="#aaa" /> {f.name}</div>)}
                        </div>
                        <div style={{ textAlign: 'left', marginTop: '15px', marginBottom: '20px' }}>
                            <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold', marginBottom: '8px' }}>ВЫБЕРИТЕ ПАПКУ ДЛЯ ДОКУМЕНТОВ:</div>
@@ -195,7 +196,7 @@ export default function FileManager({
                                <div style={{ display: 'flex', gap: '8px' }}>
                                    <input autoFocus style={{ flex: 1, padding: '12px', background: '#000', border: '1px solid #0abab5', borderRadius: '10px', color: '#fff', outline: 'none', fontSize: '13px' }} placeholder="Название..." value={newUploadSectionName} onChange={e => setNewUploadSectionName(e.target.value)} />
                                    <button onClick={() => { setUploadSection(newUploadSectionName.trim() || 'Основной раздел'); setIsCreatingNewUploadSection(false); }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>ОК</button>
-                                   <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>X</button>
+                                   <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><CustomIcon name="close" size={14} color="#fff" /></button>
                                </div>
                            )}
                        </div>
@@ -215,10 +216,10 @@ export default function FileManager({
                       <div style={{ maxHeight: '350px', overflowY: 'auto', marginBottom: '25px', paddingRight: '10px' }} className="custom-scroll">
                           {uploadedMaterials.length === 0 ? <p style={{ textAlign: 'center', color: '#666' }}>Список пуст</p> : uploadedMaterials.map((file: any) => (
                               <div key={file.id} style={{ background: '#000', border: '1px solid #222', padding: '15px', borderRadius: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-                                  <div style={{ overflow: 'hidden', flex: 1 }}><div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff' }}><span style={miniDocBadgeStyle as any}>DOC</span> {file.name}</div></div>
+                                  <div style={{ overflow: 'hidden', flex: 1 }}><div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}><span style={miniDocBadgeStyle as any}><CustomIcon name="file" size={14} color="#0abab5" /></span> {file.name}</div></div>
                                   <div style={{ display: 'flex', gap: '8px' }}>
                                       <button onClick={() => handleOpenPreview(file)} style={{ background: 'transparent', border: 'none', color: '#0abab5', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>ОТКРЫТЬ</button>
-                                      <button onClick={() => setConfirmModal({ show: true, id: file.id, name: file.name })} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px' }}>X</button>
+                                      <button onClick={() => setConfirmModal({ show: true, id: file.id, name: file.name })} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px', display: 'inline-flex' }}><CustomIcon name="close" size={18} color="#ff4d4d" /></button>
                                   </div>
                               </div>
                           ))}
@@ -231,7 +232,7 @@ export default function FileManager({
             {confirmModal.show && (
                 <div style={modalOverlay as any} onClick={() => setConfirmModal({ show: false, id: '', name: '' })}>
                     <div style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
-                        <div style={warningBadgeStyle as any}>!</div>
+                        <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>УДАЛИТЬ?</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', marginBottom: '25px' }}>Вы действительно хотите удалить этот учебный материал?</p>
                         <div style={{ display: 'flex', gap: '15px' }}>

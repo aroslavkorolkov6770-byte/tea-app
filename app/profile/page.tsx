@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
+import CustomIcon from '@/app/components/CustomIcon';
 import { useRouter } from 'next/navigation';
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
@@ -121,7 +122,7 @@ function ProfileContent() {
         }
         
         if (userId === 'guest' || !userId) {
-            alert(" Перед включением уведомлений нужно войти в аккаунт!");
+            alert("Перед включением уведомлений нужно войти в аккаунт!");
             return;
         }
 
@@ -174,7 +175,7 @@ function ProfileContent() {
             
             setPushBtnText('ПЕРЕПРИВЯЗАТЬ УСТРОЙСТВО');
             setPushBtnColor('#4CAF50');
-            alert("OK Устройство успешно привязано к вашему аккаунту!");
+            alert("Устройство успешно привязано к вашему аккаунту!");
 
         } catch (error: any) {
             console.error('Ошибка подписки на Push:', error);
@@ -311,7 +312,7 @@ function ProfileContent() {
                             {profile.avatar ? (
                                 <img src={profile.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
                             ) : (
-                                <span style={avatarFallbackText as any}>{userRole === 'admin' ? 'AD' : 'TH'}</span>
+                                <span style={avatarFallbackText as any}><CustomIcon name={userRole === 'admin' ? 'lantern' : 'user'} size={42} color="#0abab5" /></span>
                             )}
                         </div>
 
@@ -340,7 +341,7 @@ function ProfileContent() {
                     <h3 style={sectionTitle}>СВЯЗЬ</h3>
                     <section style={contactCardStyle}>
                         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                            <div style={contactIconStyle}>i</div>
+                            <div style={contactIconStyle}><CustomIcon name="chat" size={22} color="#0abab5" /></div>
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{profile.tg || 'Telegram не указан'}</div>
                                 <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{profile.email || 'E-mail не указан'}</div>

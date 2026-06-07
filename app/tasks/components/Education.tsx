@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import CustomIcon from '@/app/components/CustomIcon';
 
 const STORAGE_KEYS = {
     ONBOARD_ROUTE: 'tea_hub_onboard_route_v2',
@@ -1097,7 +1098,7 @@ export default function Education({
                              <div key={i} style={{background: '#111', padding: '20px', borderRadius: '20px', border: '1px solid #222'}}>
                                  <p style={{fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '15px'}}>{i+1}. {q.q}</p>
                                  <div style={{background: 'rgba(10,186,181,0.1)', border: '1px solid rgba(10,186,181,0.3)', padding: '15px', borderRadius: '15px', color: '#0abab5', fontWeight: 'bold', fontSize: '14px'}}>
-                                     OK Верный ответ: {q.o[q.c]}
+                                     <CustomIcon name="check" size={14} color="#0abab5" /> Верный ответ: {q.o[q.c]}
                                  </div>
                              </div>
                          ))}
@@ -1274,7 +1275,7 @@ export default function Education({
                                 Вы не уложились в отведенное время. Тест автоматически завершен и считается проваленным.
                             </div>
                         ) : testResultModal.score === 100 ? (
-                            <div style={{background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '20px', borderRadius: '15px', fontWeight: 'bold', marginBottom: '30px'}}>Вы ответили правильно на все вопросы! Идеальный результат.</div>
+                            <div style={{background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '20px', borderRadius: '15px', fontWeight: 'bold', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px'}}><CustomIcon name="success" size={24} color="#0abab5" /> Вы ответили правильно на все вопросы! Идеальный результат.</div>
                         ) : testResultModal.mistakes && testResultModal.mistakes.length > 0 ? (
                             <div style={{textAlign: 'left', marginBottom: '30px'}}>
                                 <h4 style={{color: '#fff', fontSize: '18px', fontWeight: '900', marginBottom: '15px'}}>Разбор ошибок:</h4>
@@ -1282,8 +1283,8 @@ export default function Education({
                                     {testResultModal.mistakes.map((m, idx) => (
                                         <div key={idx} style={{background: '#0d0f0d', padding: '20px', borderRadius: '15px', border: '1px solid #333'}}>
                                             <p style={{color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0'}}>{m.q}</p>
-                                            <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0'}}>X Ваш ответ: {m.userAns}</p>
-                                            <p style={{color: '#0abab5', fontSize: '13px', margin: 0}}>OK Верный ответ: {m.correctAns}</p>
+                                            <p style={{color: '#ff4d4d', fontSize: '13px', margin: '0 0 5px 0', display: 'flex', alignItems: 'center', gap: '6px'}}><CustomIcon name="x" size={14} color="#ff4d4d" /> Ваш ответ: {m.userAns}</p>
+                                            <p style={{color: '#0abab5', fontSize: '13px', margin: 0, display: 'flex', alignItems: 'center', gap: '6px'}}><CustomIcon name="check" size={14} color="#0abab5" /> Верный ответ: {m.correctAns}</p>
                                         </div>
                                     ))}
                                 </div>
