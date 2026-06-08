@@ -1,17 +1,10 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import CustomIcon from '../../components/CustomIcon';
+import { saveDataToServer } from '@/app/lib/storageClient';
 
 const STORAGE_KEYS = {
     PRODUCTS: 'tea_hub_products_v1'
-};
-
-const saveDataToServer = (key: string, data: any) => {
-    return fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 // Умный парсер CSV для импорта из Excel
@@ -41,6 +34,8 @@ const parseCSV = (str: string) => {
 export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId: string }) {
     const [products, setProducts] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [successModal, setSuccessModal] = useState({ show: false, title: '', text: '' });
+    const [errorModal, setErrorModal] = useState({ show: false, text: '' });
     
     // Состояние для активной категории
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -56,16 +51,12 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     // Загрузка данных
     useEffect(() => {
         const loadProducts = async () => {
-            const cached = localStorage.getItem('th_cache_products');
-            if (cached) setProducts(JSON.parse(cached));
-
             try {
-                const res = await fetch(`/api/storage?t=${Date.now()}&key=${STORAGE_KEYS.PRODUCTS}`);
+                const res = await fetch(`/api/storage?key=${STORAGE_KEYS.PRODUCTS}`, { cache: 'no-store' });
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data)) {
                         setProducts(data);
-                        localStorage.setItem('th_cache_products', JSON.stringify(data));
                     }
                 }
             } catch (e) {
@@ -92,7 +83,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         }
 
         setProducts(updatedProducts);
-        localStorage.setItem('th_cache_products', JSON.stringify(updatedProducts));
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updatedProducts);
         setShowProductForm(false);
     };
@@ -100,7 +90,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
     const executeDelete = () => {
         const updatedProducts = products.filter(p => p.id !== confirmDelete.id);
         setProducts(updatedProducts);
-        localStorage.setItem('th_cache_products', JSON.stringify(updatedProducts));
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updatedProducts);
         setConfirmDelete({ isOpen: false, id: '', name: '' });
     };
@@ -110,7 +99,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         e.stopPropagation();
         const updated = products.map(p => p.id === id ? { ...p, isHit: !p.isHit } : p);
         setProducts(updated);
-        localStorage.setItem('th_cache_products', JSON.stringify(updated));
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
     };
 
@@ -118,7 +106,6 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
         e.stopPropagation();
         const updated = products.map(p => p.id === id ? { ...p, isHidden: !p.isHidden } : p);
         setProducts(updated);
-        localStorage.setItem('th_cache_products', JSON.stringify(updated));
         saveDataToServer(STORAGE_KEYS.PRODUCTS, updated);
     };
 
@@ -160,7 +147,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
             const rows = parseCSV(text).filter(r => r.length > 1 && r[0].trim() !== '');
             
             if (rows.length <= 1) {
-                alert("Файл пуст или содержит только заголовки.");
+                setErrorModal({ show: true, text: 'Файл пуст или содержит только заголовки.' });
                 return;
             }
 
@@ -205,10 +192,13 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
 
             const finalProducts = [...newProds, ...currentProds];
             setProducts(finalProducts);
-            localStorage.setItem('th_cache_products', JSON.stringify(finalProducts));
             saveDataToServer(STORAGE_KEYS.PRODUCTS, finalProducts);
             
-            alert(`Файл успешно обработан!\n\nДобавлено новых товаров: ${addedCount}\nОбновлено существующих: ${updatedCount}`);
+            setSuccessModal({
+                show: true,
+                title: 'Импорт завершён',
+                text: `Добавлено новых товаров: ${addedCount}. Обновлено существующих: ${updatedCount}.`
+            });
         };
         reader.readAsText(file, "UTF-8");
         e.target.value = '';
@@ -316,7 +306,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                         {hitProducts.map(product => {
                             const isSingle = hitProducts.length === 1;
                             return (
-                                <div key={`hit-${product.id}`} className={`premium-card hit-card ${isSingle ? 'single-hit' : ''}`} onClick={() => setViewProduct(product)} style={{ 
+                                <div key={`hit-${product.id}`} className={`premium-card hit-card product-hit-card ${isSingle ? 'single-hit' : ''}`} onClick={() => setViewProduct(product)} style={{ 
                                     minWidth: isSingle ? '100%' : '280px', flex: isSingle ? '1 1 auto' : '0 0 auto', padding: '25px', scrollSnapAlign: 'start', 
                                     opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none',
                                     background: '#111', border: '1px solid rgba(255,215,0,0.4)', display: 'flex', flexDirection: isSingle ? 'row' : 'column',
@@ -329,12 +319,12 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                         </div>
                                     )}
                                     
-                                    <div style={{ flex: isSingle ? '1 1 auto' : 'none' }}>
-                                        {product.category && <span style={{ background: 'rgba(255,215,0,0.1)', color: '#ffd700', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', width: 'fit-content', marginBottom: '15px', display: 'inline-block' }}>{product.category}</span>}
-                                        <h4 style={{ fontSize: '18px', margin: isSingle ? '0' : '0 0 20px 0', fontWeight: 'bold', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin && !isSingle ? '80px' : '0' }}>{product.name}</h4>
+                                    <div className="product-card-body" style={{ flex: isSingle ? '1 1 auto' : 'none' }}>
+                                        {product.category && <span className="product-card-badge" style={{ background: 'rgba(255,215,0,0.1)', color: '#ffd700', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', width: 'fit-content', marginBottom: '15px', display: 'inline-block' }}>{product.category}</span>}
+                                        <h4 className="product-card-title" style={{ fontSize: '18px', margin: isSingle ? '0' : '0 0 20px 0', fontWeight: 'bold', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin && !isSingle ? '80px' : '0' }}>{product.name}</h4>
                                     </div>
                                     
-                                    <div className={isSingle ? "single-hit-stats" : ""} style={{ 
+                                    <div className={`product-card-footer ${isSingle ? "single-hit-stats" : ""}`} style={{ 
                                         marginTop: isSingle ? '0' : 'auto', 
                                         display: 'flex', 
                                         justifyContent: 'flex-end', 
@@ -343,8 +333,8 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                         paddingRight: isAdmin && isSingle ? '100px' : '0'
                                     }}>
                                         <div style={{ textAlign: 'right', width: '100%' }}>
-                                            <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
-                                            <div style={{ color: '#ffd700', fontWeight: '900', fontSize: '22px' }}>{product.price ? `${product.price} ₽` : '—'}</div>
+                                            <div className="product-card-price-label" style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
+                                            <div className="product-card-price" style={{ color: '#ffd700', fontWeight: '900', fontSize: '22px' }}>{product.price ? `${product.price} ₽` : '—'}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -369,7 +359,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                     </div>
                 ) : (
                     searchedProducts.map((product) => (
-                        <div key={product.id} className="premium-card" onClick={() => setViewProduct(product)} style={{ padding: '25px', opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none', display: 'flex', flexDirection: 'column' }}>
+                        <div key={product.id} className="premium-card product-card" onClick={() => setViewProduct(product)} style={{ padding: '25px', opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none', display: 'flex', flexDirection: 'column' }}>
                             
                             {isAdmin && (
                                 <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
@@ -386,15 +376,15 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                 </div>
                             )}
 
-                            <div style={{ paddingRight: isAdmin ? '130px' : '0', marginBottom: '20px', marginTop: (isAdmin && product.isHidden) ? '25px' : '0' }}>
-                                {product.category && <span style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block', marginBottom: '10px' }}>{product.category}</span>}
-                                <h4 style={{ fontSize: '18px', margin: 0, fontWeight: 'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3' }}>{product.name}</h4>
+                            <div className="product-card-body" style={{ paddingRight: isAdmin ? '130px' : '0', marginBottom: '20px', marginTop: (isAdmin && product.isHidden) ? '25px' : '0' }}>
+                                {product.category && <span className="product-card-badge" style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block', marginBottom: '10px' }}>{product.category}</span>}
+                                <h4 className="product-card-title" style={{ fontSize: '18px', margin: 0, fontWeight: 'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3' }}>{product.name}</h4>
                             </div>
                             
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', paddingTop: '15px', borderTop: '1px solid #222' }}>
+                            <div className="product-card-footer" style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', paddingTop: '15px', borderTop: '1px solid #222' }}>
                                 <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
-                                    <div style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900' }}>{product.price ? `${product.price} ₽` : '—'}</div>
+                                    <div className="product-card-price-label" style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
+                                    <div className="product-card-price" style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900' }}>{product.price ? `${product.price} ₽` : '—'}</div>
                                 </div>
                             </div>
                         </div>
@@ -488,6 +478,38 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 </div>
             )}
 
+            {successModal.show && (
+                <div style={modalOverlay as any} onClick={() => setSuccessModal({ show: false, title: '', text: '' })}>
+                    <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="rgba(10,186,181,0.1)" stroke="#0abab5" strokeWidth="2"/>
+                                <path d="M8 12L11 15L16 9" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        </div>
+                        <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{successModal.title}</h2>
+                        <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{successModal.text}</p>
+                        <button onClick={() => setSuccessModal({ show: false, title: '', text: '' })} style={saveBtn as any}>ПОНЯТНО</button>
+                    </div>
+                </div>
+            )}
+
+            {errorModal.show && (
+                <div style={modalOverlay as any} onClick={() => setErrorModal({ show: false, text: '' })}>
+                    <div style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                        <div style={{ marginBottom: '20px' }}>
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="rgba(255,77,77,0.1)" stroke="#ff4d4d" strokeWidth="2"/>
+                                <path d="M15 9L9 15M9 9L15 15" stroke="#ff4d4d" strokeWidth="2" strokeLinecap="round"/>
+                            </svg>
+                        </div>
+                        <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
+                        <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{errorModal.text}</p>
+                        <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff' } as any}>ПОНЯТНО</button>
+                    </div>
+                </div>
+            )}
+
             <style jsx global>{`
                 .premium-cards-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; width: 100%; }
                 .premium-card { background: #111; border-radius: 20px; border: 1px solid #222; transition: all 0.2s ease; position: relative; cursor: pointer; box-sizing: border-box; }
@@ -529,15 +551,25 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 @media (max-width: 768px) {
                     .premium-cards-container { display: grid !important; grid-template-columns: 1fr !important; gap: 15px !important; }
                     .tasks-modal { padding: 30px 20px !important; border-radius: 25px !important; width: 95% !important; max-height: 90vh !important; }
-                    .hit-card { min-width: 240px !important; }
+                    .hit-card { min-width: 220px !important; }
+                    .product-card,
+                    .product-hit-card { border-radius: 16px !important; }
+                    .product-card { padding: 16px !important; min-height: 136px !important; }
+                    .product-hit-card { padding: 18px !important; min-height: 128px !important; }
+                    .product-card-body { margin-bottom: 14px !important; }
+                    .product-card-title { font-size: 16px !important; line-height: 1.25 !important; }
+                    .product-card-badge { font-size: 10px !important; margin-bottom: 8px !important; padding: 4px 8px !important; }
+                    .product-card-footer { padding-top: 12px !important; }
+                    .product-card-price-label { font-size: 10px !important; margin-bottom: 2px !important; }
+                    .product-card-price { font-size: 18px !important; }
                     
                     .single-hit {
                         flex-direction: column !important;
                         align-items: flex-start !important;
-                        padding: 25px !important;
+                        padding: 18px !important;
                     }
                     .single-hit h4 {
-                        margin-bottom: 20px !important;
+                        margin-bottom: 14px !important;
                     }
                     .single-hit-stats {
                         width: 100%;

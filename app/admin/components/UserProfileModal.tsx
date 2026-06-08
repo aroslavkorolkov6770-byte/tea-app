@@ -54,7 +54,7 @@ export default function UserProfileModal({
                         <span style={{color: '#ff7675', fontWeight: '900', fontSize: '13px', letterSpacing: '1px'}}>ДАННЫЕ АВТОРИЗАЦИИ</span>
                         <button onClick={() => {
                             if(editAuthMode) { handleSaveUserAuth(); } 
-                            else { setEditAuthLogin(selectedProfileUser.login); setEditAuthPass(selectedProfileUser.pass); setEditAuthMode(true); }
+                            else { setEditAuthLogin(selectedProfileUser.login); setEditAuthPass(''); setEditAuthMode(true); }
                         }} style={{ background: editAuthMode ? '#ff7675' : 'transparent', color: editAuthMode ? '#000' : '#ff7675', border: '1px solid #ff7675', padding: '6px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '11px', fontWeight: '900', transition: '0.2s' }}>
                             {editAuthMode ? 'СОХРАНИТЬ' : 'РЕДАКТИРОВАТЬ'}
                         </button>
@@ -72,9 +72,9 @@ export default function UserProfileModal({
                         <div style={{textAlign: 'center'}}>
                             <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '8px'}}>ПАРОЛЬ</div>
                             {editAuthMode ? (
-                                <input value={editAuthPass} onChange={e => setEditAuthPass(e.target.value)} style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '120px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
+                                <input value={editAuthPass} onChange={e => setEditAuthPass(e.target.value)} placeholder="Новый пароль" style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '140px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
                             ) : (
-                                <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.pass}</div>
+                                <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#888', fontWeight: 'bold'}}>скрыт</div>
                             )}
                         </div>
                     </div>
@@ -82,11 +82,11 @@ export default function UserProfileModal({
 
                 <section style={progressSectionStyle as any}>
                     <div style={{ marginBottom: '25px' }}>
-                        <div style={labelRow as any}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{routeLen}/{totalRouteSteps}</span></div>
+                        <div style={labelRow as any}><span style={{color:'#888'}}>ТЕОРИЯ</span><span style={{color:'#0abab5'}}>{routeLen}/{totalRouteSteps}</span></div>
                         <div style={barBg as any}><div style={{ ...barFill, width: `${planPercent}%` } as any} /></div>
                     </div>
                     <div style={{ marginBottom: '10px' }}>
-                        <div style={labelRow as any}><span style={{color:'#888'}}>ОСНОВЫ ОБУЧЕНИЯ</span><span style={{color:'#0abab5'}}>{basicsLen}/{totalBasicsModules}</span></div>
+                        <div style={labelRow as any}><span style={{color:'#888'}}>ТЕСТЫ</span><span style={{color:'#0abab5'}}>{basicsLen}/{totalBasicsModules}</span></div>
                         <div style={barBg as any}><div style={{ ...barFill, width: `${basicsPercent}%` } as any} /></div>
                     </div>
                 </section>
@@ -120,12 +120,12 @@ export default function UserProfileModal({
                             const isPassed = res.score === 100;
                             const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
                             return (
-                                <div key={res.id} style={{ padding: '15px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px' }}>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: '900', color: '#fff', fontSize: '14px', marginBottom: '4px' }}>{res.testName}</div>
-                                        <div style={{ fontSize: '11px', color: '#888' }}>{res.date} • Попытка: {res.attempts}</div>
+                                <div key={res.id} style={{ padding: '15px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap' }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontWeight: '900', color: '#fff', fontSize: '14px', marginBottom: '4px', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.4' }}>{res.testName}</div>
+                                        <div style={{ fontSize: '11px', color: '#888', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.4' }}>{res.date} • Попытка: {res.attempts}</div>
                                     </div>
-                                    <div style={{ textAlign: 'right' }}>
+                                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                         <div style={{ fontWeight: '900', color: scoreColor, fontSize: '16px' }}>{res.score}%</div>
                                         <span style={{ fontSize: '10px', fontWeight: '900', color: scoreColor }}>{isPassed ? 'ПРОЙДЕН' : 'ПРОФАЛ'}</span>
                                     </div>

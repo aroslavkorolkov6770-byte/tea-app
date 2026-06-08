@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
+import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 // --- ИМПОРТ НАШИХ МОДУЛЕЙ ---
@@ -17,14 +18,6 @@ const STORAGE_KEYS = {
     DYNAMIC_ROUTE: 'tea_hub_dynamic_route_v2',     
     TESTS_PROGRESS: 'tea_hub_tests_progress_v1',
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
-};
-
-const saveDataToServer = (key: string, data: any) => {
-    return fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
 };
 
 function ShiftContent() {
@@ -57,42 +50,29 @@ function ShiftContent() {
   const [isPushBound, setIsPushBound] = useState(false);
 
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
-      if (typeof window !== 'undefined') {
-          const cachedFiles = localStorage.getItem('th_cache_files');
-          const cachedRoute = localStorage.getItem('th_cache_route');
-          const cachedTests = localStorage.getItem('th_cache_tests');
-          const cachedProgRoute = localStorage.getItem(`th_prog_route_${currentUserId}`);
-          const cachedProgTests = localStorage.getItem(`th_prog_tests_${currentUserId}`);
-          const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
-          const cachedDismissed = localStorage.getItem(`th_dismissed_tasks_${currentUserId}`);
-          const cachedAssortment = localStorage.getItem('th_cache_assortment_matrix_v2');
-
-          if (cachedFiles) setUrgentFiles(JSON.parse(cachedFiles));
-          if (cachedRoute) setDynamicRoute(JSON.parse(cachedRoute));
-          if (cachedTests) setDynamicTests(JSON.parse(cachedTests));
-          if (cachedProgRoute) setCompletedRoute(JSON.parse(cachedProgRoute));
-          if (cachedProgTests) setCompletedTests(JSON.parse(cachedProgTests));
-          if (cachedPassedTests) setPassedTests(JSON.parse(cachedPassedTests));
-          if (cachedDismissed) setDismissedTasks(JSON.parse(cachedDismissed));
-          if (cachedAssortment) setAssortmentMatrix(JSON.parse(cachedAssortment));
-      }
-
       try {
-          const cacheBuster = `?t=${Date.now()}`;
-          const [sFiles, cRoute, cTests, sTestsData, sRouteData, pTestsRes, sAssortment, sDismissed] = await Promise.all([
-              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.URGENT_FILES}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=prog_route_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=prog_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_TESTS}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=${STORAGE_KEYS.DYNAMIC_ROUTE}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=th_passed_tests_${currentUserId}`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=tea_hub_assortment_matrix_v2`).then(r => r.json()).catch(() => null),
-              fetch(`/api/storage${cacheBuster}&key=dismissed_tasks_${currentUserId}`).then(r => r.json()).catch(() => null)
+          const storageData = await fetchStorageBatch([
+              STORAGE_KEYS.URGENT_FILES,
+              `prog_route_${currentUserId}`,
+              `prog_tests_${currentUserId}`,
+              STORAGE_KEYS.DYNAMIC_TESTS,
+              STORAGE_KEYS.DYNAMIC_ROUTE,
+              `th_passed_tests_${currentUserId}`,
+              'tea_hub_assortment_matrix_v2',
+              `dismissed_tasks_${currentUserId}`,
           ]);
+
+          const sFiles = storageData[STORAGE_KEYS.URGENT_FILES];
+          const cRoute = storageData[`prog_route_${currentUserId}`];
+          const cTests = storageData[`prog_tests_${currentUserId}`];
+          const sTestsData = storageData[STORAGE_KEYS.DYNAMIC_TESTS];
+          const sRouteData = storageData[STORAGE_KEYS.DYNAMIC_ROUTE];
+          const pTestsRes = storageData[`th_passed_tests_${currentUserId}`];
+          const sAssortment = storageData['tea_hub_assortment_matrix_v2'];
+          const sDismissed = storageData[`dismissed_tasks_${currentUserId}`];
 
           if (Array.isArray(sFiles)) {
               setUrgentFiles(sFiles);
-              localStorage.setItem('th_cache_files', JSON.stringify(sFiles));
           }
 
           if (Array.isArray(cRoute)) {
@@ -117,17 +97,14 @@ function ShiftContent() {
 
           if (Array.isArray(sTestsData)) {
               setDynamicTests(sTestsData);
-              localStorage.setItem('th_cache_tests', JSON.stringify(sTestsData));
           }
 
           if (Array.isArray(sRouteData)) {
               setDynamicRoute(sRouteData);
-              localStorage.setItem('th_cache_route', JSON.stringify(sRouteData));
           }
 
           if (Array.isArray(sAssortment)) {
               setAssortmentMatrix(sAssortment);
-              localStorage.setItem('th_cache_assortment_matrix_v2', JSON.stringify(sAssortment));
           }
 
       } catch (e) {
@@ -290,18 +267,24 @@ function ShiftContent() {
 
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const testsPercent = Math.round((completedTests.length / (Math.max(dynamicTests.length, 1))) * 100);
-  const totalHubPercent = testsPercent; 
+  const totalHubPercent = Math.round((routePercent + testsPercent) / 2);
 
+  const statusSteps = [
+      { min: 0, label: 'НОВИЧОК', hint: 'Первый этап адаптации' },
+      { min: 15, label: 'ОСВАИВАЕТСЯ', hint: 'Погружение в базу знаний' },
+      { min: 35, label: 'УВЕРЕННЫЙ СТАРТ', hint: 'Хорошая рабочая база' },
+      { min: 55, label: 'В РАБОЧЕМ РИТМЕ', hint: 'Стабильное продвижение' },
+      { min: 75, label: 'СИЛЬНЫЙ СОТРУДНИК', hint: 'Высокий уровень освоения' },
+      { min: 90, label: 'МАСТЕР HUB', hint: 'Почти полный контроль материалов' }
+  ];
+  const currentStatus = [...statusSteps].reverse().find(step => totalHubPercent >= step.min) || statusSteps[0];
   const pct = totalHubPercent;
   const startX = 0;
   const startY = 100;
   const endX = pct;
-  const endY = 100 - pct; 
   const cpX = pct * 0.5;
-  const cpY = 100;
   const dotY = Math.max(pct, 2);
   const lineEndY = 100 - dotY;
-
   const pathArea = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY} L ${endX} ${startY} Z`;
   const pathLine = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY}`;
 
@@ -333,10 +316,10 @@ function ShiftContent() {
                         <div>
                             <div style={{fontSize:'11px', fontWeight:'900', color:'#0abab5', letterSpacing:'2px', marginBottom:'8px', textTransform:'uppercase'}}>ОБЩАЯ ДИНАМИКА РАЗВИТИЯ</div>
                             <div className="tasks-big-val" style={{fontSize:'48px', fontWeight:'900', color:'#fff', display:'flex', alignItems:'baseline', gap:'12px'}}>
-                                {totalHubPercent}% <span style={{fontSize:'15px', opacity:0.4, fontWeight:'500'}}>общего прогресса HUB</span>
+                                {totalHubPercent}%
                             </div>
                         </div>
-                        <div style={rankBadge}>{totalHubPercent < 40 ? ' НОВИЧОК' : totalHubPercent < 80 ? ' ЭРУДИТ' : ' МАСТЕР'}</div>
+                        <div style={rankBadge}>{currentStatus.label}</div>
                     </div>
 
                     <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '30px', marginBottom: '30px' }}>
@@ -346,7 +329,7 @@ function ShiftContent() {
                         {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(v => (
                             <div key={`v-${v}`} style={{ position: 'absolute', bottom: 0, left: `${v}%`, height: '100%', borderLeft: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
                         ))}
-                        
+
                         <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, overflow: 'visible' }}>
                             <defs>
                                 <linearGradient id="flatGrad" x1="0" y1="0" x2="0" y2="1">
@@ -380,16 +363,12 @@ function ShiftContent() {
                               {dynamicRoute.map((step, i) => (
                                   <div key={i} style={segment(completedRoute.includes(step.id))} />
                               ))}
-                          </div>
-                      </div>
-                      
-                      <div className="tasks-stat-card" style={statCardMain}>
-                         <div style={cardHeaderLabel}>ПРОГРЕСС ТЕСТИРОВАНИЯ</div>
-                         <div className="tasks-big-val" style={bigStatVal}>{testsPercent}%</div>
-                         <p style={cardSubText}>пройдено тестов</p>
-                         <div style={pBarBg}>
-                             <div style={pBarFill(testsPercent)} />
                          </div>
+                         {dynamicRoute.length === 0 && (
+                             <div style={{ ...pBarBg, marginTop: '18px' }}>
+                                 <div style={pBarFill(0)} />
+                             </div>
+                         )}
                       </div>
                 </div>
             </div>

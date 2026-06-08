@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { useRouter } from 'next/navigation';
+import { applyClientAuthState, clearClientAuthState } from '@/app/lib/authClient';
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
@@ -51,27 +52,46 @@ function ProfileContent() {
 
     useEffect(() => {
         const loadProfileData = async () => {
-            const role = localStorage.getItem('userRole') || 'staff';
-            const currentId = localStorage.getItem('current_user_id') || 'guest';
-            const currentName = localStorage.getItem('current_user_name') || (role === 'admin' ? 'Главный Мастер' : 'Сотрудник');
-            
-            setUserRole(role);
-            setUserId(currentId);
-
             try {
-                // Подгружаем личные данные профиля
-                let pData = await fetch(`/api/storage?key=profile_data_${currentId}`).then(r => r.json()).catch(() => null);
-                if (!pData || Array.isArray(pData) || Object.keys(pData).length === 0) {
-                    pData = { avatar: '', tg: role === 'admin' ? 'admin_tea' : 'username', phone: '', email: '', firstLogin: new Date().toISOString() };
-                    saveDataToServer(`profile_data_${currentId}`, pData);
+                const sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
+                if (!sessionResponse.ok) {
+                    clearClientAuthState();
+                    router.push('/login');
+                    return;
                 }
+                const sessionData = await sessionResponse.json();
+                const sessionUser = sessionData?.user;
+
+                if (!sessionData?.authenticated || !sessionUser) {
+                    clearClientAuthState();
+                    router.push('/login');
+                    return;
+                }
+
+                applyClientAuthState({
+                    id: sessionUser.id,
+                    login: sessionUser.login,
+                    role: sessionUser.role,
+                    name: sessionUser.name || (sessionUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+                });
+
+                const role = sessionUser.role || 'staff';
+                const currentId = sessionUser.id || 'guest';
+                const currentName = sessionUser.name || (role === 'admin' ? 'Главный Мастер' : 'Сотрудник');
+
+                setUserRole(role);
+                setUserId(currentId);
+
+                const profileResponse = await fetch('/api/account/profile', { cache: 'no-store' });
+                const profileData = profileResponse.ok ? await profileResponse.json() : null;
+                const pData = profileData?.profile || {};
 
                 setProfile({
                     name: currentName,
                     avatar: pData.avatar || '',
                     tg: pData.tg || '',
                     phone: pData.phone || '',
-                    email: pData.email || '' 
+                    email: pData.email || '',
                 });
 
                 // Загружаем статистику только для сотрудников
@@ -191,44 +211,36 @@ function ProfileContent() {
     // Открытие окна изменения данных авторизации с автоматической подгрузкой текущих логина и пароля
     const handleOpenAuthChange = async () => {
         setIsMenuOpen(false);
-        try {
-            const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
-            if (Array.isArray(users)) {
-                const myUser = users.find((u:any) => u.id === userId);
-                if (myUser) {
-                    setNewLogin(myUser.login || '');
-                    setNewPass(myUser.pass || '');
-                }
-            }
-        } catch (e) {
-            console.error(e);
-        }
+        setNewLogin(localStorage.getItem('login') || '');
+        setNewPass('');
         setIsAuthModalOpen(true);
     };
 
     const handleLogout = () => {
-        localStorage.clear();
-        router.push('/');
+        fetch('/api/auth/logout', { method: 'POST' })
+            .catch((error) => console.error('Ошибка завершения сессии:', error))
+            .finally(() => {
+                clearClientAuthState();
+                router.push('/');
+            });
     };
 
     const handleSaveProfile = async () => {
-        localStorage.setItem('current_user_name', profile.name);
-        
         try {
-            let pData = await fetch(`/api/storage?key=profile_data_${userId}`).then(r => r.json()).catch(() => ({}));
-            if (Array.isArray(pData)) pData = {};
-            
-            pData.avatar = profile.avatar;
-            pData.tg = profile.tg;
-            pData.phone = profile.phone;
-            pData.email = profile.email;
-            
-            saveDataToServer(`profile_data_${userId}`, pData);
+            const response = await fetch('/api/account/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(profile),
+            });
 
-            const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
-            if (Array.isArray(users)) {
-                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, name: profile.name } : u);
-                saveDataToServer('tea_hub_users_v1', updatedUsers);
+            const result = await response.json().catch(() => ({}));
+            if (response.ok && result?.user) {
+                applyClientAuthState({
+                    id: result.user.id,
+                    login: result.user.login,
+                    role: result.user.role,
+                    name: result.user.name || profile.name,
+                });
             }
         } catch (error) {
             console.error("Ошибка сохранения профиля:", error);
@@ -245,15 +257,19 @@ function ProfileContent() {
         }
         
         try {
-            const users = await fetch('/api/storage?key=tea_hub_users_v1').then(r => r.json()).catch(() => []);
-            
-            if (Array.isArray(users)) {
-                // Обновляем только пароль для текущего пользователя
-                const updatedUsers = users.map((u:any) => u.id === userId ? { ...u, pass: newPass.trim() } : u);
-                saveDataToServer('tea_hub_users_v1', updatedUsers);
-                
+            const response = await fetch('/api/account/password', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: newPass.trim() }),
+            });
+
+            if (response.ok) {
                 alert("Пароль успешно обновлен!");
                 setIsAuthModalOpen(false);
+                setNewPass('');
+            } else {
+                const result = await response.json().catch(() => ({}));
+                alert(result?.error || "Не удалось сохранить новые данные.");
             }
         } catch (error) {
             console.error("Ошибка смены данных авторизации:", error);
@@ -350,32 +366,54 @@ function ProfileContent() {
                         </div>
                     </section>
 
-                    <button 
-                        onClick={handleSubscribeToPush} 
-                        style={{
-                            width: '100%',
-                            padding: '20px',
-                            marginTop: '30px',
-                            background: `rgba(${pushBtnColor === '#4CAF50' ? '76, 175, 80' : '10, 186, 181'}, 0.1)`,
-                            border: `1px solid ${pushBtnColor}`,
-                            color: pushBtnColor,
-                            borderRadius: '25px',
-                            fontWeight: '900',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            transition: '0.3s',
-                            letterSpacing: '1px'
-                        }}
-                    >
-                        {pushBtnText}
-                    </button>
+                    <section className="profile-notification-card" style={notificationCardStyle as any}>
+                        <div className="profile-notification-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '12px', color: '#0abab5', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                                    Уведомления
+                                </div>
+                                <div style={{ fontSize: '22px', color: '#fff', fontWeight: '900', marginBottom: '8px', lineHeight: '1.2' }}>
+                                    Настройка оповещений
+                                </div>
+                                <div style={{ fontSize: '14px', color: '#7d8781', lineHeight: '1.6' }}>
+                                    Здесь можно подключить push-уведомления и быстро открыть пошаговую инструкцию для телефона или компьютера.
+                                </div>
+                            </div>
+                            <div style={notificationStatusBadge(pushBtnColor) as any}>
+                                {pushBtnText.includes('ПОДКЛЮЧЕНЫ') ? 'АКТИВНО' : 'НЕ АКТИВНО'}
+                            </div>
+                        </div>
 
-                    <button 
-                        onClick={() => setIsHelpModalOpen(true)} 
-                        style={notificationHelpBtnStyle as any}
-                    >
-                        ИНСТРУКЦИЯ: НАСТРОЙКА УВЕДОМЛЕНИЙ
-                    </button>
+                        <div className="profile-notification-actions" style={{ display: 'grid', gap: '12px' }}>
+                            <button 
+                                onClick={handleSubscribeToPush} 
+                                className="profile-push-primary"
+                                style={{
+                                    width: '100%',
+                                    padding: '20px',
+                                    background: `rgba(${pushBtnColor === '#4CAF50' ? '76, 175, 80' : '10, 186, 181'}, 0.1)`,
+                                    border: `1px solid ${pushBtnColor}`,
+                                    color: pushBtnColor,
+                                    borderRadius: '22px',
+                                    fontWeight: '900',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    transition: '0.3s',
+                                    letterSpacing: '1px'
+                                }}
+                            >
+                                {pushBtnText}
+                            </button>
+
+                            <button 
+                                onClick={() => setIsHelpModalOpen(true)} 
+                                className="profile-push-secondary"
+                                style={notificationHelpBtnStyle as any}
+                            >
+                                ОТКРЫТЬ ИНСТРУКЦИЮ ПО НАСТРОЙКЕ
+                            </button>
+                        </div>
+                    </section>
                 </div>
 
                 {/* МОДАЛЬНОЕ ОКНО: РЕДАКТОР ПРОФИЛЯ */}
@@ -386,10 +424,10 @@ function ProfileContent() {
                             <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
                                 <input value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} placeholder="Ваше имя" style={inputItemStyle} />
                                 
-                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <div className="profile-avatar-upload-row" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                                     <input type="file" id="avatar-upload" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
-                                    <input value={profile.avatar} onChange={e => setProfile({...profile, avatar: e.target.value})} placeholder="Ссылка на фото (URL)" style={{ ...inputItemStyle, flex: 1, marginBottom: 0 }} />
-                                    <button onClick={() => document.getElementById('avatar-upload')?.click()} style={{ background: '#222', color: '#0abab5', border: '1px solid #333', padding: '0 20px', height: '58px', borderRadius: '18px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>ЗАГРУЗИТЬ</button>
+                                    <input value={profile.avatar} onChange={e => setProfile({...profile, avatar: e.target.value})} placeholder="Ссылка на фото (URL)" style={{ ...inputItemStyle, flex: 1, minWidth: '220px', marginBottom: 0 }} />
+                                    <button onClick={() => document.getElementById('avatar-upload')?.click()} className="profile-avatar-upload-btn" style={{ background: '#222', color: '#0abab5', border: '1px solid #333', padding: '0 20px', height: '58px', borderRadius: '18px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>ЗАГРУЗИТЬ</button>
                                 </div>
 
                                 <input value={profile.tg} onChange={e => setProfile({...profile, tg: e.target.value})} placeholder="Telegram (напр. @nik_name)" style={inputItemStyle} />
@@ -427,14 +465,14 @@ function ProfileContent() {
                 {/* МОДАЛЬНОЕ ОКНО: ИНСТРУКЦИЯ */}
                 {isHelpModalOpen && (
                     <div style={overlayStyle} onClick={() => setIsHelpModalOpen(false)}>
-                        <div className="custom-scroll" style={{...modalStyle, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
+                        <div className="custom-scroll notification-help-modal" style={{...modalStyle, maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
                             
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                            <div className="notification-help-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', gap: '14px' }}>
                                 <h2 style={{ margin: 0, fontWeight: '900', color: '#fff', fontSize: '24px' }}>НАСТРОЙКА УВЕДОМЛЕНИЙ</h2>
                                 <div onClick={() => setIsHelpModalOpen(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>X</div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: '#000', borderRadius: '15px', padding: '4px', marginBottom: '30px', border: '1px solid #222' }}>
+                            <div className="notification-help-tabs" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: '#000', borderRadius: '15px', padding: '4px', marginBottom: '30px', border: '1px solid #222' }}>
                                 <div onClick={() => setHelpTab('ios')} style={tabStyle(helpTab === 'ios') as any}>iOS</div>
                                 <div onClick={() => setHelpTab('android')} style={tabStyle(helpTab === 'android') as any}>Android</div>
                                 <div onClick={() => setHelpTab('desktop')} style={tabStyle(helpTab === 'desktop') as any}>ПК</div>
@@ -444,36 +482,36 @@ function ProfileContent() {
                             {helpTab === 'ios' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
                                     <p style={helpDescStyle as any}>Операционная система iOS разрешает получать Push-уведомления с платформ <b>только в случае установки сайта на домашний экран устройства</b>.</p>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Откройте платформу Tea Hub строго в Safari.</div></div>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>Нажмите кнопку <b>«Поделиться»</b>.</div></div>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>3</div><div style={stepTextStyle as any}>Выберите пункт <b>«На экран "Домой"»</b>.</div></div>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>4</div><div style={stepTextStyle as any}>Запустите приложение через иконку на рабочем столе.</div></div>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>5</div><div style={stepTextStyle as any}>В профиле нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Откройте платформу Tea Hub строго в Safari.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>Нажмите кнопку <b>«Поделиться»</b>.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>3</div><div style={stepTextStyle as any}>Выберите пункт <b>«На экран "Домой"»</b>.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>4</div><div style={stepTextStyle as any}>Запустите приложение через иконку на рабочем столе.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>5</div><div style={stepTextStyle as any}>В профиле нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
                                 </div>
                             )}
 
                             {helpTab === 'android' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
                                     <p style={helpDescStyle as any}>Рекомендуется использовать браузер <b>Google Chrome</b>.</p>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Зайдите в Tea Hub через Google Chrome.</div></div>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>В профиле нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>3</div><div style={stepTextStyle as any}>Выберите <b>«Разрешить»</b>.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Зайдите в Tea Hub через Google Chrome.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>В профиле нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>3</div><div style={stepTextStyle as any}>Выберите <b>«Разрешить»</b>.</div></div>
                                 </div>
                             )}
 
                             {helpTab === 'desktop' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
                                     <p style={helpDescStyle as any}>Активация уведомлений на ПК.</p>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>В разделе Профиль нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>В окне браузера подтвердите действие, нажав <b>«Разрешить»</b>.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>В разделе Профиль нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>В окне браузера подтвердите действие, нажав <b>«Разрешить»</b>.</div></div>
                                 </div>
                             )}
 
                             {helpTab === 'email' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
                                     <p style={helpDescStyle as any}>Настройка дублирования уведомлений на почту.</p>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Убедитесь, что в профиле заполнен ваш E-mail.</div></div>
-                                    <div style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>При получении писем проверьте папку «Спам» и нажмите кнопку <b>«Это не спам»</b>.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Убедитесь, что в профиле заполнен ваш E-mail.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>При получении писем проверьте папку «Спам» и нажмите кнопку <b>«Это не спам»</b>.</div></div>
                                 </div>
                             )}
 
@@ -491,6 +529,33 @@ function ProfileContent() {
                 ::-webkit-scrollbar-track { background: transparent; }
                 body { overflow-x: hidden; width: 100vw; }
                 @media (max-width: 768px) { .sidebar-spacer { display: none; } }
+                @media (max-width: 768px) {
+                    .notification-help-modal {
+                        padding: 24px 18px !important;
+                        border-radius: 28px !important;
+                    }
+                    .notification-help-header {
+                        align-items: flex-start !important;
+                    }
+                    .notification-help-tabs {
+                        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                        gap: 8px !important;
+                    }
+                    .notification-step-card {
+                        gap: 14px !important;
+                        align-items: flex-start !important;
+                        padding: 18px 16px !important;
+                    }
+                    .profile-notification-head {
+                        flex-direction: column !important;
+                    }
+                    .profile-avatar-upload-row {
+                        align-items: stretch !important;
+                    }
+                    .profile-avatar-upload-btn {
+                        width: 100% !important;
+                    }
+                }
                 
                 .settings-btn:hover {
                     background: #222 !important;
@@ -585,15 +650,16 @@ const modalStyle: any = {
 const inputItemStyle: any = { width: '100%', padding: '20px', background: '#000', border: '1px solid #222', borderRadius: '18px', color: '#fff', outline: 'none', fontSize: '16px', boxSizing: 'border-box' };
 const saveButtonStyle: any = { width: '100%', padding: '22px', background: '#0abab5', border: 'none', borderRadius: '18px', fontWeight: '900', color: '#000', cursor: 'pointer', marginTop: '20px', fontSize: '15px' };
 const cancelButtonStyle: any = { textAlign: 'center', marginTop: '25px', color: '#444', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' };
+const notificationCardStyle: any = { background: '#161816', padding: '28px', borderRadius: '30px', border: '1px solid #222', marginTop: '30px' };
+const notificationStatusBadge = (color: string): React.CSSProperties => ({ background: color === '#4CAF50' ? 'rgba(76,175,80,0.14)' : 'rgba(10,186,181,0.12)', color, padding: '8px 14px', borderRadius: '999px', fontSize: '11px', fontWeight: '900', whiteSpace: 'nowrap', border: `1px solid ${color}33` });
 
 const notificationHelpBtnStyle = {
     width: '100%',
-    padding: '20px',
-    marginTop: '15px',
+    padding: '18px',
     background: 'transparent',
     border: '1px solid rgba(255,255,255,0.1)',
     color: '#888',
-    borderRadius: '25px',
+    borderRadius: '22px',
     fontWeight: '900',
     cursor: 'pointer',
     fontSize: '13px',

@@ -244,7 +244,7 @@ function ProductsContent() {
 
       <main style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s' }}>
         
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: isAdmin ? '1fr 340px' : '1fr', gap: '40px' }}>
+        <div className="search-layout-grid" style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: isAdmin ? '1fr 340px' : '1fr', gap: '40px' }}>
         
           <section>
             {/* ПРОДУКТ ДНЯ */}
@@ -254,8 +254,8 @@ function ProductsContent() {
                   <CustomIcon name="day" size={20} color="#000" />
                   <span>{dayProduct.type.toUpperCase() } ДНЯ</span>
                 </div>
-                <h2 style={{ color: '#000', fontSize: '36px', margin: '12px 0' }}>{dayProduct.name}</h2>
-                <p style={{ color: '#000' }}>{dayProduct.summary}</p>
+                <h2 style={{ color: '#000', fontSize: '36px', margin: '12px 0', lineHeight: '1.1', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{dayProduct.name}</h2>
+                <p style={{ color: '#000', lineHeight: '1.5', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{dayProduct.summary}</p>
               </div>
             )}
 
@@ -306,7 +306,7 @@ function ProductsContent() {
                     <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>{p.name} {p.isDayTea && <span style={inlineStatusBadge as any}><CustomIcon name="day" size={14} color="#0abab5" /></span>}</h3>
                     <p style={{ margin: '5px 0 0 0', color: '#444', fontSize: '13px' }}>{p.summary}</p>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {isAdmin && (
                       <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                         <span onClick={(e) => { e.stopPropagation(); toggleDayProduct(p); }} style={{ ...smallActionBadge, color: p.isDayTea ? '#0abab5' : '#666', borderColor: p.isDayTea ? '#0abab5' : '#333' } as any}><CustomIcon name="day" size={15} color={p.isDayTea ? '#0abab5' : '#666'} /></span>
@@ -373,14 +373,14 @@ function ProductsContent() {
           <div style={fullOverlay as any}>
             <div style={{ maxWidth: '750px', margin: '0 auto' }}>
               <div onClick={() => setSelectedTea(null)} style={{ color: '#0abab5', marginBottom: '30px', cursor: 'pointer', fontWeight: '900' }}>← ЗАКРЫТЬ</div>
-              <h2 style={{ fontSize: '48px', color: '#0abab5', margin: '0 0 10px 0' }}>{selectedTea.name}</h2>
+              <h2 style={{ fontSize: '48px', color: '#0abab5', margin: '0 0 10px 0', lineHeight: '1.05', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{selectedTea.name}</h2>
               <div style={fullImageWrap as any}><img src={selectedTea.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={selectedTea.name} /></div>
               <p style={{ fontSize: '20px', lineHeight: '1.8', color: '#ccc', marginBottom: '40px' }}>{selectedTea.desc}</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
-                <div style={infoBox as any}><div style={infoTag as any}><CustomIcon name="globe" size={16} color="#0abab5" /> РЕГИОН</div>{selectedTea.region || '—'}</div>
-                <div style={infoBox as any}><div style={infoTag as any}><CustomIcon name="brew" size={16} color="#0abab5" /> ЗАВАРИВАНИЕ</div>{selectedTea.brewGuide || selectedTea.info}</div>
-                <div style={infoBox as any}><div style={infoTag as any}><CustomIcon name="idea" size={16} color="#0abab5" /> СОВЕТ</div>{selectedTea.advice || '—'}</div>
-                <div style={infoBox as any}><div style={infoTag as any}><CustomIcon name="refresh" size={16} color="#0abab5" /> ОТЛИЧИЕ</div>{selectedTea.analogsDiff || '—'}</div>
+              <div className="search-info-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
+                <div style={{ ...infoBox, wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.5' } as any}><div style={infoTag as any}><CustomIcon name="globe" size={16} color="#0abab5" /> РЕГИОН</div>{selectedTea.region || '—'}</div>
+                <div style={{ ...infoBox, wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.5' } as any}><div style={infoTag as any}><CustomIcon name="brew" size={16} color="#0abab5" /> ЗАВАРИВАНИЕ</div>{selectedTea.brewGuide || selectedTea.info}</div>
+                <div style={{ ...infoBox, wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.5' } as any}><div style={infoTag as any}><CustomIcon name="idea" size={16} color="#0abab5" /> СОВЕТ</div>{selectedTea.advice || '—'}</div>
+                <div style={{ ...infoBox, wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.5' } as any}><div style={infoTag as any}><CustomIcon name="refresh" size={16} color="#0abab5" /> ОТЛИЧИЕ</div>{selectedTea.analogsDiff || '—'}</div>
               </div>
               <button onClick={() => { setQuizResults({}); setShowQuiz(true); }} style={{...checkBtn, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '10px'} as any}><CustomIcon name="brain" size={20} color="#000" /> ПРОВЕРИТЬ СЕБЯ</button>
             </div>
@@ -416,7 +416,7 @@ function ProductsContent() {
         )}
 
         {/* ТЕСТ */}
-        {showQuiz && selectedTea && (
+      {showQuiz && selectedTea && (
           <div style={{ ...modalOverlay, zIndex: 30000 } as any}>
             <div style={modalContent as any}>
               <h3 style={{ color: '#0abab5', marginBottom: '25px' }}>ТЕСТ: {selectedTea.name}</h3>
@@ -439,10 +439,23 @@ function ProductsContent() {
               <div onClick={() => setShowQuiz(false)} style={{ textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold' }}>ЗАВЕРШИТЬ ТЕСТ</div>
             </div>
           </div>
-        )}
-      </main>
-    </div>
-  );
+      )}
+
+      <style jsx>{`
+        @media (max-width: 980px) {
+          .search-layout-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        @media (max-width: 720px) {
+          .search-info-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+    </main>
+  </div>
+);
 }
 
 export default function ProductsPage() {

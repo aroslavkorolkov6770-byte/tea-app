@@ -3,21 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
-
-// --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES ---
-const setAppCookie = (name: string, value: string, days: number | null = 7) => {
-    if (days) {
-        const date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
-    } else {
-        document.cookie = `${name}=${encodeURIComponent(value)};path=/`;
-    }
-};
-
-const deleteAppCookie = (name: string) => {
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
-};
+import { applyClientAuthState, clearClientAuthState } from '@/app/lib/authClient';
 
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
@@ -79,15 +65,29 @@ export default function Navigation() {
         setIsSidebarOpen(false);
     }
 
-    const auth = localStorage.getItem('isLoggedIn') || sessionStorage.getItem('isLoggedIn');
-    const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-    if (auth === 'true') {
-      setIsLoggedIn(true);
-      setUserRole(role);
-    }
-
     const loadServerData = async () => {
         try {
+            const sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
+            const sessionData = sessionResponse.ok ? await sessionResponse.json().catch(() => null) : null;
+            const sessionUser = sessionData?.user;
+
+            if (sessionData?.authenticated && sessionUser) {
+                applyClientAuthState({
+                    id: sessionUser.id,
+                    login: sessionUser.login,
+                    role: sessionUser.role,
+                    name: sessionUser.name || (sessionUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+                });
+                setIsLoggedIn(true);
+                setUserRole(sessionUser.role);
+            } else {
+                setIsLoggedIn(false);
+                setUserRole(null);
+                clearClientAuthState();
+                setNotifications([]);
+                return;
+            }
+
             const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
             
             const notifsRes = await fetch('/api/storage?key=tea_hub_notifications_v1').then(r => r.json()).catch(() => []);
@@ -122,47 +122,41 @@ export default function Navigation() {
     }
 
     try {
-        const res = await fetch('/api/storage?key=tea_hub_users_v1');
-        let users = await res.json().catch(() => []);
-        
-        const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login, password: pass }),
+        });
+        const result = await response.json().catch(() => ({}));
 
-        if (foundUser) {
-          const hasConsent = localStorage.getItem('cookieConsent') === 'true';
-          if (hasConsent) {
-              localStorage.setItem('isLoggedIn', 'true');
-              localStorage.setItem('userRole', foundUser.role);
-              localStorage.setItem('current_user_id', foundUser.id);
-              localStorage.setItem('current_user_name', foundUser.name);
-              setAppCookie('isLoggedIn', 'true', 7);
-              setAppCookie('userRole', foundUser.role, 7);
-              setAppCookie('current_user_id', foundUser.id, 7);
-              setAppCookie('current_user_name', foundUser.name, 7);
-          } else {
-              sessionStorage.setItem('isLoggedIn', 'true');
-              sessionStorage.setItem('userRole', foundUser.role);
-              sessionStorage.setItem('current_user_id', foundUser.id);
-              sessionStorage.setItem('current_user_name', foundUser.name);
-              setAppCookie('isLoggedIn', 'true', null);
-              setAppCookie('userRole', foundUser.role, null);
-              setAppCookie('current_user_id', foundUser.id, null);
-              setAppCookie('current_user_name', foundUser.name, null);
-          }
-          
-          setFailedAttempts(0); 
-          setIsCaptchaVerified(false);
-          setIsLoggedIn(true);
-          setUserRole(foundUser.role);
-          setShowLoginModal(false);
-          
-          if (foundUser.role === 'admin') router.push('/admin');
-          else router.push('/tasks?tab=welcome');
-        } else {
-          const newFails = failedAttempts + 1;
-          setFailedAttempts(newFails);
-          if (isCaptchaVerified) setIsCaptchaVerified(false);
-          setErrorMessage("Неправильно введен логин или пароль!");
+        if (response.status === 403 && result?.requiresRegistration) {
+            setErrorMessage("Для начала пройдите регистрацию и заполните данные.");
+            setIsLoginMode(false);
+            return;
         }
+
+        if (!response.ok || !result?.user) {
+            const newFails = failedAttempts + 1;
+            setFailedAttempts(newFails);
+            if (isCaptchaVerified) setIsCaptchaVerified(false);
+            setErrorMessage(result?.error || "Неправильно введен логин или пароль!");
+            return;
+        }
+
+        applyClientAuthState({
+            id: result.user.id,
+            login: result.user.login,
+            role: result.user.role,
+            name: result.user.name || (result.user.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+        });
+        setFailedAttempts(0);
+        setIsCaptchaVerified(false);
+        setIsLoggedIn(true);
+        setUserRole(result.user.role);
+        setShowLoginModal(false);
+        
+        if (result.user.role === 'admin') router.push('/admin');
+        else router.push('/tasks?tab=welcome');
     } catch (error) {
         console.error("Ошибка связи с сервером:", error);
         setErrorMessage("Не удалось подключиться к базе данных.");
@@ -179,37 +173,48 @@ export default function Navigation() {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
       }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+          setErrorMessage("Проверьте формат E-mail адреса.");
+          return;
+      }
+
+      const normalizedPhone = regPhone.trim().replace(/\D/g, '');
+      if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+          setErrorMessage("Номер телефона должен содержать от 10 до 15 цифр.");
+          return;
+      }
       try {
-          const res = await fetch('/api/storage?key=tea_hub_users_v1');
-          let users = await res.json().catch(() => []);
-          const foundUserIndex = users.findIndex((u: any) => u.login === login.trim() && u.pass === pass.trim());
-          if (foundUserIndex === -1) {
-              setErrorMessage("Неправильно введен логин или пароль!");
+          const response = await fetch('/api/auth/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  login,
+                  password: pass,
+                  name: regName,
+                  email,
+                  tg: regTg,
+                  phone: regPhone,
+                  consentGiven: isConsentGiven,
+              }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || !result?.user) {
+              setErrorMessage(result?.error || "Неправильно введен логин или пароль!");
               return;
           }
-          const existingUser = users[foundUserIndex];
-          users[foundUserIndex] = { ...existingUser, name: regName.trim() };
-          saveDataToServer('tea_hub_users_v1', users);
-          
-          const hasConsent = localStorage.getItem('cookieConsent') === 'true';
-          if (hasConsent) {
-              localStorage.setItem('isLoggedIn', 'true');
-              localStorage.setItem('userRole', existingUser.role);
-              localStorage.setItem('current_user_id', existingUser.id);
-              localStorage.setItem('current_user_name', regName.trim());
-              setAppCookie('isLoggedIn', 'true', 7);
-          } else {
-              sessionStorage.setItem('isLoggedIn', 'true');
-              sessionStorage.setItem('userRole', existingUser.role);
-              sessionStorage.setItem('current_user_id', existingUser.id);
-              sessionStorage.setItem('current_user_name', regName.trim());
-              setAppCookie('isLoggedIn', 'true', null);
-          }
 
+          applyClientAuthState({
+              id: result.user.id,
+              login: result.user.login,
+              role: result.user.role,
+              name: regName.trim(),
+          });
           setIsLoggedIn(true);
-          setUserRole(existingUser.role);
+          setUserRole(result.user.role);
           setShowLoginModal(false);
-          if (existingUser.role === 'admin') router.push('/admin');
+          if (result.user.role === 'admin') router.push('/admin');
           else router.push('/tasks?tab=welcome');
       } catch (error) {
           setErrorMessage("Не удалось подключиться к базе данных для регистрации.");
@@ -217,26 +222,16 @@ export default function Navigation() {
   };
 
   const handleLogout = () => {
-    const keysToRemove = [
-        'isLoggedIn', 'userRole', 'current_user_id', 'current_user_name', 
-        'th_current_user', 'currentUser', 'user', 'profile', 'userData', 'account'
-    ];
-    
-    keysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-        sessionStorage.removeItem(key);
-    });
-
-    deleteAppCookie('isLoggedIn');
-    deleteAppCookie('userRole');
-    deleteAppCookie('current_user_id');
-    deleteAppCookie('current_user_name');
-
-    window.dispatchEvent(new Event('storage'));
-
-    setIsLoggedIn(false);
-    setIsProfileOpen(false);
-    router.push('/');
+    fetch('/api/auth/logout', { method: 'POST' })
+      .catch((error) => console.error('Ошибка завершения сессии:', error))
+      .finally(() => {
+        clearClientAuthState();
+        window.dispatchEvent(new Event('storage'));
+        setIsLoggedIn(false);
+        setUserRole(null);
+        setIsProfileOpen(false);
+        router.push('/');
+      });
   };
 
   const removeNotification = async (id: number) => {
@@ -348,15 +343,18 @@ export default function Navigation() {
         <>
           {isSidebarOpen && <div className="sidebar-mobile-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
 
+          <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="sidebar-toggle-fixed"
+              style={sidebarToggleStyle as any}
+              aria-label="Переключить меню"
+          >
+              <MenuIcon />
+          </button>
+
           <aside style={{ ...sidebarStyle, left: isSidebarOpen ? 0 : '-260px', transition: '0.3s ease' }} className="nav-sidebar">
             <div style={logoArea}>
-                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="desktop-hamburger" style={iconButtonStyle as any} aria-label="Переключить меню">
-                    <MenuIcon />
-                </button>
                 <span style={logoText}>Меню</span>
-                <button onClick={() => setIsSidebarOpen(false)} className="mobile-close-btn" style={{ ...iconButtonStyle, marginLeft: 'auto', color: '#ff4d4d' } as any} aria-label="Закрыть меню">
-                    <CloseIcon />
-                </button>
              </div>
              <nav style={sideNav}>
                 {sideItems.map(item => {
@@ -368,6 +366,7 @@ export default function Navigation() {
                             className={`nav-item ${isActive ? 'active' : ''} ${item.isSubItem ? 'sub-item' : ''}`}
                             onClick={() => { if (typeof window !== 'undefined' && window.innerWidth <= 768) setIsSidebarOpen(false); }}
                         >
+                            {item.isSubItem && <span className="sub-item-arrow" aria-hidden="true">↳</span>}
                             <span>{item.label}</span>
                         </Link>
                     );
@@ -375,17 +374,8 @@ export default function Navigation() {
              </nav>
           </aside>
 
-          <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '0', transition: '0.3s ease' }} className="nav-topbar">
+          <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '72px', transition: '0.3s ease' }} className="nav-topbar">
              <div style={searchBox} className="search-box-container">
-                {!isSidebarOpen && (
-                    <button onClick={() => setIsSidebarOpen(true)} className="desktop-hamburger" style={{ ...iconButtonStyle, marginRight: '10px' } as any} aria-label="Открыть меню">
-                        <MenuIcon />
-                    </button>
-                )}
-                <button onClick={() => setIsSidebarOpen(true)} className="mobile-hamburger" style={iconButtonStyle as any} aria-label="Открыть меню">
-                    <MenuIcon />
-                </button>
-                
                 <span style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}><SearchIcon /></span>
                 <input 
                   type="text" 
@@ -426,8 +416,8 @@ export default function Navigation() {
                 </div>
                 
                 {/* Заменен эмодзи профиля на векторный SVG */}
-                <div onClick={() => setIsProfileOpen(!isProfileOpen)} style={profileTrigger}>
-                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: '#888' }}>
+                <div onClick={() => setIsProfileOpen(!isProfileOpen)} className="top-icon-btn" style={profileTrigger}>
+                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                        <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="currentColor"/>
                    </svg>
                    {isProfileOpen && (
@@ -536,7 +526,7 @@ export default function Navigation() {
                             {isConsentGiven && <span style={{ color: '#0abab5', display: 'inline-flex' }}><CustomIcon name="check" size={16} color="#0abab5" /></span>}
                         </div>
                         <div style={{ color: '#888', fontSize: '12px', lineHeight: '1.4', textAlign: 'left' }}>
-                            Я даю согласие на <a href="https://tea-hub.ru/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
+                            Я даю согласие на <a href="/privacy?doc=processing#processing" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
                         </div>
                     </div>
                 </>
@@ -678,17 +668,35 @@ export default function Navigation() {
             opacity: 0.7;
             font-weight: 700;
         }
+        .sub-item-arrow {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            margin-right: 8px;
+            color: rgba(255, 255, 255, 0.52);
+            font-size: 14px;
+            line-height: 1;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
         .nav-item.sub-item:hover {
             opacity: 1;
             color: #0abab5;
             background: transparent;
             transform: translateX(4px) translateZ(0);
         }
+        .nav-item.sub-item:hover .sub-item-arrow {
+            color: #0abab5;
+            transform: translateX(1px);
+        }
         .nav-item.sub-item.active {
             color: #0abab5;
             background: rgba(10, 186, 181, 0.1);
             opacity: 1;
             transform: translateX(0) translateZ(0);
+        }
+        .nav-item.sub-item.active .sub-item-arrow {
+            color: #0abab5;
         }
 
         .nav-item.active:not(.sub-item) {
@@ -738,17 +746,54 @@ export default function Navigation() {
         }
 
         .sidebar-mobile-overlay { display: none; }
-        .mobile-hamburger { display: none; }
-        .mobile-close-btn { display: none; }
+        .sidebar-toggle-fixed {
+            position: fixed;
+            top: 22px;
+            left: 30px;
+            z-index: 10006;
+            width: 36px;
+            height: 36px;
+            border: 1px solid #222;
+            border-radius: 10px;
+            background: #111;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            box-shadow: none;
+            transition: top 0.3s ease, left 0.3s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+
+        .sidebar-toggle-fixed:hover {
+            border-color: #0abab5;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(10, 186, 181, 0.45), 0 0 14px rgba(10, 186, 181, 0.55), 0 0 28px rgba(10, 186, 181, 0.28);
+            transform: translateY(1px) scale(0.97);
+            background: rgba(10, 186, 181, 0.12);
+        }
+
+        .sidebar-toggle-fixed:active {
+            transform: translateY(2px) scale(0.95);
+            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(10, 186, 181, 0.52), 0 0 16px rgba(10, 186, 181, 0.62), 0 0 32px rgba(10, 186, 181, 0.32);
+        }
 
         @media (max-width: 768px) {
             .nav-topbar {
                 left: 0 !important;
-                padding: 0 10px !important;
+                padding: 0 10px 0 72px !important;
                 height: 70px !important;
+                gap: 8px !important;
             }
             .nav-sidebar {
                 z-index: 10005 !important;
+            }
+            .sidebar-toggle-fixed {
+                top: 16px !important;
+                left: 16px !important;
+                width: 40px !important;
+                height: 40px !important;
+                border-radius: 12px !important;
             }
             .sidebar-mobile-overlay {
                 display: block !important;
@@ -758,35 +803,49 @@ export default function Navigation() {
                 z-index: 10004;
                 backdrop-filter: blur(5px);
             }
-            .mobile-hamburger { 
-                display: block !important; 
-                margin-right: 10px; 
-                color: #fff;
-            }
 
             .search-box-container {
                 width: 100% !important;
                 max-width: 100% !important;
                 padding: 8px 12px !important;
-                margin-right: 10px !important;
+                margin-right: 8px !important;
                 flex: 1 !important;
-                min-width: 50px !important;
+                min-width: 0 !important;
             }
             .search-box-container input {
                 min-width: 0 !important;
                 text-overflow: ellipsis !important;
             }
-            
-            .desktop-hamburger { display: none !important; }
-            .mobile-close-btn { display: block !important; }
-            
+
             .guest-header {
                 right: 15px !important;
                 top: 15px !important;
             }
             
             .top-actions {
+                align-items: center !important;
                 gap: 15px !important;
+            }
+
+            .top-actions .top-icon-btn {
+                width: 40px !important;
+                height: 40px !important;
+                min-width: 40px !important;
+                min-height: 40px !important;
+                border-radius: 14px !important;
+                background: #111 !important;
+                border: 1px solid #222 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                box-sizing: border-box !important;
+                line-height: 0 !important;
+            }
+
+            .top-actions .top-icon-btn svg {
+                width: 18px !important;
+                height: 18px !important;
+                display: block !important;
             }
 
             .modal-content-custom {
@@ -821,22 +880,13 @@ function SearchIcon() {
     );
 }
 
-function CloseIcon() {
-    return (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-    );
-}
-
 // --- СТИЛИ ---
 const guestHeader: any = { position: 'fixed', top: '20px', right: '40px', zIndex: 1000 };
 const loginBtn: any = { background: '#0ABAB5', color: '#000', padding: '12px 35px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize:'14px' };
 
-const sidebarStyle: any = { width: '260px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };
-const logoArea: any = { display: 'flex', alignItems: 'center', gap: '15px', color: '#fff', marginBottom: '50px', paddingLeft: '10px' };
+const sidebarStyle: any = { width: '260px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '22px 20px 40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };
+const logoArea: any = { display: 'flex', alignItems: 'center', minHeight: '36px', gap: '15px', color: '#fff', marginBottom: '50px', paddingLeft: '58px' };
 const logoIcon: any = { fontSize: '24px', cursor: 'pointer' };
-const iconButtonStyle: any = { width: '36px', height: '36px', border: '1px solid #222', borderRadius: '10px', background: '#111', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0 };
 const warningBadgeStyle: any = { width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 15px auto' };
 const logoText: any = { fontSize: '20px', fontWeight: '900', letterSpacing: '1px', color: '#fff' };
 const sideNav: any = { display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 };
@@ -848,7 +898,8 @@ const searchDropdownStyle: any = { position: 'absolute', top: '55px', left: 0, w
 const searchResultItem: any = { padding: '16px 20px', borderBottom: '1px solid #1a1a1a', cursor: 'pointer', transition: '0.2s' };
 const topActions: any = { display: 'flex', alignItems: 'center', gap: '30px' };
 const topIcon: any = { position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', cursor: 'pointer', transition: '0.3s' };
-const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' };
+const sidebarToggleStyle: React.CSSProperties = { width: '36px', height: '36px', border: '1px solid #222', borderRadius: '10px', background: '#111', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0 };
+const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', color: '#888', transition: '0.3s' };
 const profileDropdown: any = { position: 'absolute', top: '65px', right: 0, background: '#111', border: '1px solid #222', borderRadius: '20px', width: '220px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', zIndex: 10003 };
 const notifOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.4)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };
 const notifSidebarStyle = { width: '350px', height: '100%', background: '#000', borderLeft: '1px solid #222', padding: '40px 30px', animation: 'slideInRight 0.4s ease', boxShadow: '-20px 0 50px rgba(0,0,0,0.5)', overflowY: 'auto' };

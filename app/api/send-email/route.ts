@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { requireAdminSession } from '@/app/lib/serverAuth';
 
 export async function POST(req: Request) {
     try {
+        const session = await requireAdminSession();
+
+        if (!session) {
+            return NextResponse.json({ error: 'Доступ только для администратора' }, { status: 403 });
+        }
+
         const { to, subject, text } = await req.json();
 
         if (!to || !subject || !text) {

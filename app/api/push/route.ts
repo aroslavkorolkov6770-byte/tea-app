@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import webpush from 'web-push';
+import { requireAdminSession } from '@/app/lib/serverAuth';
 
 const configureWebPush = () => {
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -16,6 +17,12 @@ const configureWebPush = () => {
 
 export async function POST(req: Request) {
     try {
+        const session = await requireAdminSession();
+
+        if (!session) {
+            return NextResponse.json({ error: 'Доступ только для администратора' }, { status: 403 });
+        }
+
         const { subscriptions, payload } = await req.json();
 
         if (!configureWebPush()) {

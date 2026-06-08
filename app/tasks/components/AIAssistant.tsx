@@ -576,7 +576,9 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 @media (max-width: 768px) {
                     .ai-monolithic-section { margin: -10px -15px -50px -15px; height: calc(100vh - 70px); }
                     .ai-mobile-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #1a1a1a; background: #0a0a0a; }
-                    .ai-history-btn { background: rgba(10,186,181,0.1); color: #0abab5; border: 1px solid rgba(10,186,181,0.3); padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 13px; }
+                    .ai-history-btn { background: rgba(10,186,181,0.1); color: #0abab5; border: 1px solid rgba(10,186,181,0.3); padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 13px; transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease; }
+                    .ai-history-btn:hover { transform: translateY(1px) scale(0.98); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18); background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); }
+                    .ai-history-btn:active { transform: translateY(2px) scale(0.96); box-shadow: inset 0 3px 8px rgba(0,0,0,0.24); }
                     .ai-sidebar { position: fixed; top: 0; left: -300px; width: 280px !important; height: 100vh; background: #000; z-index: 10006; box-shadow: 10px 0 30px rgba(0,0,0,0.8); }
                     .ai-sidebar.open { left: 0; }
                     .ai-mobile-overlay { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10005; backdrop-filter: blur(4px); }
