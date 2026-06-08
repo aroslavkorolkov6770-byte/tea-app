@@ -306,7 +306,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                         {hitProducts.map(product => {
                             const isSingle = hitProducts.length === 1;
                             return (
-                                <div key={`hit-${product.id}`} className={`premium-card hit-card ${isSingle ? 'single-hit' : ''}`} onClick={() => setViewProduct(product)} style={{ 
+                                <div key={`hit-${product.id}`} className={`premium-card hit-card product-hit-card ${isSingle ? 'single-hit' : ''}`} onClick={() => setViewProduct(product)} style={{ 
                                     minWidth: isSingle ? '100%' : '280px', flex: isSingle ? '1 1 auto' : '0 0 auto', padding: '25px', scrollSnapAlign: 'start', 
                                     opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none',
                                     background: '#111', border: '1px solid rgba(255,215,0,0.4)', display: 'flex', flexDirection: isSingle ? 'row' : 'column',
@@ -319,12 +319,12 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                         </div>
                                     )}
                                     
-                                    <div style={{ flex: isSingle ? '1 1 auto' : 'none' }}>
-                                        {product.category && <span style={{ background: 'rgba(255,215,0,0.1)', color: '#ffd700', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', width: 'fit-content', marginBottom: '15px', display: 'inline-block' }}>{product.category}</span>}
-                                        <h4 style={{ fontSize: '18px', margin: isSingle ? '0' : '0 0 20px 0', fontWeight: 'bold', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin && !isSingle ? '80px' : '0' }}>{product.name}</h4>
+                                    <div className="product-card-body" style={{ flex: isSingle ? '1 1 auto' : 'none' }}>
+                                        {product.category && <span className="product-card-badge" style={{ background: 'rgba(255,215,0,0.1)', color: '#ffd700', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', width: 'fit-content', marginBottom: '15px', display: 'inline-block' }}>{product.category}</span>}
+                                        <h4 className="product-card-title" style={{ fontSize: '18px', margin: isSingle ? '0' : '0 0 20px 0', fontWeight: 'bold', color: '#fff', lineHeight: '1.3', paddingRight: isAdmin && !isSingle ? '80px' : '0' }}>{product.name}</h4>
                                     </div>
                                     
-                                    <div className={isSingle ? "single-hit-stats" : ""} style={{ 
+                                    <div className={`product-card-footer ${isSingle ? "single-hit-stats" : ""}`} style={{ 
                                         marginTop: isSingle ? '0' : 'auto', 
                                         display: 'flex', 
                                         justifyContent: 'flex-end', 
@@ -333,8 +333,8 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                         paddingRight: isAdmin && isSingle ? '100px' : '0'
                                     }}>
                                         <div style={{ textAlign: 'right', width: '100%' }}>
-                                            <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
-                                            <div style={{ color: '#ffd700', fontWeight: '900', fontSize: '22px' }}>{product.price ? `${product.price} ₽` : '—'}</div>
+                                            <div className="product-card-price-label" style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
+                                            <div className="product-card-price" style={{ color: '#ffd700', fontWeight: '900', fontSize: '22px' }}>{product.price ? `${product.price} ₽` : '—'}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -359,7 +359,7 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                     </div>
                 ) : (
                     searchedProducts.map((product) => (
-                        <div key={product.id} className="premium-card" onClick={() => setViewProduct(product)} style={{ padding: '25px', opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none', display: 'flex', flexDirection: 'column' }}>
+                        <div key={product.id} className="premium-card product-card" onClick={() => setViewProduct(product)} style={{ padding: '25px', opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? 'grayscale(100%)' : 'none', display: 'flex', flexDirection: 'column' }}>
                             
                             {isAdmin && (
                                 <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '5px', zIndex: 10 }}>
@@ -376,15 +376,15 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                                 </div>
                             )}
 
-                            <div style={{ paddingRight: isAdmin ? '130px' : '0', marginBottom: '20px', marginTop: (isAdmin && product.isHidden) ? '25px' : '0' }}>
-                                {product.category && <span style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block', marginBottom: '10px' }}>{product.category}</span>}
-                                <h4 style={{ fontSize: '18px', margin: 0, fontWeight: 'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3' }}>{product.name}</h4>
+                            <div className="product-card-body" style={{ paddingRight: isAdmin ? '130px' : '0', marginBottom: '20px', marginTop: (isAdmin && product.isHidden) ? '25px' : '0' }}>
+                                {product.category && <span className="product-card-badge" style={{ background: 'rgba(10,186,181,0.1)', color: '#0abab5', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block', marginBottom: '10px' }}>{product.category}</span>}
+                                <h4 className="product-card-title" style={{ fontSize: '18px', margin: 0, fontWeight: 'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3' }}>{product.name}</h4>
                             </div>
                             
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', paddingTop: '15px', borderTop: '1px solid #222' }}>
+                            <div className="product-card-footer" style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', paddingTop: '15px', borderTop: '1px solid #222' }}>
                                 <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
-                                    <div style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900' }}>{product.price ? `${product.price} ₽` : '—'}</div>
+                                    <div className="product-card-price-label" style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Цена:</div>
+                                    <div className="product-card-price" style={{ fontSize: '20px', color: '#0abab5', fontWeight: '900' }}>{product.price ? `${product.price} ₽` : '—'}</div>
                                 </div>
                             </div>
                         </div>
@@ -551,15 +551,25 @@ export default function Products({ isAdmin, userId }: { isAdmin: boolean, userId
                 @media (max-width: 768px) {
                     .premium-cards-container { display: grid !important; grid-template-columns: 1fr !important; gap: 15px !important; }
                     .tasks-modal { padding: 30px 20px !important; border-radius: 25px !important; width: 95% !important; max-height: 90vh !important; }
-                    .hit-card { min-width: 240px !important; }
+                    .hit-card { min-width: 220px !important; }
+                    .product-card,
+                    .product-hit-card { border-radius: 16px !important; }
+                    .product-card { padding: 16px !important; min-height: 136px !important; }
+                    .product-hit-card { padding: 18px !important; min-height: 128px !important; }
+                    .product-card-body { margin-bottom: 14px !important; }
+                    .product-card-title { font-size: 16px !important; line-height: 1.25 !important; }
+                    .product-card-badge { font-size: 10px !important; margin-bottom: 8px !important; padding: 4px 8px !important; }
+                    .product-card-footer { padding-top: 12px !important; }
+                    .product-card-price-label { font-size: 10px !important; margin-bottom: 2px !important; }
+                    .product-card-price { font-size: 18px !important; }
                     
                     .single-hit {
                         flex-direction: column !important;
                         align-items: flex-start !important;
-                        padding: 25px !important;
+                        padding: 18px !important;
                     }
                     .single-hit h4 {
-                        margin-bottom: 20px !important;
+                        margin-bottom: 14px !important;
                     }
                     .single-hit-stats {
                         width: 100%;

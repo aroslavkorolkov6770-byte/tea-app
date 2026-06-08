@@ -90,10 +90,7 @@ export default function AdminDashboard() {
             if (notesData && !Array.isArray(notesData)) setNotes(notesData);
 
             let usersData = storageData['tea_hub_users_v1'];
-            if (!Array.isArray(usersData) || usersData.length === 0) {
-                usersData = [{ id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер' }];
-                saveDataToServer('tea_hub_users_v1', usersData);
-            }
+            if (!Array.isArray(usersData)) usersData = [];
             setUsers(usersData);
 
             const testData = storageData['tea_hub_test_results_v1'];
@@ -265,12 +262,30 @@ export default function AdminDashboard() {
   const handleSaveUserAuth = async () => {
       if (!editAuthLogin.trim() || !editAuthPass.trim()) return setErrorModal({ show: true, text: "Логин и пароль не могут быть пустыми!" });
       if (users.find(u => u.login === editAuthLogin.trim() && u.id !== selectedProfileUser.id)) return setErrorModal({ show: true, text: "Логин занят другим пользователем!" });
-      const updatedUsers = users.map(u => u.id === selectedProfileUser.id ? { ...u, login: editAuthLogin.trim(), pass: editAuthPass.trim() } : u);
-      setUsers(updatedUsers);
-      saveDataToServer('tea_hub_users_v1', updatedUsers);
-      setSelectedProfileUser({ ...selectedProfileUser, login: editAuthLogin.trim(), pass: editAuthPass.trim() });
-      setEditAuthMode(false);
-      setShowSuccessModal({ show: true, title: 'ДОСТУПЫ ОБНОВЛЕНЫ', text: `Новые данные для входа успешно сохранены.` });
+      try {
+          const response = await fetch('/api/admin/users/credentials', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  userId: selectedProfileUser.id,
+                  login: editAuthLogin.trim(),
+                  password: editAuthPass.trim(),
+              }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || !result?.user) {
+              throw new Error(result?.error || 'Не удалось сохранить новые доступы');
+          }
+
+          const updatedUsers = users.map((user) => user.id === selectedProfileUser.id ? { ...user, ...result.user } : user);
+          setUsers(updatedUsers);
+          setSelectedProfileUser({ ...selectedProfileUser, ...result.user });
+          setEditAuthMode(false);
+          setEditAuthPass('');
+          setShowSuccessModal({ show: true, title: 'ДОСТУПЫ ОБНОВЛЕНЫ', text: `Новые данные для входа успешно сохранены.` });
+      } catch (error: any) {
+          setErrorModal({ show: true, text: error?.message || 'Не удалось сохранить новые доступы' });
+      }
   };
 
   const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));

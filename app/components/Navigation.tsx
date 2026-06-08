@@ -3,21 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
-
-// --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES ---
-const setAppCookie = (name: string, value: string, days: number | null = 7) => {
-    if (days) {
-        const date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
-    } else {
-        document.cookie = `${name}=${encodeURIComponent(value)};path=/`;
-    }
-};
-
-const deleteAppCookie = (name: string) => {
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
-};
+import { applyClientAuthState, clearClientAuthState } from '@/app/lib/authClient';
 
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
@@ -79,15 +65,29 @@ export default function Navigation() {
         setIsSidebarOpen(false);
     }
 
-    const auth = localStorage.getItem('isLoggedIn') || sessionStorage.getItem('isLoggedIn');
-    const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-    if (auth === 'true') {
-      setIsLoggedIn(true);
-      setUserRole(role);
-    }
-
     const loadServerData = async () => {
         try {
+            const sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
+            const sessionData = sessionResponse.ok ? await sessionResponse.json().catch(() => null) : null;
+            const sessionUser = sessionData?.user;
+
+            if (sessionData?.authenticated && sessionUser) {
+                applyClientAuthState({
+                    id: sessionUser.id,
+                    login: sessionUser.login,
+                    role: sessionUser.role,
+                    name: sessionUser.name || (sessionUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+                });
+                setIsLoggedIn(true);
+                setUserRole(sessionUser.role);
+            } else {
+                setIsLoggedIn(false);
+                setUserRole(null);
+                clearClientAuthState();
+                setNotifications([]);
+                return;
+            }
+
             const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
             
             const notifsRes = await fetch('/api/storage?key=tea_hub_notifications_v1').then(r => r.json()).catch(() => []);
@@ -122,47 +122,41 @@ export default function Navigation() {
     }
 
     try {
-        const res = await fetch('/api/storage?key=tea_hub_users_v1');
-        let users = await res.json().catch(() => []);
-        
-        const foundUser = users.find((u: any) => u.login === login && u.pass === pass);
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login, password: pass }),
+        });
+        const result = await response.json().catch(() => ({}));
 
-        if (foundUser) {
-          const hasConsent = localStorage.getItem('cookieConsent') === 'true';
-          if (hasConsent) {
-              localStorage.setItem('isLoggedIn', 'true');
-              localStorage.setItem('userRole', foundUser.role);
-              localStorage.setItem('current_user_id', foundUser.id);
-              localStorage.setItem('current_user_name', foundUser.name);
-              setAppCookie('isLoggedIn', 'true', 7);
-              setAppCookie('userRole', foundUser.role, 7);
-              setAppCookie('current_user_id', foundUser.id, 7);
-              setAppCookie('current_user_name', foundUser.name, 7);
-          } else {
-              sessionStorage.setItem('isLoggedIn', 'true');
-              sessionStorage.setItem('userRole', foundUser.role);
-              sessionStorage.setItem('current_user_id', foundUser.id);
-              sessionStorage.setItem('current_user_name', foundUser.name);
-              setAppCookie('isLoggedIn', 'true', null);
-              setAppCookie('userRole', foundUser.role, null);
-              setAppCookie('current_user_id', foundUser.id, null);
-              setAppCookie('current_user_name', foundUser.name, null);
-          }
-          
-          setFailedAttempts(0); 
-          setIsCaptchaVerified(false);
-          setIsLoggedIn(true);
-          setUserRole(foundUser.role);
-          setShowLoginModal(false);
-          
-          if (foundUser.role === 'admin') router.push('/admin');
-          else router.push('/tasks?tab=welcome');
-        } else {
-          const newFails = failedAttempts + 1;
-          setFailedAttempts(newFails);
-          if (isCaptchaVerified) setIsCaptchaVerified(false);
-          setErrorMessage("Неправильно введен логин или пароль!");
+        if (response.status === 403 && result?.requiresRegistration) {
+            setErrorMessage("Для начала пройдите регистрацию и заполните данные.");
+            setIsLoginMode(false);
+            return;
         }
+
+        if (!response.ok || !result?.user) {
+            const newFails = failedAttempts + 1;
+            setFailedAttempts(newFails);
+            if (isCaptchaVerified) setIsCaptchaVerified(false);
+            setErrorMessage(result?.error || "Неправильно введен логин или пароль!");
+            return;
+        }
+
+        applyClientAuthState({
+            id: result.user.id,
+            login: result.user.login,
+            role: result.user.role,
+            name: result.user.name || (result.user.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+        });
+        setFailedAttempts(0);
+        setIsCaptchaVerified(false);
+        setIsLoggedIn(true);
+        setUserRole(result.user.role);
+        setShowLoginModal(false);
+        
+        if (result.user.role === 'admin') router.push('/admin');
+        else router.push('/tasks?tab=welcome');
     } catch (error) {
         console.error("Ошибка связи с сервером:", error);
         setErrorMessage("Не удалось подключиться к базе данных.");
@@ -179,37 +173,48 @@ export default function Navigation() {
           setErrorMessage("Пожалуйста, заполните Имя, Логин и Пароль!");
           return;
       }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+          setErrorMessage("Проверьте формат E-mail адреса.");
+          return;
+      }
+
+      const normalizedPhone = regPhone.trim().replace(/\D/g, '');
+      if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+          setErrorMessage("Номер телефона должен содержать от 10 до 15 цифр.");
+          return;
+      }
       try {
-          const res = await fetch('/api/storage?key=tea_hub_users_v1');
-          let users = await res.json().catch(() => []);
-          const foundUserIndex = users.findIndex((u: any) => u.login === login.trim() && u.pass === pass.trim());
-          if (foundUserIndex === -1) {
-              setErrorMessage("Неправильно введен логин или пароль!");
+          const response = await fetch('/api/auth/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  login,
+                  password: pass,
+                  name: regName,
+                  email,
+                  tg: regTg,
+                  phone: regPhone,
+                  consentGiven: isConsentGiven,
+              }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || !result?.user) {
+              setErrorMessage(result?.error || "Неправильно введен логин или пароль!");
               return;
           }
-          const existingUser = users[foundUserIndex];
-          users[foundUserIndex] = { ...existingUser, name: regName.trim() };
-          saveDataToServer('tea_hub_users_v1', users);
-          
-          const hasConsent = localStorage.getItem('cookieConsent') === 'true';
-          if (hasConsent) {
-              localStorage.setItem('isLoggedIn', 'true');
-              localStorage.setItem('userRole', existingUser.role);
-              localStorage.setItem('current_user_id', existingUser.id);
-              localStorage.setItem('current_user_name', regName.trim());
-              setAppCookie('isLoggedIn', 'true', 7);
-          } else {
-              sessionStorage.setItem('isLoggedIn', 'true');
-              sessionStorage.setItem('userRole', existingUser.role);
-              sessionStorage.setItem('current_user_id', existingUser.id);
-              sessionStorage.setItem('current_user_name', regName.trim());
-              setAppCookie('isLoggedIn', 'true', null);
-          }
 
+          applyClientAuthState({
+              id: result.user.id,
+              login: result.user.login,
+              role: result.user.role,
+              name: regName.trim(),
+          });
           setIsLoggedIn(true);
-          setUserRole(existingUser.role);
+          setUserRole(result.user.role);
           setShowLoginModal(false);
-          if (existingUser.role === 'admin') router.push('/admin');
+          if (result.user.role === 'admin') router.push('/admin');
           else router.push('/tasks?tab=welcome');
       } catch (error) {
           setErrorMessage("Не удалось подключиться к базе данных для регистрации.");
@@ -217,26 +222,16 @@ export default function Navigation() {
   };
 
   const handleLogout = () => {
-    const keysToRemove = [
-        'isLoggedIn', 'userRole', 'current_user_id', 'current_user_name', 
-        'th_current_user', 'currentUser', 'user', 'profile', 'userData', 'account'
-    ];
-    
-    keysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-        sessionStorage.removeItem(key);
-    });
-
-    deleteAppCookie('isLoggedIn');
-    deleteAppCookie('userRole');
-    deleteAppCookie('current_user_id');
-    deleteAppCookie('current_user_name');
-
-    window.dispatchEvent(new Event('storage'));
-
-    setIsLoggedIn(false);
-    setIsProfileOpen(false);
-    router.push('/');
+    fetch('/api/auth/logout', { method: 'POST' })
+      .catch((error) => console.error('Ошибка завершения сессии:', error))
+      .finally(() => {
+        clearClientAuthState();
+        window.dispatchEvent(new Event('storage'));
+        setIsLoggedIn(false);
+        setUserRole(null);
+        setIsProfileOpen(false);
+        router.push('/');
+      });
   };
 
   const removeNotification = async (id: number) => {
@@ -788,6 +783,7 @@ export default function Navigation() {
                 left: 0 !important;
                 padding: 0 10px 0 72px !important;
                 height: 70px !important;
+                gap: 8px !important;
             }
             .nav-sidebar {
                 z-index: 10005 !important;
@@ -814,7 +810,7 @@ export default function Navigation() {
                 padding: 8px 12px !important;
                 margin-right: 0 !important;
                 flex: 1 !important;
-                min-width: 50px !important;
+                min-width: 0 !important;
             }
             .search-box-container input {
                 min-width: 0 !important;
@@ -827,7 +823,29 @@ export default function Navigation() {
             }
             
             .top-actions {
+                align-items: center !important;
                 gap: 15px !important;
+            }
+
+            .top-actions .top-icon-btn {
+                width: 40px !important;
+                height: 40px !important;
+                min-width: 40px !important;
+                min-height: 40px !important;
+                border-radius: 14px !important;
+                background: #111 !important;
+                border: 1px solid #222 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                box-sizing: border-box !important;
+                line-height: 0 !important;
+            }
+
+            .top-actions .top-icon-btn svg {
+                width: 18px !important;
+                height: 18px !important;
+                display: block !important;
             }
 
             .modal-content-custom {

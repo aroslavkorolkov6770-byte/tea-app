@@ -32,13 +32,32 @@ export default function UserManagement({
         if (users.find((u: any) => u.login === newUser.login.trim())) {
             setErrorModal({ show: true, text: "Логин уже существует!" }); return;
         }
-        const createdUser = { id: 'u_' + Date.now(), login: newUser.login.trim(), pass: newUser.pass.trim(), role: newUser.role, name: newUser.name.trim() };
-        const updatedUsers = [...users, createdUser];
-        setUsers(updatedUsers);
-        saveDataToServer('tea_hub_users_v1', updatedUsers);
-        setShowUserForm(false);
-        setShowSuccessModal({ show: true, title: 'СОТРУДНИК СОЗДАН', text: `Аккаунт для ${newUser.name} успешно добавлен.` });
-        setNewUser({ name: '', login: '', pass: '', role: 'staff' });
+
+        fetch('/api/admin/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: newUser.name.trim(),
+                login: newUser.login.trim(),
+                password: newUser.pass.trim(),
+                role: newUser.role,
+            }),
+        })
+            .then(async (response) => {
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok || !result?.user) {
+                    throw new Error(result?.error || 'Не удалось создать сотрудника');
+                }
+
+                const updatedUsers = [...users, result.user];
+                setUsers(updatedUsers);
+                setShowUserForm(false);
+                setShowSuccessModal({ show: true, title: 'СОТРУДНИК СОЗДАН', text: `Аккаунт для ${newUser.name} успешно добавлен.` });
+                setNewUser({ name: '', login: '', pass: '', role: 'staff' });
+            })
+            .catch((error) => {
+                setErrorModal({ show: true, text: error.message || 'Не удалось создать сотрудника' });
+            });
     };
 
     const handleDeleteUser = (id: string) => {
@@ -49,16 +68,27 @@ export default function UserManagement({
     };
 
     const executeDelete = async () => {
-        const updatedUsers = users.filter((u: any) => u.id !== confirmModal.id);
-        setUsers(updatedUsers);
-        saveDataToServer('tea_hub_users_v1', updatedUsers);
         try {
+            const deleteResponse = await fetch('/api/admin/users', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: confirmModal.id }),
+            });
+            const deleteResult = await deleteResponse.json().catch(() => ({}));
+            if (!deleteResponse.ok) {
+                throw new Error(deleteResult?.error || 'Не удалось удалить сотрудника');
+            }
+
+            const updatedUsers = users.filter((u: any) => u.id !== confirmModal.id);
+            setUsers(updatedUsers);
             const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
             const subs = await res.json().catch(() => []);
             if (Array.isArray(subs)) {
                 await saveDataToServer('tea_hub_push_subs_v1', subs.filter((s: any) => s.userId !== confirmModal.id));
             }
-        } catch (e) {}
+        } catch (error: any) {
+            setErrorModal({ show: true, text: error?.message || 'Не удалось удалить сотрудника' });
+        }
         setConfirmModal({ show: false, id: '' });
     };
 
@@ -102,7 +132,7 @@ export default function UserManagement({
                                         <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                        <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.pass}</span>
+                                        <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#888', fontFamily: 'monospace', fontWeight: 'bold' }}>скрыт</span>
                                     </div>
                                 </div>
                             </div>

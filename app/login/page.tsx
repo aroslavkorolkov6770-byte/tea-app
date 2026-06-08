@@ -3,29 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import CustomIcon from '@/app/components/CustomIcon';
-
-// --- ХЕЛПЕРЫ ДЛЯ РАБОТЫ С COOKIES ---
-const setAppCookie = (name: string, value: string, days: number | null = 7) => {
-    if (days) {
-        const date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
-    } else {
-        document.cookie = `${name}=${encodeURIComponent(value)};path=/`;
-    }
-};
-
-const saveDataToServer = async (key: string, data: any) => {
-    try {
-        await fetch('/api/storage', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, data })
-        });
-    } catch (err) {
-        console.error("Ошибка сохранения на сервер:", err);
-    }
-};
+import { applyClientAuthState } from '@/app/lib/authClient';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -55,12 +33,41 @@ export default function LoginPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    const auth = localStorage.getItem('isLoggedIn') || sessionStorage.getItem('isLoggedIn');
-    const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-    if (auth === 'true') {
-        if (role === 'admin') router.push('/admin');
-        else router.push('/tasks?tab=welcome');
-    }
+
+    const syncSession = async () => {
+        try {
+            const response = await fetch('/api/auth/session', { cache: 'no-store' });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const sessionData = await response.json();
+            const sessionUser = sessionData?.user;
+
+            if (!sessionData?.authenticated || !sessionUser) {
+                return;
+            }
+
+            applyClientAuthState({
+                id: sessionUser.id,
+                login: sessionUser.login,
+                role: sessionUser.role,
+                name: sessionUser.name || (sessionUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+            });
+
+            if (sessionUser.role === 'admin') {
+                router.push('/admin');
+                return;
+            }
+
+            router.push('/tasks?tab=welcome');
+        } catch (error) {
+            console.error('Ошибка проверки активной сессии:', error);
+        }
+    };
+
+    syncSession();
   }, [router]);
 
   const handleCaptchaClick = () => {
@@ -74,29 +81,12 @@ export default function LoginPage() {
   };
 
   const processAuth = (user: any, nameToSave: string) => {
-      const hasConsent = localStorage.getItem('cookieConsent') === 'true';
-
-      if (hasConsent) {
-          localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userRole', user.role);
-          localStorage.setItem('current_user_id', user.id);
-          localStorage.setItem('current_user_name', nameToSave);
-
-          setAppCookie('isLoggedIn', 'true', 7);
-          setAppCookie('userRole', user.role, 7);
-          setAppCookie('current_user_id', user.id, 7);
-          setAppCookie('current_user_name', nameToSave, 7);
-      } else {
-          sessionStorage.setItem('isLoggedIn', 'true');
-          sessionStorage.setItem('userRole', user.role);
-          sessionStorage.setItem('current_user_id', user.id);
-          sessionStorage.setItem('current_user_name', nameToSave);
-
-          setAppCookie('isLoggedIn', 'true', null);
-          setAppCookie('userRole', user.role, null);
-          setAppCookie('current_user_id', user.id, null);
-          setAppCookie('current_user_name', nameToSave, null);
-      }
+      applyClientAuthState({
+          id: user.id,
+          login: user.login,
+          role: user.role,
+          name: nameToSave,
+      });
 
       if (user.role === 'admin') router.push('/admin');
       else router.push('/tasks?tab=welcome');
@@ -109,36 +99,31 @@ export default function LoginPage() {
     }
 
     try {
-        const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_users_v1`);
-        let users = await res.json().catch(() => []);
-        
-        if (!Array.isArray(users) || users.length === 0) {
-            users = [
-                { id: 'u_admin', login: '11', pass: '11', role: 'admin', name: 'Главный Мастер', isRegistered: true },
-                { id: 'u_staff_new', login: '1', pass: '1', role: 'staff', name: '', isRegistered: false }
-            ];
-            await saveDataToServer('tea_hub_users_v1', users);
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login, password: pass }),
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 403 && result?.requiresRegistration) {
+            setInfoMessage("Уведомление от платформы: Для начала пройдите регистрацию и заполните ваши данные.");
+            setIsLoginMode(false);
+            return;
         }
 
-        const foundUser = users.find((u: any) => u.login === login.trim() && u.pass === pass.trim());
-
-        if (foundUser) {
-          if (foundUser.role !== 'admin' && !foundUser.isRegistered) {
-              setInfoMessage("Уведомление от платформы: Для начала пройдите регистрацию и заполните ваши данные.");
-              setIsLoginMode(false); 
-              return;
-          }
-
-          setFailedAttempts(0); 
-          setIsCaptchaVerified(false);
-          processAuth(foundUser, foundUser.name);
-
-        } else {
-          const newFails = failedAttempts + 1;
-          setFailedAttempts(newFails);
-          if (isCaptchaVerified) setIsCaptchaVerified(false);
-          setErrorMessage("Неправильно введен логин или пароль!");
+        if (!response.ok || !result?.user) {
+            const newFails = failedAttempts + 1;
+            setFailedAttempts(newFails);
+            if (isCaptchaVerified) setIsCaptchaVerified(false);
+            setErrorMessage(result?.error || "Неправильно введен логин или пароль!");
+            return;
         }
+
+        setFailedAttempts(0);
+        setIsCaptchaVerified(false);
+        processAuth(result.user, result.user.name);
     } catch (error) {
         console.error("Ошибка связи с сервером:", error);
         setErrorMessage("Не удалось подключиться к базе данных.");
@@ -163,45 +148,47 @@ export default function LoginPage() {
           return;
       }
 
+      const normalizedPhone = regPhone.trim().replace(/\D/g, '');
+      if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+          setErrorMessage("ОШИБКА: Номер телефона должен содержать от 10 до 15 цифр.");
+          return;
+      }
+
       if (failedAttempts >= 3 && !isCaptchaVerified) {
           setErrorMessage("Пожалуйста, подтвердите, что вы человек.");
           return;
       }
 
       try {
-          const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_users_v1`);
-          let users = await res.json().catch(() => []);
-          if (!Array.isArray(users)) users = [];
+          const response = await fetch('/api/auth/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  login,
+                  password: pass,
+                  name: regName,
+                  email,
+                  tg: regTg,
+                  phone: regPhone,
+                  consentGiven: isConsentGiven,
+              }),
+          });
 
-          const foundUserIndex = users.findIndex((u: any) => u.login === login.trim() && u.pass === pass.trim());
+          const result = await response.json().catch(() => ({}));
 
-          if (foundUserIndex === -1) {
+          if (!response.ok || !result?.user) {
               const newFails = failedAttempts + 1;
               setFailedAttempts(newFails);
               if (isCaptchaVerified) setIsCaptchaVerified(false);
-              setErrorMessage("Ошибка: Учетная запись с таким логином и паролем не найдена. Убедитесь, что администратор выдал вам доступы.");
+              setErrorMessage(result?.error || "Ошибка регистрации. Проверьте выданные данные.");
               return;
           }
-
-          const existingUser = users[foundUserIndex];
-
-          users[foundUserIndex] = { ...existingUser, name: regName.trim(), isRegistered: true };
-          await saveDataToServer('tea_hub_users_v1', users);
-
-          const initialProfile = {
-              avatar: '',
-              tg: regTg.trim(),
-              phone: regPhone.trim(),
-              email: email.trim(),
-              firstLogin: new Date().toISOString()
-          };
-          await saveDataToServer(`profile_data_${existingUser.id}`, initialProfile);
 
           setFailedAttempts(0); 
           setIsCaptchaVerified(false);
           setInfoMessage("");
           
-          processAuth(existingUser, regName.trim());
+          processAuth(result.user, regName.trim());
 
       } catch (error) {
           console.error("Ошибка при регистрации:", error);

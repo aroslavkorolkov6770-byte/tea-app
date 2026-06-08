@@ -38,9 +38,9 @@ export default function StatisticsPanel({
                             <div style={{ width: '55px', height: '55px', borderRadius: '18px', background: '#222', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {avatarImg ? <img src={avatarImg} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#0abab5', fontSize: '16px', fontWeight: '900', letterSpacing: '1px' }}>TH</span>}
                             </div>
-                            <div style={{ overflow: 'hidden' }}>
+                            <div style={{ overflow: 'hidden', minWidth: 0 }}>
                                 <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#fff', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{user.name}</h3>
-                                <div style={{ fontSize: '12px', color: '#0abab5', fontWeight: 'bold', marginTop: '3px' }}>@{user.login}</div>
+                                <div style={{ fontSize: '12px', color: '#0abab5', fontWeight: 'bold', marginTop: '3px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>@{user.login}</div>
                                 <div onClick={() => setSelectedProfileUser(user)} style={profileBtnStyle as any}>ПРОФИЛЬ ↗</div>
                             </div>
                         </div>
@@ -75,6 +75,46 @@ export default function StatisticsPanel({
                     </div>
                 )
             })}
+            <style jsx>{`
+                @media (max-width: 900px) {
+                    .admin-user-card {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 18px !important;
+                    }
+                    .admin-user-avatar-col {
+                        flex: 1 1 auto !important;
+                        width: 100% !important;
+                    }
+                    .admin-user-bars-col {
+                        border-left: none !important;
+                        border-top: 1px solid #222 !important;
+                        padding-left: 0 !important;
+                        padding-top: 18px !important;
+                    }
+                    .admin-user-actions-col {
+                        border-left: none !important;
+                        border-top: 1px solid #222 !important;
+                        padding-left: 0 !important;
+                        padding-top: 16px !important;
+                        height: auto !important;
+                        justify-content: flex-start !important;
+                    }
+                }
+                @media (max-width: 560px) {
+                    .admin-user-progress-row {
+                        flex-wrap: wrap !important;
+                        gap: 8px !important;
+                    }
+                    .admin-user-progress-label {
+                        width: auto !important;
+                    }
+                    .admin-user-progress-value {
+                        width: auto !important;
+                        margin-left: auto !important;
+                    }
+                }
+            `}</style>
         </section>
     );
 }
