@@ -41,6 +41,7 @@ function ShiftContent() {
   const [passedTests, setPassedTests] = useState<string[]>([]);
   const [dismissedTasks, setDismissedTasks] = useState<string[]>([]);
   const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
+  const [productsSyncTick, setProductsSyncTick] = useState(0);
 
   // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ МОДАЛКАМИ ИЗ ПОИСКА ---
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
@@ -199,8 +200,16 @@ function ShiftContent() {
 
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
     window.addEventListener('sidebarToggle', handleToggle);
-    const syncInterval = setInterval(() => loadAllData(currentId, false), 5000);
-    const focusHandler = () => loadAllData(currentId, false);
+    const syncInterval = setInterval(() => {
+        if (activeTab !== 'products') {
+            loadAllData(currentId, false);
+        }
+    }, activeTab === 'products' ? 15000 : 7000);
+    const focusHandler = () => {
+        if (activeTab !== 'products') {
+            loadAllData(currentId, false);
+        }
+    };
     window.addEventListener('focus', focusHandler);
 
     return () => {
@@ -208,7 +217,7 @@ function ShiftContent() {
         clearInterval(syncInterval);
         window.removeEventListener('focus', focusHandler);
     };
-  }, [searchParams]);
+  }, [searchParams, activeTab]);
 
   const lastHandledParams = React.useRef("");
   useEffect(() => {
@@ -416,6 +425,8 @@ function ShiftContent() {
             <Products 
                 isAdmin={isAdmin} 
                 userId={userId}
+                syncTick={productsSyncTick}
+                onProductsSaved={() => setProductsSyncTick((prev) => prev + 1)}
             />
         )}
 
