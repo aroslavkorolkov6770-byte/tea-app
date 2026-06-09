@@ -74,7 +74,22 @@ export default function Navigation() {
     const loadServerData = async () => {
         try {
             const sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
-            const sessionData = sessionResponse.ok ? await sessionResponse.json().catch(() => null) : null;
+
+            if (sessionResponse.status === 401) {
+                setIsLoggedIn(false);
+                setUserRole(null);
+                setSessionUser(null);
+                clearClientAuthState();
+                setNotifications([]);
+                return;
+            }
+
+            if (!sessionResponse.ok) {
+                console.warn('Навигация пропустила временную ошибку сессии:', sessionResponse.status);
+                return;
+            }
+
+            const sessionData = await sessionResponse.json().catch(() => null);
             const sessionUser = sessionData?.user;
 
             if (sessionData?.authenticated && sessionUser) {
@@ -97,11 +112,6 @@ export default function Navigation() {
                 setCurrentViewMode(getClientViewMode(normalizedUser));
                 setUserRole(getClientViewMode(normalizedUser));
             } else {
-                setIsLoggedIn(false);
-                setUserRole(null);
-                setSessionUser(null);
-                clearClientAuthState();
-                setNotifications([]);
                 return;
             }
 

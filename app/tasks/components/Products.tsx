@@ -168,7 +168,16 @@ const isPathPrefix = (candidatePath: string[], selectedPath: string[]) =>
 const matchesSelectedPath = (product: PreparedCatalogProduct, selectedPath: string[]) =>
     selectedPath.length === 0 || selectedPath.every((segment, index) => product.pathSegments[index] === segment);
 
-export default function Products({ isAdmin }: { isAdmin: boolean; userId: string }) {
+export default function Products({
+    isAdmin,
+    syncTick,
+    onProductsSaved,
+}: {
+    isAdmin: boolean;
+    userId: string;
+    syncTick?: number;
+    onProductsSaved?: () => void;
+}) {
     const [products, setProducts] = useState<CatalogProduct[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [successModal, setSuccessModal] = useState({ show: false, title: "", text: "" });
@@ -180,6 +189,7 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
     const [productFormData, setProductFormData] = useState<CatalogProduct>(normalizeProduct({}));
     const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: string; name: string }>({ isOpen: false, id: "", name: "" });
     const [viewProduct, setViewProduct] = useState<CatalogProduct | null>(null);
+    const [visibleCatalogCount, setVisibleCatalogCount] = useState(60);
     const hitScrollRef = useRef<HTMLDivElement | null>(null);
     const deferredSearchQuery = useDeferredValue(searchQuery);
 
@@ -192,6 +202,7 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
 
         try {
             await saveDataToServer(STORAGE_KEYS.PRODUCTS, nextProducts);
+            onProductsSaved?.();
         } catch (error) {
             console.error("Ошибка сохранения каталога товаров", error);
             setErrorModal({
@@ -233,7 +244,7 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
         };
 
         loadProducts();
-    }, []);
+    }, [syncTick]);
 
     useEffect(() => {
         if (typeof window === "undefined") {
@@ -351,6 +362,12 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
             return matchesSearch && matchesCategory;
         });
     }, [baseFiltered, deferredSearchQuery, selectedTreePath]);
+
+    const visibleCatalogProducts = useMemo(() => searchedProducts.slice(0, visibleCatalogCount), [searchedProducts, visibleCatalogCount]);
+
+    useEffect(() => {
+        setVisibleCatalogCount(60);
+    }, [deferredSearchQuery, selectedTreePath]);
 
     const hitProducts = useMemo(() => {
         const search = deferredSearchQuery.trim().toLowerCase();
@@ -621,7 +638,7 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
                                 Товары не найдены
                             </div>
                         ) : (
-                            searchedProducts.map((product) => {
+                            visibleCatalogProducts.map((product) => {
                                 const metaItems = getMetaItems(product);
                                 return (
                                     <div key={product.id} className="premium-card product-card" onClick={() => setViewProduct(product)} style={{ padding: "25px", opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? "grayscale(100%)" : "none", display: "flex", flexDirection: "column" }}>
@@ -680,6 +697,18 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
                             })
                         )}
                     </div>
+
+                    {searchedProducts.length > visibleCatalogCount && (
+                        <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
+                            <button
+                                className="hover-unified-app"
+                                onClick={() => setVisibleCatalogCount((prev) => prev + 60)}
+                                style={{ ...adminActionBtn, minWidth: "220px" } as any}
+                            >
+                                ПОКАЗАТЬ ЕЩЕ
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
