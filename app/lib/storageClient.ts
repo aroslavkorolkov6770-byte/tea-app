@@ -3,7 +3,19 @@ export const saveDataToServer = (key: string, data: any) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, data }),
-    }).catch((err) => console.error('Ошибка сохранения на сервер:', err));
+    })
+        .then(async (response) => {
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload?.error || `Ошибка сохранения на сервер: ${response.status}`);
+            }
+
+            return response.json().catch(() => ({ success: true }));
+        })
+        .catch((err) => {
+            console.error('Ошибка сохранения на сервер:', err);
+            throw err;
+        });
 };
 
 export const fetchStorageBatch = async (keys: string[]) => {
