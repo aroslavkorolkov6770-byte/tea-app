@@ -21,11 +21,37 @@ const normalizeText = (text: string) => {
     return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 };
 
+const normalizeEmbeddedPlayerMarkup = (markup: string) => {
+    if (!markup) {
+        return '';
+    }
+
+    return markup
+        .replace(/\s(width|height)=("|')[^"']*("|')/gi, '')
+        .replace(/\sstyle=("|')([^"']*)("|')/gi, (_match, quoteStart, styleContent, quoteEnd) => {
+            const cleanedStyle = String(styleContent)
+                .replace(/(?:^|;)\s*width\s*:\s*[^;]+;?/gi, '')
+                .replace(/(?:^|;)\s*height\s*:\s*[^;]+;?/gi, '')
+                .replace(/(?:^|;)\s*max-width\s*:\s*[^;]+;?/gi, '')
+                .replace(/(?:^|;)\s*min-height\s*:\s*[^;]+;?/gi, '')
+                .trim()
+                .replace(/^;|;$/g, '');
+
+            const responsiveStyle = `${cleanedStyle ? `${cleanedStyle}; ` : ''}width: 100% !important; height: 100% !important; max-width: 100% !important;`;
+            return ` style=${quoteStart}${responsiveStyle}${quoteEnd}`;
+        })
+        .replace(/<(iframe|embed|object)\b/gi, '<$1 class="embedded-player-frame"');
+};
+
 const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: string, descText: string }) => {
+    const normalizedIframeMarkup = normalizeEmbeddedPlayerMarkup(iframeStr);
+
     return (
         <div style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-            {iframeStr ? (
-                <div className="video-wrapper" dangerouslySetInnerHTML={{ __html: iframeStr }} />
+            {normalizedIframeMarkup ? (
+                <div className="video-wrapper">
+                    <div className="video-embed-shell" dangerouslySetInnerHTML={{ __html: normalizedIframeMarkup }} />
+                </div>
             ) : (
                 <div style={{ padding: '40px', textAlign: 'center', color: '#555', fontStyle: 'italic', background: '#111', borderRadius: '15px' }}>Видео не прикреплено</div>
             )}
@@ -1336,8 +1362,25 @@ export default function Education({
                 .del-btn { color: #ff4d4d; }
                 .del-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
 
-                .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
-                .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }
+                .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; max-width: 100%; }
+                .video-embed-shell { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: hidden; }
+                .video-embed-shell :global(.embedded-player-frame),
+                .video-embed-shell :global(iframe),
+                .video-embed-shell :global(object),
+                .video-embed-shell :global(embed),
+                .video-embed-shell :global(video) {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100% !important;
+                    height: 100% !important;
+                    max-width: 100% !important;
+                    border: none;
+                    display: block;
+                }
+                .video-embed-shell :global(*) {
+                    max-width: 100%;
+                }
 
                 /* СТИЛИ ДЛЯ КАРТИНОК И ЗУМА */
                 .image-zoom-container { position: relative; width: 100%; height: 220px; border-radius: 15px; overflow: hidden; cursor: pointer; margin-bottom: 15px; background: #111; }
@@ -1371,6 +1414,9 @@ export default function Education({
                     .tasks-modal-header { flex-direction: column; align-items: flex-start !important; gap: 15px; margin-bottom: 25px !important; }
                     .tasks-modal-header h2 { font-size: 20px !important; padding: 0 !important; text-align: left !important; }
                     .desktop-spacer { display: none !important; }
+                    .video-wrapper {
+                        border-radius: 12px !important;
+                    }
                 }
             `}</style>
         </section>
