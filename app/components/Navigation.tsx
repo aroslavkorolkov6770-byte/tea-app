@@ -11,6 +11,7 @@ import {
   setClientViewMode,
   type ClientSessionUser,
 } from '@/app/lib/authClient';
+import { fetchStorageBatch } from '@/app/lib/storageClient';
 
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
@@ -70,10 +71,6 @@ export default function Navigation() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-        setIsSidebarOpen(false);
-    }
-
     const loadServerData = async () => {
         try {
             const sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
@@ -109,30 +106,57 @@ export default function Navigation() {
             }
 
             const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
-            
-            const notifsRes = await fetch('/api/storage?key=tea_hub_notifications_v1').then(r => r.json()).catch(() => []);
-            if (Array.isArray(notifsRes)) {
-                const myNotifs = notifsRes.filter((n: any) => n.target === 'Все' || n.target === currentUserId || !n.target);
+            const storageData = await fetchStorageBatch([
+                'tea_hub_notifications_v1',
+                'tea_hub_dynamic_route_v2',
+                'tea_hub_dynamic_tests_v1',
+                'tea_hub_assortment_matrix_v2',
+            ]).catch(() => ({} as Record<string, any>));
+
+            const notificationsData = storageData['tea_hub_notifications_v1'];
+            if (Array.isArray(notificationsData)) {
+                const myNotifs = notificationsData.filter((n: any) => n.target === 'Все' || n.target === currentUserId || !n.target);
                 setNotifications(myNotifs);
             }
 
-            const rRes = await fetch('/api/storage?key=tea_hub_dynamic_route_v2').then(r => r.json()).catch(() => []);
-            if (Array.isArray(rRes) && rRes.length > 0) setSearchDbRoutes(rRes);
+            const routesData = storageData['tea_hub_dynamic_route_v2'];
+            if (Array.isArray(routesData)) setSearchDbRoutes(routesData);
 
-            const tRes = await fetch('/api/storage?key=tea_hub_dynamic_tests_v1').then(r => r.json()).catch(() => []);
-            if (Array.isArray(tRes) && tRes.length > 0) setSearchDbTests(tRes);
+            const testsData = storageData['tea_hub_dynamic_tests_v1'];
+            if (Array.isArray(testsData)) setSearchDbTests(testsData);
 
-            const aRes = await fetch('/api/storage?key=tea_hub_assortment_matrix_v2').then(r => r.json()).catch(() => []);
-            if (Array.isArray(aRes) && aRes.length > 0) setSearchDbAssortment(aRes);
+            const assortmentData = storageData['tea_hub_assortment_matrix_v2'];
+            if (Array.isArray(assortmentData)) setSearchDbAssortment(assortmentData);
 
         } catch (e) {
             console.error("Ошибка синхронизации Navigation:", e);
         }
     };
 
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        setIsSidebarOpen(false);
+    }
+
+    const handleVisibilityRefresh = () => {
+        if (document.visibilityState === 'visible') {
+            loadServerData();
+        }
+    };
+
+    const handleWindowRefresh = () => {
+        loadServerData();
+    };
+
     loadServerData();
-    const syncInterval = setInterval(loadServerData, 5000);
-    return () => clearInterval(syncInterval);
+    window.addEventListener('focus', handleWindowRefresh);
+    window.addEventListener('storage', handleWindowRefresh);
+    document.addEventListener('visibilitychange', handleVisibilityRefresh);
+
+    return () => {
+        window.removeEventListener('focus', handleWindowRefresh);
+        window.removeEventListener('storage', handleWindowRefresh);
+        document.removeEventListener('visibilitychange', handleVisibilityRefresh);
+    };
   }, []);
 
   const handleLogin = async () => {

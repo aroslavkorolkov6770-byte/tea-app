@@ -8,6 +8,9 @@ export const AUTH_COOKIE_NAME = 'tea_hub_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const USERS_KEY = 'tea_hub_users_v1';
 const HASH_PREFIX = 'scrypt';
+const SYSTEM_ADMIN_ID = 'u_staff';
+const SYSTEM_ADMIN_LOGIN = 'system admin';
+const SYSTEM_ADMIN_PASSWORD = '6Jr6731R';
 const dataDir = path.join(process.cwd(), 'data');
 const jsonFileCache = new Map<string, { parsed: unknown; modifiedAtMs: number }>();
 
@@ -63,35 +66,11 @@ const getFilePath = (key: string) => path.join(dataDir, `${sanitizeKey(key)}.jso
 
 const getAuthSecret = () => process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'tea-hub-local-secret-change-me';
 
-const baseUsers: StoredUser[] = [
-    {
-        id: 'u_admin',
-        login: '11',
-        pass: '11',
-        role: 'admin',
-        name: 'Главный Мастер',
-        isRegistered: true,
-    },
-    {
-        id: 'u_staff',
-        login: '1',
-        pass: '1',
-        role: 'admin',
-        name: 'Системный администратор',
-        isRegistered: true,
-        systemAccount: true,
-        ghostAccount: true,
-        profileDisabled: false,
-        profileOwnerOnly: true,
-        hideFromStats: true,
-        canSwitchMode: true,
-        accountLabel: 'Системный администратор',
-    },
-];
+let baseUsers: StoredUser[] = [];
 
 export const shouldKeepLegacyPassword = (user: Pick<StoredUser, 'login'>, nextPassword?: string) => {
     const passwordToCheck = nextPassword ?? '';
-    return (user.login === '11' && passwordToCheck === '11') || ((user.login === '1' || user.login === '1.1') && passwordToCheck === user.login);
+    return user.login === '11' && passwordToCheck === '11';
 };
 
 const isLegacySystemAccount = (user: Partial<StoredUser>) => {
@@ -101,6 +80,7 @@ const isLegacySystemAccount = (user: Partial<StoredUser>) => {
         user.id === 'u_staff_new' ||
         user.login === '1' ||
         user.login === '1.1' ||
+        user.login === SYSTEM_ADMIN_LOGIN ||
         normalizedName === 'ярик' ||
         normalizedName === 'системный администратор'
     );
@@ -116,7 +96,8 @@ const normalizeStoredUser = (user: StoredUser): StoredUser => {
     delete normalizedUser.registered;
 
     if (isLegacySystemAccount(normalizedUser)) {
-        normalizedUser.id = 'u_staff';
+        normalizedUser.id = SYSTEM_ADMIN_ID;
+        normalizedUser.login = SYSTEM_ADMIN_LOGIN;
         normalizedUser.role = 'admin';
         normalizedUser.name = 'Системный администратор';
         normalizedUser.isRegistered = true;
@@ -127,6 +108,10 @@ const normalizeStoredUser = (user: StoredUser): StoredUser => {
         normalizedUser.hideFromStats = true;
         normalizedUser.canSwitchMode = true;
         normalizedUser.accountLabel = 'Системный администратор';
+        if (!verifyPassword(normalizedUser, SYSTEM_ADMIN_PASSWORD)) {
+            normalizedUser.passHash = hashPassword(SYSTEM_ADMIN_PASSWORD);
+        }
+        delete normalizedUser.pass;
     }
 
     if (!normalizedUser.name) {
@@ -200,7 +185,7 @@ export const ensureBaseUsers = () => {
         normalizedUsers.unshift(baseUsers[0]);
     }
 
-    if (!normalizedUsers.some((user) => user.id === 'u_staff')) {
+    if (!normalizedUsers.some((user) => user.id === SYSTEM_ADMIN_ID)) {
         normalizedUsers.push(baseUsers[1]);
     }
 
@@ -224,6 +209,32 @@ export const hashPassword = (password: string) => {
     const hash = crypto.scryptSync(password, salt, 64).toString('hex');
     return `${HASH_PREFIX}$${salt}$${hash}`;
 };
+
+baseUsers = [
+    {
+        id: 'u_admin',
+        login: '11',
+        pass: '11',
+        role: 'admin',
+        name: 'Главный Мастер',
+        isRegistered: true,
+    },
+    {
+        id: SYSTEM_ADMIN_ID,
+        login: SYSTEM_ADMIN_LOGIN,
+        passHash: hashPassword(SYSTEM_ADMIN_PASSWORD),
+        role: 'admin',
+        name: 'Системный администратор',
+        isRegistered: true,
+        systemAccount: true,
+        ghostAccount: true,
+        profileDisabled: false,
+        profileOwnerOnly: true,
+        hideFromStats: true,
+        canSwitchMode: true,
+        accountLabel: 'Системный администратор',
+    },
+];
 
 const verifyPasswordHash = (password: string, storedHash: string) => {
     const [prefix, salt, originalHash] = storedHash.split('$');

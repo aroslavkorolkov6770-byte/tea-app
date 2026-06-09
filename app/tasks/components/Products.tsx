@@ -13,6 +13,7 @@ import {
 const STORAGE_KEYS = {
     PRODUCTS: "tea_hub_products_v1",
 };
+const PRODUCTS_CACHE_KEY = "tea_hub_products_cache_v1";
 
 const buildProductSearchText = (product: CatalogProduct) =>
     [
@@ -182,14 +183,37 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
     const hitScrollRef = useRef<HTMLDivElement | null>(null);
     const deferredSearchQuery = useDeferredValue(searchQuery);
 
-    const persistProducts = (nextProducts: CatalogProduct[]) => {
+    const persistProducts = async (nextProducts: CatalogProduct[]) => {
         setProducts(nextProducts);
-        saveDataToServer(STORAGE_KEYS.PRODUCTS, nextProducts);
+
+        if (typeof window !== "undefined") {
+            window.localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(nextProducts));
+        }
+
+        try {
+            await saveDataToServer(STORAGE_KEYS.PRODUCTS, nextProducts);
+        } catch (error) {
+            console.error("Ошибка сохранения каталога товаров", error);
+            setErrorModal({
+                show: true,
+                text: "Каталог сохранился только локально в браузере. Повторите действие, когда соединение станет стабильным.",
+            });
+        }
     };
 
     useEffect(() => {
         const loadProducts = async () => {
             try {
+                if (typeof window !== "undefined") {
+                    const cachedProducts = window.localStorage.getItem(PRODUCTS_CACHE_KEY);
+                    if (cachedProducts) {
+                        const parsedCache = JSON.parse(cachedProducts);
+                        if (Array.isArray(parsedCache)) {
+                            setProducts(parsedCache.map((product) => normalizeProduct(product)));
+                        }
+                    }
+                }
+
                 const response = await fetch(`/api/storage?key=${STORAGE_KEYS.PRODUCTS}`, { cache: "no-store" });
                 if (!response.ok) {
                     return;
@@ -197,7 +221,11 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
 
                 const data = await response.json();
                 if (Array.isArray(data)) {
-                    setProducts(data.map((product) => normalizeProduct(product)));
+                    const normalizedProducts = data.map((product) => normalizeProduct(product));
+                    setProducts(normalizedProducts);
+                    if (typeof window !== "undefined") {
+                        window.localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(normalizedProducts));
+                    }
                 }
             } catch (error) {
                 console.error("Ошибка загрузки продуктов", error);
@@ -215,7 +243,7 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
         setIsSectionMenuOpen(window.innerWidth > 768);
     }, []);
 
-    const handleSaveProduct = () => {
+    const handleSaveProduct = async () => {
         if (!productFormData.name.trim()) {
             setErrorModal({ show: true, text: "Введите название товара." });
             return;
@@ -231,27 +259,27 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
             ? products.map((product) => (product.id === productFormData.id ? normalizedProduct : product))
             : [normalizedProduct, ...products];
 
-        persistProducts(nextProducts);
+        await persistProducts(nextProducts);
         setShowProductForm(false);
         setProductFormData(normalizeProduct({}));
     };
 
-    const executeDelete = () => {
+    const executeDelete = async () => {
         const nextProducts = products.filter((product) => product.id !== confirmDelete.id);
-        persistProducts(nextProducts);
+        await persistProducts(nextProducts);
         setConfirmDelete({ isOpen: false, id: "", name: "" });
     };
 
-    const toggleHit = (event: React.MouseEvent, id: string) => {
+    const toggleHit = async (event: React.MouseEvent, id: string) => {
         event.stopPropagation();
         const nextProducts = products.map((product) => (product.id === id ? normalizeProduct({ ...product, isHit: !product.isHit }) : product));
-        persistProducts(nextProducts);
+        await persistProducts(nextProducts);
     };
 
-    const toggleHidden = (event: React.MouseEvent, id: string) => {
+    const toggleHidden = async (event: React.MouseEvent, id: string) => {
         event.stopPropagation();
         const nextProducts = products.map((product) => (product.id === id ? normalizeProduct({ ...product, isHidden: !product.isHidden }) : product));
-        persistProducts(nextProducts);
+        await persistProducts(nextProducts);
     };
 
     const exportToCSV = () => {
@@ -291,7 +319,7 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
             }).map((row) => row.map((cell) => (cell ?? "").toString().trim()));
 
             const importResult = importProductsFromRows(rows, products);
-            persistProducts(importResult.products);
+            await persistProducts(importResult.products);
 
             setSuccessModal({
                 show: true,
@@ -542,7 +570,7 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
                                             }}
                                         >
                                     {isAdmin && (
-                                        <div style={{ position: "absolute", top: "15px", right: "15px", display: "flex", gap: "5px", zIndex: 10 }}>
+                                        <div className="product-card-actions product-card-actions-hit" style={{ position: "absolute", top: "15px", right: "15px", display: "flex", gap: "5px", zIndex: 10, maxWidth: "calc(100% - 30px)", flexWrap: "wrap", justifyContent: "flex-end" }}>
                                             <div onClick={(event) => toggleHit(event, product.id)} className="admin-action-icon" style={{ ...textIconStyle, background: "rgba(0,0,0,0.8)", color: "#ffd700", border: "1px solid #ffd700" } as any} title="Убрать из обязательных">
                                                 <CustomIcon name="flame" size={16} color="#ffd700" />
                                             </div>
@@ -552,15 +580,11 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
                                         </div>
                                     )}
 
-                                    <div className="product-card-body" style={{ flex: "1 1 auto", paddingRight: isAdmin && !isSingle ? "80px" : "0" }}>
-                                        <span className="product-card-badge" style={{ background: "rgba(255,215,0,0.1)", color: "#ffd700", padding: "4px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "bold", width: "fit-content", marginBottom: "12px", display: "inline-block" }}>
-                                            {getCategoryLabel(product)}
-                                        </span>
-                                        <div style={{ fontSize: "12px", color: "#b4a264", lineHeight: 1.45, marginBottom: "12px", minHeight: "34px" }}>{getProductSecondaryLine(product)}</div>
+                                    <div className="product-card-body" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", justifyContent: "space-between", paddingRight: isAdmin && !isSingle ? "96px" : "0", paddingTop: isAdmin ? "8px" : "0", minHeight: "132px" }}>
                                         <h4 className="product-card-title" style={{ fontSize: "18px", margin: 0, fontWeight: "bold", color: "#fff", lineHeight: "1.3" }}>{product.name}</h4>
 
                                         {metaItems.length > 0 && (
-                                            <div className="product-meta-grid" style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "16px" }}>
+                                            <div className="product-meta-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px", marginTop: "16px" }}>
                                                 {metaItems.map((item) => (
                                                     <div key={`${product.id}-${item.label}`} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", padding: "6px 10px" }}>
                                                         <div style={{ fontSize: "10px", color: "#8f8f8f", marginBottom: "2px" }}>{item.label}</div>
@@ -602,7 +626,7 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
                                 return (
                                     <div key={product.id} className="premium-card product-card" onClick={() => setViewProduct(product)} style={{ padding: "25px", opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? "grayscale(100%)" : "none", display: "flex", flexDirection: "column" }}>
                                 {isAdmin && (
-                                    <div style={{ position: "absolute", top: "15px", right: "15px", display: "flex", gap: "5px", zIndex: 10 }}>
+                                    <div className="product-card-actions" style={{ position: "absolute", top: "15px", right: "15px", display: "flex", gap: "5px", zIndex: 10, maxWidth: "calc(100% - 30px)", flexWrap: "wrap", justifyContent: "flex-end" }}>
                                         <div onClick={(event) => toggleHit(event, product.id)} className="admin-action-icon" style={{ ...textIconStyle, color: product.isHit ? "#ffd700" : "#666" } as any} title="В обязательные">
                                             <CustomIcon name={product.isHit ? "flame" : "star"} size={16} color={product.isHit ? "#ffd700" : "#666"} />
                                         </div>
@@ -624,16 +648,12 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
                                     </div>
                                 )}
 
-                                <div className="product-card-body" style={{ paddingRight: isAdmin ? "130px" : "0", marginBottom: "18px", marginTop: isAdmin && product.isHidden ? "25px" : "0" }}>
-                                    <span className="product-card-badge" style={{ background: "rgba(10,186,181,0.1)", color: "#0abab5", padding: "4px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "bold", display: "inline-block", marginBottom: "10px" }}>
-                                        {getCategoryLabel(product)}
-                                    </span>
-                                    <div style={{ fontSize: "12px", color: "#888", lineHeight: 1.45, marginBottom: "12px", minHeight: "34px" }}>{getProductSecondaryLine(product)}</div>
+                                <div className="product-card-body" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", paddingRight: isAdmin ? "156px" : "0", marginBottom: "18px", marginTop: isAdmin && product.isHidden ? "25px" : "0", paddingTop: isAdmin ? "6px" : "0", minHeight: "92px" }}>
                                     <h4 className="product-card-title" style={{ fontSize: "18px", margin: 0, fontWeight: "bold", wordBreak: "break-word", color: "#fff", lineHeight: "1.3" }}>{product.name}</h4>
                                 </div>
 
                                 {metaItems.length > 0 && (
-                                    <div className="product-meta-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px", marginBottom: "18px" }}>
+                                    <div className="product-meta-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px", marginBottom: "18px" }}>
                                         {metaItems.map((item) => (
                                             <div key={`${product.id}-${item.label}`} style={{ background: "#0d0d0d", border: "1px solid #202020", borderRadius: "12px", padding: "9px 10px" }}>
                                                 <div style={{ fontSize: "10px", color: "#777", marginBottom: "4px" }}>{item.label}</div>
@@ -832,11 +852,23 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
                     border-color: #ffd700 !important;
                 }
 
+                .product-card-actions {
+                    align-items: flex-start;
+                }
+
                 .single-hit {
                     flex-direction: row !important;
                     align-items: stretch !important;
                     justify-content: space-between;
                     padding: 30px 40px !important;
+                }
+
+                .product-card-title {
+                    display: -webkit-box;
+                    -webkit-line-clamp: 3;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                    min-height: calc(1.3em * 3);
                 }
 
                 @media (max-width: 768px) {
@@ -854,15 +886,31 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
                     .product-hit-card { border-radius: 16px !important; }
                     .product-card { padding: 14px !important; min-height: 148px !important; }
                     .product-hit-card { padding: 16px !important; min-height: 134px !important; }
-                    .product-card-body { margin-bottom: 14px !important; }
+                    .product-card-body { margin-bottom: 14px !important; min-height: auto !important; }
                     .product-meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
                     .product-card-title { font-size: 16px !important; line-height: 1.25 !important; }
-                    .product-card-badge { font-size: 10px !important; margin-bottom: 8px !important; padding: 4px 8px !important; }
                     .product-card-footer { padding-top: 12px !important; }
                     .product-card-body,
                     .product-card-footer { gap: 10px !important; }
                     .product-card-footer { flex-direction: column !important; align-items: flex-start !important; }
                     .products-sidebar-content { margin-top: 10px !important; }
+                    .product-card-actions,
+                    .product-card-actions-hit {
+                        position: static !important;
+                        max-width: 100% !important;
+                        width: 100% !important;
+                        justify-content: flex-end !important;
+                        margin-bottom: 12px !important;
+                    }
+                    .product-card-body {
+                        padding-right: 0 !important;
+                        padding-top: 0 !important;
+                    }
+                    .admin-action-icon {
+                        min-width: 34px !important;
+                        width: 34px !important;
+                        height: 34px !important;
+                    }
 
                     .single-hit {
                         flex-direction: column !important;
