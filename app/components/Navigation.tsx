@@ -24,6 +24,7 @@ const saveDataToServer = (key: string, data: any) => {
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const isProtectedPath = pathname?.startsWith('/tasks') || pathname?.startsWith('/admin') || pathname?.startsWith('/profile');
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -71,25 +72,59 @@ export default function Navigation() {
   };
 
   useEffect(() => {
+    let isDisposed = false;
+
+    const handleUnauthorizedState = () => {
+        if (isDisposed) {
+            return;
+        }
+
+        setIsLoggedIn(false);
+        setUserRole(null);
+        setSessionUser(null);
+        clearClientAuthState();
+        setNotifications([]);
+
+        if (isProtectedPath) {
+            router.replace('/');
+        }
+    };
+
+    const fetchSessionPayload = async () => {
+        const response = await fetch('/api/auth/session', { cache: 'no-store' });
+
+        if (response.status === 401) {
+            return { unauthorized: true as const, payload: null };
+        }
+
+        if (!response.ok) {
+            return { unauthorized: false as const, payload: null };
+        }
+
+        const payload = await response.json().catch(() => null);
+        return { unauthorized: false as const, payload };
+    };
+
     const loadServerData = async () => {
         try {
-            const sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
+            let sessionResult = await fetchSessionPayload();
 
-            if (sessionResponse.status === 401) {
-                setIsLoggedIn(false);
-                setUserRole(null);
-                setSessionUser(null);
-                clearClientAuthState();
-                setNotifications([]);
+            if (sessionResult.unauthorized) {
+                await new Promise((resolve) => setTimeout(resolve, 250));
+                sessionResult = await fetchSessionPayload();
+            }
+
+            if (sessionResult.unauthorized) {
+                handleUnauthorizedState();
                 return;
             }
 
-            if (!sessionResponse.ok) {
-                console.warn('Навигация пропустила временную ошибку сессии:', sessionResponse.status);
+            if (!sessionResult.payload) {
+                console.warn('Навигация пропустила временную ошибку сессии.');
                 return;
             }
 
-            const sessionData = await sessionResponse.json().catch(() => null);
+            const sessionData = sessionResult.payload;
             const sessionUser = sessionData?.user;
 
             if (sessionData?.authenticated && sessionUser) {
@@ -112,6 +147,9 @@ export default function Navigation() {
                 setCurrentViewMode(getClientViewMode(normalizedUser));
                 setUserRole(getClientViewMode(normalizedUser));
             } else {
+                if (isProtectedPath) {
+                    router.replace('/');
+                }
                 return;
             }
 
@@ -163,11 +201,12 @@ export default function Navigation() {
     document.addEventListener('visibilitychange', handleVisibilityRefresh);
 
     return () => {
+        isDisposed = true;
         window.removeEventListener('focus', handleWindowRefresh);
         window.removeEventListener('storage', handleWindowRefresh);
         document.removeEventListener('visibilitychange', handleVisibilityRefresh);
     };
-  }, []);
+  }, [isProtectedPath, router]);
 
   const handleLogin = async () => {
     if (failedAttempts >= 3 && !isCaptchaVerified) {

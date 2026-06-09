@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { isClientAdminView } from '@/app/lib/authClient';
+import { clearClientAuthState, isClientAdminView } from '@/app/lib/authClient';
 
 // --- ИМПОРТ НАШИХ МОДУЛЕЙ ---
 import Education from './components/Education';
@@ -26,6 +26,7 @@ function ShiftContent() {
   const router = useRouter(); 
   
   const [isMounted, setIsMounted] = useState(false);
+  const [isSessionValidated, setIsSessionValidated] = useState(false);
   const [activeTab, setActiveTab] = useState('welcome');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
@@ -183,36 +184,90 @@ function ShiftContent() {
 
   useEffect(() => {
     setIsMounted(true);
-    const currentId = localStorage.getItem('current_user_id') || 'guest';
-    setIsAdmin(isClientAdminView());
-    setUserId(currentId);
+    let isDisposed = false;
 
-    if (typeof window !== 'undefined') {
-        if (!('Notification' in window)) setPushStatus('unsupported');
-        else setPushStatus(Notification.permission as any);
-        setIsPushBound(localStorage.getItem('tea_hub_push_bound') === 'true');
-    }
+    const verifyProtectedSession = async () => {
+        try {
+            let sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
 
-    loadAllData(currentId, true);
+            if (sessionResponse.status === 401) {
+                await new Promise((resolve) => setTimeout(resolve, 250));
+                sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
+            }
 
-    const urlTab = searchParams.get('tab');
-    if (urlTab) setActiveTab(urlTab);
+            if (sessionResponse.status === 401) {
+                clearClientAuthState();
+                if (!isDisposed) {
+                    setIsSessionValidated(false);
+                    router.replace('/');
+                }
+                return false;
+            }
+
+            if (!sessionResponse.ok) {
+                return null;
+            }
+
+            const currentId = localStorage.getItem('current_user_id') || 'guest';
+            if (!isDisposed) {
+                setIsAdmin(isClientAdminView());
+                setUserId(currentId);
+                setIsSessionValidated(true);
+            }
+
+            if (typeof window !== 'undefined' && !isDisposed) {
+                if (!('Notification' in window)) setPushStatus('unsupported');
+                else setPushStatus(Notification.permission as any);
+                setIsPushBound(localStorage.getItem('tea_hub_push_bound') === 'true');
+            }
+
+            return currentId;
+        } catch (error) {
+            console.error('Ошибка проверки защищенной сессии:', error);
+            return null;
+        }
+    };
+
+    const bootPage = async () => {
+        const currentId = await verifyProtectedSession();
+        if (!currentId) {
+            return;
+        }
+
+        await loadAllData(currentId, true);
+
+        const urlTab = searchParams.get('tab');
+        if (urlTab && !isDisposed) setActiveTab(urlTab);
+    };
+
+    bootPage();
 
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
     window.addEventListener('sidebarToggle', handleToggle);
-    const syncInterval = setInterval(() => {
-        if (activeTab !== 'products') {
+
+    const syncInterval = setInterval(async () => {
+        if (activeTab === 'products') {
+            return;
+        }
+        const currentId = await verifyProtectedSession();
+        if (currentId) {
             loadAllData(currentId, false);
         }
     }, activeTab === 'products' ? 15000 : 7000);
-    const focusHandler = () => {
-        if (activeTab !== 'products') {
+
+    const focusHandler = async () => {
+        if (activeTab === 'products') {
+            return;
+        }
+        const currentId = await verifyProtectedSession();
+        if (currentId) {
             loadAllData(currentId, false);
         }
     };
     window.addEventListener('focus', focusHandler);
 
     return () => {
+        isDisposed = true;
         window.removeEventListener('sidebarToggle', handleToggle);
         clearInterval(syncInterval);
         window.removeEventListener('focus', focusHandler);
@@ -272,7 +327,7 @@ function ShiftContent() {
       }
   };
 
-  if (!isMounted) return null;
+  if (!isMounted || !isSessionValidated) return null;
 
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
   const testsPercent = Math.round((completedTests.length / (Math.max(dynamicTests.length, 1))) * 100);
