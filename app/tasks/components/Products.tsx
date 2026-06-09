@@ -51,6 +51,25 @@ type PreparedCatalogProduct = CatalogProduct & {
     pathSegments: string[];
 };
 
+declare global {
+    interface Window {
+        XLSX?: {
+            read: (data: ArrayBuffer, options: { type: string; dense: boolean }) => {
+                SheetNames: string[];
+                Sheets: Record<string, unknown>;
+            };
+            utils: {
+                sheet_to_json: <T>(sheet: unknown, options: {
+                    header: number;
+                    raw: boolean;
+                    defval: string;
+                    blankrows: boolean;
+                }) => T[];
+            };
+        };
+    }
+}
+
 const getProductPathSegments = (product: CatalogProduct) => {
     const parsedGroup = parseGroupPath(product.groupPath);
     return [parsedGroup.category, ...parsedGroup.subcategory.split(" / ")].map((segment) => segment.trim()).filter(Boolean);
@@ -61,6 +80,39 @@ const prepareProduct = (product: CatalogProduct): PreparedCatalogProduct => ({
     searchText: buildProductSearchText(product),
     pathSegments: getProductPathSegments(product),
 });
+
+const loadBrowserXlsx = async () => {
+    if (typeof window === "undefined") {
+        throw new Error("XLSX недоступен вне браузера.");
+    }
+
+    if (window.XLSX) {
+        return window.XLSX;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+        const existingScript = document.querySelector<HTMLScriptElement>('script[data-xlsx-loader="true"]');
+        if (existingScript) {
+            existingScript.addEventListener("load", () => resolve(), { once: true });
+            existingScript.addEventListener("error", () => reject(new Error("Не удалось загрузить XLSX.")), { once: true });
+            return;
+        }
+
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+        script.async = true;
+        script.dataset.xlsxLoader = "true";
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Не удалось загрузить XLSX."));
+        document.head.appendChild(script);
+    });
+
+    if (!window.XLSX) {
+        throw new Error("XLSX не инициализировался после загрузки.");
+    }
+
+    return window.XLSX;
+};
 
 const insertTreeNode = (nodes: ProductTreeNode[], path: string[], depth = 0): ProductTreeNode[] => {
     if (depth >= path.length) {
@@ -221,7 +273,7 @@ export default function Products({ isAdmin }: { isAdmin: boolean; userId: string
         }
 
         try {
-            const XLSX = await import("xlsx");
+            const XLSX = await loadBrowserXlsx();
             const buffer = await file.arrayBuffer();
             const workbook = XLSX.read(buffer, { type: "array", dense: true });
             const firstSheetName = workbook.SheetNames[0];
