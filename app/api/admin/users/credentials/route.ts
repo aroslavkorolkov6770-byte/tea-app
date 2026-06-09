@@ -21,6 +21,11 @@ export async function PUT(request: Request) {
         }
 
         const users = getStoredUsers();
+        const targetUser = users.find((user) => user.id === userId);
+
+        if (targetUser?.systemAccount && session.id !== userId) {
+            return NextResponse.json({ error: 'Доступ к системному аккаунту закрыт' }, { status: 403 });
+        }
 
         if (users.some((user) => user.login === login && user.id !== userId)) {
             return NextResponse.json({ error: 'Логин уже занят другим пользователем' }, { status: 409 });

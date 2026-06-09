@@ -2,6 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import CustomIcon from '@/app/components/CustomIcon';
+import { isClientAdminView } from '@/app/lib/authClient';
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
@@ -130,8 +131,7 @@ function ProductsContent() {
   };
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole');
-    setIsAdmin(localStorage.getItem('isLoggedIn') === 'true' && role === 'admin');
+    setIsAdmin(localStorage.getItem('isLoggedIn') === 'true' && isClientAdminView());
     
     // Первичная загрузка
     loadAllData();

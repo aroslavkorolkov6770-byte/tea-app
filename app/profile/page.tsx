@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { useRouter } from 'next/navigation';
-import { applyClientAuthState, clearClientAuthState } from '@/app/lib/authClient';
+import { applyClientAuthState, clearClientAuthState, getClientLandingPath, type ClientSessionUser } from '@/app/lib/authClient';
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
@@ -68,12 +68,25 @@ function ProfileContent() {
                     return;
                 }
 
-                applyClientAuthState({
+                const normalizedUser = {
                     id: sessionUser.id,
                     login: sessionUser.login,
                     role: sessionUser.role,
                     name: sessionUser.name || (sessionUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
-                });
+                    systemAccount: Boolean(sessionUser.systemAccount),
+                    ghostAccount: Boolean(sessionUser.ghostAccount),
+                    profileDisabled: Boolean(sessionUser.profileDisabled),
+                    profileOwnerOnly: Boolean(sessionUser.profileOwnerOnly),
+                    hideFromStats: Boolean(sessionUser.hideFromStats),
+                    canSwitchMode: Boolean(sessionUser.canSwitchMode),
+                    accountLabel: sessionUser.accountLabel || '',
+                } satisfies ClientSessionUser;
+                applyClientAuthState(normalizedUser);
+
+                if (normalizedUser.profileDisabled && !normalizedUser.profileOwnerOnly) {
+                    router.replace(getClientLandingPath(normalizedUser));
+                    return;
+                }
 
                 const role = sessionUser.role || 'staff';
                 const currentId = sessionUser.id || 'guest';
@@ -387,7 +400,7 @@ function ProfileContent() {
                         <div className="profile-notification-actions" style={{ display: 'grid', gap: '12px' }}>
                             <button 
                                 onClick={handleSubscribeToPush} 
-                                className="profile-push-primary"
+                                className="profile-push-primary hover-unified-app"
                                 style={{
                                     width: '100%',
                                     padding: '20px',
@@ -407,7 +420,7 @@ function ProfileContent() {
 
                             <button 
                                 onClick={() => setIsHelpModalOpen(true)} 
-                                className="profile-push-secondary"
+                                className="profile-push-secondary hover-unified-app"
                                 style={notificationHelpBtnStyle as any}
                             >
                                 ОТКРЫТЬ ИНСТРУКЦИЮ ПО НАСТРОЙКЕ
@@ -427,15 +440,15 @@ function ProfileContent() {
                                 <div className="profile-avatar-upload-row" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                                     <input type="file" id="avatar-upload" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
                                     <input value={profile.avatar} onChange={e => setProfile({...profile, avatar: e.target.value})} placeholder="Ссылка на фото (URL)" style={{ ...inputItemStyle, flex: 1, minWidth: '220px', marginBottom: 0 }} />
-                                    <button onClick={() => document.getElementById('avatar-upload')?.click()} className="profile-avatar-upload-btn" style={{ background: '#222', color: '#0abab5', border: '1px solid #333', padding: '0 20px', height: '58px', borderRadius: '18px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>ЗАГРУЗИТЬ</button>
+                                    <button onClick={() => document.getElementById('avatar-upload')?.click()} className="profile-avatar-upload-btn hover-unified-app" style={{ background: '#222', color: '#0abab5', border: '1px solid #333', padding: '0 20px', height: '58px', borderRadius: '18px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>ЗАГРУЗИТЬ</button>
                                 </div>
 
                                 <input value={profile.tg} onChange={e => setProfile({...profile, tg: e.target.value})} placeholder="Telegram (напр. @nik_name)" style={inputItemStyle} />
                                 <input value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} placeholder="E-mail адрес" style={inputItemStyle} />
                                 <input value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} placeholder="Номер телефона" style={inputItemStyle} />
                             </div>
-                            <button onClick={handleSaveProfile} style={saveButtonStyle}>СОХРАНИТЬ ИЗМЕНЕНИЯ</button>
-                            <div onClick={() => setIsEditing(false)} style={cancelButtonStyle}>ОТМЕНА</div>
+                            <button className="hover-unified-app" onClick={handleSaveProfile} style={saveButtonStyle}>СОХРАНИТЬ ИЗМЕНЕНИЯ</button>
+                            <div className="hover-link-unified-app" onClick={() => setIsEditing(false)} style={cancelButtonStyle}>ОТМЕНА</div>
                         </div>
                     </div>
                 )}
@@ -456,8 +469,8 @@ function ProfileContent() {
                                     <input type="text" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Введите новый пароль" style={inputItemStyle} />
                                 </div>
                             </div>
-                            <button onClick={handleChangeAuth} style={saveButtonStyle}>СОХРАНИТЬ ПАРОЛЬ</button>
-                            <div onClick={() => setIsAuthModalOpen(false)} style={cancelButtonStyle}>ОТМЕНА</div>
+                            <button className="hover-unified-app" onClick={handleChangeAuth} style={saveButtonStyle}>СОХРАНИТЬ ПАРОЛЬ</button>
+                            <div className="hover-link-unified-app" onClick={() => setIsAuthModalOpen(false)} style={cancelButtonStyle}>ОТМЕНА</div>
                         </div>
                     </div>
                 )}
@@ -469,7 +482,7 @@ function ProfileContent() {
                             
                             <div className="notification-help-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', gap: '14px' }}>
                                 <h2 style={{ margin: 0, fontWeight: '900', color: '#fff', fontSize: '24px' }}>НАСТРОЙКА УВЕДОМЛЕНИЙ</h2>
-                                <div onClick={() => setIsHelpModalOpen(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>X</div>
+                                <div className="hover-unified-app" onClick={() => setIsHelpModalOpen(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>X</div>
                             </div>
 
                             <div className="notification-help-tabs" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: '#000', borderRadius: '15px', padding: '4px', marginBottom: '30px', border: '1px solid #222' }}>
@@ -515,7 +528,7 @@ function ProfileContent() {
                                 </div>
                             )}
 
-                            <button onClick={() => setIsHelpModalOpen(false)} style={{ ...saveButtonStyle, marginTop: '35px' } as any}>ПОНЯТНО, ЗАКРЫТЬ</button>
+                            <button className="hover-unified-app" onClick={() => setIsHelpModalOpen(false)} style={{ ...saveButtonStyle, marginTop: '35px' } as any}>ПОНЯТНО, ЗАКРЫТЬ</button>
                         </div>
                     </div>
                 )}

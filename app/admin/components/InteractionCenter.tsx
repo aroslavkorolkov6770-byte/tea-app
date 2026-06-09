@@ -6,7 +6,7 @@ export default function InteractionCenter({
     users, interactionTab, setInteractionTab, selectedStaff, setSelectedStaff,
     notifText, setNotifText, testType, setTestType, handleSendNotification,
     handleOpenTestEditor, handleQuickSendTest, isProcessing,
-    testTypesList, handleUpdateTestTypes
+    testTypesList, handleUpdateTestTypes, allowSelfSystemTarget, selfSystemTargetId
 }: any) {
     const [isManagingTypes, setIsManagingTypes] = useState(false);
     const [newTypeName, setNewTypeName] = useState('');
@@ -23,6 +23,7 @@ export default function InteractionCenter({
                     <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Получатель:</div>
                     <select style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}>
                         <option value="Все">Всем сотрудникам</option>
+                        {allowSelfSystemTarget && <option value={selfSystemTargetId}>Себе (системный администратор)</option>}
                         {users.filter((u: any) => u.role === 'staff').map((u: any) => (
                             <option key={u.id} value={u.id}>{u.name} ({u.login})</option>
                         ))}
@@ -33,7 +34,7 @@ export default function InteractionCenter({
                     <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                         <div className="interaction-center-label" style={{ width: '150px', fontSize: '12px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Текст:</div>
                         <input type="text" style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} placeholder="Введите текст сообщения..." value={notifText} onChange={(e) => setNotifText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendNotification()} disabled={isProcessing} />
-                        <button onClick={handleSendNotification} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1 } as any}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
+                        <button className="hover-unified-app" onClick={handleSendNotification} disabled={isProcessing} style={{ ...adminSendBtn, width: 'auto', padding: '14px 25px', fontSize: '13px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1 } as any}>{isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}</button>
                     </div>
                 ) : (
                     <div className="interaction-center-row" style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -44,16 +45,16 @@ export default function InteractionCenter({
                                 <select style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} value={testType} onChange={(e) => setTestType(e.target.value)}>
                                     {testTypesList.map((t: any) => <option key={t.id} value={t.name}>{t.name}</option>)}
                                 </select>
-                                <button onClick={() => setIsManagingTypes(true)} style={{ ...adminActionBtn, padding: '0 15px', borderRadius: '15px', background: 'rgba(10,186,181,0.1)', color: '#0abab5' } as any}>
+                                <button className="hover-unified-app" onClick={() => setIsManagingTypes(true)} style={{ ...adminActionBtn, padding: '0 15px', borderRadius: '15px', background: 'rgba(10,186,181,0.1)', color: '#0abab5' } as any}>
                                      Список тестов
                                 </button>
                             </div>
 
                             <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                                <button onClick={handleOpenTestEditor} disabled={isProcessing} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' } as any}>
+                                <button className="hover-unified-app" onClick={handleOpenTestEditor} disabled={isProcessing} style={{ ...adminActionBtn, padding: '14px 20px', borderRadius: '15px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' } as any}>
                                     РЕДАКТОР
                                 </button>
-                                <button onClick={handleQuickSendTest} disabled={isProcessing} style={{ ...adminSendBtn, padding: '14px 25px', fontSize: '13px', borderRadius: '15px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1, flex: 1 } as any}>
+                                <button className="hover-unified-app" onClick={handleQuickSendTest} disabled={isProcessing} style={{ ...adminSendBtn, padding: '14px 25px', fontSize: '13px', borderRadius: '15px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1, flex: 1 } as any}>
                                     {isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}
                                 </button>
                             </div>

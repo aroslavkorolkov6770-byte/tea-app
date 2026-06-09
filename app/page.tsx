@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
 import { useRouter } from 'next/navigation';
+import { getClientLandingPath, getClientViewMode } from '@/app/lib/authClient';
 
 // --- ХЕЛПЕР ДЛЯ ЧТЕНИЯ COOKIES ---
 const getAppCookie = (name: string) => {
@@ -45,11 +46,7 @@ export default function Home() {
         const role = cookieRole || localRole || sessionRole;
 
         if (isLoggedIn) {
-            if (role === 'admin') {
-                router.push('/admin');
-            } else {
-                router.push('/tasks?tab=welcome');
-            }
+            router.push(getClientLandingPath({ role: getClientViewMode({ role: role === 'admin' ? 'admin' : 'staff' }) }));
         }
     } catch (error) {
         console.error('Ошибка проверки авторизации на главной странице:', error);
@@ -77,7 +74,20 @@ export default function Home() {
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Navigation />
 
-        <main className="home-main" style={{ maxWidth: '1200px', margin: '0 auto', padding: '160px 20px 80px 20px', flex: 1 }}>
+        <main
+          className="home-main"
+          data-signature-art={`
+================================================================
+|| ПППППП       А       й       й      Л       ОООООО  ТТТТТТТ||
+|| П    П      А А      й     ййй     Л Л      О    О     Т   ||
+|| П    П     А   A     й  ййй  й    Л   Л     О    О     Т   ||
+|| П    П    ААААААА    ййй     й   Л     Л    О    О     Т   ||
+|| П    П   А       А   й       й  Л       Л   ОООООО     Т   ||
+================================================================
+          `}
+          data-made-by="Made by 616 Team, developers Kotolevcki and ksaexx"
+          style={{ maxWidth: '1200px', margin: '0 auto', padding: '160px 20px 80px 20px', flex: 1 }}
+        >
           <section style={{ textAlign: 'center', marginBottom: '100px', animation: 'fadeInUp 1s ease' }}>
             <div className="home-badge" style={badgeStyle}>Мастер Платформа</div>
             <h1 style={heroTitleStyle}>TEA <span style={{ color: '#0ABAB5' }}>HUB</span></h1>
@@ -93,7 +103,7 @@ export default function Home() {
                   { title: 'Система тестирования', desc: 'В любой момент можно проверить свои знания.' },
                   { title: 'Будьте всегда в курсе', desc: 'Получайте уведомления о новых изменениях.' }
               ].map((box, i) => (
-                  <div key={i} style={infoBoxStyle}>
+                  <div key={i} className="hover-unified-app" style={infoBoxStyle}>
                       <h3 style={{ fontSize: '22px', fontWeight: '800', margin: '0 0 10px 0', color: '#fff' }}>{box.title}</h3>
                       <p style={{ color: '#ccc', lineHeight: '1.6', fontSize: '15px', margin: 0 }}>{box.desc}</p>
                   </div>

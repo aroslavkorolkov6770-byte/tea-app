@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import CustomIcon from '@/app/components/CustomIcon';
-import { applyClientAuthState } from '@/app/lib/authClient';
+import { applyClientAuthState, getClientLandingPath, type ClientSessionUser } from '@/app/lib/authClient';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,19 +49,21 @@ export default function LoginPage() {
                 return;
             }
 
-            applyClientAuthState({
+            const normalizedUser = {
                 id: sessionUser.id,
                 login: sessionUser.login,
                 role: sessionUser.role,
                 name: sessionUser.name || (sessionUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
-            });
-
-            if (sessionUser.role === 'admin') {
-                router.push('/admin');
-                return;
-            }
-
-            router.push('/tasks?tab=welcome');
+                systemAccount: Boolean(sessionUser.systemAccount),
+                ghostAccount: Boolean(sessionUser.ghostAccount),
+                profileDisabled: Boolean(sessionUser.profileDisabled),
+                profileOwnerOnly: Boolean(sessionUser.profileOwnerOnly),
+                hideFromStats: Boolean(sessionUser.hideFromStats),
+                canSwitchMode: Boolean(sessionUser.canSwitchMode),
+                accountLabel: sessionUser.accountLabel || '',
+            } satisfies ClientSessionUser;
+            applyClientAuthState(normalizedUser);
+            router.push(getClientLandingPath(normalizedUser));
         } catch (error) {
             console.error('Ошибка проверки активной сессии:', error);
         }
@@ -81,15 +83,21 @@ export default function LoginPage() {
   };
 
   const processAuth = (user: any, nameToSave: string) => {
-      applyClientAuthState({
+      const normalizedUser = {
           id: user.id,
           login: user.login,
           role: user.role,
           name: nameToSave,
-      });
-
-      if (user.role === 'admin') router.push('/admin');
-      else router.push('/tasks?tab=welcome');
+          systemAccount: Boolean(user.systemAccount),
+          ghostAccount: Boolean(user.ghostAccount),
+          profileDisabled: Boolean(user.profileDisabled),
+          profileOwnerOnly: Boolean(user.profileOwnerOnly),
+          hideFromStats: Boolean(user.hideFromStats),
+          canSwitchMode: Boolean(user.canSwitchMode),
+          accountLabel: user.accountLabel || '',
+      } satisfies ClientSessionUser;
+      applyClientAuthState(normalizedUser);
+      router.push(getClientLandingPath(normalizedUser));
   };
 
   const handleLogin = async () => {
@@ -204,7 +212,7 @@ export default function LoginPage() {
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url("https://u.9111s.ru/uploads/202402/17/a0254a12ef37da5aaf5c5646a30baab8.webp")', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: -2, backgroundColor: '#000' }} />
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: -1 }} />
 
-      <Link href="/" style={{ position: 'absolute', top: '30px', left: '40px', color: '#0abab5', textDecoration: 'none', fontWeight: '900', fontSize: '14px', letterSpacing: '1px' }}>
+      <Link href="/" className="hover-link-auth" style={{ position: 'absolute', top: '30px', left: '40px', color: '#0abab5', textDecoration: 'none', fontWeight: '900', fontSize: '14px', letterSpacing: '1px' }}>
           ← НА ГЛАВНУЮ
       </Link>
 
@@ -227,7 +235,7 @@ export default function LoginPage() {
             <input type="text" placeholder="Ваше Имя (для профиля)" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
         )}
         
-        <input type="text" placeholder="Логин (выданный администратором)" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
+        <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
         <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
         
         {!isLoginMode && (
@@ -239,6 +247,7 @@ export default function LoginPage() {
                 {/* НОВОЕ: Блок с галочкой согласия */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '5px', marginBottom: '20px' }}>
                     <div 
+                        className="hover-unified-auth"
                         onClick={() => setIsConsentGiven(!isConsentGiven)}
                         style={{ 
                             width: '24px', height: '24px', flexShrink: 0, 
@@ -282,9 +291,9 @@ export default function LoginPage() {
         )}
         
         {isLoginMode ? (
-            <button onClick={handleLogin} style={modalLoginBtn as any}>ВОЙТИ</button>
+            <button className="hover-unified-auth" onClick={handleLogin} style={modalLoginBtn as any}>ВОЙТИ</button>
         ) : (
-            <button onClick={handleRegister} style={modalLoginBtn as any}>ЗАРЕГИСТРИРОВАТЬСЯ</button>
+            <button className="hover-unified-auth" onClick={handleRegister} style={modalLoginBtn as any}>ЗАРЕГИСТРИРОВАТЬСЯ</button>
         )}
         
         <div style={{ textAlign: 'center', marginTop: '25px' }}>
@@ -314,7 +323,7 @@ export default function LoginPage() {
                   <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                   <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
                   <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{errorMessage}</p>
-                  <div onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ПОНЯТНО</div>
+                  <div className="hover-unified-auth" onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ПОНЯТНО</div>
               </div>
           </div>
       )}
@@ -341,6 +350,33 @@ export default function LoginPage() {
           width: 18px; height: 18px; border: 3px solid #333;
           border-top-color: #0abab5; border-radius: 50%;
           animation: captchaSpin 1s linear infinite;
+        }
+
+        .hover-unified-auth {
+          transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+        }
+
+        .hover-unified-auth:hover {
+          transform: translateY(1px) scale(0.985);
+          border-color: rgba(10, 186, 181, 0.45) !important;
+          background: rgba(10, 186, 181, 0.14) !important;
+          color: #fff !important;
+          box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.24);
+        }
+
+        .hover-unified-auth:active {
+          transform: translateY(2px) scale(0.97);
+          box-shadow: inset 0 3px 8px rgba(0,0,0,0.24);
+        }
+
+        .hover-link-auth {
+          transition: transform 0.16s ease, color 0.16s ease, text-shadow 0.16s ease;
+        }
+
+        .hover-link-auth:hover {
+          transform: translateY(1px) scale(0.985);
+          color: #fff !important;
+          text-shadow: 0 0 10px rgba(10, 186, 181, 0.18);
         }
 
         @media (max-width: 768px) {

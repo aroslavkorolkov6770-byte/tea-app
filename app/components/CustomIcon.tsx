@@ -28,6 +28,7 @@ type CustomIconName =
   | 'book'
   | 'lantern'
   | 'chat'
+  | 'gear'
   | 'day'
   | 'check'
   | 'x'
@@ -226,6 +227,12 @@ export default function CustomIcon({
     chat: (
       <svg {...common}>
         <path d="M4 5.5C4 4.7 4.7 4 5.5 4H18.5C19.3 4 20 4.7 20 5.5V14.5C20 15.3 19.3 16 18.5 16H10L5.5 20V16H5.5C4.7 16 4 15.3 4 14.5V5.5Z" fill="rgba(10,186,181,0.1)" {...strokeProps} />
+      </svg>
+    ),
+    gear: (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="3.2" fill="rgba(10,186,181,0.14)" {...strokeProps} />
+        <path d="M12 2.8V5.1M12 18.9V21.2M21.2 12H18.9M5.1 12H2.8M18.5 5.5L16.8 7.2M7.2 16.8L5.5 18.5M18.5 18.5L16.8 16.8M7.2 7.2L5.5 5.5" {...strokeProps} />
       </svg>
     ),
     day: (

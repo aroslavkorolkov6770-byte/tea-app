@@ -21,6 +21,7 @@ export default function UserProfileModal({
     editAuthPass, setEditAuthPass, handleSaveUserAuth
 }: any) {
     if (!selectedProfileUser) return null;
+    if (selectedProfileUser.systemAccount || selectedProfileUser.ghostAccount) return null;
 
     const pData = userProfiles[selectedProfileUser.id] || {};
     const routeLen = usersStats[selectedProfileUser.id]?.route || 0;

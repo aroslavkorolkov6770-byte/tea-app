@@ -5,7 +5,7 @@ import { flexSpace, sectionTitle, adminCard, profileBtnStyle, barStyle } from '.
 export default function StatisticsPanel({
     users, usersStats, totalRouteSteps, totalBasicsModules, userAvatars, setSelectedProfileUser
 }: any) {
-    const staffUsers = users.filter((u: any) => u.role === 'staff');
+    const staffUsers = users.filter((u: any) => u.role === 'staff' && !u.hideFromStats && !u.profileDisabled);
 
     return (
         <section style={{...adminCard, padding: '35px'} as any}>

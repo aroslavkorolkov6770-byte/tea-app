@@ -43,6 +43,7 @@ const AUTH_WRITE_KEYS = new Set([
 const isOwnKey = (key: string, prefix: string, userId: string) => key === `${prefix}${userId}`;
 const isFileDataKey = (key: string) => key.startsWith('file_data_');
 const isAiHistoryKey = (key: string) => key.startsWith('th_ai_history_');
+const isSystemAdminProfileKey = (key: string) => key === 'profile_data_u_staff';
 
 const getNotificationsForUser = (allNotifications: any[], userId: string) => {
     return allNotifications.filter((item: any) => item.target === 'Все' || item.target === userId || !item.target);
@@ -70,6 +71,10 @@ const mergePushSubscriptionsForUser = (existingSubscriptions: any[], nextSubscri
 
 const canReadKey = async (key: string, session: Awaited<ReturnType<typeof getSessionFromCookies>>) => {
     if (!session) {
+        return false;
+    }
+
+    if (isSystemAdminProfileKey(key) && session.id !== 'u_staff') {
         return false;
     }
 
@@ -109,6 +114,10 @@ const canReadKey = async (key: string, session: Awaited<ReturnType<typeof getSes
 
 const canWriteKey = async (key: string, session: Awaited<ReturnType<typeof getSessionFromCookies>>) => {
     if (!session) {
+        return false;
+    }
+
+    if (isSystemAdminProfileKey(key) && session.id !== 'u_staff') {
         return false;
     }
 

@@ -3,7 +3,14 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
-import { applyClientAuthState, clearClientAuthState } from '@/app/lib/authClient';
+import {
+  applyClientAuthState,
+  clearClientAuthState,
+  getClientLandingPath,
+  getClientViewMode,
+  setClientViewMode,
+  type ClientSessionUser,
+} from '@/app/lib/authClient';
 
 const saveDataToServer = (key: string, data: any) => {
     fetch('/api/storage', {
@@ -19,6 +26,8 @@ export default function Navigation() {
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [sessionUser, setSessionUser] = useState<ClientSessionUser | null>(null);
+  const [currentViewMode, setCurrentViewMode] = useState<'admin' | 'staff'>('staff');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -72,17 +81,28 @@ export default function Navigation() {
             const sessionUser = sessionData?.user;
 
             if (sessionData?.authenticated && sessionUser) {
-                applyClientAuthState({
+                const normalizedUser = {
                     id: sessionUser.id,
                     login: sessionUser.login,
                     role: sessionUser.role,
                     name: sessionUser.name || (sessionUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
-                });
+                    systemAccount: Boolean(sessionUser.systemAccount),
+                    ghostAccount: Boolean(sessionUser.ghostAccount),
+                    profileDisabled: Boolean(sessionUser.profileDisabled),
+                    profileOwnerOnly: Boolean(sessionUser.profileOwnerOnly),
+                    hideFromStats: Boolean(sessionUser.hideFromStats),
+                    canSwitchMode: Boolean(sessionUser.canSwitchMode),
+                    accountLabel: sessionUser.accountLabel || '',
+                } satisfies ClientSessionUser;
+                applyClientAuthState(normalizedUser);
                 setIsLoggedIn(true);
-                setUserRole(sessionUser.role);
+                setSessionUser(normalizedUser);
+                setCurrentViewMode(getClientViewMode(normalizedUser));
+                setUserRole(getClientViewMode(normalizedUser));
             } else {
                 setIsLoggedIn(false);
                 setUserRole(null);
+                setSessionUser(null);
                 clearClientAuthState();
                 setNotifications([]);
                 return;
@@ -143,20 +163,29 @@ export default function Navigation() {
             return;
         }
 
-        applyClientAuthState({
+        const normalizedUser = {
             id: result.user.id,
             login: result.user.login,
             role: result.user.role,
             name: result.user.name || (result.user.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
-        });
+            systemAccount: Boolean(result.user.systemAccount),
+            ghostAccount: Boolean(result.user.ghostAccount),
+            profileDisabled: Boolean(result.user.profileDisabled),
+            profileOwnerOnly: Boolean(result.user.profileOwnerOnly),
+            hideFromStats: Boolean(result.user.hideFromStats),
+            canSwitchMode: Boolean(result.user.canSwitchMode),
+            accountLabel: result.user.accountLabel || '',
+        } satisfies ClientSessionUser;
+        applyClientAuthState(normalizedUser);
         setFailedAttempts(0);
         setIsCaptchaVerified(false);
         setIsLoggedIn(true);
-        setUserRole(result.user.role);
+        setSessionUser(normalizedUser);
+        setCurrentViewMode(getClientViewMode(normalizedUser));
+        setUserRole(getClientViewMode(normalizedUser));
         setShowLoginModal(false);
-        
-        if (result.user.role === 'admin') router.push('/admin');
-        else router.push('/tasks?tab=welcome');
+
+        router.push(getClientLandingPath(normalizedUser));
     } catch (error) {
         console.error("Ошибка связи с сервером:", error);
         setErrorMessage("Не удалось подключиться к базе данных.");
@@ -205,17 +234,26 @@ export default function Navigation() {
               return;
           }
 
-          applyClientAuthState({
+          const normalizedUser = {
               id: result.user.id,
               login: result.user.login,
               role: result.user.role,
               name: regName.trim(),
-          });
+              systemAccount: Boolean(result.user.systemAccount),
+              ghostAccount: Boolean(result.user.ghostAccount),
+              profileDisabled: Boolean(result.user.profileDisabled),
+              profileOwnerOnly: Boolean(result.user.profileOwnerOnly),
+              hideFromStats: Boolean(result.user.hideFromStats),
+              canSwitchMode: Boolean(result.user.canSwitchMode),
+              accountLabel: result.user.accountLabel || '',
+          } satisfies ClientSessionUser;
+          applyClientAuthState(normalizedUser);
           setIsLoggedIn(true);
-          setUserRole(result.user.role);
+          setSessionUser(normalizedUser);
+          setCurrentViewMode(getClientViewMode(normalizedUser));
+          setUserRole(getClientViewMode(normalizedUser));
           setShowLoginModal(false);
-          if (result.user.role === 'admin') router.push('/admin');
-          else router.push('/tasks?tab=welcome');
+          router.push(getClientLandingPath(normalizedUser));
       } catch (error) {
           setErrorMessage("Не удалось подключиться к базе данных для регистрации.");
       }
@@ -229,9 +267,22 @@ export default function Navigation() {
         window.dispatchEvent(new Event('storage'));
         setIsLoggedIn(false);
         setUserRole(null);
+        setSessionUser(null);
         setIsProfileOpen(false);
         router.push('/');
       });
+  };
+
+  const handleViewModeChange = (mode: 'admin' | 'staff') => {
+    if (!sessionUser?.canSwitchMode) {
+      return;
+    }
+
+    setClientViewMode(mode);
+    setCurrentViewMode(mode);
+    setUserRole(mode);
+    setIsProfileOpen(false);
+    router.push(mode === 'admin' ? '/admin' : '/tasks?tab=welcome');
   };
 
   const removeNotification = async (id: number) => {
@@ -322,7 +373,7 @@ export default function Navigation() {
 
   const sideItems = [
     { 
-      id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome', 
+      id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome',
       label: userRole === 'admin' ? 'Меню управления' : 'Статистика',
       isSubItem: false 
     },
@@ -337,7 +388,7 @@ export default function Navigation() {
     <>
       {!isLoggedIn ? (
         <header style={guestHeader} className="guest-header">
-           <div onClick={() => setShowLoginModal(true)} style={loginBtn}>ВХОД</div>
+           <div onClick={() => setShowLoginModal(true)} className="hover-unified-app" style={loginBtn}>ВХОД</div>
         </header>
       ) : (
         <>
@@ -356,6 +407,27 @@ export default function Navigation() {
             <div style={logoArea}>
                 <span style={logoText}>Меню</span>
              </div>
+             {sessionUser?.canSwitchMode && (
+                <div style={modeSwitchWrap}>
+                    <div style={modeSwitchTitle}>Режим аккаунта</div>
+                    <div style={modeSwitchSegment}>
+                        <button
+                            type="button"
+                            onClick={() => handleViewModeChange('admin')}
+                            style={modeSwitchButton(currentViewMode === 'admin')}
+                        >
+                            Админ
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleViewModeChange('staff')}
+                            style={modeSwitchButton(currentViewMode === 'staff')}
+                        >
+                            Сотрудник
+                        </button>
+                    </div>
+                </div>
+             )}
              <nav style={sideNav}>
                 {sideItems.map(item => {
                     const isActive = (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === item.id;
@@ -375,7 +447,7 @@ export default function Navigation() {
           </aside>
 
           <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '72px', transition: '0.3s ease' }} className="nav-topbar">
-             <div style={searchBox} className="search-box-container">
+             <div style={searchBox} className="search-box-container hover-search-surface">
                 <span style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}><SearchIcon /></span>
                 <input 
                   type="text" 
@@ -422,12 +494,14 @@ export default function Navigation() {
                    </svg>
                    {isProfileOpen && (
                      <div style={profileDropdown}>
-                        <Link href="/profile" className="drop-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="currentColor"/>
-                            </svg>
-                            Мой Профиль
-                        </Link>
+                        {(!sessionUser?.profileDisabled || sessionUser?.profileOwnerOnly) && (
+                          <Link href="/profile" className="drop-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="currentColor"/>
+                              </svg>
+                              Мой Профиль
+                          </Link>
+                        )}
                         <div onClick={handleLogout} className="drop-item logout-item" style={{ borderBottom: 'none', paddingLeft: '20px' }}>Выйти</div>
                      </div>
                    )}
@@ -487,7 +561,7 @@ export default function Navigation() {
                   <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                   <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
                   <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{errorMessage}</p>
-                  <div onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ЗАКРЫТЬ</div>
+                  <div className="hover-unified-app" onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ЗАКРЫТЬ</div>
               </div>
           </div>
       )}
@@ -558,9 +632,9 @@ export default function Navigation() {
             )}
             
             {isLoginMode ? (
-                <div onClick={handleLogin} style={modalLoginBtn}>ВОЙТИ</div>
+                <div className="hover-unified-app" onClick={handleLogin} style={modalLoginBtn}>ВОЙТИ</div>
             ) : (
-                <div onClick={handleRegister} style={modalLoginBtn}>ЗАРЕГИСТРИРОВАТЬСЯ</div>
+                <div className="hover-unified-app" onClick={handleRegister} style={modalLoginBtn}>ЗАРЕГИСТРИРОВАТЬСЯ</div>
             )}
             
             <div 
@@ -571,6 +645,7 @@ export default function Navigation() {
                     setIsCaptchaLoading(false); 
                     setIsConsentGiven(false);
                 }} 
+                className="hover-link-unified-app"
                 style={{...closeText, color: '#0abab5', marginTop: '15px', textDecoration: 'underline'}}
             >
                 {isLoginMode ? 'Регистрация' : 'Вход'}
@@ -583,7 +658,7 @@ export default function Navigation() {
                 setIsCaptchaVerified(false); 
                 setIsCaptchaLoading(false); 
                 setIsConsentGiven(false);
-            }} style={closeText}>ОТМЕНА</div>
+            }} className="hover-link-unified-app" style={closeText}>ОТМЕНА</div>
           </div>
         </div>
       )}
@@ -739,10 +814,82 @@ export default function Navigation() {
             background: rgba(10, 186, 181, 0.1);
         }
 
+        .hover-unified-app {
+            transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease !important;
+        }
+
+        .hover-unified-app:hover {
+            transform: translateY(1px) scale(0.985);
+            border-color: rgba(10, 186, 181, 0.45) !important;
+            background: rgba(10, 186, 181, 0.14) !important;
+            color: #fff !important;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10, 186, 181, 0.24);
+        }
+
+        .hover-unified-app:active {
+            transform: translateY(2px) scale(0.97);
+            box-shadow: inset 0 3px 8px rgba(0,0,0,0.24);
+        }
+
+        .hover-link-unified-app {
+            transition: transform 0.16s ease, color 0.16s ease, text-shadow 0.16s ease !important;
+        }
+
+        .hover-link-unified-app:hover {
+            transform: translateY(1px) scale(0.985);
+            color: #fff !important;
+            text-shadow: 0 0 10px rgba(10, 186, 181, 0.18);
+        }
+
+        .hover-link-unified-app:active {
+            transform: translateY(2px) scale(0.97);
+        }
+
+        .hover-search-surface {
+            transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease !important;
+        }
+
+        .hover-search-surface:hover,
+        .hover-search-surface:focus-within {
+            transform: translateY(1px) scale(0.995);
+            border-color: rgba(10, 186, 181, 0.45) !important;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10, 186, 181, 0.18);
+        }
+
+        .hover-chip-unified-app {
+            transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease !important;
+        }
+
+        .hover-chip-unified-app:hover {
+            transform: translateY(1px) scale(0.985);
+            border-color: rgba(10, 186, 181, 0.45) !important;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.18);
+        }
+
+        .hover-chip-unified-app:active {
+            transform: translateY(2px) scale(0.97);
+        }
+
+        .hover-card-unified-app {
+            transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease !important;
+        }
+
         /* Новые стили для кнопок в хедере */
+        .top-icon-btn {
+            transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease !important;
+        }
+
         .top-icon-btn:hover {
             color: #fff !important;
-            transform: scale(1.1);
+            transform: translateY(1px) scale(0.985);
+            border-color: rgba(10, 186, 181, 0.45) !important;
+            background: rgba(10, 186, 181, 0.14) !important;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10, 186, 181, 0.24);
+        }
+
+        .top-icon-btn:active {
+            transform: translateY(2px) scale(0.97);
+            box-shadow: inset 0 3px 8px rgba(0,0,0,0.24);
         }
 
         .sidebar-mobile-overlay { display: none; }
@@ -767,15 +914,16 @@ export default function Navigation() {
         }
 
         .sidebar-toggle-fixed:hover {
-            border-color: #0abab5;
-            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(10, 186, 181, 0.45), 0 0 14px rgba(10, 186, 181, 0.55), 0 0 28px rgba(10, 186, 181, 0.28);
-            transform: translateY(1px) scale(0.97);
-            background: rgba(10, 186, 181, 0.12);
+            color: #fff !important;
+            transform: translateY(1px) scale(0.985);
+            border-color: rgba(10, 186, 181, 0.45) !important;
+            background: rgba(10, 186, 181, 0.14) !important;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10, 186, 181, 0.24);
         }
 
         .sidebar-toggle-fixed:active {
-            transform: translateY(2px) scale(0.95);
-            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(10, 186, 181, 0.52), 0 0 16px rgba(10, 186, 181, 0.62), 0 0 32px rgba(10, 186, 181, 0.32);
+            transform: translateY(2px) scale(0.97);
+            box-shadow: inset 0 3px 8px rgba(0,0,0,0.24);
         }
 
         @media (max-width: 768px) {
@@ -889,6 +1037,20 @@ const logoArea: any = { display: 'flex', alignItems: 'center', minHeight: '36px'
 const logoIcon: any = { fontSize: '24px', cursor: 'pointer' };
 const warningBadgeStyle: any = { width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 15px auto' };
 const logoText: any = { fontSize: '20px', fontWeight: '900', letterSpacing: '1px', color: '#fff' };
+const modeSwitchWrap: any = { marginBottom: '24px', padding: '14px', borderRadius: '18px', background: '#0f0f0f', border: '1px solid #1c1c1c' };
+const modeSwitchTitle: any = { fontSize: '11px', fontWeight: '900', color: '#666', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' };
+const modeSwitchSegment: any = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' };
+const modeSwitchButton = (isActive: boolean): React.CSSProperties => ({
+    minHeight: '38px',
+    borderRadius: '12px',
+    border: `1px solid ${isActive ? '#0abab5' : '#222'}`,
+    background: isActive ? 'rgba(10,186,181,0.18)' : '#111',
+    color: isActive ? '#0abab5' : '#b5b5b5',
+    fontSize: '12px',
+    fontWeight: 900,
+    cursor: 'pointer',
+    transition: '0.2s ease',
+});
 const sideNav: any = { display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 };
 
 const topBarStyle: any = { position: 'fixed', top: 0, right: 0, height: '90px', background: 'rgba(13, 15, 13, 0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 50px', zIndex: 1000, boxSizing: 'border-box' };
@@ -897,7 +1059,7 @@ const searchInput: any = { background: 'none', border: 'none', color: '#fff', ou
 const searchDropdownStyle: any = { position: 'absolute', top: '55px', left: 0, width: '100%', background: '#111', border: '1px solid #222', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.8)', zIndex: 10005, display: 'flex', flexDirection: 'column' };
 const searchResultItem: any = { padding: '16px 20px', borderBottom: '1px solid #1a1a1a', cursor: 'pointer', transition: '0.2s' };
 const topActions: any = { display: 'flex', alignItems: 'center', gap: '30px' };
-const topIcon: any = { position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', cursor: 'pointer', transition: '0.3s' };
+const topIcon: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', cursor: 'pointer', transition: '0.3s', flexShrink: 0 };
 const sidebarToggleStyle: React.CSSProperties = { width: '36px', height: '36px', border: '1px solid #222', borderRadius: '10px', background: '#111', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0 };
 const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', color: '#888', transition: '0.3s' };
 const profileDropdown: any = { position: 'absolute', top: '65px', right: 0, background: '#111', border: '1px solid #222', borderRadius: '20px', width: '220px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', zIndex: 10003 };

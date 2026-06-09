@@ -25,6 +25,34 @@ export default function UserManagement({
         u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
     );
 
+    const isProtectedUser = (user: any) => {
+        return user?.id === 'u_admin' || user?.id === 'u_staff' || user?.systemAccount || user?.ghostAccount;
+    };
+
+    const getRoleLabel = (user: any) => {
+        if (user?.systemAccount || user?.accountLabel) {
+            return user.accountLabel || 'Системный администратор';
+        }
+
+        return user?.role === 'admin' ? 'Администратор' : 'Сотрудник';
+    };
+
+    const getRoleColor = (user: any) => {
+        if (user?.systemAccount || user?.accountLabel) {
+            return '#f7c873';
+        }
+
+        return user?.role === 'admin' ? '#ff7675' : '#0abab5';
+    };
+
+    const getLoginLabel = (user: any) => {
+        if (user?.systemAccount || user?.ghostAccount) {
+            return 'скрыт';
+        }
+
+        return user?.login || '';
+    };
+
     const handleCreateUser = () => {
         if (!newUser.name.trim() || !newUser.login.trim() || !newUser.pass.trim()) {
             setErrorModal({ show: true, text: "Заполните все поля!" }); return;
@@ -61,7 +89,8 @@ export default function UserManagement({
     };
 
     const handleDeleteUser = (id: string) => {
-        if (id === 'u_admin' || id === 'u_staff') {
+        const targetUser = users.find((u: any) => u.id === id);
+        if (isProtectedUser(targetUser)) {
             setErrorModal({ show: true, text: "Базовые аккаунты удалить нельзя!" }); return;
         }
         setConfirmModal({ show: true, id: id });
@@ -96,7 +125,7 @@ export default function UserManagement({
         <>
             <div style={flexSpace as any}>
                 <h2 style={sectionTitle as any}>Управление персоналом</h2>
-                <span onClick={() => setShowUserForm(true)} style={actionBtn as any}>+ Новый сотрудник</span>
+                <span className="hover-unified-app" onClick={() => setShowUserForm(true)} style={actionBtn as any}>+ Новый сотрудник</span>
             </div>
 
             <div style={{ marginBottom: '20px', position: 'relative' }}>
@@ -116,20 +145,24 @@ export default function UserManagement({
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                         <div style={{ width: '45px', height: '45px', borderRadius: '15px', background: '#222', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            {avatarImg ? <img src={avatarImg} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={avatarFallbackText as any}>TH</span>}
+                                            {avatarImg ? <img src={avatarImg} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (
+                                                <span style={avatarFallbackText as any}>
+                                                    {u.systemAccount || u.ghostAccount ? <CustomIcon name="gear" size={18} color="#f7c873" /> : 'TH'}
+                                                </span>
+                                            )}
                                         </div>
                                         <div>
                                             <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
-                                            <div style={{ fontSize: '12px', color: u.role === 'admin' ? '#ff7675' : '#0abab5', fontWeight: 'bold' }}>{u.role === 'admin' ? 'Администратор' : 'Сотрудник'}</div>
+                                            <div style={{ fontSize: '12px', color: getRoleColor(u), fontWeight: 'bold' }}>{getRoleLabel(u)}</div>
                                         </div>
                                     </div>
-                                    {(u.id !== 'u_admin' && u.id !== 'u_staff') && (
-                                        <div onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex' }}><CustomIcon name="close" size={15} color="#ff4d4d" /></div>
+                                    {!isProtectedUser(u) && (
+                                        <div className="hover-unified-app" onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex' }}><CustomIcon name="close" size={15} color="#ff4d4d" /></div>
                                     )}
                                 </div>
                                 <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
-                                        <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{u.login}</span>
+                                        <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{getLoginLabel(u)}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                                         <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#888', fontFamily: 'monospace', fontWeight: 'bold' }}>скрыт</span>
@@ -156,8 +189,8 @@ export default function UserManagement({
                             <option value="staff"> Чайный мастер (Сотрудник)</option>
                             <option value="admin"> Администратор</option>
                         </select>
-                        <button onClick={handleCreateUser} style={{...saveBtn, marginTop: '20px'} as any}>СОЗДАТЬ УЧЕТКУ</button>
-                        <div onClick={()=>setShowUserForm(false)} style={{textAlign:'center', marginTop:'20px', cursor:'pointer', color:'#666', fontWeight:'bold'}}>ОТМЕНА</div>
+                        <button className="hover-unified-app" onClick={handleCreateUser} style={{...saveBtn, marginTop: '20px'} as any}>СОЗДАТЬ УЧЕТКУ</button>
+                        <div className="hover-link-unified-app" onClick={()=>setShowUserForm(false)} style={{textAlign:'center', marginTop:'20px', cursor:'pointer', color:'#666', fontWeight:'bold'}}>ОТМЕНА</div>
                     </div>
                 </div>
             )}
@@ -169,8 +202,8 @@ export default function UserManagement({
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>УДАЛИТЬ?</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', marginBottom: '25px' }}>Вы уверены, что хотите удалить сотрудника?</p>
                         <div style={{ display: 'flex', gap: '15px' }}>
-                            <button onClick={() => setConfirmModal({ show: false, id: '' })} style={{...saveBtn, background: '#222', color: '#fff', flex: 1} as any}>ОТМЕНА</button>
-                            <button onClick={executeDelete} style={{...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1} as any}>УДАЛИТЬ</button>
+                            <button className="hover-unified-app" onClick={() => setConfirmModal({ show: false, id: '' })} style={{...saveBtn, background: '#222', color: '#fff', flex: 1} as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={executeDelete} style={{...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1} as any}>УДАЛИТЬ</button>
                         </div>
                     </div>
                 </div>

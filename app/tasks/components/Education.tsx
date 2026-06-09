@@ -515,11 +515,11 @@ export default function Education({
                <h2 className="tasks-title" style={sectionTitle as any}>Теория</h2>
                {isAdmin && (
                    <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-                       <button onClick={() => setPromptSection({isOpen: true, type: 'route', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
+                       <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'route', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
                        <button onClick={() => { 
                            setRouteFormData({ id: '', title: '', time: '5 мин', section: '', mediaType: 'text', videoIframe: '', videoDesc: '', h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '' }); 
                            setShowRouteForm(true); 
-                       }} style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВАЯ ТЕМА</button>
+                       }} className="hover-unified-app" style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВАЯ ТЕМА</button>
                    </div>
                )}
             </div>
@@ -622,7 +622,7 @@ export default function Education({
                 <h2 className="tasks-title" style={sectionTitle as any}>Тесты</h2>
                 {isAdmin && (
                    <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-                       <button onClick={() => setPromptSection({isOpen: true, type: 'test', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
+                       <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'test', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
                        <button onClick={() => { 
                            setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: '', timeLimit: 0, quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] }); 
                            setShowTestForm(true); 
@@ -755,7 +755,7 @@ export default function Education({
                         <h2 style={{color: '#0abab5', textAlign: 'center', marginBottom: '20px', fontWeight: '900'}}>НОВЫЙ РАЗДЕЛ</h2>
                         <input style={adminIn as any} autoFocus placeholder="Название раздела" value={promptSection.name} onChange={e => setPromptSection({...promptSection, name: e.target.value})} />
                         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                            <button onClick={() => setPromptSection({isOpen: false, type: 'route', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: false, type: 'route', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
                             <button onClick={confirmPromptSection} style={{ ...saveBtn, flex: 1, marginTop: 0 } as any}>СОЗДАТЬ</button>
                         </div>
                     </div>
@@ -768,7 +768,7 @@ export default function Education({
                         <h2 style={{color: '#0abab5', textAlign: 'center', marginBottom: '20px', fontWeight: '900', textTransform: 'uppercase'}}>ПЕРЕИМЕНОВАТЬ РАЗДЕЛ</h2>
                         <input style={adminIn as any} autoFocus placeholder="Новое название" value={renameSectionPrompt.newName} onChange={e => setRenameSectionPrompt({...renameSectionPrompt, newName: e.target.value})} />
                         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                            <button onClick={() => setRenameSectionPrompt({...renameSectionPrompt, isOpen: false})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={() => setRenameSectionPrompt({...renameSectionPrompt, isOpen: false})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
                             <button onClick={() => {
                                 if (!renameSectionPrompt.newName.trim()) return;
                                 const newName = renameSectionPrompt.newName.trim();
@@ -800,7 +800,7 @@ export default function Education({
                         <h2 style={{color: '#ff4d4d', fontWeight: '900', marginBottom: '15px'}}>УДАЛИТЬ РАЗДЕЛ?</h2>
                         <p style={{color: '#ccc', fontSize: '14px', marginBottom: '25px'}}>Вы уверены, что хотите удалить раздел "{confirmSectionDelete.name}" и ВСЕ карточки внутри него?</p>
                         <div style={{ display: 'flex', gap: '15px' }}>
-                            <button onClick={() => setConfirmSectionDelete({isOpen: false, type: 'route', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={() => setConfirmSectionDelete({isOpen: false, type: 'route', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
                             <button onClick={() => {
                                 if (confirmSectionDelete.type === 'route') {
                                     const updated = dynamicRoute.filter((r: any) => (r.section || 'Основной раздел') !== confirmSectionDelete.name);
@@ -810,7 +810,7 @@ export default function Education({
                                     updateTestsState(updated);
                                 }
                                 setConfirmSectionDelete({ isOpen: false, type: 'route', name: '' });
-                            }} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, marginTop: 0 } as any}>УДАЛИТЬ ВСЕ</button>
+                            }} className="hover-unified-app" style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, marginTop: 0 } as any}>УДАЛИТЬ ВСЕ</button>
                         </div>
                     </div>
                 </div>
@@ -829,12 +829,12 @@ export default function Education({
                         <h2 style={{color: '#ff4d4d', fontWeight: '900', marginBottom: '15px'}}>УДАЛИТЬ КАРТОЧКУ?</h2>
                         <p style={{color: '#ccc', fontSize: '14px', marginBottom: '25px'}}>Вы уверены, что хотите удалить карточку?</p>
                         <div style={{ display: 'flex', gap: '15px' }}>
-                            <button onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={() => setConfirmDelete({isOpen: false, type: 'route', targetId: '', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
                             <button onClick={() => {
                                 if (confirmDelete.type === 'route') updateRouteState(dynamicRoute.filter((r: any) => r.id !== confirmDelete.targetId));
                                 else updateTestsState(dynamicTests.filter((t: any) => t.id !== confirmDelete.targetId));
                                 setConfirmDelete({ isOpen: false, type: 'route', targetId: '', name: '' });
-                            }} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, marginTop: 0 } as any}>УДАЛИТЬ</button>
+                            }} className="hover-unified-app" style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, marginTop: 0 } as any}>УДАЛИТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -851,7 +851,7 @@ export default function Education({
                         </div>
                         <div style={{ borderTop: '1px solid #222', paddingTop: '20px' }}>
                             <input style={adminIn as any} placeholder="Название нового раздела..." value={moveNewSectionName} onChange={e => setMoveNewSectionName(e.target.value)} />
-                            <button onClick={() => { if (moveNewSectionName.trim()) handleMoveItem(moveNewSectionName.trim()); }} style={{...adminActionBtn, marginTop: '10px', width: '100%', padding: '16px'} as any}>СОЗДАТЬ И ПЕРЕМЕСТИТЬ</button>
+                            <button className="hover-unified-app" onClick={() => { if (moveNewSectionName.trim()) handleMoveItem(moveNewSectionName.trim()); }} style={{...adminActionBtn, marginTop: '10px', width: '100%', padding: '16px'} as any}>СОЗДАТЬ И ПЕРЕМЕСТИТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -918,9 +918,9 @@ export default function Education({
                         )}
 
                         {completedRoute.includes(selectedRouteStep.id) ? (
-                            <button onClick={closeRouteModal} style={{...checkKnowledgeBtn, background: '#111', color: '#0abab5', border: '1px solid #0abab5'} as any}>МАТЕРИАЛ ПРОЙДЕН (ЗАКРЫТЬ)</button>
+                            <button className="hover-unified-app" onClick={closeRouteModal} style={{...checkKnowledgeBtn, background: '#111', color: '#0abab5', border: '1px solid #0abab5'} as any}>МАТЕРИАЛ ПРОЙДЕН (ЗАКРЫТЬ)</button>
                         ) : (
-                            <button onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn as any}>Я ИЗУЧИЛ МАТЕРИАЛ</button>
+                            <button className="hover-unified-app" onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn as any}>Я ИЗУЧИЛ МАТЕРИАЛ</button>
                         )}
                     </div>
                 </div>
@@ -988,7 +988,7 @@ export default function Education({
                                                             reader.readAsDataURL(file);
                                                         }
                                                     }}/>
-                                                    <button onClick={(e) => { e.preventDefault(); document.getElementById(`upload-img-${num}`)?.click(); }} style={{ background: '#111', color: '#fff', border: '1px solid #333', padding: '12px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>Загрузить фото</button>
+                                                    <button className="hover-unified-app" onClick={(e) => { e.preventDefault(); document.getElementById(`upload-img-${num}`)?.click(); }} style={{ background: '#111', color: '#fff', border: '1px solid #333', padding: '12px 15px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>Загрузить фото</button>
                                                 </div>
                                             </div>
                                         );
@@ -996,8 +996,8 @@ export default function Education({
                                 </div>
                             )}
                         </div>
-                        <button onClick={handleSaveRoute} style={saveBtn as any}>СОХРАНИТЬ ТЕМУ</button>
-                        <div onClick={() => setShowRouteForm(false)} style={cancelLink as any}>ОТМЕНА</div>
+                        <button className="hover-unified-app" onClick={handleSaveRoute} style={saveBtn as any}>СОХРАНИТЬ ТЕМУ</button>
+                        <div className="hover-link-unified-app" onClick={() => setShowRouteForm(false)} style={cancelLink as any}>ОТМЕНА</div>
                     </div>
                 </div>
             )}
@@ -1021,7 +1021,7 @@ export default function Education({
                              <span style={{fontSize:'13px', color:'#888', fontWeight:'bold'}}>Порог: <span style={{color:'#0abab5'}}>80%</span></span>
                          </div>
                      </div>
-                     <button style={saveBtn as any}>НАЧАТЬ ТЕСТИРОВАНИЕ</button>
+                     <button className="hover-unified-app" style={saveBtn as any}>НАЧАТЬ ТЕСТИРОВАНИЕ</button>
                   </div>
                </div>
             )}
@@ -1045,7 +1045,7 @@ export default function Education({
                         <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
                                 <h3 style={{fontSize: '16px', color: '#0abab5', fontWeight: '900', margin: 0}}>Вопросы ({testFormData.quiz.length})</h3>
-                                <button onClick={addTestQuestion} style={adminActionBtn as any}>+ ДОБАВИТЬ ВОПРОС</button>
+                                <button className="hover-unified-app" onClick={addTestQuestion} style={adminActionBtn as any}>+ ДОБАВИТЬ ВОПРОС</button>
                             </div>
                             
                             {testFormData.quiz.map((q: any, qIndex: number) => (
@@ -1074,8 +1074,8 @@ export default function Education({
                             ))}
                         </div>
 
-                        <button onClick={handleSaveTestForm} style={saveBtn as any}>СОХРАНИТЬ ТЕСТ</button>
-                        <div onClick={() => setShowTestForm(false)} style={cancelLink as any}>ОТМЕНА</div>
+                        <button className="hover-unified-app" onClick={handleSaveTestForm} style={saveBtn as any}>СОХРАНИТЬ ТЕСТ</button>
+                        <div className="hover-link-unified-app" onClick={() => setShowTestForm(false)} style={cancelLink as any}>ОТМЕНА</div>
                     </div>
                 </div>
             )}
@@ -1126,7 +1126,7 @@ export default function Education({
                          if (selectedTest.timeLimit > 0) setTimeLeft(selectedTest.timeLimit * 60);
                          else setTimeLeft(null);
                          setSelectedTest(null); 
-                     }} style={saveBtn as any}>ПРИСТУПИТЬ К ТЕСТУ</button>
+                     }} className="hover-unified-app" style={saveBtn as any}>ПРИСТУПИТЬ К ТЕСТУ</button>
                   </div>
                </div>
             )}
@@ -1235,7 +1235,7 @@ export default function Education({
                             Вы уверены, что хотите прервать прохождение? Весь текущий прогресс ответов будет потерян.
                         </p>
                         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                            <button onClick={() => setCancelTestConfirm({show: false, type: 'normal'})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={() => setCancelTestConfirm({show: false, type: 'normal'})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ОТМЕНА</button>
                             <button onClick={executeCancelTest} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ПРЕРВАТЬ</button>
                         </div>
                     </div>
@@ -1303,13 +1303,13 @@ export default function Education({
             <style jsx global>{`
                 .anti-cheat { user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; }
                 .test-answer-btn { padding: 20px 30px; background: #111; color: #fff; border-radius: 18px; cursor: pointer; border: 1px solid #222; font-weight: 800; margin-bottom: 12px; transition: all 0.2s ease; }
-                .test-answer-btn:hover { border-color: #0abab5; background: rgba(10, 186, 181, 0.05); transform: translateY(-2px); }
+                .test-answer-btn:hover { border-color: rgba(10, 186, 181, 0.45); background: rgba(10, 186, 181, 0.14); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
                 .test-answer-btn.selected { background: #0abab5 !important; color: #000 !important; border-color: #0abab5 !important; transform: scale(0.98); }
                 
                 .premium-cards-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; width: 100%; align-items: stretch; }
                 .premium-card { background: #111; border-radius: 14px; border: 1px solid #222; transition: all 0.2s ease; position: relative; cursor: pointer; display: flex; flex-direction: column; width: 100%; min-height: 148px; padding: 16px; box-sizing: border-box; overflow: hidden; word-break: normal; overflow-wrap: break-word; }
-                .premium-card:hover { border-color: #0abab5; transform: translateY(-3px); }
-                .premium-card:active { background: rgba(10, 186, 181, 0.05); border-color: #0abab5; transform: scale(0.98); }
+                .premium-card:hover { border-color: rgba(10, 186, 181, 0.45); transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.18); }
+                .premium-card:active { background: rgba(10, 186, 181, 0.14); border-color: rgba(10,186,181,0.45); transform: translateY(2px) scale(0.97); }
                 .premium-card h4 { min-height: 44px; }
                 .deadline-card:hover { border-color: #ff4d4d !important; box-shadow: 0 8px 25px rgba(255, 77, 77, 0.15) !important; }
                 .deadline-card:active { background: rgba(255, 77, 77, 0.05) !important; border-color: #ff4d4d !important; }
@@ -1328,13 +1328,13 @@ export default function Education({
                     background: #1a1a1a;
                 }
                 .move-btn { color: #fff; }
-                .move-btn:hover { background: rgba(255,255,255,0.1); border-color: #888; transform: scale(1.05); }
+                .move-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
 
                 .edit-btn { color: #0abab5; }
-                .edit-btn:hover { background: rgba(10,186,181,0.1); border-color: #0abab5; transform: scale(1.05); }
+                .edit-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
 
                 .del-btn { color: #ff4d4d; }
-                .del-btn:hover { background: rgba(255,77,77,0.1); border-color: #ff4d4d; transform: scale(1.05); }
+                .del-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
 
                 .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; }
                 .video-wrapper iframe, .video-wrapper object, .video-wrapper embed { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; border: none; }

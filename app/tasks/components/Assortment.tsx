@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
+import { isClientAdminView } from '@/app/lib/authClient';
 
 // --- ПОЛНАЯ БАЗА АССОРТИМЕНТА (ТОВАРНАЯ МАТРИЦА) ---
 export const INITIAL_ASSORTMENT = [
@@ -355,7 +356,7 @@ function AssortmentNode({
 
     return (
         <div style={{ marginLeft: depth === 0 ? '0' : '20px', borderLeft: depth === 0 ? 'none' : '1px solid #333', paddingLeft: depth === 0 ? '0' : '15px', marginTop: depth === 0 ? '12px' : '8px', marginBottom: depth === 0 ? '12px' : '8px' }}>
-            <div style={{
+            <div className="assortment-row hover-card-unified-app" style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: isOpen ? '#1a1a1a' : '#111', borderRadius: '10px', 
                     border: isTarget ? '1px solid #0abab5' : '1px solid #222',
                     boxShadow: isTarget ? '0 0 15px rgba(10,186,181,0.2)' : 'none',
@@ -373,19 +374,19 @@ function AssortmentNode({
                 {/* ПАНЕЛЬ АДМИНА ДЛЯ КАЖДОЙ СТРОКИ */}
                 {isAdmin && (
                     <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => onMove(node.id, 'up')} title="Переместить выше" style={adminIconBtn as any}>
+                        <button className="hover-unified-app" onClick={() => onMove(node.id, 'up')} title="Переместить выше" style={adminIconBtn as any}>
                             <MoveArrowIcon direction="up" />
                         </button>
-                        <button onClick={() => onMove(node.id, 'down')} title="Переместить ниже" style={adminIconBtn as any}>
+                        <button className="hover-unified-app" onClick={() => onMove(node.id, 'down')} title="Переместить ниже" style={adminIconBtn as any}>
                             <MoveArrowIcon direction="down" />
                         </button>
-                        <button onClick={() => onAdd(node.id)} title="Добавить подраздел" style={adminIconBtn as any}>
+                        <button className="hover-unified-app" onClick={() => onAdd(node.id)} title="Добавить подраздел" style={adminIconBtn as any}>
                             <PlusIcon />
                         </button>
-                        <button onClick={() => onEdit(node)} title="Редактировать" style={adminIconBtn as any}>
+                        <button className="hover-unified-app" onClick={() => onEdit(node)} title="Редактировать" style={adminIconBtn as any}>
                             <CustomIcon name="edit" size={15} color="#0abab5" />
                         </button>
-                        <button onClick={() => onDelete(node.id)} title="Удалить" style={{...adminIconBtn, color: '#ff4d4d'} as any}><CustomIcon name="close" size={15} color="#ff4d4d" /></button>
+                        <button className="hover-unified-app" onClick={() => onDelete(node.id)} title="Удалить" style={{...adminIconBtn, color: '#ff4d4d'} as any}><CustomIcon name="close" size={15} color="#ff4d4d" /></button>
                     </div>
                 )}
             </div>
@@ -438,7 +439,7 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, id: string | null}>({ isOpen: false, id: null });
 
     useEffect(() => {
-        setIsAdmin(localStorage.getItem('userRole') === 'admin');
+        setIsAdmin(isClientAdminView());
         if (assortmentMatrix && assortmentMatrix.length > 0) {
             setLocalMatrix(assortmentMatrix);
         } else {
@@ -558,13 +559,9 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '15px' }}>
                 <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>Каталог товаров (Ассортимент)</h2>
                 {isAdmin && (
-                    <button onClick={() => handleAddNode(null)} style={adminActionBtn as any}>+ ДОБАВИТЬ ГЛАВНЫЙ РАЗДЕЛ</button>
+                    <button className="hover-unified-app" onClick={() => handleAddNode(null)} style={adminActionBtn as any}>+ ДОБАВИТЬ ГЛАВНЫЙ РАЗДЕЛ</button>
                 )}
             </div>
-
-            <p style={{ color: '#666', fontSize: '14px', marginBottom: '35px', lineHeight: '1.5', maxWidth: '700px' }}>
-                Интерактивная эталонная товарная матрица компании. Нажимайте на категории для плавного раскрытия подразделов.
-            </p>
             
             <div style={{ marginTop: '10px' }}>
                 {localMatrix.map((rootNode: any) => (
@@ -603,8 +600,8 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                             </div>
                         </div>
 
-                        <button onClick={handleSaveModal} style={saveBtn as any}>СОХРАНИТЬ</button>
-                        <div onClick={() => setModalConfig({...modalConfig, isOpen: false})} style={{ textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>ОТМЕНА</div>
+                        <button className="hover-unified-app" onClick={handleSaveModal} style={saveBtn as any}>СОХРАНИТЬ</button>
+                        <div className="hover-link-unified-app" onClick={() => setModalConfig({...modalConfig, isOpen: false})} style={{ textAlign: 'center', marginTop: '20px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>ОТМЕНА</div>
                     </div>
                 </div>
             )}
@@ -619,8 +616,8 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
                             Вы уверены, что хотите удалить этот раздел и все его вложения? Это действие необратимо.
                         </p>
                         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                            <button onClick={() => setConfirmDelete({isOpen: false, id: null})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ОТМЕНА</button>
-                            <button onClick={executeDeleteNode} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>УДАЛИТЬ</button>
+                            <button className="hover-unified-app" onClick={() => setConfirmDelete({isOpen: false, id: null})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={executeDeleteNode} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>УДАЛИТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -628,8 +625,8 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
 
             <style jsx global>{`
                 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-                .assortment-row:hover { border-color: #0abab5 !important; }
-                .assortment-row:active { transform: scale(0.98) !important; background: #0abab5 !important; color: #000 !important; }
+                .assortment-row:hover { border-color: rgba(10, 186, 181, 0.45) !important; background: rgba(10, 186, 181, 0.08) !important; box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2) !important; }
+                .assortment-row:active { transform: translateY(2px) scale(0.97) !important; }
                 
                 textarea::-webkit-scrollbar { width: 4px; }
                 textarea::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
