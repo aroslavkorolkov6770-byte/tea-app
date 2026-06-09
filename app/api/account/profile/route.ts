@@ -20,6 +20,10 @@ export async function GET() {
             return NextResponse.json({ error: 'Требуется авторизация' }, { status: 401 });
         }
 
+        if (currentUser.profileDisabled && !currentUser.profileOwnerOnly) {
+            return NextResponse.json({ error: 'Профиль системного аккаунта скрыт' }, { status: 403 });
+        }
+
         let profile = readJsonFile<Record<string, any>>(`profile_data_${currentUser.id}`, {});
 
         if (!profile || Array.isArray(profile) || Object.keys(profile).length === 0) {
@@ -50,6 +54,10 @@ export async function PUT(request: Request) {
 
         if (!currentUser) {
             return NextResponse.json({ error: 'Требуется авторизация' }, { status: 401 });
+        }
+
+        if (currentUser.profileDisabled && !currentUser.profileOwnerOnly) {
+            return NextResponse.json({ error: 'Профиль системного аккаунта скрыт' }, { status: 403 });
         }
 
         const body = await request.json();

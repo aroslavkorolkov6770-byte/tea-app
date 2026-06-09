@@ -66,8 +66,9 @@ export async function DELETE(request: Request) {
 
         const users = getStoredUsers();
         const protectedIds = new Set(['u_admin', 'u_staff', 'u_staff_new']);
+        const targetUser = users.find((user) => user.id === userId);
 
-        if (protectedIds.has(userId)) {
+        if (protectedIds.has(userId) || targetUser?.systemAccount || targetUser?.ghostAccount) {
             return NextResponse.json({ error: 'Базовые аккаунты удалять нельзя' }, { status: 400 });
         }
 

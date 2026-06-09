@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
+import { isClientAdminView } from '@/app/lib/authClient';
+import { fetchStorageBatch } from '@/app/lib/storageClient';
 
 interface Message {
     id: string;
@@ -17,6 +19,221 @@ interface ChatSession {
     isPinned?: boolean; 
 }
 
+type SiteSearchRecord = {
+    id: string;
+    type: 'route' | 'test' | 'assortment' | 'product' | 'document';
+    title: string;
+    section: string;
+    text: string;
+    hint?: string;
+};
+
+const SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
+const SITE_CONTEXT_CACHE_TTL_MS = 1000 * 60 * 5;
+
+const normalizeSearchValue = (value: unknown) => String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+const buildAssortmentRecords = (nodes: any[], bucket: SiteSearchRecord[] = [], parentTrail: string[] = []) => {
+    nodes.forEach((node: any) => {
+        if (!node) {
+            return;
+        }
+
+        const title = String(node.title || '').trim();
+        const desc = String(node.desc || '').trim();
+        const content = String(node.content || '').trim();
+        const trail = [...parentTrail, title].filter(Boolean);
+
+        if (title || desc || content) {
+            bucket.push({
+                id: String(node.id || `assortment_${bucket.length}`),
+                type: 'assortment',
+                title: title || 'Раздел ассортимента',
+                section: trail.slice(0, -1).join(' -> ') || 'Ассортимент',
+                text: [title, desc, content].filter(Boolean).join(' | '),
+                hint: node.id ? `/tasks?tab=assortment&assortmentId=${node.id}` : '/tasks?tab=assortment',
+            });
+        }
+
+        if (Array.isArray(node.children) && node.children.length > 0) {
+            buildAssortmentRecords(node.children, bucket, trail);
+        }
+    });
+
+    return bucket;
+};
+
+const buildSiteKnowledgeIndex = (siteData: Record<string, any>) => {
+    const records: SiteSearchRecord[] = [];
+
+    const routes = Array.isArray(siteData.tea_hub_dynamic_route_v2) ? siteData.tea_hub_dynamic_route_v2 : [];
+    routes.forEach((route: any) => {
+        if (route?.isPlaceholder) {
+            return;
+        }
+
+        records.push({
+            id: String(route.id || `route_${records.length}`),
+            type: 'route',
+            title: String(route.title || 'Тема без названия'),
+            section: String(route.section || 'Обучение'),
+            text: [
+                route.title,
+                route.h1,
+                route.t1,
+                route.h2,
+                route.t2,
+                route.h3,
+                route.t3,
+                route.videoDesc,
+            ].filter(Boolean).join(' | '),
+            hint: route.id ? `/tasks?tab=edu&routeId=${route.id}` : '/tasks?tab=edu',
+        });
+    });
+
+    const tests = Array.isArray(siteData.tea_hub_dynamic_tests_v1) ? siteData.tea_hub_dynamic_tests_v1 : [];
+    tests.forEach((test: any) => {
+        if (test?.isPlaceholder) {
+            return;
+        }
+
+        records.push({
+            id: String(test.id || `test_${records.length}`),
+            type: 'test',
+            title: String(test.title || 'Тест без названия'),
+            section: String(test.section || 'Тестирование'),
+            text: [
+                test.title,
+                test.subtitle,
+                test.theory,
+                ...(Array.isArray(test.quiz) ? test.quiz.flatMap((item: any) => [item?.q, ...(Array.isArray(item?.o) ? item.o : [])]) : []),
+            ].filter(Boolean).join(' | '),
+            hint: test.id ? `/tasks?tab=edu&testId=${test.id}` : '/tasks?tab=edu',
+        });
+    });
+
+    const assortment = Array.isArray(siteData.tea_hub_assortment_matrix_v2) ? siteData.tea_hub_assortment_matrix_v2 : [];
+    buildAssortmentRecords(assortment, records);
+
+    const products = Array.isArray(siteData.tea_hub_products_v1) ? siteData.tea_hub_products_v1 : [];
+    products.forEach((product: any) => {
+        records.push({
+            id: String(product.id || `product_${records.length}`),
+            type: 'product',
+            title: String(product.name || 'Товар без названия'),
+            section: String(product.category || 'Продукты'),
+            text: [
+                product.name,
+                product.code,
+                product.category,
+                product.subcategory,
+                product.groupPath,
+                product.priority ? `Приоритет ${product.priority}` : '',
+                product.desc,
+                product.isHit ? 'Обязательно к продаже' : '',
+            ].filter(Boolean).join(' | '),
+            hint: '/tasks?tab=products',
+        });
+    });
+
+    const documents = Array.isArray(siteData.tea_hub_urgent_files_v1) ? siteData.tea_hub_urgent_files_v1 : [];
+    documents.forEach((file: any) => {
+        if (file?.isTest || String(file?.id || '').startsWith('deadline_')) {
+            return;
+        }
+
+        records.push({
+            id: String(file.id || `document_${records.length}`),
+            type: 'document',
+            title: String(file.name || file.section || 'Документ'),
+            section: String(file.section || 'База документов'),
+            text: [
+                file.name,
+                file.section,
+                file.size,
+                file.date,
+                file.isDocPlaceholder ? 'Раздел документов' : 'Документ',
+            ].filter(Boolean).join(' | '),
+            hint: '/tasks?tab=docs',
+        });
+    });
+
+    return records;
+};
+
+const rankSiteRecords = (records: SiteSearchRecord[], query: string) => {
+    const normalizedQuery = normalizeSearchValue(query);
+    if (!normalizedQuery) {
+        return records.slice(0, 12);
+    }
+
+    const words = normalizedQuery.split(' ').filter(Boolean);
+
+    return records
+        .map((record) => {
+            const haystack = normalizeSearchValue(`${record.title} ${record.section} ${record.text}`);
+            let score = 0;
+
+            if (haystack.includes(normalizedQuery)) {
+                score += 10;
+            }
+
+            words.forEach((word) => {
+                if (!word) {
+                    return;
+                }
+
+                if (normalizeSearchValue(record.title).includes(word)) {
+                    score += 5;
+                }
+
+                if (normalizeSearchValue(record.section).includes(word)) {
+                    score += 3;
+                }
+
+                if (haystack.includes(word)) {
+                    score += 2;
+                }
+            });
+
+            return { record, score };
+        })
+        .filter((item) => item.score > 0)
+        .sort((left, right) => right.score - left.score)
+        .slice(0, 18)
+        .map((item) => item.record);
+};
+
+const buildSiteContextPrompt = (records: SiteSearchRecord[], query: string) => {
+    const scopedResults = rankSiteRecords(records, query);
+    const countsByType = records.reduce<Record<string, number>>((acc, record) => {
+        acc[record.type] = (acc[record.type] || 0) + 1;
+        return acc;
+    }, {});
+
+    const overview = [
+        `Обучение: ${countsByType.route || 0}`,
+        `Тесты: ${countsByType.test || 0}`,
+        `Ассортимент: ${countsByType.assortment || 0}`,
+        `Продукты: ${countsByType.product || 0}`,
+        `Документы: ${countsByType.document || 0}`,
+    ].join(', ');
+
+    const lines = scopedResults.map((record, index) => {
+        return `${index + 1}. [${record.type.toUpperCase()}] ${record.title} | Раздел: ${record.section} | Данные: ${record.text}${record.hint ? ` | Ссылка: ${record.hint}` : ''}`;
+    });
+
+    return [
+        '=== ВНУТРЕННИЙ ПОИСК ПО ВСЕМУ САЙТУ TEA HUB ===',
+        `Общий охват данных: ${overview}.`,
+        scopedResults.length > 0
+            ? `Найдено релевантных совпадений по запросу "${query}":\n${lines.join('\n')}`
+            : `По прямому совпадению для запроса "${query}" ничего не найдено. Используй общий охват сайта и дай честный ответ, если в данных нет нужной информации.`,
+        'Правило ответа: опирайся только на найденные данные сайта. Если информации не хватает, скажи это прямо и предложи, где искать дальше на сайте.',
+        '=== КОНЕЦ ВНУТРЕННЕГО ПОИСКА ===',
+    ].join('\n');
+};
+
 export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAdmin?: boolean }) {
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -28,6 +245,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
+    const siteKnowledgeCacheRef = useRef<SiteSearchRecord[] | null>(null);
 
     const quickPrompts = [
         "Как правильно заваривать Те Гуань Инь?",
@@ -40,7 +258,15 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
     // =========================================================================
     useEffect(() => {
         const determineUser = () => {
-            if (isAdmin === true || localStorage.getItem('userRole') === 'admin' || userId === 'admin') {
+            const storedUserId = localStorage.getItem('current_user_id') || localStorage.getItem('login') || localStorage.getItem('userId');
+            const isSystemAccount = localStorage.getItem('is_system_account') === 'true';
+
+            if (isSystemAccount) {
+                const normalizedSystemId = String(userId || storedUserId || 'system').replace(/[^a-zA-Z0-9_-]/g, '_');
+                return `system_admin_${normalizedSystemId}`;
+            }
+
+            if (isAdmin === true || isClientAdminView() || userId === 'admin') {
                 return 'admin_master'; 
             }
 
@@ -48,7 +274,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 return 'emp_' + String(userId).replace(/[^a-zA-Z0-9_-]/g, '_');
             }
 
-            let foundId = localStorage.getItem('current_user_id') || localStorage.getItem('login') || localStorage.getItem('userId');
+            let foundId = storedUserId;
             if (foundId && foundId !== 'guest' && foundId !== 'null') {
                 return 'emp_' + String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_');
             }
@@ -102,6 +328,49 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [sessions, activeSessionId, isTyping]);
+
+    const loadSiteKnowledge = async () => {
+        if (siteKnowledgeCacheRef.current) {
+            return siteKnowledgeCacheRef.current;
+        }
+
+        const now = Date.now();
+
+        try {
+            const cachedRaw = localStorage.getItem(SITE_CONTEXT_CACHE_KEY);
+            if (cachedRaw) {
+                const cached = JSON.parse(cachedRaw);
+                if (cached?.expiresAt > now && Array.isArray(cached?.records)) {
+                    siteKnowledgeCacheRef.current = cached.records;
+                    return cached.records as SiteSearchRecord[];
+                }
+            }
+        } catch (error) {
+            console.warn('Не удалось прочитать кеш контекста сайта', error);
+        }
+
+        const storageData = await fetchStorageBatch([
+            'tea_hub_dynamic_route_v2',
+            'tea_hub_dynamic_tests_v1',
+            'tea_hub_assortment_matrix_v2',
+            'tea_hub_products_v1',
+            'tea_hub_urgent_files_v1',
+        ]);
+
+        const builtRecords = buildSiteKnowledgeIndex(storageData);
+        siteKnowledgeCacheRef.current = builtRecords;
+
+        try {
+            localStorage.setItem(SITE_CONTEXT_CACHE_KEY, JSON.stringify({
+                expiresAt: now + SITE_CONTEXT_CACHE_TTL_MS,
+                records: builtRecords,
+            }));
+        } catch (error) {
+            console.warn('Не удалось сохранить кеш контекста сайта', error);
+        }
+
+        return builtRecords;
+    };
 
     const saveSessions = (newSessions: ChatSession[]) => {
         setSessions(newSessions);
@@ -253,6 +522,13 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 siteContext += "ВАЖНОЕ ПРАВИЛО НАВИГАЦИИ ПО УРОКАМ: Все уроки и тесты сгруппированы по папкам (разделам). Нумерация (Урок 1, Урок 2) начинается ЗАНОВО внутри каждой папки! Если пользователь просит 'Включи урок 1' или 'Расскажи первую тему', ты должен ОБЯЗАТЕЛЬНО понять из контекста или переспросить: 'Урок 1 из какого раздела (папки) вас интересует?'.\nОпирайся СТРОГО на этот текст.\n\n";
             }
 
+            try {
+                const siteRecords = await loadSiteKnowledge();
+                siteContext += `${buildSiteContextPrompt(siteRecords, text)}\n\n`;
+            } catch (contextError) {
+                console.warn('Не удалось загрузить глобальный контекст сайта для ИИ', contextError);
+            }
+
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === currentActiveId);
             
             const apiMessages = currentSession ? currentSession.messages.map((m, index) => {
@@ -359,6 +635,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 <div className={`ai-sidebar custom-scroll ${isMobileHistoryOpen ? 'open' : ''}`}>
                     <div style={{ padding: '20px' }}>
                         <button 
+                            className="hover-unified-app"
                             onClick={createNewSession}
                             style={{ width: '100%', padding: '14px', background: 'transparent', border: '1px solid #0abab5', color: '#0abab5', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
@@ -413,6 +690,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                     {sessions.length > 0 && (
                         <div style={{ padding: '20px', borderTop: '1px solid #1a1a1a' }}>
                             <button 
+                                className="hover-unified-app"
                                 onClick={() => setShowClearConfirm(true)}
                                 style={{ width: '100%', padding: '12px', background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', transition: '0.2s' }}
                             >
@@ -576,9 +854,9 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 @media (max-width: 768px) {
                     .ai-monolithic-section { margin: -10px -15px -50px -15px; height: calc(100vh - 70px); }
                     .ai-mobile-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #1a1a1a; background: #0a0a0a; }
-                    .ai-history-btn { background: rgba(10,186,181,0.1); color: #0abab5; border: 1px solid rgba(10,186,181,0.3); padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 13px; transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease; }
-                    .ai-history-btn:hover { transform: translateY(1px) scale(0.98); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18); background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); }
-                    .ai-history-btn:active { transform: translateY(2px) scale(0.96); box-shadow: inset 0 3px 8px rgba(0,0,0,0.24); }
+                    .ai-history-btn { background: rgba(10,186,181,0.1); color: #0abab5; border: 1px solid rgba(10,186,181,0.3); padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 13px; transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease; }
+                    .ai-history-btn:hover { transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10, 186, 181, 0.24); background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; }
+                    .ai-history-btn:active { transform: translateY(2px) scale(0.97); box-shadow: inset 0 3px 8px rgba(0,0,0,0.24); }
                     .ai-sidebar { position: fixed; top: 0; left: -300px; width: 280px !important; height: 100vh; background: #000; z-index: 10006; box-shadow: 10px 0 30px rgba(0,0,0,0.8); }
                     .ai-sidebar.open { left: 0; }
                     .ai-mobile-overlay { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10005; backdrop-filter: blur(4px); }

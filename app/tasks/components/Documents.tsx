@@ -418,7 +418,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                 </p>
                             </div>
                             <input type="file" multiple id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing} onChange={(e) => { if (e.target.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.target.files as FileList)]); }} />
-                            <div style={{...adminActionBtn, padding: '12px 30px', marginTop: '10px'} as any}>ВЫБРАТЬ ФАЙЛЫ</div>
+                            <div className="hover-unified-app" style={{...adminActionBtn, padding: '12px 30px', marginTop: '10px'} as any}>ВЫБРАТЬ ФАЙЛЫ</div>
                         </div>
                     ) : (
                         <div style={{ background: '#111', padding: '30px', borderRadius: '24px', border: '1px solid #222', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -449,15 +449,15 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                        ) : (
                                            <div style={{ display: 'flex', gap: '8px' }}>
                                                <input autoFocus style={{ ...adminIn, flex: 1, marginBottom: 0 } as any} placeholder="Название..." value={newUploadSectionName} onChange={e => setNewUploadSectionName(e.target.value)} />
-                                               <button onClick={() => { setUploadSection(newUploadSectionName.trim() || 'Основной раздел'); setIsCreatingNewUploadSection(false); }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>ОК</button>
-                                               <button onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><CustomIcon name="close" size={15} color="#fff" /></button>
+                                               <button className="hover-unified-app" onClick={() => { setUploadSection(newUploadSectionName.trim() || 'Основной раздел'); setIsCreatingNewUploadSection(false); }} style={{ background: '#0abab5', color: '#000', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer' }}>ОК</button>
+                                               <button className="hover-unified-app" onClick={() => { setIsCreatingNewUploadSection(false); setUploadSection('Основной раздел'); }} style={{ background: '#333', color: '#fff', border: 'none', borderRadius: '10px', padding: '0 15px', fontWeight: '900', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><CustomIcon name="close" size={15} color="#fff" /></button>
                                            </div>
                                        )}
                                     </div>
 
                                     <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', paddingTop: '10px' }}>
-                                       <button onClick={() => { setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); }} disabled={isProcessing} style={{ ...saveBtn, marginTop: 0, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', flex: 1, padding: '14px' } as any}>ОТМЕНА</button>
-                                       <button onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, marginTop: 0, flex: 2, padding: '14px' } as any}>{isProcessing ? 'ОБРАБОТКА...' : 'ЗАГРУЗИТЬ'}</button>
+                                       <button className="hover-unified-app" onClick={() => { setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); }} disabled={isProcessing} style={{ ...saveBtn, marginTop: 0, background: 'transparent', color: '#ff4d4d', border: '1px solid #ff4d4d', flex: 1, padding: '14px' } as any}>ОТМЕНА</button>
+                                       <button className="hover-unified-app" onClick={handleSaveFile} disabled={isProcessing} style={{ ...saveBtn, marginTop: 0, flex: 2, padding: '14px' } as any}>{isProcessing ? 'ОБРАБОТКА...' : 'ЗАГРУЗИТЬ'}</button>
                                    </div>
                                 </div>
                             </div>
@@ -469,7 +469,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             <div style={flexSpace as any}>
                <h2 style={{ fontSize: '28px', fontWeight: '900', color: '#fff', margin: 0 }}>Нормативные документы</h2>
                {isAdmin && (
-                   <button onClick={() => setPromptSection({isOpen: true, name: ''})} style={adminActionBtn as any}>
+                   <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, name: ''})} style={adminActionBtn as any}>
                        + НОВЫЙ РАЗДЕЛ
                    </button>
                )}
@@ -490,8 +490,8 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                </h3>
                                {isAdmin && secName !== 'Основной раздел' && (
                                    <div style={{display: 'flex', gap: '15px'}}>
-                                       <span onClick={() => setRenameSectionPrompt({isOpen: true, oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '5px' }}><CustomIcon name="edit" size={12} color="#0abab5" /> РЕДАКТИРОВАТЬ</span>
-                                       <span onClick={() => setConfirmDelete({isOpen: true, type: 'section', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                       <span className="hover-link-unified-app" onClick={() => setRenameSectionPrompt({isOpen: true, oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '5px' }}><CustomIcon name="edit" size={12} color="#0abab5" /> РЕДАКТИРОВАТЬ</span>
+                                       <span className="hover-link-unified-app" onClick={() => setConfirmDelete({isOpen: true, type: 'section', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '3px', marginBottom: '-2px'}}>
                                                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                                            </svg>
@@ -563,8 +563,8 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Название раздела</div>
                         <input style={adminIn as any} autoFocus placeholder="Например: Должностные инструкции" value={promptSection.name} onChange={e => setPromptSection({...promptSection, name: e.target.value})} />
                         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                            <button onClick={() => setPromptSection({isOpen: false, name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
-                            <button onClick={confirmPromptSection} style={{ ...saveBtn, flex: 1, marginTop: 0 } as any}>СОЗДАТЬ</button>
+                            <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: false, name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={confirmPromptSection} style={{ ...saveBtn, flex: 1, marginTop: 0 } as any}>СОЗДАТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -577,8 +577,8 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '5px', marginLeft: '5px' }}>Новое название</div>
                         <input style={adminIn as any} autoFocus placeholder="Название..." value={renameSectionPrompt.newName} onChange={e => setRenameSectionPrompt({...renameSectionPrompt, newName: e.target.value})} />
                         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                            <button onClick={() => setRenameSectionPrompt({...renameSectionPrompt, isOpen: false})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
-                            <button onClick={confirmRenameSection} style={{ ...saveBtn, flex: 1, marginTop: 0 } as any}>СОХРАНИТЬ</button>
+                            <button className="hover-unified-app" onClick={() => setRenameSectionPrompt({...renameSectionPrompt, isOpen: false})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={confirmRenameSection} style={{ ...saveBtn, flex: 1, marginTop: 0 } as any}>СОХРАНИТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -596,7 +596,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                             ))}
                         </div>
 
-                        <button onClick={() => setMovingItem(null)} style={{ ...saveBtn, background: '#333', color: '#fff', marginTop: '10px' } as any}>ОТМЕНА</button>
+                        <button className="hover-unified-app" onClick={() => setMovingItem(null)} style={{ ...saveBtn, background: '#333', color: '#fff', marginTop: '10px' } as any}>ОТМЕНА</button>
                     </div>
                 </div>
             )}
@@ -619,8 +619,8 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                             }
                         </p>
                         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                            <button onClick={() => setConfirmDelete({isOpen: false, type: 'file', targetId: '', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ОТМЕНА</button>
-                            <button onClick={executeDelete} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>УДАЛИТЬ</button>
+                            <button className="hover-unified-app" onClick={() => setConfirmDelete({isOpen: false, type: 'file', targetId: '', name: ''})} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={executeDelete} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1, minWidth: '100px', marginTop: 0 } as any}>УДАЛИТЬ</button>
                         </div>
                     </div>
                 </div>
@@ -637,7 +637,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         </div>
                         <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{successModal.title}</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{successModal.text}</p>
-                        <button onClick={() => setSuccessModal({ show: false, title: '', text: '' })} style={saveBtn as any}>ПОНЯТНО</button>
+                        <button className="hover-unified-app" onClick={() => setSuccessModal({ show: false, title: '', text: '' })} style={saveBtn as any}>ПОНЯТНО</button>
                     </div>
                 </div>
             )}
@@ -653,7 +653,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         </div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ОШИБКА</h2>
                         <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px' }}>{errorModal.text}</p>
-                        <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>
+                        <button className="hover-unified-app" onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>
                     </div>
                 </div>
             )}
@@ -691,7 +691,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 }
 
                 .premium-card:hover {
-                    border-color: #333;
+                    border-color: rgba(10, 186, 181, 0.4);
+                    transform: translateY(1px) scale(0.985);
+                    box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.18);
                 }
 
                 /* СТИЛИ ДЛЯ НОВЫХ КНОПОК И ИКОНОК */
@@ -712,8 +714,11 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     font-family: inherit;
                 }
                 .doc-action-btn:hover {
-                    background: rgba(10,186,181,0.15);
-                    transform: translateY(-2px);
+                    background: rgba(10,186,181,0.14);
+                    border-color: rgba(10,186,181,0.45);
+                    color: #fff;
+                    transform: translateY(1px) scale(0.985);
+                    box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2);
                 }
 
                 .card-icon-btn {
@@ -729,10 +734,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     background: #1a1a1a;
                 }
                 .move-btn { color: #fff; }
-                .move-btn:hover { background: rgba(255,255,255,0.1); border-color: #888; transform: scale(1.05); }
+                .move-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
 
                 .del-btn { color: #ff4d4d; }
-                .del-btn:hover { background: rgba(255,77,77,0.1); border-color: #ff4d4d; transform: scale(1.05); }
+                .del-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
 
                 @media (max-width: 768px) {
                     .upload-settings-grid {

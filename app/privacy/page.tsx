@@ -221,9 +221,6 @@ export default function PrivacyPage() {
           <div style={sidebarTitleArea}>
             <p style={eyebrowStyle}>Документы</p>
             <h1 style={sidebarTitle}>Юридическая и сервисная информация</h1>
-            <p style={sidebarNote}>
-              Документы открываются сразу в нужном разделе и подходят для просмотра с телефона и компьютера.
-            </p>
           </div>
 
           <nav style={navStyle}>
@@ -311,14 +308,17 @@ export default function PrivacyPage() {
           }
         }
 
-        .menu-item {
-          transition: all 0.2s ease !important;
+        .menu-item,
+        .back-btn {
+          transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease !important;
         }
 
         .menu-item:hover {
           color: #ffffff !important;
-          border-color: rgba(10, 186, 181, 0.25) !important;
-          background: rgba(255, 255, 255, 0.03) !important;
+          border-color: rgba(10, 186, 181, 0.45) !important;
+          background: rgba(10, 186, 181, 0.12) !important;
+          box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(10, 186, 181, 0.24) !important;
+          transform: translateY(1px) scale(0.985) !important;
         }
 
         .privacy-doc-section {
@@ -326,9 +326,17 @@ export default function PrivacyPage() {
         }
 
         .back-btn:hover {
-          background: #0abab5 !important;
-          color: #032321 !important;
-          border-color: #0abab5 !important;
+          background: rgba(10, 186, 181, 0.14) !important;
+          color: #ffffff !important;
+          border-color: rgba(10, 186, 181, 0.45) !important;
+          box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(10, 186, 181, 0.24) !important;
+          transform: translateY(1px) scale(0.985) !important;
+        }
+
+        .menu-item:active,
+        .back-btn:active {
+          transform: translateY(2px) scale(0.97) !important;
+          box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.24) !important;
         }
 
         @media (max-width: 980px) {

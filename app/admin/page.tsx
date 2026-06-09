@@ -21,6 +21,8 @@ export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
+  const [isSystemAdmin, setIsSystemAdmin] = useState(false);
+  const [currentAdminId, setCurrentAdminId] = useState('u_admin');
 
   const [users, setUsers] = useState<any[]>([]);
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
@@ -72,6 +74,8 @@ export default function AdminDashboard() {
     if (typeof window !== 'undefined') {
         if (!('Notification' in window)) setPushStatus('unsupported');
         else setPushStatus(Notification.permission as any);
+        setCurrentAdminId(localStorage.getItem('current_user_id') || 'u_admin');
+        setIsSystemAdmin(localStorage.getItem('is_system_account') === 'true');
     }
 
     const loadAllData = async () => {
@@ -115,8 +119,8 @@ export default function AdminDashboard() {
             const stats: Record<string, {route: number, basics: number}> = {};
             const avatarsFound: Record<string, string> = {};
             const profilesFound: Record<string, any> = {};
-            const profileKeys = usersData.map((u: any) => `profile_data_${u.id}`);
-            const staffUsers = usersData.filter((u: any) => u.role === 'staff');
+            const profileKeys = usersData.filter((u: any) => !u.systemAccount).map((u: any) => `profile_data_${u.id}`);
+            const staffUsers = usersData.filter((u: any) => u.role === 'staff' && !u.hideFromStats && !u.profileDisabled);
             const progressKeys = staffUsers.flatMap((u: any) => [`prog_route_${u.id}`, `prog_tests_${u.id}`]);
             const relatedData = await fetchStorageBatch([...profileKeys, ...progressKeys]);
 
@@ -129,7 +133,7 @@ export default function AdminDashboard() {
                     if (profData.avatar) avatarsFound[u.id] = profData.avatar;
                 }
 
-                if (u.role === 'staff') {
+                if (u.role === 'staff' && !u.hideFromStats && !u.profileDisabled) {
                     const uRouteData = relatedData[`prog_route_${u.id}`];
                     const uTestsData = relatedData[`prog_tests_${u.id}`];
                     stats[u.id] = {
@@ -260,6 +264,9 @@ export default function AdminDashboard() {
   };
 
   const handleSaveUserAuth = async () => {
+      if (selectedProfileUser?.systemAccount && currentAdminId !== selectedProfileUser.id) {
+          return setErrorModal({ show: true, text: 'Профиль системного администратора изолирован от других администраторов.' });
+      }
       if (!editAuthLogin.trim() || !editAuthPass.trim()) return setErrorModal({ show: true, text: "Логин и пароль не могут быть пустыми!" });
       if (users.find(u => u.login === editAuthLogin.trim() && u.id !== selectedProfileUser.id)) return setErrorModal({ show: true, text: "Логин занят другим пользователем!" });
       try {
@@ -494,7 +501,7 @@ export default function AdminDashboard() {
                         <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Включите Web-Push</h3>
                         <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Разрешите получение пушей на этот компьютер.</p>
                     </div>
-                    <button onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>РАЗРЕШИТЬ</button>
+                    <button className="hover-unified-app" onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>РАЗРЕШИТЬ</button>
                 </div>
             )}
             
@@ -507,8 +514,8 @@ export default function AdminDashboard() {
                 />
 
                 <div className="admin-flex-space" style={{ ...flexSpace, marginTop: '40px' } as any}>
-                  <h2 className="admin-section-title" style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'underline' } as any} onClick={() => setShowTestModal(true)}>
-                    Результаты тестирования ↗
+                  <h2 className="admin-section-title hover-unified-app" style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'none', background: 'rgba(10,186,181,0.08)', border: '1px solid rgba(10,186,181,0.22)', padding: '10px 16px', borderRadius: '14px' } as any} onClick={() => setShowTestModal(true)}>
+                    Результаты тестирования
                   </h2>
                   <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Всего записей: {testResults.length}</span>
                 </div>
@@ -520,6 +527,7 @@ export default function AdminDashboard() {
                     handleSendNotification={handleSendNotification} handleOpenTestEditor={handleOpenTestEditor}
                     handleQuickSendTest={handleQuickSendTest} isProcessing={isProcessing}
                     testTypesList={testTypesList} handleUpdateTestTypes={handleUpdateTestTypes}
+                    allowSelfSystemTarget={isSystemAdmin} selfSystemTargetId={currentAdminId}
                 />
 
               </section>
@@ -585,6 +593,7 @@ export default function AdminDashboard() {
                     <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Кому назначить:</div>
                     <select style={{ ...adminIn, marginBottom: 0, padding: '12px', cursor: 'pointer' } as any} value={deadlineTarget} onChange={e => setDeadlineTarget(e.target.value)}>
                         <option value="Все">Всем сотрудникам</option>
+                        {isSystemAdmin && <option value={currentAdminId}>Себе (системный администратор)</option>}
                         {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.id}>{u.name} ({u.login})</option>)}
                     </select>
                     
@@ -636,8 +645,8 @@ export default function AdminDashboard() {
 
             <textarea autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={noteType === 'deadline' ? "Текст задачи..." : "Текст заметки..."} style={{...noteTextarea, height: noteType === 'deadline' ? '135px' : '200px'} as any} />
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
-                <button onClick={saveNote} disabled={isProcessing} style={{...adminSendBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'} as any}>{isProcessing ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}</button>
-                {notes[selectedDateKey] && <button onClick={deleteNote} disabled={isProcessing} style={{...noteDeleteBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'} as any}>УДАЛИТЬ</button>}
+                <button className="hover-unified-app" onClick={saveNote} disabled={isProcessing} style={{...adminSendBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'} as any}>{isProcessing ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}</button>
+                {notes[selectedDateKey] && <button className="hover-unified-app" onClick={deleteNote} disabled={isProcessing} style={{...noteDeleteBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'} as any}>УДАЛИТЬ</button>}
             </div>
           </div>
         </div>
@@ -649,7 +658,7 @@ export default function AdminDashboard() {
                   <div style={{ marginBottom: '20px', animation: 'scaleIn 0.3s ease', display: 'flex', justifyContent: 'center' }}><CustomIcon name="success" size={56} color="#0abab5" /></div>
                   <h2 style={{ color: '#0abab5', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>{showSuccessModal.title}</h2>
                   <p style={{ color: '#ccc', fontSize: '16px', lineHeight: '1.6', marginBottom: '25px' }}>{showSuccessModal.text}</p>
-                  <button onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })} style={saveBtn as any}>ПОНЯТНО</button>
+                  <button className="hover-unified-app" onClick={() => setShowSuccessModal({ ...showSuccessModal, show: false })} style={saveBtn as any}>ПОНЯТНО</button>
               </div>
           </div>
       )}
@@ -660,7 +669,7 @@ export default function AdminDashboard() {
                   <div style={{ width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                   <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>ОШИБКА</h2>
                   <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', marginBottom: '25px', wordBreak: 'break-word' }}>{errorModal.text}</p>
-                  <button onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>
+                  <button className="hover-unified-app" onClick={() => setErrorModal({ show: false, text: '' })} style={{ ...saveBtn, background: '#333', color: '#fff' } as any}>ПОНЯТНО</button>
               </div>
           </div>
       )}

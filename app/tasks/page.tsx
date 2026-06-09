@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { isClientAdminView } from '@/app/lib/authClient';
 
 // --- ИМПОРТ НАШИХ МОДУЛЕЙ ---
 import Education from './components/Education';
@@ -181,9 +182,8 @@ function ShiftContent() {
 
   useEffect(() => {
     setIsMounted(true);
-    const role = localStorage.getItem('userRole');
     const currentId = localStorage.getItem('current_user_id') || 'guest';
-    setIsAdmin(role === 'admin');
+    setIsAdmin(isClientAdminView());
     setUserId(currentId);
 
     if (typeof window !== 'undefined') {

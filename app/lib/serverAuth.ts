@@ -9,6 +9,7 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const USERS_KEY = 'tea_hub_users_v1';
 const HASH_PREFIX = 'scrypt';
 const dataDir = path.join(process.cwd(), 'data');
+const jsonFileCache = new Map<string, { parsed: unknown; modifiedAtMs: number }>();
 
 export type UserRole = 'admin' | 'staff';
 
@@ -20,8 +21,16 @@ export interface StoredUser {
     role: UserRole;
     name: string;
     isRegistered?: boolean;
+    registered?: boolean;
     email?: string;
     avatar?: string;
+    systemAccount?: boolean;
+    ghostAccount?: boolean;
+    profileDisabled?: boolean;
+    profileOwnerOnly?: boolean;
+    hideFromStats?: boolean;
+    canSwitchMode?: boolean;
+    accountLabel?: string;
 }
 
 export interface SessionUser {
@@ -29,6 +38,13 @@ export interface SessionUser {
     login: string;
     role: UserRole;
     name: string;
+    systemAccount?: boolean;
+    ghostAccount?: boolean;
+    profileDisabled?: boolean;
+    profileOwnerOnly?: boolean;
+    hideFromStats?: boolean;
+    canSwitchMode?: boolean;
+    accountLabel?: string;
 }
 
 interface SessionPayload extends SessionUser {
@@ -57,18 +73,71 @@ const baseUsers: StoredUser[] = [
         isRegistered: true,
     },
     {
-        id: 'u_staff_new',
+        id: 'u_staff',
         login: '1',
         pass: '1',
-        role: 'staff',
-        name: '',
-        isRegistered: false,
+        role: 'admin',
+        name: 'Системный администратор',
+        isRegistered: true,
+        systemAccount: true,
+        ghostAccount: true,
+        profileDisabled: false,
+        profileOwnerOnly: true,
+        hideFromStats: true,
+        canSwitchMode: true,
+        accountLabel: 'Системный администратор',
     },
 ];
 
 export const shouldKeepLegacyPassword = (user: Pick<StoredUser, 'login'>, nextPassword?: string) => {
     const passwordToCheck = nextPassword ?? '';
-    return (user.login === '11' && passwordToCheck === '11') || (user.login === '1' && passwordToCheck === '1');
+    return (user.login === '11' && passwordToCheck === '11') || ((user.login === '1' || user.login === '1.1') && passwordToCheck === user.login);
+};
+
+const isLegacySystemAccount = (user: Partial<StoredUser>) => {
+    const normalizedName = typeof user.name === 'string' ? user.name.trim().toLowerCase() : '';
+    return (
+        user.id === 'u_staff' ||
+        user.id === 'u_staff_new' ||
+        user.login === '1' ||
+        user.login === '1.1' ||
+        normalizedName === 'ярик' ||
+        normalizedName === 'системный администратор'
+    );
+};
+
+const normalizeStoredUser = (user: StoredUser): StoredUser => {
+    const normalizedUser: StoredUser = { ...user };
+
+    if (typeof normalizedUser.isRegistered !== 'boolean' && typeof normalizedUser.registered === 'boolean') {
+        normalizedUser.isRegistered = normalizedUser.registered;
+    }
+
+    delete normalizedUser.registered;
+
+    if (isLegacySystemAccount(normalizedUser)) {
+        normalizedUser.id = 'u_staff';
+        normalizedUser.role = 'admin';
+        normalizedUser.name = 'Системный администратор';
+        normalizedUser.isRegistered = true;
+        normalizedUser.systemAccount = true;
+        normalizedUser.ghostAccount = true;
+        normalizedUser.profileDisabled = false;
+        normalizedUser.profileOwnerOnly = true;
+        normalizedUser.hideFromStats = true;
+        normalizedUser.canSwitchMode = true;
+        normalizedUser.accountLabel = 'Системный администратор';
+    }
+
+    if (!normalizedUser.name) {
+        normalizedUser.name = normalizedUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник';
+    }
+
+    return normalizedUser;
+};
+
+const haveUsersChanged = (originalUsers: StoredUser[], normalizedUsers: StoredUser[]) => {
+    return JSON.stringify(originalUsers) !== JSON.stringify(normalizedUsers);
 };
 
 export const readJsonFile = <T = any>(key: string, fallback: T): T => {
@@ -80,7 +149,20 @@ export const readJsonFile = <T = any>(key: string, fallback: T): T => {
     }
 
     try {
-        return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
+        const stats = fs.statSync(filePath);
+        const cachedEntry = jsonFileCache.get(filePath);
+
+        if (cachedEntry && cachedEntry.modifiedAtMs === stats.mtimeMs) {
+            return structuredClone(cachedEntry.parsed) as T;
+        }
+
+        const parsedData = JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
+        jsonFileCache.set(filePath, {
+            parsed: parsedData,
+            modifiedAtMs: stats.mtimeMs,
+        });
+
+        return structuredClone(parsedData) as T;
     } catch (error) {
         console.error(`Ошибка чтения файла ${filePath}:`, error);
         return fallback;
@@ -89,7 +171,19 @@ export const readJsonFile = <T = any>(key: string, fallback: T): T => {
 
 export const writeJsonFile = (key: string, data: unknown) => {
     ensureDataDir();
-    fs.writeFileSync(getFilePath(key), JSON.stringify(data, null, 2), 'utf8');
+    const filePath = getFilePath(key);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+
+    try {
+        const stats = fs.statSync(filePath);
+        jsonFileCache.set(filePath, {
+            parsed: data,
+            modifiedAtMs: stats.mtimeMs,
+        });
+    } catch (error) {
+        console.error(`Ошибка обновления кеша файла ${filePath}:`, error);
+        jsonFileCache.delete(filePath);
+    }
 };
 
 export const ensureBaseUsers = () => {
@@ -100,7 +194,21 @@ export const ensureBaseUsers = () => {
         return baseUsers;
     }
 
-    return currentUsers;
+    const normalizedUsers = currentUsers.map(normalizeStoredUser);
+
+    if (!normalizedUsers.some((user) => user.id === 'u_admin')) {
+        normalizedUsers.unshift(baseUsers[0]);
+    }
+
+    if (!normalizedUsers.some((user) => user.id === 'u_staff')) {
+        normalizedUsers.push(baseUsers[1]);
+    }
+
+    if (haveUsersChanged(currentUsers, normalizedUsers)) {
+        writeJsonFile(USERS_KEY, normalizedUsers);
+    }
+
+    return normalizedUsers;
 };
 
 export const getStoredUsers = () => {
@@ -160,17 +268,31 @@ export const toSessionUser = (user: StoredUser): SessionUser => ({
     login: user.login,
     role: user.role,
     name: user.name || (user.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+    systemAccount: Boolean(user.systemAccount),
+    ghostAccount: Boolean(user.ghostAccount),
+    profileDisabled: Boolean(user.profileDisabled),
+    profileOwnerOnly: Boolean(user.profileOwnerOnly),
+    hideFromStats: Boolean(user.hideFromStats),
+    canSwitchMode: Boolean(user.canSwitchMode),
+    accountLabel: user.accountLabel || '',
 });
 
 export const toPublicUser = (user: StoredUser) => ({
     id: user.id,
     login: user.login,
     role: user.role,
-    name: user.name,
+    name: user.name || (user.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
     isRegistered: user.isRegistered ?? true,
     email: user.email || '',
     avatar: user.avatar || '',
     hasPassword: Boolean(user.passHash || user.pass),
+    systemAccount: Boolean(user.systemAccount),
+    ghostAccount: Boolean(user.ghostAccount),
+    profileDisabled: Boolean(user.profileDisabled),
+    profileOwnerOnly: Boolean(user.profileOwnerOnly),
+    hideFromStats: Boolean(user.hideFromStats),
+    canSwitchMode: Boolean(user.canSwitchMode),
+    accountLabel: user.accountLabel || '',
 });
 
 const signValue = (value: string) => {
@@ -228,6 +350,13 @@ export const getSessionFromCookies = async () => {
         login: payload.login,
         role: payload.role,
         name: payload.name,
+        systemAccount: Boolean(payload.systemAccount),
+        ghostAccount: Boolean(payload.ghostAccount),
+        profileDisabled: Boolean(payload.profileDisabled),
+        profileOwnerOnly: Boolean(payload.profileOwnerOnly),
+        hideFromStats: Boolean(payload.hideFromStats),
+        canSwitchMode: Boolean(payload.canSwitchMode),
+        accountLabel: payload.accountLabel || '',
     } satisfies SessionUser;
 };
 

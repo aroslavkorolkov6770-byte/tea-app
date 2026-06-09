@@ -5,8 +5,8 @@ import { modalOverlay, adminIn, delIconStyle, adminActionBtn, saveBtn } from './
 const modalContentMedium: React.CSSProperties = { background: '#161816', padding: '40px 30px', borderRadius: '35px', width: '100%', maxWidth: '760px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };
 const cancelLink: React.CSSProperties = { textAlign: 'center', marginTop: '18px', color: '#666', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
 const fieldLabel: React.CSSProperties = { fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '8px', marginLeft: '5px', textTransform: 'uppercase', letterSpacing: '0.8px' };
-const timerBox: React.CSSProperties = { background: '#0d0f0d', border: '1px solid #222', borderRadius: '22px', padding: '16px', display: 'grid', gap: '14px' };
-const timerInputWrap: React.CSSProperties = { display: 'grid', gap: '8px', minWidth: '92px' };
+const timerBox: React.CSSProperties = { background: '#0d0f0d', border: '1px solid #222', borderRadius: '22px', padding: '18px', display: 'grid', gap: '16px' };
+const timerInputWrap: React.CSSProperties = { display: 'grid', gap: '8px', minWidth: '0' };
 const timerInputStyle: React.CSSProperties = { width: '100%', padding: '12px 12px', background: '#111', border: '1px solid #333', borderRadius: '14px', color: '#0abab5', fontSize: '20px', fontWeight: '900', textAlign: 'center', outline: 'none' };
 const timerUnitStyle: React.CSSProperties = { fontSize: '10px', color: '#666', fontWeight: '900', textAlign: 'center', letterSpacing: '1px' };
 const presetBtn = (active: boolean): React.CSSProperties => ({ padding: '10px 14px', background: active ? '#0abab5' : '#111', color: active ? '#000' : '#a1a1a1', borderRadius: '12px', cursor: 'pointer', fontSize: '12px', fontWeight: '900', transition: '0.2s', border: `1px solid ${active ? '#0abab5' : '#333'}`, textAlign: 'center' });
@@ -49,7 +49,7 @@ export default function TestEditorModal({
                             Редактор аттестации
                         </h2>
                     </div>
-                    <div onClick={() => setShowTestEditor(false)} style={{ ...delIconStyle, width: '40px', height: '40px', fontSize: '18px' } as any}>X</div>
+                    <div className="hover-unified" onClick={() => setShowTestEditor(false)} style={{ ...delIconStyle, width: '40px', height: '40px', fontSize: '18px' } as any}>X</div>
                 </div>
                 
                 <div style={{display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px'}}>
@@ -61,8 +61,9 @@ export default function TestEditorModal({
                     <div>
                         <div style={fieldLabel}>Лимит времени</div>
                         <div style={timerBox}>
-                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-                                <div style={timerInputWrap}>
+                            <div className="timer-layout">
+                                <div className="timer-fields">
+                                <div style={timerInputWrap} className="timer-input-wrap">
                                     <div style={{ fontSize: '12px', color: '#a1a1a1', fontWeight: '800' }}>Минуты</div>
                                     <input 
                                         type="text"
@@ -73,8 +74,8 @@ export default function TestEditorModal({
                                     />
                                     <span style={timerUnitStyle}>ММ</span>
                                 </div>
-                                <span style={{ fontSize: '24px', color: '#3f4641', fontWeight: '900', paddingBottom: '12px' }}>:</span>
-                                <div style={timerInputWrap}>
+                                <span className="timer-colon" style={{ fontSize: '24px', color: '#3f4641', fontWeight: '900', paddingBottom: '12px' }}>:</span>
+                                <div style={timerInputWrap} className="timer-input-wrap">
                                     <div style={{ fontSize: '12px', color: '#a1a1a1', fontWeight: '800' }}>Секунды</div>
                                     <input 
                                         type="text"
@@ -85,10 +86,12 @@ export default function TestEditorModal({
                                     />
                                     <span style={timerUnitStyle}>СС</span>
                                 </div>
+                                </div>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: '8px' }}>
+                            <div className="timer-presets" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: '8px' }}>
                                 {[0, 1, 5, 10, 15, 30].map((t) => (
                                     <div 
+                                        className="hover-unified"
                                         key={t}
                                         onClick={() => setTestFormData({...testFormData, timeLimit: t})} 
                                         style={presetBtn(testFormData.timeLimit === t)}
@@ -104,7 +107,7 @@ export default function TestEditorModal({
                 <div style={{borderTop: '1px solid #222', paddingTop: '22px', marginTop: '4px'}}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap'}}>
                         <h3 style={{fontSize: '16px', color: '#0abab5', margin: 0, fontWeight: '900'}}>Вопросы ({testFormData.quiz.length})</h3>
-                        <button onClick={addTestQuestion} disabled={isProcessing} style={adminActionBtn as any}>+ ДОБАВИТЬ ВОПРОС</button>
+                        <button className="hover-unified" onClick={addTestQuestion} disabled={isProcessing} style={adminActionBtn as any}>+ ДОБАВИТЬ ВОПРОС</button>
                     </div>
                     {testFormData.quiz.map((q: any, qIdx: number) => (
                         <div key={qIdx} style={questionCardStyle}>
@@ -131,13 +134,60 @@ export default function TestEditorModal({
                     ))}
                 </div>
                 
-                <button onClick={handleSendTest} disabled={isProcessing} style={{...saveBtn, marginTop: '30px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1} as any}>
+                <button className="hover-unified" onClick={handleSendTest} disabled={isProcessing} style={{...saveBtn, marginTop: '30px', cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1} as any}>
                     {isProcessing ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ'}
                 </button>
                 
-                <div onClick={() => setShowTestEditor(false)} style={cancelLink as any}>ЗАКРЫТЬ</div>
+                <div className="hover-unified hover-link-like" onClick={() => setShowTestEditor(false)} style={cancelLink as any}>ЗАКРЫТЬ</div>
 
                 <style jsx>{`
+                    .hover-unified {
+                        transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+                    }
+
+                    .hover-unified:hover:not(:disabled) {
+                        transform: translateY(1px) scale(0.985);
+                        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(10, 186, 181, 0.24);
+                        border-color: rgba(10, 186, 181, 0.45) !important;
+                    }
+
+                    .hover-unified:active:not(:disabled) {
+                        transform: translateY(2px) scale(0.97);
+                        box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.24);
+                    }
+
+                    .hover-link-like:hover {
+                        color: #0abab5 !important;
+                    }
+
+                    .timer-layout {
+                        display: grid;
+                        grid-template-columns: minmax(0, 1fr) auto;
+                        gap: 18px;
+                        align-items: end;
+                    }
+
+                    .timer-fields {
+                        display: grid;
+                        grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+                        align-items: end;
+                        gap: 14px;
+                    }
+
+                    .timer-input-wrap {
+                        min-width: 0;
+                    }
+
+                    .timer-colon {
+                        align-self: center;
+                        padding-bottom: 28px !important;
+                    }
+
+                    .timer-presets {
+                        align-self: stretch;
+                        min-width: 250px;
+                    }
+
                     @media (max-width: 768px) {
                         .admin-modal-content {
                             padding: 28px 18px !important;
@@ -147,6 +197,29 @@ export default function TestEditorModal({
                         }
                         .admin-modal-content h2 {
                             font-size: 22px !important;
+                        }
+                        .timer-layout {
+                            grid-template-columns: 1fr;
+                            gap: 12px;
+                        }
+                        .timer-fields {
+                            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+                            gap: 10px;
+                        }
+                        .timer-colon {
+                            padding-bottom: 12px !important;
+                        }
+                        .timer-presets {
+                            min-width: 0;
+                        }
+                    }
+
+                    @media (max-width: 560px) {
+                        .timer-fields {
+                            grid-template-columns: 1fr;
+                        }
+                        .timer-colon {
+                            display: none;
                         }
                     }
                 `}</style>
