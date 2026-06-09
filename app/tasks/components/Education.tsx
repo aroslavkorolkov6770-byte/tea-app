@@ -47,7 +47,7 @@ const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: st
     const normalizedIframeMarkup = normalizeEmbeddedPlayerMarkup(iframeStr);
 
     return (
-        <div style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+        <div className="video-player-card" style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
             {normalizedIframeMarkup ? (
                 <div className="video-wrapper">
                     <div className="video-embed-shell" dangerouslySetInnerHTML={{ __html: normalizedIframeMarkup }} />
@@ -55,7 +55,7 @@ const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: st
             ) : (
                 <div style={{ padding: '40px', textAlign: 'center', color: '#555', fontStyle: 'italic', background: '#111', borderRadius: '15px' }}>Видео не прикреплено</div>
             )}
-            {descText && <p style={{ fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, marginTop: '20px', padding: '0 10px', whiteSpace: 'pre-wrap' }}>{descText}</p>}
+            {descText && <p className="video-player-description" style={{ fontSize: '15px', color: '#ccc', lineHeight: '1.6', margin: 0, marginTop: '20px', padding: '0 10px', whiteSpace: 'pre-wrap' }}>{descText}</p>}
         </div>
     );
 }, (prevProps, nextProps) => {
@@ -1362,7 +1362,10 @@ export default function Education({
                 .del-btn { color: #ff4d4d; }
                 .del-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
 
-                .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 15px; overflow: hidden; max-width: 100%; }
+                .video-player-card {
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+                }
+                .video-wrapper { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; background: #050505; border-radius: 18px; overflow: hidden; max-width: 100%; border: 1px solid rgba(255,255,255,0.04); }
                 .video-embed-shell { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: hidden; }
                 .video-embed-shell :global(.embedded-player-frame),
                 .video-embed-shell :global(iframe),
@@ -1414,8 +1417,23 @@ export default function Education({
                     .tasks-modal-header { flex-direction: column; align-items: flex-start !important; gap: 15px; margin-bottom: 25px !important; }
                     .tasks-modal-header h2 { font-size: 20px !important; padding: 0 !important; text-align: left !important; }
                     .desktop-spacer { display: none !important; }
+                    .video-player-card {
+                        padding: 12px !important;
+                        border-radius: 20px !important;
+                        margin-bottom: 24px !important;
+                    }
                     .video-wrapper {
-                        border-radius: 12px !important;
+                        border-radius: 14px !important;
+                        margin-left: -2px !important;
+                        margin-right: -2px !important;
+                        width: calc(100% + 4px) !important;
+                        max-width: calc(100% + 4px) !important;
+                    }
+                    .video-player-description {
+                        margin-top: 14px !important;
+                        padding: 0 4px !important;
+                        font-size: 14px !important;
+                        line-height: 1.5 !important;
                     }
                 }
             `}</style>
