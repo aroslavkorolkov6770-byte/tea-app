@@ -13,9 +13,10 @@ export default function Footer() {
              <span style={{ color: '#333' }}>|</span>
          </div>
 
-         {/* --- БЛОК СЛУЖБЫ ПОДДЕРЖКИ (ЗАГОТОВКА ПОЧТЫ) --- */}
+         {/* --- БЛОК СЛУЖБЫ ПОДДЕРЖКИ --- */}
          <div style={{ marginTop: '25px', color: '#888', fontSize: '13px', fontWeight: '500' }}>
-             Служба технической поддержки: <a href="teacoffe@yandex.ru" style={{ color: '#0abab5', textDecoration: 'none', fontWeight: 'bold' }}>teacoffe@yandex.ru</a>
+             Служба технической поддержки:{' '}
+             <span style={{ color: '#0abab5', fontWeight: 'bold' }}>teacoffe@yandex.ru</span>
          </div>
 
          {/* СТРОГИЙ КОПИРАЙТ ПО ГОСТ Р 7.0.1—2003 */}
