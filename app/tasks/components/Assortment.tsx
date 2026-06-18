@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
 import { isClientAdminView } from '@/app/lib/authClient';
+import { saveDataToServer } from '@/app/lib/storageClient';
 
 // --- ПОЛНАЯ БАЗА АССОРТИМЕНТА (ТОВАРНАЯ МАТРИЦА) ---
 export const INITIAL_ASSORTMENT = [
@@ -399,6 +400,11 @@ function AssortmentNode({
                             {descText}
                         </div>
                     )}
+                    {!descText && !hasChildren && (
+                        <div style={{ padding: '12px 18px', fontSize: '13px', color: '#6f6f6f', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px dashed #1f1f1f', wordBreak: 'break-word', lineHeight: '1.5' }}>
+                            {isAdmin ? 'Подраздел создан. Можно добавить описание или вложенный раздел.' : 'Подраздел пока не наполнен содержимым.'}
+                        </div>
+                    )}
                     {hasChildren && node.children.map((child: any) => (
                         <AssortmentNode key={child.id} node={child} depth={depth + 1} targetId={targetId} isAdmin={isAdmin} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onMove={onMove} />
                     ))}
@@ -451,11 +457,9 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
     const saveMatrix = (newMatrix: any[]) => {
         setLocalMatrix(newMatrix);
         localStorage.setItem('th_cache_assortment_matrix_v2', JSON.stringify(newMatrix));
-        fetch('/api/storage', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'tea_hub_assortment_matrix_v2', data: newMatrix })
-        }).catch(e => console.error(e));
+        saveDataToServer('tea_hub_assortment_matrix_v2', newMatrix).catch((error) => {
+            console.error('Ошибка сохранения ассортимента', error);
+        });
     };
 
     // --- ФУНКЦИИ РЕДАКТИРОВАНИЯ ДЕРЕВА ---

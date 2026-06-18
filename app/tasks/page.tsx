@@ -21,9 +21,19 @@ const STORAGE_KEYS = {
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
 };
 
+const CLIENT_CACHE_KEYS = {
+    URGENT_FILES: 'th_cache_urgent_files_v1',
+    DYNAMIC_ROUTE: 'th_cache_dynamic_route_v2',
+    DYNAMIC_TESTS: 'th_cache_dynamic_tests_v1',
+    ASSORTMENT: 'th_cache_assortment_matrix_v2',
+};
+
 function ShiftContent() {
   const searchParams = useSearchParams();
   const router = useRouter(); 
+  const backgroundSessionCheckRef = React.useRef(0);
+  const activeTabRef = React.useRef('welcome');
+  const latestLoadRequestRef = React.useRef(0);
   
   const [isMounted, setIsMounted] = useState(false);
   const [isSessionValidated, setIsSessionValidated] = useState(false);
@@ -42,7 +52,6 @@ function ShiftContent() {
   const [passedTests, setPassedTests] = useState<string[]>([]);
   const [dismissedTasks, setDismissedTasks] = useState<string[]>([]);
   const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
-  const [productsSyncTick, setProductsSyncTick] = useState(0);
 
   // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ МОДАЛКАМИ ИЗ ПОИСКА ---
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
@@ -52,7 +61,73 @@ function ShiftContent() {
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
   const [isPushBound, setIsPushBound] = useState(false);
 
+  useEffect(() => {
+      activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  const hydrateCachedData = (currentUserId: string) => {
+      if (typeof window === 'undefined') {
+          return;
+      }
+
+      try {
+          const cachedUrgentFiles = localStorage.getItem(CLIENT_CACHE_KEYS.URGENT_FILES);
+          const cachedDynamicRoute = localStorage.getItem(CLIENT_CACHE_KEYS.DYNAMIC_ROUTE);
+          const cachedDynamicTests = localStorage.getItem(CLIENT_CACHE_KEYS.DYNAMIC_TESTS);
+          const cachedAssortment = localStorage.getItem(CLIENT_CACHE_KEYS.ASSORTMENT);
+          const cachedCompletedRoute = localStorage.getItem(`th_prog_route_${currentUserId}`);
+          const cachedCompletedTests = localStorage.getItem(`th_prog_tests_${currentUserId}`);
+          const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
+          const cachedDismissedTasks = localStorage.getItem(`th_dismissed_tasks_${currentUserId}`);
+
+          if (cachedUrgentFiles) {
+              const parsed = JSON.parse(cachedUrgentFiles);
+              if (Array.isArray(parsed)) setUrgentFiles(parsed);
+          }
+
+          if (cachedDynamicRoute) {
+              const parsed = JSON.parse(cachedDynamicRoute);
+              if (Array.isArray(parsed)) setDynamicRoute(parsed);
+          }
+
+          if (cachedDynamicTests) {
+              const parsed = JSON.parse(cachedDynamicTests);
+              if (Array.isArray(parsed)) setDynamicTests(parsed);
+          }
+
+          if (cachedAssortment) {
+              const parsed = JSON.parse(cachedAssortment);
+              if (Array.isArray(parsed)) setAssortmentMatrix(parsed);
+          }
+
+          if (cachedCompletedRoute) {
+              const parsed = JSON.parse(cachedCompletedRoute);
+              if (Array.isArray(parsed)) setCompletedRoute(parsed);
+          }
+
+          if (cachedCompletedTests) {
+              const parsed = JSON.parse(cachedCompletedTests);
+              if (Array.isArray(parsed)) setCompletedTests(parsed);
+          }
+
+          if (cachedPassedTests) {
+              const parsed = JSON.parse(cachedPassedTests);
+              if (Array.isArray(parsed)) setPassedTests(parsed);
+          }
+
+          if (cachedDismissedTasks) {
+              const parsed = JSON.parse(cachedDismissedTasks);
+              if (Array.isArray(parsed)) setDismissedTasks(parsed);
+          }
+      } catch (error) {
+          console.error('Ошибка чтения локального кеша задач:', error);
+      }
+  };
+
   const loadAllData = async (currentUserId: string, checkUrl = false) => {
+      const requestId = latestLoadRequestRef.current + 1;
+      latestLoadRequestRef.current = requestId;
+
       try {
           const storageData = await fetchStorageBatch([
               STORAGE_KEYS.URGENT_FILES,
@@ -74,8 +149,13 @@ function ShiftContent() {
           const sAssortment = storageData['tea_hub_assortment_matrix_v2'];
           const sDismissed = storageData[`dismissed_tasks_${currentUserId}`];
 
+          if (requestId !== latestLoadRequestRef.current) {
+              return;
+          }
+
           if (Array.isArray(sFiles)) {
               setUrgentFiles(sFiles);
+              localStorage.setItem(CLIENT_CACHE_KEYS.URGENT_FILES, JSON.stringify(sFiles));
           }
 
           if (Array.isArray(cRoute)) {
@@ -100,14 +180,17 @@ function ShiftContent() {
 
           if (Array.isArray(sTestsData)) {
               setDynamicTests(sTestsData);
+              localStorage.setItem(CLIENT_CACHE_KEYS.DYNAMIC_TESTS, JSON.stringify(sTestsData));
           }
 
           if (Array.isArray(sRouteData)) {
               setDynamicRoute(sRouteData);
+              localStorage.setItem(CLIENT_CACHE_KEYS.DYNAMIC_ROUTE, JSON.stringify(sRouteData));
           }
 
           if (Array.isArray(sAssortment)) {
               setAssortmentMatrix(sAssortment);
+              localStorage.setItem(CLIENT_CACHE_KEYS.ASSORTMENT, JSON.stringify(sAssortment));
           }
 
       } catch (e) {
@@ -186,7 +269,7 @@ function ShiftContent() {
     setIsMounted(true);
     let isDisposed = false;
 
-    const verifyProtectedSession = async () => {
+    const verifyProtectedSession = async (redirectOnUnauthorized: boolean) => {
         try {
             let sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
 
@@ -196,10 +279,12 @@ function ShiftContent() {
             }
 
             if (sessionResponse.status === 401) {
-                clearClientAuthState();
-                if (!isDisposed) {
-                    setIsSessionValidated(false);
-                    router.replace('/');
+                if (redirectOnUnauthorized) {
+                    clearClientAuthState();
+                    if (!isDisposed) {
+                        setIsSessionValidated(false);
+                        router.replace('/');
+                    }
                 }
                 return false;
             }
@@ -229,11 +314,12 @@ function ShiftContent() {
     };
 
     const bootPage = async () => {
-        const currentId = await verifyProtectedSession();
+        const currentId = await verifyProtectedSession(true);
         if (!currentId) {
             return;
         }
 
+        hydrateCachedData(currentId);
         await loadAllData(currentId, true);
 
         const urlTab = searchParams.get('tab');
@@ -246,20 +332,31 @@ function ShiftContent() {
     window.addEventListener('sidebarToggle', handleToggle);
 
     const syncInterval = setInterval(async () => {
-        if (activeTab === 'products') {
+        if (document.visibilityState !== 'visible') {
             return;
         }
-        const currentId = await verifyProtectedSession();
-        if (currentId) {
+
+        if (activeTabRef.current === 'products') {
+            return;
+        }
+
+        const currentId = localStorage.getItem('current_user_id') || 'guest';
+        if (currentId && currentId !== 'guest') {
             loadAllData(currentId, false);
         }
-    }, activeTab === 'products' ? 15000 : 7000);
+
+        const now = Date.now();
+        if (now - backgroundSessionCheckRef.current > 60_000) {
+            backgroundSessionCheckRef.current = now;
+            await verifyProtectedSession(false);
+        }
+    }, 20000);
 
     const focusHandler = async () => {
-        if (activeTab === 'products') {
+        if (activeTabRef.current === 'products') {
             return;
         }
-        const currentId = await verifyProtectedSession();
+        const currentId = await verifyProtectedSession(false);
         if (currentId) {
             loadAllData(currentId, false);
         }
@@ -272,7 +369,14 @@ function ShiftContent() {
         clearInterval(syncInterval);
         window.removeEventListener('focus', focusHandler);
     };
-  }, [searchParams, activeTab]);
+  }, [router]);
+
+  useEffect(() => {
+      const urlTab = searchParams.get('tab');
+      if (urlTab && urlTab !== activeTab) {
+          setActiveTab(urlTab);
+      }
+  }, [activeTab, searchParams]);
 
   const lastHandledParams = React.useRef("");
   useEffect(() => {
@@ -480,8 +584,7 @@ function ShiftContent() {
             <Products 
                 isAdmin={isAdmin} 
                 userId={userId}
-                syncTick={productsSyncTick}
-                onProductsSaved={() => setProductsSyncTick((prev) => prev + 1)}
+                assortmentMatrix={assortmentMatrix}
             />
         )}
 

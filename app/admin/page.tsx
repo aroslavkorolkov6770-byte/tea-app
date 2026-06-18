@@ -15,6 +15,18 @@ import TestResultsModal from './components/TestResultsModal';
 import { noteOverlayStyle, noteSidebarStyle, noteTextarea, noteDeleteBtn, adminSendBtn, flexSpace, sectionTitle, adminIn, saveBtn, modalOverlay, modalContentSmall } from './components/adminStyles';
 
 const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+const ADMIN_CACHE_KEYS = {
+  NOTES: 'th_admin_notes_v1',
+  USERS: 'th_admin_users_v1',
+  TEST_RESULTS: 'th_admin_test_results_v1',
+  URGENT_FILES: 'th_admin_urgent_files_v1',
+  ROUTE: 'th_admin_dynamic_route_v2',
+  TESTS: 'th_admin_dynamic_tests_v1',
+  TEST_TYPES: 'th_admin_test_types_v1',
+  USER_PROFILES: 'th_admin_user_profiles_v1',
+  USER_AVATARS: 'th_admin_user_avatars_v1',
+  USER_STATS: 'th_admin_user_stats_v1',
+};
 
 export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
@@ -66,6 +78,48 @@ export default function AdminDashboard() {
   const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, title: string, text: string}>({ show: false, title: '', text: '' });
   const [errorModal, setErrorModal] = useState({ show: false, text: '' });
 
+  const hydrateAdminCache = () => {
+      if (typeof window === 'undefined') {
+          return;
+      }
+
+      try {
+          const cachedNotes = localStorage.getItem(ADMIN_CACHE_KEYS.NOTES);
+          const cachedUsers = localStorage.getItem(ADMIN_CACHE_KEYS.USERS);
+          const cachedResults = localStorage.getItem(ADMIN_CACHE_KEYS.TEST_RESULTS);
+          const cachedUrgentFiles = localStorage.getItem(ADMIN_CACHE_KEYS.URGENT_FILES);
+          const cachedRoute = localStorage.getItem(ADMIN_CACHE_KEYS.ROUTE);
+          const cachedTests = localStorage.getItem(ADMIN_CACHE_KEYS.TESTS);
+          const cachedTypes = localStorage.getItem(ADMIN_CACHE_KEYS.TEST_TYPES);
+          const cachedProfiles = localStorage.getItem(ADMIN_CACHE_KEYS.USER_PROFILES);
+          const cachedAvatars = localStorage.getItem(ADMIN_CACHE_KEYS.USER_AVATARS);
+          const cachedStats = localStorage.getItem(ADMIN_CACHE_KEYS.USER_STATS);
+
+          if (cachedNotes) setNotes(JSON.parse(cachedNotes));
+          if (cachedUsers) setUsers(JSON.parse(cachedUsers));
+          if (cachedResults) setTestResults(JSON.parse(cachedResults));
+          if (cachedUrgentFiles) setUrgentFiles(JSON.parse(cachedUrgentFiles));
+
+          if (cachedTests) {
+              const parsedTests = JSON.parse(cachedTests);
+              setDynamicTests(parsedTests);
+              if (Array.isArray(parsedTests)) setTotalBasicsModules(parsedTests.length);
+          }
+
+          if (cachedRoute) {
+              const parsedRoute = JSON.parse(cachedRoute);
+              if (Array.isArray(parsedRoute)) setTotalRouteSteps(parsedRoute.length);
+          }
+
+          if (cachedTypes) setTestTypesList(JSON.parse(cachedTypes));
+          if (cachedProfiles) setUserProfiles(JSON.parse(cachedProfiles));
+          if (cachedAvatars) setUserAvatars(JSON.parse(cachedAvatars));
+          if (cachedStats) setUsersStats(JSON.parse(cachedStats));
+      } catch (error) {
+          console.error('Ошибка чтения кеша админки', error);
+      }
+  };
+
   useEffect(() => {
     setIsMounted(true);
     const handleToggle = () => setIsSidebarOpen(prev => !prev);
@@ -76,6 +130,7 @@ export default function AdminDashboard() {
         else setPushStatus(Notification.permission as any);
         setCurrentAdminId(localStorage.getItem('current_user_id') || 'u_admin');
         setIsSystemAdmin(localStorage.getItem('is_system_account') === 'true');
+        hydrateAdminCache();
     }
 
     const loadAllData = async () => {
@@ -91,30 +146,45 @@ export default function AdminDashboard() {
             ]);
 
             const notesData = storageData['admin_cal_notes_v1'];
-            if (notesData && !Array.isArray(notesData)) setNotes(notesData);
+            if (notesData && !Array.isArray(notesData)) {
+                setNotes(notesData);
+                localStorage.setItem(ADMIN_CACHE_KEYS.NOTES, JSON.stringify(notesData));
+            }
 
             let usersData = storageData['tea_hub_users_v1'];
             if (!Array.isArray(usersData)) usersData = [];
             setUsers(usersData);
+            localStorage.setItem(ADMIN_CACHE_KEYS.USERS, JSON.stringify(usersData));
 
             const testData = storageData['tea_hub_test_results_v1'];
             setTestResults(Array.isArray(testData) ? testData : []);
+            localStorage.setItem(ADMIN_CACHE_KEYS.TEST_RESULTS, JSON.stringify(Array.isArray(testData) ? testData : []));
 
             const filesData = storageData['tea_hub_urgent_files_v1'];
-            if (Array.isArray(filesData)) setUrgentFiles(filesData);
+            if (Array.isArray(filesData)) {
+                setUrgentFiles(filesData);
+                localStorage.setItem(ADMIN_CACHE_KEYS.URGENT_FILES, JSON.stringify(filesData));
+            }
 
             const typesData = storageData['tea_hub_test_types_v1'];
-            if (Array.isArray(typesData) && typesData.length > 0) setTestTypesList(typesData);
+            if (Array.isArray(typesData) && typesData.length > 0) {
+                setTestTypesList(typesData);
+                localStorage.setItem(ADMIN_CACHE_KEYS.TEST_TYPES, JSON.stringify(typesData));
+            }
 
             const loadedTests = storageData['tea_hub_dynamic_tests_v1'];
             const dynamicRouteData = storageData['tea_hub_dynamic_route_v2'];
 
             if (Array.isArray(loadedTests)) {
                 setDynamicTests(loadedTests);
+                localStorage.setItem(ADMIN_CACHE_KEYS.TESTS, JSON.stringify(loadedTests));
             }
 
             setTotalBasicsModules(Array.isArray(loadedTests) ? loadedTests.length : 0);
             setTotalRouteSteps(Array.isArray(dynamicRouteData) ? dynamicRouteData.length : 5);
+            if (Array.isArray(dynamicRouteData)) {
+                localStorage.setItem(ADMIN_CACHE_KEYS.ROUTE, JSON.stringify(dynamicRouteData));
+            }
 
             const stats: Record<string, {route: number, basics: number}> = {};
             const avatarsFound: Record<string, string> = {};
@@ -146,6 +216,9 @@ export default function AdminDashboard() {
             setUsersStats(stats);
             setUserAvatars(avatarsFound);
             setUserProfiles(profilesFound);
+            localStorage.setItem(ADMIN_CACHE_KEYS.USER_STATS, JSON.stringify(stats));
+            localStorage.setItem(ADMIN_CACHE_KEYS.USER_AVATARS, JSON.stringify(avatarsFound));
+            localStorage.setItem(ADMIN_CACHE_KEYS.USER_PROFILES, JSON.stringify(profilesFound));
 
         } catch (error) { console.error("Error", error); }
     };
@@ -384,16 +457,18 @@ export default function AdminDashboard() {
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
               
               const pushUrl = finalLinkedTestId ? `/tasks?tab=edu&testId=${finalLinkedTestId}` : '/tasks?tab=edu';
-              const pushSent = await sendPushNotification(deadlineTarget, { title: ' Новый дедлайн', body: noteText.trim(), url: pushUrl });
               
               let emailBody = `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`;
               if (finalLinkedTestId) {
                   const tName = dynamicTests.find(t => t.id === finalLinkedTestId)?.title || testSearchQuery.replace('[Аттестация] ', '') || "Тест";
                   emailBody += `\nК задаче прикреплен тест: "${tName}". Откройте платформу для прохождения.`;
               }
-              const emailSent = await sendEmailNotification(deadlineTarget, ' Внимание: Новый дедлайн!', emailBody);
               
-              setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена. ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
+              setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена.` });
+              Promise.allSettled([
+                  sendPushNotification(deadlineTarget, { title: ' Новый дедлайн', body: noteText.trim(), url: pushUrl }),
+                  sendEmailNotification(deadlineTarget, ' Внимание: Новый дедлайн!', emailBody),
+              ]).catch((error) => console.error('Ошибка фоновой отправки дедлайна', error));
           }
           
           newNotes[selectedDateKey] = adminNoteText;
@@ -431,9 +506,11 @@ export default function AdminDashboard() {
           const arr = await res.json().catch(() => []);
           const newNotif = { id: Date.now(), title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение', text: notifText.trim(), time: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), target: selectedStaff };
           await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...(Array.isArray(arr) ? arr : [])]);
-          const pushSent = await sendPushNotification(selectedStaff, { title: newNotif.title, body: newNotif.text, url: '/tasks?tab=welcome' });
-          const emailSent = await sendEmailNotification(selectedStaff, newNotif.title, newNotif.text);
-          if (pushSent || emailSent) setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление доставлено сотрудникам.' });
+          setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление поставлено в отправку.' });
+          Promise.allSettled([
+              sendPushNotification(selectedStaff, { title: newNotif.title, body: newNotif.text, url: '/tasks?tab=welcome' }),
+              sendEmailNotification(selectedStaff, newNotif.title, newNotif.text),
+          ]).catch((error) => console.error('Ошибка фоновой отправки уведомления', error));
           setNotifText("");
       } finally { setIsProcessing(false); }
   };

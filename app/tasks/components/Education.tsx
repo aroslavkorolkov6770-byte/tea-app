@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
     TESTS_PROGRESS: 'tea_hub_tests_progress_v1',
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
 };
+const AI_SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
 
 const stripEmoji = (str: string) => {
     if (!str) return '';
@@ -66,6 +67,56 @@ const shuffleArray = (array: any[]) => {
     return [...array].sort(() => Math.random() - 0.5);
 };
 
+const normalizeSectionName = (section: string) => section?.trim() || 'Основной раздел';
+
+const sortSectionEntries = (items: any[]) => {
+    return [...items].sort((left: any, right: any) => {
+        const leftOrder = typeof left.order === 'number' ? left.order : Number.MAX_SAFE_INTEGER;
+        const rightOrder = typeof right.order === 'number' ? right.order : Number.MAX_SAFE_INTEGER;
+
+        if (leftOrder !== rightOrder) {
+            return leftOrder - rightOrder;
+        }
+
+        return String(left.title || left.name || '').localeCompare(String(right.title || right.name || ''), 'ru');
+    });
+};
+
+const reindexSectionItems = (items: any[]) => {
+    return sortSectionEntries(items).map((item: any, index: number) => ({ ...item, order: index + 1 }));
+};
+
+const upsertOrderedSectionItem = (collection: any[], nextItem: any) => {
+    const targetSection = normalizeSectionName(nextItem.section);
+    const otherItems = collection.filter((item: any) => item.id !== nextItem.id);
+    const sectionItems = otherItems.filter((item: any) => !item.isPlaceholder && normalizeSectionName(item.section) === targetSection);
+    const desiredOrderRaw = Number(nextItem.order);
+    const maxOrder = sectionItems.length + 1;
+    const desiredOrder = Number.isFinite(desiredOrderRaw) && desiredOrderRaw > 0 ? Math.min(Math.max(1, Math.trunc(desiredOrderRaw)), maxOrder) : maxOrder;
+
+    const orderedSectionItems = reindexSectionItems(sectionItems);
+    orderedSectionItems.splice(desiredOrder - 1, 0, { ...nextItem, section: targetSection, order: desiredOrder });
+    const normalizedSectionItems = orderedSectionItems.map((item: any, index: number) => ({ ...item, order: index + 1 }));
+
+    return [
+        ...otherItems.filter((item: any) => normalizeSectionName(item.section) !== targetSection || item.isPlaceholder),
+        ...normalizedSectionItems,
+    ];
+};
+
+const normalizeOrderedCollection = (collection: any[]) => {
+    const placeholders = collection.filter((item: any) => item.isPlaceholder);
+    const realItems = collection.filter((item: any) => !item.isPlaceholder);
+    const sections = Array.from(new Set(realItems.map((item: any) => normalizeSectionName(item.section))));
+
+    const normalizedItems = sections.flatMap((sectionName) => {
+        const sectionItems = realItems.filter((item: any) => normalizeSectionName(item.section) === sectionName);
+        return reindexSectionItems(sectionItems.map((item: any) => ({ ...item, section: sectionName })));
+    });
+
+    return [...normalizedItems, ...placeholders];
+};
+
 export default function Education({
     isAdmin, userId, dynamicRoute, setDynamicRoute, completedRoute, setCompletedRoute,
     dynamicTests, setDynamicTests, completedTests, setCompletedTests, urgentFiles,
@@ -76,14 +127,14 @@ export default function Education({
     
     const [showRouteForm, setShowRouteForm] = useState(false);
     const [routeFormData, setRouteFormData] = useState({ 
-        id: '', title: '', time: '5 мин', section: '',
+        id: '', title: '', time: '5 мин', section: '', order: '',
         mediaType: 'text', videoIframe: '', videoDesc: '',
         h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '' 
     });
 
     const [showTestForm, setShowTestForm] = useState(false);
     const [testFormData, setTestFormData] = useState({
-        id: '', title: '', subtitle: '', theory: '', section: '', timeLimit: 0,
+        id: '', title: '', subtitle: '', theory: '', section: '', order: '', timeLimit: 0,
         quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] 
     });
 
@@ -114,8 +165,22 @@ export default function Education({
     const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
     const [zoomedImg, setZoomedImg] = useState<string | null>(null);
 
-    const updateRouteState = (newData: any[]) => { setDynamicRoute(newData); saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, newData); };
-    const updateTestsState = (newData: any[]) => { setDynamicTests(newData); saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, newData); };
+    const updateRouteState = (newData: any[]) => {
+        const normalizedData = normalizeOrderedCollection(newData);
+        setDynamicRoute(normalizedData);
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem(AI_SITE_CONTEXT_CACHE_KEY);
+        }
+        saveDataToServer(STORAGE_KEYS.DYNAMIC_ROUTE, normalizedData);
+    };
+    const updateTestsState = (newData: any[]) => {
+        const normalizedData = normalizeOrderedCollection(newData);
+        setDynamicTests(normalizedData);
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem(AI_SITE_CONTEXT_CACHE_KEY);
+        }
+        saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, normalizedData);
+    };
 
     useEffect(() => {
         let timerId: any;
@@ -213,9 +278,12 @@ export default function Education({
 
     const handleSaveRoute = () => {
         if (!routeFormData.title.trim()) { alert("Введите название темы!"); return; }
-        let newList = [...dynamicRoute];
-        if (routeFormData.id) newList = newList.map((r: any) => r.id === routeFormData.id ? routeFormData : r);
-        else newList.push({ ...routeFormData, id: 'route_' + Date.now() });
+        const routeDraft = {
+            ...routeFormData,
+            id: routeFormData.id || ('route_' + Date.now()),
+            section: normalizeSectionName(routeFormData.section),
+        };
+        const newList = upsertOrderedSectionItem([...dynamicRoute], routeDraft);
         updateRouteState(newList);
         setShowRouteForm(false);
     };
@@ -246,12 +314,11 @@ export default function Education({
         const newTest = {
             id: testFormData.id || ('t_' + Date.now()),
             title: testFormData.title, subtitle: testFormData.subtitle, theory: testFormData.theory,
-            section: testFormData.section, timeLimit: testFormData.timeLimit || 0,
+            section: normalizeSectionName(testFormData.section), order: testFormData.order,
+            timeLimit: testFormData.timeLimit || 0,
             quiz: testFormData.quiz.map((q: any) => ({ q: q.q || 'Без вопроса?', o: [q.o[0] || '1', q.o[1] || '2', q.o[2] || '3', q.o[3] || '4'], c: q.c }))
         };
-        let newList = [...dynamicTests];
-        if (testFormData.id) newList = newList.map((t: any) => t.id === testFormData.id ? newTest : t);
-        else newList.push(newTest);
+        const newList = upsertOrderedSectionItem([...dynamicTests], newTest);
         updateTestsState(newList);
         setShowTestForm(false);
     };
@@ -323,20 +390,28 @@ export default function Education({
     };
 
     const theoryGroups = (dynamicRoute || []).reduce((groups: any, step: any) => {
-        const sec = step.section || 'Основной раздел';
+        const sec = normalizeSectionName(step.section);
         if (!groups[sec]) groups[sec] = [];
         groups[sec].push(step);
         return groups;
     }, {});
 
+    Object.keys(theoryGroups).forEach((sectionName) => {
+        theoryGroups[sectionName] = sortSectionEntries(theoryGroups[sectionName]);
+    });
+
     const testGroups = (dynamicTests || []).reduce((groups: any, test: any) => {
-        const sec = test.section || 'Основной раздел';
+        const sec = normalizeSectionName(test.section);
         if (!groups[sec]) groups[sec] = [];
         groups[sec].push(test);
         return groups;
     }, {});
+
+    Object.keys(testGroups).forEach((sectionName) => {
+        testGroups[sectionName] = sortSectionEntries(testGroups[sectionName]);
+    });
     
-    const realTests = (dynamicTests || []).filter((t: any) => !t.isPlaceholder);
+    const realTests = sortSectionEntries((dynamicTests || []).filter((t: any) => !t.isPlaceholder));
 
     const handleTestAnswer = (idx: number) => {
         if (activeAnswer !== null) return; 
@@ -543,7 +618,7 @@ export default function Education({
                    <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                        <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'route', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
                        <button onClick={() => { 
-                           setRouteFormData({ id: '', title: '', time: '5 мин', section: '', mediaType: 'text', videoIframe: '', videoDesc: '', h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '' }); 
+                           setRouteFormData({ id: '', title: '', time: '5 мин', section: '', order: '', mediaType: 'text', videoIframe: '', videoDesc: '', h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '' }); 
                            setShowRouteForm(true); 
                        }} className="hover-unified-app" style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВАЯ ТЕМА</button>
                    </div>
@@ -586,14 +661,14 @@ export default function Education({
                                        <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="premium-card">
                                           
                                           <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr auto' : '1fr', gap: '10px 15px', alignItems: 'start', marginBottom: '15px' }}>
-                                              <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '0', display: 'block'}}>Урок {idx+1}</span>
+                                              <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '0', display: 'block'}}>Урок {step.order || idx + 1}</span>
                                               
                                               {isAdmin && (
                                                   <div style={{ display: 'flex', gap: '6px', flexShrink: 0, zIndex: 10, gridColumn: '2 / 3', gridRow: '1 / 2' }} onClick={e => e.stopPropagation()}>
                                                       <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} className="card-icon-btn move-btn" title="Переместить">
                                                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                                       </div>
-                                                      <div onClick={(e) => { e.stopPropagation(); setRouteFormData({ id: step.id, title: step.title, time: step.time || '5 мин', section: step.section || '', mediaType: step.mediaType || 'text', videoIframe: step.videoIframe || '', videoDesc: step.videoDesc || '', h1: step.h1, t1: step.t1, img1: step.img1 || '', h2: step.h2, t2: step.t2, img2: step.img2 || '', h3: step.h3, t3: step.t3, img3: step.img3 || '' }); setShowRouteForm(true); }} className="card-icon-btn edit-btn" title="Редактировать">
+                                                      <div onClick={(e) => { e.stopPropagation(); setRouteFormData({ id: step.id, title: step.title, time: step.time || '5 мин', section: step.section || '', order: String(step.order || idx + 1), mediaType: step.mediaType || 'text', videoIframe: step.videoIframe || '', videoDesc: step.videoDesc || '', h1: step.h1, t1: step.t1, img1: step.img1 || '', h2: step.h2, t2: step.t2, img2: step.img2 || '', h3: step.h3, t3: step.t3, img3: step.img3 || '' }); setShowRouteForm(true); }} className="card-icon-btn edit-btn" title="Редактировать">
                                                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                                       </div>
                                                       <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} className="card-icon-btn del-btn" title="Удалить">
@@ -650,7 +725,7 @@ export default function Education({
                    <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                        <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'test', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
                        <button onClick={() => { 
-                           setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: '', timeLimit: 0, quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] }); 
+                           setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: '', order: '', timeLimit: 0, quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] }); 
                            setShowTestForm(true); 
                        }} style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВЫЙ ТЕСТ</button>
                    </div>
@@ -725,7 +800,7 @@ export default function Education({
                                           </div>}
                                           
                                           <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr auto' : '1fr', gap: '10px 15px', alignItems: 'start', marginBottom: '15px', opacity: isUnlocked ? 1 : 0.5 }}>
-                                              <span style={{fontSize:'12px', color: isUnlocked ? '#0abab5' : '#555', fontWeight:'800', marginBottom: '0', display: 'block'}}>Тест {idx+1}</span>
+                                              <span style={{fontSize:'12px', color: isUnlocked ? '#0abab5' : '#555', fontWeight:'800', marginBottom: '0', display: 'block'}}>Тест {test.order || idx + 1}</span>
                                               
                                               {isAdmin && (
                                                   <div style={{ display: 'flex', gap: '6px', flexShrink: 0, zIndex: 10, gridColumn: '2 / 3', gridRow: '1 / 2' }} onClick={e => e.stopPropagation()}>
@@ -736,7 +811,7 @@ export default function Education({
                                                           e.stopPropagation(); 
                                                           setTestFormData({
                                                               id: test.id, title: test.title, subtitle: test.subtitle, theory: test.theory,
-                                                              section: test.section || '', timeLimit: test.timeLimit || 0,
+                                                              section: test.section || '', order: String(test.order || idx + 1), timeLimit: test.timeLimit || 0,
                                                               quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }]
                                                           }); 
                                                           setShowTestForm(true); 
@@ -962,10 +1037,14 @@ export default function Education({
                         
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
                             <input autoComplete="new-password" name={"title_" + Date.now()} style={adminIn as any} placeholder="Название темы (напр. История чая)" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 160px', gap: '15px'}}>
                                 <input list="route-sections" autoComplete="new-password" name={"sec_" + Date.now()} style={adminIn as any} placeholder="Раздел (Основной раздел)" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} />
                                 <datalist id="route-sections">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
                                 <input autoComplete="new-password" style={adminIn as any} placeholder="Время (напр. 10 мин)" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} />
+                                <input autoComplete="new-password" style={adminIn as any} placeholder="Урок №" value={routeFormData.order} onChange={e => setRouteFormData({...routeFormData, order: e.target.value.replace(/[^\d]/g, '')})} />
+                            </div>
+                            <div style={{fontSize: '12px', color: '#666', lineHeight: '1.5', marginTop: '-4px'}}>
+                                Если указать новый порядковый номер, тема автоматически встанет на это место, а остальные темы в разделе сдвинутся.
                             </div>
                         </div>
 
@@ -1062,10 +1141,16 @@ export default function Education({
                         
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
                             <input autoComplete="new-password" style={adminIn as any} placeholder="Название теста" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
-                            <input autoComplete="new-password" list="test-sections" style={adminIn as any} placeholder="Раздел" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 160px', gap: '15px'}}>
+                                <input autoComplete="new-password" list="test-sections" style={adminIn as any} placeholder="Раздел" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} />
+                                <input autoComplete="new-password" style={adminIn as any} placeholder="Тест №" value={testFormData.order} onChange={e => setTestFormData({...testFormData, order: e.target.value.replace(/[^\d]/g, '')})} />
+                            </div>
                             <datalist id="test-sections">{Array.from(new Set(dynamicTests.map((t: any) => t.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
                             <input autoComplete="new-password" style={adminIn as any} placeholder="Краткое описание" value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} />
                             <textarea autoComplete="new-password" style={{...adminIn, height: '80px', resize: 'none'} as any} placeholder="Теория перед тестом..." value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} />
+                            <div style={{fontSize: '12px', color: '#666', lineHeight: '1.5', marginTop: '-4px'}}>
+                                Можно поменять порядковый номер теста прямо здесь. Нумерация внутри раздела перестроится автоматически.
+                            </div>
                         </div>
 
                         <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>

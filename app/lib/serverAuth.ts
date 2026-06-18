@@ -63,6 +63,8 @@ const ensureDataDir = () => {
 };
 
 const getFilePath = (key: string) => path.join(dataDir, `${sanitizeKey(key)}.json`);
+const getTempFilePath = (key: string) => path.join(dataDir, `${sanitizeKey(key)}.tmp`);
+const getBackupFilePath = (key: string) => path.join(dataDir, `${sanitizeKey(key)}.bak`);
 
 const getAuthSecret = () => process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'tea-hub-local-secret-change-me';
 
@@ -128,20 +130,24 @@ const haveUsersChanged = (originalUsers: StoredUser[], normalizedUsers: StoredUs
 export const readJsonFile = <T = any>(key: string, fallback: T): T => {
     ensureDataDir();
     const filePath = getFilePath(key);
+    const backupFilePath = getBackupFilePath(key);
 
     if (!fs.existsSync(filePath)) {
-        return fallback;
+        if (!fs.existsSync(backupFilePath)) {
+            return fallback;
+        }
     }
 
     try {
-        const stats = fs.statSync(filePath);
+        const activeFilePath = fs.existsSync(filePath) ? filePath : backupFilePath;
+        const stats = fs.statSync(activeFilePath);
         const cachedEntry = jsonFileCache.get(filePath);
 
         if (cachedEntry && cachedEntry.modifiedAtMs === stats.mtimeMs) {
             return structuredClone(cachedEntry.parsed) as T;
         }
 
-        const parsedData = JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
+        const parsedData = JSON.parse(fs.readFileSync(activeFilePath, 'utf8')) as T;
         jsonFileCache.set(filePath, {
             parsed: parsedData,
             modifiedAtMs: stats.mtimeMs,
@@ -150,6 +156,21 @@ export const readJsonFile = <T = any>(key: string, fallback: T): T => {
         return structuredClone(parsedData) as T;
     } catch (error) {
         console.error(`Ошибка чтения файла ${filePath}:`, error);
+
+        if (fs.existsSync(backupFilePath)) {
+            try {
+                const backupStats = fs.statSync(backupFilePath);
+                const backupData = JSON.parse(fs.readFileSync(backupFilePath, 'utf8')) as T;
+                jsonFileCache.set(filePath, {
+                    parsed: backupData,
+                    modifiedAtMs: backupStats.mtimeMs,
+                });
+                return structuredClone(backupData) as T;
+            } catch (backupError) {
+                console.error(`Ошибка чтения резервной копии ${backupFilePath}:`, backupError);
+            }
+        }
+
         return fallback;
     }
 };
@@ -157,7 +178,29 @@ export const readJsonFile = <T = any>(key: string, fallback: T): T => {
 export const writeJsonFile = (key: string, data: unknown) => {
     ensureDataDir();
     const filePath = getFilePath(key);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    const tempFilePath = getTempFilePath(key);
+    const backupFilePath = getBackupFilePath(key);
+    const payload = JSON.stringify(data, null, 2);
+
+    if (data === null) {
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        if (fs.existsSync(backupFilePath)) {
+            fs.unlinkSync(backupFilePath);
+        }
+        jsonFileCache.delete(filePath);
+        return;
+    }
+
+    fs.writeFileSync(tempFilePath, payload, 'utf8');
+
+    if (fs.existsSync(filePath)) {
+        fs.copyFileSync(filePath, backupFilePath);
+    }
+
+    fs.renameSync(tempFilePath, filePath);
+    fs.copyFileSync(filePath, backupFilePath);
 
     try {
         const stats = fs.statSync(filePath);

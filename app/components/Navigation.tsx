@@ -25,6 +25,7 @@ export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const isProtectedPath = pathname?.startsWith('/tasks') || pathname?.startsWith('/admin') || pathname?.startsWith('/profile');
+  const lastServerDataLoadRef = React.useRef(0);
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export default function Navigation() {
   const [searchDbRoutes, setSearchDbRoutes] = useState<any[]>([]);
   const [searchDbTests, setSearchDbTests] = useState<any[]>([]);
   const [searchDbAssortment, setSearchDbAssortment] = useState<any[]>([]);
+  const [searchDbProducts, setSearchDbProducts] = useState<any[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -106,6 +108,12 @@ export default function Navigation() {
     };
 
     const loadServerData = async () => {
+        const now = Date.now();
+        if (now - lastServerDataLoadRef.current < 8_000) {
+            return;
+        }
+        lastServerDataLoadRef.current = now;
+
         try {
             let sessionResult = await fetchSessionPayload();
 
@@ -153,13 +161,27 @@ export default function Navigation() {
                 return;
             }
 
+            let hasCachedProducts = false;
+            if (typeof window !== 'undefined') {
+                const cachedProducts = localStorage.getItem('tea_hub_products_cache_v1');
+                if (cachedProducts) {
+                    const parsedProducts = JSON.parse(cachedProducts);
+                    if (Array.isArray(parsedProducts)) {
+                        setSearchDbProducts(parsedProducts);
+                        hasCachedProducts = true;
+                    }
+                }
+            }
+
             const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
-            const storageData = await fetchStorageBatch([
+            const storageKeys = [
                 'tea_hub_notifications_v1',
                 'tea_hub_dynamic_route_v2',
                 'tea_hub_dynamic_tests_v1',
                 'tea_hub_assortment_matrix_v2',
-            ]).catch(() => ({} as Record<string, any>));
+                ...(hasCachedProducts ? [] : ['tea_hub_products_v1']),
+            ];
+            const storageData = await fetchStorageBatch(storageKeys).catch(() => ({} as Record<string, any>));
 
             const notificationsData = storageData['tea_hub_notifications_v1'];
             if (Array.isArray(notificationsData)) {
@@ -175,6 +197,14 @@ export default function Navigation() {
 
             const assortmentData = storageData['tea_hub_assortment_matrix_v2'];
             if (Array.isArray(assortmentData)) setSearchDbAssortment(assortmentData);
+
+            const productsData = storageData['tea_hub_products_v1'];
+            if (Array.isArray(productsData)) {
+                setSearchDbProducts(productsData);
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('tea_hub_products_cache_v1', JSON.stringify(productsData));
+                }
+            }
 
         } catch (e) {
             console.error("Ошибка синхронизации Navigation:", e);
@@ -432,6 +462,27 @@ export default function Navigation() {
         });
     };
     searchAssortment(searchDbAssortment);
+
+    searchDbProducts.forEach((product: any) => {
+      const pText = [
+        product.name,
+        product.code,
+        product.category,
+        product.subcategory,
+        product.groupPath,
+        product.desc,
+        product.priority,
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      if (pText.includes(q)) {
+        results.push({
+          id: `p_${product.id || product.code || product.name}`,
+          title: product.name || 'Товар',
+          subtitle: `Продукты${product.category ? ` • ${product.category}` : ''}`,
+          link: `/tasks?tab=products&productId=${encodeURIComponent(product.id || product.code || product.name || '')}`,
+        });
+      }
+    });
 
     setSearchResults(results.slice(0, 6)); 
     setIsSearchOpen(true);

@@ -275,6 +275,7 @@ export async function POST(request: Request) {
         const rawKey = typeof body.key === 'string' ? body.key : '';
         const { data } = body;
         const isChunked = body.chunked === true;
+        const chunkType = body.chunkType === 'string' ? 'string' : 'array';
         const chunkIndex = Number.isInteger(body.chunkIndex) ? Number(body.chunkIndex) : 0;
         const totalChunks = Number.isInteger(body.totalChunks) ? Number(body.totalChunks) : 1;
 
@@ -289,7 +290,10 @@ export async function POST(request: Request) {
         }
 
         if (isChunked) {
-            if (!Array.isArray(data) || totalChunks < 1 || chunkIndex < 0 || chunkIndex >= totalChunks) {
+            const isValidArrayChunk = chunkType === 'array' && Array.isArray(data);
+            const isValidStringChunk = chunkType === 'string' && typeof data === 'string';
+
+            if ((!isValidArrayChunk && !isValidStringChunk) || totalChunks < 1 || chunkIndex < 0 || chunkIndex >= totalChunks) {
                 return NextResponse.json({ error: 'Неверные параметры chunk-загрузки' }, { status: 400 });
             }
 
@@ -300,12 +304,16 @@ export async function POST(request: Request) {
             }
 
             const tempKey = `${rawKey}__upload_tmp`;
-            const existingTemp = chunkIndex === 0 ? [] : readJsonFile<any[]>(tempKey, []);
-            const mergedChunk = [...(Array.isArray(existingTemp) ? existingTemp : []), ...data];
+            const existingTemp = chunkIndex === 0
+                ? (chunkType === 'string' ? '' : [])
+                : readJsonFile<any>(tempKey, chunkType === 'string' ? '' : []);
+            const mergedChunk = chunkType === 'string'
+                ? `${typeof existingTemp === 'string' ? existingTemp : ''}${data}`
+                : [...(Array.isArray(existingTemp) ? existingTemp : []), ...data];
 
             if (chunkIndex === totalChunks - 1) {
                 await writeKeyForSession(rawKey, mergedChunk, session);
-                writeJsonFile(tempKey, []);
+                writeJsonFile(tempKey, null);
                 return NextResponse.json({ success: true, chunked: true, completed: true });
             }
 

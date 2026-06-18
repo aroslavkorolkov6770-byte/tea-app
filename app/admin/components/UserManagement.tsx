@@ -2,14 +2,7 @@
 import React, { useState } from 'react';
 import { flexSpace, sectionTitle, actionBtn, adminIn, userCardStyle, modalOverlay, modalContentSmall, saveBtn } from './adminStyles';
 import CustomIcon from '@/app/components/CustomIcon';
-
-const saveDataToServer = (key: string, data: any) => {
-    return fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на сервер:", err));
-};
+import { saveDataToServer } from '@/app/lib/storageClient';
 
 export default function UserManagement({
     users, setUsers, userAvatars,

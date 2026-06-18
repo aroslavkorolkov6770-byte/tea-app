@@ -61,17 +61,28 @@ export const normalizeProduct = (rawProduct: any): CatalogProduct => {
 
     const legacyCategory = cleanString(rawProduct.category);
     const legacySubcategory = cleanString(rawProduct.subcategory);
+    const productName = cleanString(rawProduct.name || rawProduct.title);
+    const categoryLooksLikeGroupPath = legacyCategory === legacyGroupPath && Boolean(legacyGroupPath);
+    const subcategoryLooksLikeProductName = legacySubcategory === productName && Boolean(productName);
 
-    const category = cleanString(rawProduct.category || groupMeta.category || "");
-    const subcategory = cleanString(rawProduct.subcategory || groupMeta.subcategory || (category && legacyCategory && legacyCategory !== category ? legacyCategory : ""));
+    const category = cleanString(
+        categoryLooksLikeGroupPath
+            ? (groupMeta.category || "")
+            : (rawProduct.category || groupMeta.category || ""),
+    );
+    const subcategory = cleanString(
+        subcategoryLooksLikeProductName
+            ? (groupMeta.subcategory || "")
+            : (rawProduct.subcategory || groupMeta.subcategory || (category && legacyCategory && legacyCategory !== category ? legacyCategory : "")),
+    );
 
     return {
         id: cleanString(rawProduct.id),
         code: cleanString(rawProduct.code),
         groupPath: legacyGroupPath,
-        category: category || legacyCategory,
-        subcategory: subcategory || legacySubcategory,
-        name: cleanString(rawProduct.name || rawProduct.title),
+        category: category || (categoryLooksLikeGroupPath ? groupMeta.category : legacyCategory),
+        subcategory: subcategory || (subcategoryLooksLikeProductName ? groupMeta.subcategory : legacySubcategory),
+        name: productName,
         priority: cleanString(rawProduct.priority),
         desc: cleanString(rawProduct.desc || rawProduct.description),
         isHit: Boolean(rawProduct.isHit),
@@ -194,7 +205,6 @@ export const exportProductsToCsv = (products: any[]) => {
         "Описание",
         "Хит",
         "Скрыт",
-        "Дата добавления",
     ].join(";");
 
     const body = normalizedProducts.map((product) =>
@@ -208,7 +218,6 @@ export const exportProductsToCsv = (products: any[]) => {
             product.desc,
             product.isHit ? "Да" : "Нет",
             product.isHidden ? "Да" : "Нет",
-            product.dateAdded,
         ].map(escapeCsvValue).join(";"),
     );
 

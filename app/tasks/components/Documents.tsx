@@ -7,6 +7,7 @@ import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 const STORAGE_KEYS = {
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
 };
+const AI_SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
 
 // Конвертер: Превращает текстовый код файла в настоящий виртуальный файл
 const base64ToBlobUrl = (base64Data: string) => {
@@ -28,6 +29,20 @@ const base64ToBlobUrl = (base64Data: string) => {
     }
 };
 
+const getFileExtension = (fileName: string) => fileName.split('.').pop()?.toLowerCase() || '';
+
+const getPreviewKind = (fileName: string) => {
+    const extension = getFileExtension(fileName);
+    if (extension === 'docx') return 'docx';
+    if (['pdf'].includes(extension)) return 'pdf';
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(extension)) return 'image';
+    if (['mp4', 'webm', 'ogg', 'mov'].includes(extension)) return 'video';
+    if (['mp3', 'wav', 'ogg', 'm4a'].includes(extension)) return 'audio';
+    if (['txt', 'md', 'json', 'csv'].includes(extension)) return 'text';
+    if (['doc', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar'].includes(extension)) return 'unsupported';
+    return 'iframe';
+};
+
 export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles }: any) {
     // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ ПАПКАМИ ---
     const [promptSection, setPromptSection] = useState<{isOpen: boolean, name: string}>({ isOpen: false, name: '' });
@@ -36,6 +51,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     
     // --- СОСТОЯНИЯ ДЛЯ ПЕРЕМЕЩЕНИЯ ФАЙЛОВ ---
     const [movingItem, setMovingItem] = useState<string | null>(null);
+    const [copyingItem, setCopyingItem] = useState<string | null>(null);
 
     // --- СОСТОЯНИЯ ДЛЯ ЗАГРУЗКИ ---
     const [isDragging, setIsDragging] = useState(false);
@@ -59,9 +75,26 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         allDocs.map((f: any) => f.section?.trim() || 'Основной раздел')
     ));
 
-    const updateFilesState = (newFiles: any[]) => {
+    const updateFilesState = async (newFiles: any[]) => {
         setUrgentFiles(newFiles);
-        saveDataToServer(STORAGE_KEYS.URGENT_FILES, newFiles);
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem(AI_SITE_CONTEXT_CACHE_KEY);
+        }
+        await saveDataToServer(STORAGE_KEYS.URGENT_FILES, newFiles);
+    };
+
+    const ensureDocPlaceholderForSection = (items: any[], sectionName: string) => {
+        const normalizedSection = sectionName.trim() || 'Основной раздел';
+        const hasDocument = items.some((file: any) => {
+            const isDoc = file.isDocPlaceholder || !(file.id?.startsWith('deadline_') || file.isTest);
+            return isDoc && (file.section?.trim() || 'Основной раздел') === normalizedSection;
+        });
+
+        if (hasDocument || normalizedSection === 'Основной раздел') {
+            return items;
+        }
+
+        return [...items, { id: 'doc_placeholder_' + Date.now(), section: normalizedSection, isDocPlaceholder: true }];
     };
 
     // --- ФУНКЦИИ ОТПРАВКИ УВЕДОМЛЕНИЙ ---
@@ -128,7 +161,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
         try {
             const fileNames = selectedFiles.map((file) => file.name);
-            const newFilesData = await Promise.all(selectedFiles.map(async (file, index) => {
+            const newFilesData = [];
+
+            for (let index = 0; index < selectedFiles.length; index += 1) {
+                const file = selectedFiles[index];
                 const fileData = await new Promise((resolve) => {
                     const reader = new FileReader();
                     reader.onload = (e) => resolve(e.target?.result);
@@ -138,25 +174,29 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 const fileId = 'file_' + Date.now() + '_' + index + '_' + Math.random().toString(36).substr(2, 5);
                 await saveDataToServer(`file_data_${fileId}`, fileData);
 
-                return {
+                newFilesData.push({
                     id: fileId,
                     name: file.name,
                     size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
                     date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
                     section: finalSection,
                     hasSeparateData: true,
-                };
-            }));
+                });
+            }
 
             const updatedFiles = [...newFilesData, ...(urgentFiles || [])];
-            updateFilesState(updatedFiles);
+            await updateFilesState(updatedFiles);
             
             const namesStr = fileNames.join(', ');
-            const pushSent = await sendPushNotification('Все', { title: 'Новые учебные материалы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' });
-            const emailSent = await sendEmailNotification('Все', 'Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`);
-
-            setSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) загружены в раздел "${finalSection}". ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
+            setSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) загружены в раздел "${finalSection}".` });
             setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); setNewUploadSectionName('');
+
+            Promise.allSettled([
+                sendPushNotification('Все', { title: 'Новые учебные материалы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' }),
+                sendEmailNotification('Все', 'Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`),
+            ]).catch((error) => {
+                console.error('Ошибка фоновой отправки уведомлений по документам', error);
+            });
         } catch(e) {
             setErrorModal({ show: true, text: "Произошла ошибка при пакетной загрузке файлов. Возможно, файлы слишком большие." });
         } finally { setIsProcessing(false); }
@@ -220,8 +260,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             }
 
             const objectUrl = base64ToBlobUrl(fileBase64);
-            const isDocx = file.name?.toLowerCase().endsWith('.docx');
-            const isUnsupported = file.name?.toLowerCase().match(/\.(doc|xls|xlsx|ppt|pptx|zip|rar)$/i);
+            const previewKind = getPreviewKind(file.name || '');
+            const isDocx = previewKind === 'docx';
+            const isUnsupported = previewKind === 'unsupported';
             const fileExt = file.name.split('.').pop()?.toUpperCase() || 'ФАЙЛ';
 
             newWindow.document.open();
@@ -273,6 +314,27 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                     console.error(err);
                                 });
                         </script>
+                    ` : previewKind === 'text' ? `
+                        <iframe src="${objectUrl}" style="background:#fff;"></iframe>
+                    ` : previewKind === 'image' ? `
+                        <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px;box-sizing:border-box;background:#0d0f0d;">
+                            <img src="${objectUrl}" alt="${file.name}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,0.45);" />
+                        </div>
+                    ` : previewKind === 'video' ? `
+                        <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px;box-sizing:border-box;background:#0d0f0d;">
+                            <video controls style="width:100%;max-width:1100px;max-height:100%;border-radius:18px;background:#000;">
+                                <source src="${objectUrl}" />
+                            </video>
+                        </div>
+                    ` : previewKind === 'audio' ? `
+                        <div class="unsupported">
+                            <h2 style="margin:0 0 15px 0;font-size:26px;">Аудиофайл ${fileExt}</h2>
+                            <p style="color:#aaa; margin: 0 0 25px 0; max-width:500px; line-height:1.6; font-size:15px;">Аудио можно прослушать прямо здесь или скачать на устройство.</p>
+                            <audio controls style="width:min(100%, 720px); margin-bottom:24px;">
+                                <source src="${objectUrl}" />
+                            </audio>
+                            <a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ</a>
+                        </div>
                     ` : isUnsupported ? `
                         <div class="unsupported">
                             <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 20px;">
@@ -304,7 +366,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         const newSecName = promptSection.name.trim();
         const placeholder = { id: 'doc_placeholder_' + Date.now(), section: newSecName, isDocPlaceholder: true };
         const updated = [...(urgentFiles || []), placeholder];
-        updateFilesState(updated);
+        void updateFilesState(updated);
         setPromptSection({ isOpen: false, name: '' });
     };
 
@@ -321,7 +383,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             return f;
         });
         
-        updateFilesState(updated);
+        void updateFilesState(updated);
         setRenameSectionPrompt({ isOpen: false, oldName: '', newName: '' });
     };
 
@@ -349,7 +411,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 updated.push({ id: 'doc_placeholder_' + Date.now(), section: sourceSection, isDocPlaceholder: true });
             }
         }
-        updateFilesState(updated);
+        void updateFilesState(updated);
         setConfirmDelete({ isOpen: false, type: 'file', targetId: '', name: '' });
     };
 
@@ -370,8 +432,43 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             updated.push({ id: 'doc_placeholder_' + Date.now(), section: sourceSection, isDocPlaceholder: true });
         }
 
-        updateFilesState(updated);
+        void updateFilesState(updated);
         setMovingItem(null);
+    };
+
+    const handleCopyItem = (targetSection: string) => {
+        if (!copyingItem) return;
+
+        const itemToCopy = (urgentFiles || []).find((file: any) => file.id === copyingItem);
+        if (!itemToCopy) {
+            setCopyingItem(null);
+            return;
+        }
+
+        const newId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        const copiedItem = {
+            ...itemToCopy,
+            id: newId,
+            section: targetSection,
+            date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
+            copiedFromId: itemToCopy.id,
+        };
+
+        let updated = [...(urgentFiles || []), copiedItem];
+        updated = ensureDocPlaceholderForSection(updated, targetSection);
+        void updateFilesState(updated);
+
+        if (itemToCopy.hasSeparateData) {
+            fetch(`/api/storage?t=${Date.now()}&key=file_data_${itemToCopy.id}`, { cache: 'no-store' })
+                .then((response) => response.json())
+                .then((rawData) => saveDataToServer(`file_data_${newId}`, rawData))
+                .catch((error) => console.error('Ошибка копирования данных файла', error));
+        } else if (itemToCopy.data) {
+            saveDataToServer(`file_data_${newId}`, itemToCopy.data).catch((error) => console.error('Ошибка копирования встроенных данных файла', error));
+        }
+
+        setCopyingItem(null);
+        setSuccessModal({ show: true, title: 'Документ продублирован', text: `Файл добавлен ещё и в раздел "${targetSection}".` });
     };
 
     // --- ГРУППИРОВКА ФАЙЛОВ ПО РАЗДЕЛАМ ---
@@ -518,6 +615,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                                           <path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                       </svg>
                                                   </div>
+                                                  <div onClick={(e) => { e.stopPropagation(); setCopyingItem(file.id); }} className="card-icon-btn edit-btn" title="Добавить в другой раздел">
+                                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                          <rect x="9" y="9" width="11" height="11" rx="2" stroke="#0abab5" strokeWidth="2"/>
+                                                          <path d="M6 15H5C3.89543 15 3 14.1046 3 13V5C3 3.89543 3.89543 3 5 3H13C14.1046 3 15 3.89543 15 5V6" stroke="#0abab5" strokeWidth="2" strokeLinecap="round"/>
+                                                      </svg>
+                                                  </div>
                                                   <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'file', targetId: file.id, name: file.name}); }} className="card-icon-btn del-btn" title="Удалить">
                                                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                           <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -597,6 +700,21 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         </div>
 
                         <button className="hover-unified-app" onClick={() => setMovingItem(null)} style={{ ...saveBtn, background: '#333', color: '#fff', marginTop: '10px' } as any}>ОТМЕНА</button>
+                    </div>
+                </div>
+            )}
+
+            {copyingItem && (
+                <div style={modalOverlay as any} onClick={() => setCopyingItem(null)}>
+                    <div style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
+                        <h2 style={{color: '#0abab5', textAlign: 'center', marginBottom: '20px', fontWeight: '900', textTransform: 'uppercase'}}>Добавить в другой раздел</h2>
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto', marginBottom: '10px'}} className="custom-scroll">
+                            <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginLeft: '5px' }}>Выберите папку:</div>
+                            {existingDocSections.map((sec: any) => (
+                                <button key={`copy_${sec}`} onClick={() => handleCopyItem(sec)} style={{...adminIn, textAlign: 'left', cursor: 'pointer', background: '#1a1a1a', border: '1px solid #333'} as any}>{sec}</button>
+                            ))}
+                        </div>
+                        <button className="hover-unified-app" onClick={() => setCopyingItem(null)} style={{ ...saveBtn, background: '#333', color: '#fff', marginTop: '10px' } as any}>ОТМЕНА</button>
                     </div>
                 </div>
             )}

@@ -1,5 +1,6 @@
 "use client";
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import CustomIcon from "../../components/CustomIcon";
 import { saveDataToServer } from "@/app/lib/storageClient";
 import {
@@ -14,6 +15,24 @@ const STORAGE_KEYS = {
     PRODUCTS: "tea_hub_products_v1",
 };
 const PRODUCTS_CACHE_KEY = "tea_hub_products_cache_v1";
+const PRODUCTS_VIEW_STATE_KEY = "tea_hub_products_view_state_v1";
+const AI_SITE_CONTEXT_CACHE_KEY = "th_ai_site_context_v2";
+
+const extractSegmentOrder = (value: string) => {
+    const match = value.trim().match(/^(\d+)/u);
+    return match ? Number.parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+};
+
+const compareOrderedLabels = (leftLabel: string, rightLabel: string, leftOrder?: number, rightOrder?: number) => {
+    const leftRank = typeof leftOrder === "number" ? leftOrder : extractSegmentOrder(leftLabel);
+    const rightRank = typeof rightOrder === "number" ? rightOrder : extractSegmentOrder(rightLabel);
+
+    if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+    }
+
+    return leftLabel.localeCompare(rightLabel, "ru");
+};
 
 const buildProductSearchText = (product: CatalogProduct) =>
     [
@@ -39,17 +58,53 @@ const getMetaItems = (product: CatalogProduct) =>
         product.priority ? { label: "Приоритет", value: product.priority } : null,
     ].filter(Boolean) as Array<{ label: string; value: string }>;
 
+const normalizeAssortmentLabel = (value: string) =>
+    String(value || "")
+        .replace(/^\d+(?:\.\d+)*\.?\s*/u, "")
+        .replace(/\([^)]*\)/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
+
+const labelsMatchLoosely = (left: string, right: string) => {
+    const normalizedLeft = normalizeAssortmentLabel(left);
+    const normalizedRight = normalizeAssortmentLabel(right);
+
+    if (!normalizedLeft || !normalizedRight) {
+        return false;
+    }
+
+    return normalizedLeft === normalizedRight || normalizedLeft.includes(normalizedRight) || normalizedRight.includes(normalizedLeft);
+};
+
+const buildAssortmentCategoryOrderMap = (assortmentMatrix: any[]) => {
+    const orderMap = new Map<string, number>();
+    const safeMatrix = Array.isArray(assortmentMatrix) ? assortmentMatrix : [];
+
+    safeMatrix.forEach((node: any, index: number) => {
+        const title = typeof node?.title === "string" ? node.title : "";
+        const normalizedTitle = normalizeAssortmentLabel(title);
+        if (normalizedTitle && !orderMap.has(normalizedTitle)) {
+            orderMap.set(normalizedTitle, index + 1);
+        }
+    });
+
+    return orderMap;
+};
+
 type ProductTreeNode = {
     label: string;
     key: string;
     path: string[];
     count: number;
+    sortIndex?: number;
     children: ProductTreeNode[];
 };
 
 type PreparedCatalogProduct = CatalogProduct & {
     searchText: string;
     pathSegments: string[];
+    rawPathSegments: string[];
 };
 
 declare global {
@@ -76,10 +131,18 @@ const getProductPathSegments = (product: CatalogProduct) => {
     return [parsedGroup.category, ...parsedGroup.subcategory.split(" / ")].map((segment) => segment.trim()).filter(Boolean);
 };
 
+const getProductRawPathSegments = (product: CatalogProduct) =>
+    String(product.groupPath || "")
+        .split("/")
+        .map((segment) => segment.trim())
+        .filter(Boolean)
+        .slice(1);
+
 const prepareProduct = (product: CatalogProduct): PreparedCatalogProduct => ({
     ...product,
     searchText: buildProductSearchText(product),
     pathSegments: getProductPathSegments(product),
+    rawPathSegments: getProductRawPathSegments(product),
 });
 
 const loadBrowserXlsx = async () => {
@@ -115,17 +178,21 @@ const loadBrowserXlsx = async () => {
     return window.XLSX;
 };
 
-const insertTreeNode = (nodes: ProductTreeNode[], path: string[], depth = 0): ProductTreeNode[] => {
+const insertTreeNode = (nodes: ProductTreeNode[], path: string[], rawPath: string[], depth = 0): ProductTreeNode[] => {
     if (depth >= path.length) {
         return nodes;
     }
 
     const label = path[depth];
+    const sortIndex = extractSegmentOrder(rawPath[depth] || label);
     const existingNode = nodes.find((node) => node.label === label);
 
     if (existingNode) {
         existingNode.count += 1;
-        existingNode.children = insertTreeNode(existingNode.children, path, depth + 1);
+        if (typeof existingNode.sortIndex !== "number" || sortIndex < existingNode.sortIndex) {
+            existingNode.sortIndex = sortIndex;
+        }
+        existingNode.children = insertTreeNode(existingNode.children, path, rawPath, depth + 1);
         return nodes;
     }
 
@@ -135,7 +202,8 @@ const insertTreeNode = (nodes: ProductTreeNode[], path: string[], depth = 0): Pr
         key: nextPath.join("::"),
         path: nextPath,
         count: 1,
-        children: insertTreeNode([], path, depth + 1),
+        sortIndex,
+        children: insertTreeNode([], path, rawPath, depth + 1),
     };
 
     return [...nodes, newNode];
@@ -144,16 +212,28 @@ const insertTreeNode = (nodes: ProductTreeNode[], path: string[], depth = 0): Pr
 const sortTreeNodes = (nodes: ProductTreeNode[]): ProductTreeNode[] =>
     nodes
         .map((node) => ({ ...node, children: sortTreeNodes(node.children) }))
-        .sort((left, right) => left.label.localeCompare(right.label, "ru"));
+        .sort((left, right) => compareOrderedLabels(left.label, right.label, left.sortIndex, right.sortIndex));
 
-const buildProductTree = (products: PreparedCatalogProduct[]) => {
+const buildProductTree = (products: PreparedCatalogProduct[], assortmentCategoryOrderMap: Map<string, number>) => {
     let tree: ProductTreeNode[] = [];
 
     products.forEach((product) => {
         const path = product.pathSegments;
         if (path.length > 0) {
-            tree = insertTreeNode(tree, path);
+            tree = insertTreeNode(tree, path, product.rawPathSegments);
         }
+    });
+
+    tree = tree.map((node) => {
+        const matchedEntry = [...assortmentCategoryOrderMap.entries()].find(([categoryLabel]) => labelsMatchLoosely(node.label, categoryLabel));
+        if (!matchedEntry) {
+            return node;
+        }
+
+        return {
+            ...node,
+            sortIndex: matchedEntry[1],
+        };
     });
 
     return sortTreeNodes(tree);
@@ -170,14 +250,13 @@ const matchesSelectedPath = (product: PreparedCatalogProduct, selectedPath: stri
 
 export default function Products({
     isAdmin,
-    syncTick,
-    onProductsSaved,
+    assortmentMatrix,
 }: {
     isAdmin: boolean;
     userId: string;
-    syncTick?: number;
-    onProductsSaved?: () => void;
+    assortmentMatrix?: any[];
 }) {
+    const searchParams = useSearchParams();
     const [products, setProducts] = useState<CatalogProduct[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [successModal, setSuccessModal] = useState({ show: false, title: "", text: "" });
@@ -188,9 +267,12 @@ export default function Products({
     const [showProductForm, setShowProductForm] = useState(false);
     const [productFormData, setProductFormData] = useState<CatalogProduct>(normalizeProduct({}));
     const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: string; name: string }>({ isOpen: false, id: "", name: "" });
+    const [confirmClearAll, setConfirmClearAll] = useState(false);
     const [viewProduct, setViewProduct] = useState<CatalogProduct | null>(null);
     const [visibleCatalogCount, setVisibleCatalogCount] = useState(60);
     const hitScrollRef = useRef<HTMLDivElement | null>(null);
+    const handledProductParamRef = useRef("");
+    const isViewStateHydratedRef = useRef(false);
     const deferredSearchQuery = useDeferredValue(searchQuery);
 
     const persistProducts = async (nextProducts: CatalogProduct[]) => {
@@ -198,11 +280,11 @@ export default function Products({
 
         if (typeof window !== "undefined") {
             window.localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(nextProducts));
+            window.localStorage.removeItem(AI_SITE_CONTEXT_CACHE_KEY);
         }
 
         try {
             await saveDataToServer(STORAGE_KEYS.PRODUCTS, nextProducts);
-            onProductsSaved?.();
         } catch (error) {
             console.error("Ошибка сохранения каталога товаров", error);
             setErrorModal({
@@ -223,6 +305,24 @@ export default function Products({
                             setProducts(parsedCache.map((product) => normalizeProduct(product)));
                         }
                     }
+
+                    const cachedViewState = window.localStorage.getItem(PRODUCTS_VIEW_STATE_KEY);
+                    if (cachedViewState) {
+                        const parsedViewState = JSON.parse(cachedViewState);
+                        if (parsedViewState && typeof parsedViewState === "object") {
+                            if (typeof parsedViewState.searchQuery === "string") {
+                                setSearchQuery(parsedViewState.searchQuery);
+                            }
+                            if (Array.isArray(parsedViewState.selectedTreePath)) {
+                                setSelectedTreePath(parsedViewState.selectedTreePath.filter((segment: unknown) => typeof segment === "string"));
+                            }
+                            if (typeof parsedViewState.selectedHitPriority === "string") {
+                                setSelectedHitPriority(parsedViewState.selectedHitPriority);
+                            }
+                        }
+                    }
+
+                    isViewStateHydratedRef.current = true;
                 }
 
                 const response = await fetch(`/api/storage?key=${STORAGE_KEYS.PRODUCTS}`, { cache: "no-store" });
@@ -244,7 +344,7 @@ export default function Products({
         };
 
         loadProducts();
-    }, [syncTick]);
+    }, []);
 
     useEffect(() => {
         if (typeof window === "undefined") {
@@ -253,6 +353,22 @@ export default function Products({
 
         setIsSectionMenuOpen(window.innerWidth > 768);
     }, []);
+
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        if (!isViewStateHydratedRef.current) {
+            return;
+        }
+
+        window.localStorage.setItem(PRODUCTS_VIEW_STATE_KEY, JSON.stringify({
+            searchQuery,
+            selectedTreePath,
+            selectedHitPriority,
+        }));
+    }, [searchQuery, selectedTreePath, selectedHitPriority]);
 
     const handleSaveProduct = async () => {
         if (!productFormData.name.trim()) {
@@ -279,6 +395,18 @@ export default function Products({
         const nextProducts = products.filter((product) => product.id !== confirmDelete.id);
         await persistProducts(nextProducts);
         setConfirmDelete({ isOpen: false, id: "", name: "" });
+    };
+
+    const executeClearAll = async () => {
+        await persistProducts([]);
+        setSelectedTreePath([]);
+        setSelectedHitPriority("all");
+        setConfirmClearAll(false);
+        setSuccessModal({
+            show: true,
+            title: "Каталог очищен",
+            text: "Все товары удалены из раздела продуктов. Данные выгрузки теперь можно загрузить заново.",
+        });
     };
 
     const toggleHit = async (event: React.MouseEvent, id: string) => {
@@ -348,11 +476,47 @@ export default function Products({
         }
     };
 
-    const preparedProducts = useMemo(() => products.map((product) => prepareProduct(product)), [products]);
+    const preparedProducts = useMemo(() => {
+        const prepared = products.map((product) => prepareProduct(product));
+        return prepared.sort((left, right) => {
+            const leftSegments = left.rawPathSegments.length > 0 ? left.rawPathSegments : left.pathSegments;
+            const rightSegments = right.rawPathSegments.length > 0 ? right.rawPathSegments : right.pathSegments;
+            const maxLength = Math.max(leftSegments.length, rightSegments.length);
+
+            for (let index = 0; index < maxLength; index += 1) {
+                const leftSegment = leftSegments[index];
+                const rightSegment = rightSegments[index];
+
+                if (!leftSegment && rightSegment) {
+                    return -1;
+                }
+
+                if (leftSegment && !rightSegment) {
+                    return 1;
+                }
+
+                if (leftSegment && rightSegment) {
+                    const result = compareOrderedLabels(leftSegment, rightSegment);
+                    if (result !== 0) {
+                        return result;
+                    }
+                }
+            }
+
+            const priorityResult = compareOrderedLabels(left.priority || "", right.priority || "");
+            if (priorityResult !== 0) {
+                return priorityResult;
+            }
+
+            return left.name.localeCompare(right.name, "ru");
+        });
+    }, [products]);
 
     const baseFiltered = useMemo(() => preparedProducts.filter((product) => isAdmin || !product.isHidden), [isAdmin, preparedProducts]);
 
-    const categoryTree = useMemo(() => buildProductTree(baseFiltered), [baseFiltered]);
+    const assortmentCategoryOrderMap = useMemo(() => buildAssortmentCategoryOrderMap(assortmentMatrix || []), [assortmentMatrix]);
+
+    const categoryTree = useMemo(() => buildProductTree(baseFiltered, assortmentCategoryOrderMap), [assortmentCategoryOrderMap, baseFiltered]);
 
     const searchedProducts = useMemo(() => {
         const search = deferredSearchQuery.trim().toLowerCase();
@@ -368,6 +532,28 @@ export default function Products({
     useEffect(() => {
         setVisibleCatalogCount(60);
     }, [deferredSearchQuery, selectedTreePath]);
+
+    useEffect(() => {
+        const targetProductId = searchParams.get("productId");
+        if (!targetProductId || handledProductParamRef.current === targetProductId || preparedProducts.length === 0) {
+            return;
+        }
+
+        const decodedTarget = decodeURIComponent(targetProductId).toLowerCase();
+        const targetProduct = preparedProducts.find((product) => {
+            return [product.id, product.code, product.name]
+                .filter(Boolean)
+                .some((value) => String(value).toLowerCase() === decodedTarget);
+        });
+
+        if (!targetProduct) {
+            return;
+        }
+
+        handledProductParamRef.current = targetProductId;
+        setSelectedTreePath(targetProduct.pathSegments);
+        setViewProduct(targetProduct);
+    }, [preparedProducts, searchParams]);
 
     const hitProducts = useMemo(() => {
         const search = deferredSearchQuery.trim().toLowerCase();
@@ -443,6 +629,13 @@ export default function Products({
                             style={{ ...adminActionBtn, background: "#0abab5", color: "#000" } as any}
                         >
                             + НОВЫЙ ТОВАР
+                        </button>
+                        <button
+                            onClick={() => setConfirmClearAll(true)}
+                            className="hover-unified-app"
+                            style={{ ...adminActionBtn, background: "rgba(255,77,77,0.08)", color: "#ff4d4d", border: "1px solid rgba(255,77,77,0.35)" } as any}
+                        >
+                            ОЧИСТИТЬ КАТАЛОГ
                         </button>
                     </div>
                 )}
@@ -587,7 +780,7 @@ export default function Products({
                                             }}
                                         >
                                     {isAdmin && (
-                                        <div className="product-card-actions product-card-actions-hit" style={{ position: "absolute", top: "15px", right: "15px", display: "flex", gap: "5px", zIndex: 10, maxWidth: "calc(100% - 30px)", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                        <div className="product-card-actions product-card-actions-hit" style={{ display: "flex", gap: "8px", zIndex: 10, flexWrap: "wrap", justifyContent: "flex-end", marginBottom: "14px" }}>
                                             <div onClick={(event) => toggleHit(event, product.id)} className="admin-action-icon" style={{ ...textIconStyle, background: "rgba(0,0,0,0.8)", color: "#ffd700", border: "1px solid #ffd700" } as any} title="Убрать из обязательных">
                                                 <CustomIcon name="flame" size={16} color="#ffd700" />
                                             </div>
@@ -597,7 +790,7 @@ export default function Products({
                                         </div>
                                     )}
 
-                                    <div className="product-card-body" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", justifyContent: "space-between", paddingRight: isAdmin && !isSingle ? "96px" : "0", paddingTop: isAdmin ? "8px" : "0", minHeight: "132px" }}>
+                                    <div className="product-card-body" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "132px" }}>
                                         <h4 className="product-card-title" style={{ fontSize: "18px", margin: 0, fontWeight: "bold", color: "#fff", lineHeight: "1.3" }}>{product.name}</h4>
 
                                         {metaItems.length > 0 && (
@@ -612,7 +805,7 @@ export default function Products({
                                         )}
                                     </div>
 
-                                    <div className={`product-card-footer ${isSingle ? "single-hit-stats" : ""}`} style={{ marginTop: "18px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "16px", minWidth: isSingle ? "220px" : "auto", paddingRight: isAdmin && isSingle ? "90px" : "0" }}>
+                                    <div className={`product-card-footer ${isSingle ? "single-hit-stats" : ""}`} style={{ marginTop: "18px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "16px", minWidth: isSingle ? "220px" : "auto" }}>
                                         <div style={{ flex: 1 }}>
                                             {product.code && <div style={{ fontSize: "11px", color: "#888" }}>Код: {product.code}</div>}
                                         </div>
@@ -643,7 +836,7 @@ export default function Products({
                                 return (
                                     <div key={product.id} className="premium-card product-card" onClick={() => setViewProduct(product)} style={{ padding: "25px", opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? "grayscale(100%)" : "none", display: "flex", flexDirection: "column" }}>
                                 {isAdmin && (
-                                    <div className="product-card-actions" style={{ position: "absolute", top: "15px", right: "15px", display: "flex", gap: "5px", zIndex: 10, maxWidth: "calc(100% - 30px)", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                    <div className="product-card-actions" style={{ display: "flex", gap: "8px", zIndex: 10, flexWrap: "wrap", justifyContent: "flex-end", marginBottom: "14px" }}>
                                         <div onClick={(event) => toggleHit(event, product.id)} className="admin-action-icon" style={{ ...textIconStyle, color: product.isHit ? "#ffd700" : "#666" } as any} title="В обязательные">
                                             <CustomIcon name={product.isHit ? "flame" : "star"} size={16} color={product.isHit ? "#ffd700" : "#666"} />
                                         </div>
@@ -660,12 +853,12 @@ export default function Products({
                                 )}
 
                                 {isAdmin && product.isHidden && (
-                                    <div style={{ position: "absolute", top: "60px", right: "15px", background: "#ff4d4d", color: "#fff", padding: "4px 10px", borderRadius: "8px", fontWeight: "bold", fontSize: "10px", zIndex: 5 }}>
+                                    <div style={{ alignSelf: "flex-end", background: "#ff4d4d", color: "#fff", padding: "4px 10px", borderRadius: "8px", fontWeight: "bold", fontSize: "10px", marginBottom: "12px" }}>
                                         СКРЫТО
                                     </div>
                                 )}
 
-                                <div className="product-card-body" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", paddingRight: isAdmin ? "156px" : "0", marginBottom: "18px", marginTop: isAdmin && product.isHidden ? "25px" : "0", paddingTop: isAdmin ? "6px" : "0", minHeight: "92px" }}>
+                                <div className="product-card-body" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", marginBottom: "18px", minHeight: "64px" }}>
                                     <h4 className="product-card-title" style={{ fontSize: "18px", margin: 0, fontWeight: "bold", wordBreak: "break-word", color: "#fff", lineHeight: "1.3" }}>{product.name}</h4>
                                 </div>
 
@@ -815,6 +1008,24 @@ export default function Products({
                         <div style={{ display: "flex", gap: "15px" }}>
                             <button className="hover-unified-app" onClick={() => setConfirmDelete({ isOpen: false, id: "", name: "" })} style={{ ...saveBtn, background: "#222", color: "#fff", flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
                             <button className="hover-unified-app" onClick={executeDelete} style={{ ...saveBtn, background: "#ff4d4d", color: "#fff", flex: 1, marginTop: 0 } as any}>УДАЛИТЬ</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {confirmClearAll && (
+                <div style={modalOverlay as any} onClick={() => setConfirmClearAll(false)}>
+                    <div style={{ ...modalContentSmall, textAlign: "center" } as any} onClick={(event) => event.stopPropagation()}>
+                        <div style={{ width: "60px", height: "60px", borderRadius: "18px", border: "1px solid rgba(255,77,77,0.35)", background: "rgba(255,77,77,0.08)", color: "#ff4d4d", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px auto" }}>
+                            <CustomIcon name="alert" size={34} color="#ff4d4d" />
+                        </div>
+                        <h2 style={{ color: "#ff4d4d", fontWeight: "900", marginBottom: "15px" }}>ОЧИСТИТЬ ВЕСЬ КАТАЛОГ?</h2>
+                        <p style={{ color: "#ccc", fontSize: "14px", lineHeight: 1.55, marginBottom: "25px" }}>
+                            Будут удалены все товары в разделе продуктов. Это действие подходит только для полной перезагрузки новой выгрузки.
+                        </p>
+                        <div style={{ display: "flex", gap: "15px" }}>
+                            <button className="hover-unified-app" onClick={() => setConfirmClearAll(false)} style={{ ...saveBtn, background: "#222", color: "#fff", flex: 1, marginTop: 0 } as any}>ОТМЕНА</button>
+                            <button className="hover-unified-app" onClick={executeClearAll} style={{ ...saveBtn, background: "#ff4d4d", color: "#fff", flex: 1, marginTop: 0 } as any}>ОЧИСТИТЬ</button>
                         </div>
                     </div>
                 </div>

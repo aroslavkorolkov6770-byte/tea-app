@@ -29,7 +29,7 @@ type SiteSearchRecord = {
 };
 
 const SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
-const SITE_CONTEXT_CACHE_TTL_MS = 1000 * 60 * 5;
+const SITE_CONTEXT_CACHE_TTL_MS = 1000 * 60;
 
 const normalizeSearchValue = (value: unknown) => String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -132,7 +132,7 @@ const buildSiteKnowledgeIndex = (siteData: Record<string, any>) => {
                 product.desc,
                 product.isHit ? 'Обязательно к продаже' : '',
             ].filter(Boolean).join(' | '),
-            hint: '/tasks?tab=products',
+            hint: `/tasks?tab=products&productId=${encodeURIComponent(product.id || product.code || product.name || '')}`,
         });
     });
 
