@@ -65,6 +65,20 @@ function ShiftContent() {
       activeTabRef.current = activeTab;
   }, [activeTab]);
 
+  useEffect(() => {
+      const refreshViewMode = () => {
+          setIsAdmin(isClientAdminView());
+      };
+
+      window.addEventListener('teaHubViewModeChanged', refreshViewMode);
+      window.addEventListener('storage', refreshViewMode);
+
+      return () => {
+          window.removeEventListener('teaHubViewModeChanged', refreshViewMode);
+          window.removeEventListener('storage', refreshViewMode);
+      };
+  }, []);
+
   const hydrateCachedData = (currentUserId: string) => {
       if (typeof window === 'undefined') {
           return;
@@ -585,6 +599,7 @@ function ShiftContent() {
                 isAdmin={isAdmin} 
                 userId={userId}
                 assortmentMatrix={assortmentMatrix}
+                setAssortmentMatrix={setAssortmentMatrix}
             />
         )}
 

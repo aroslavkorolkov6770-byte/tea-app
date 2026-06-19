@@ -16,10 +16,11 @@ export default function Footer() {
          {/* --- БЛОК СЛУЖБЫ ПОДДЕРЖКИ --- */}
          <div style={{ marginTop: '25px', color: '#888', fontSize: '13px', fontWeight: '500' }}>
              Служба технической поддержки:{' '}
-             <span style={{ color: '#0abab5', fontWeight: 'bold' }}>teacoffe@yandex.ru</span>
+             <span style={{ color: '#0abab5', fontWeight: 'bold' }}>teacoffee@yandex.ru</span>
          </div>
 
          {/* СТРОГИЙ КОПИРАЙТ ПО ГОСТ Р 7.0.1—2003 */}
+         <p style={{ marginTop: '12px', marginBottom: 0, color: '#555', fontSize: '12px', fontWeight: '700' }}>ООО "Чайная Артель"</p>
          <p style={{ marginTop: '15px', color: '#444', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>© Корольков Я.Д., 2026 | HUB СОТРУДНИКА</p>
       </footer>
 

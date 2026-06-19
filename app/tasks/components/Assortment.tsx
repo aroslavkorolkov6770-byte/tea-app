@@ -357,14 +357,19 @@ function AssortmentNode({
 
     return (
         <div style={{ marginLeft: depth === 0 ? '0' : '20px', borderLeft: depth === 0 ? 'none' : '1px solid #333', paddingLeft: depth === 0 ? '0' : '15px', marginTop: depth === 0 ? '12px' : '8px', marginBottom: depth === 0 ? '12px' : '8px' }}>
-            <div className="assortment-row hover-card-unified-app" style={{
+            <div
+                className="assortment-row hover-card-unified-app"
+                onClick={() => setIsOpen(!isOpen)}
+                style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: isOpen ? '#1a1a1a' : '#111', borderRadius: '10px', 
                     border: isTarget ? '1px solid #0abab5' : '1px solid #222',
                     boxShadow: isTarget ? '0 0 15px rgba(10,186,181,0.2)' : 'none',
-                    transition: 'all 0.15s ease'
+                    transition: 'all 0.15s ease',
+                    cursor: 'pointer',
+                    userSelect: 'none',
                 }}
             >
-                <div onClick={() => setIsOpen(!isOpen)} style={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer', color: '#fff', minWidth: 0, paddingRight: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flex: 1, color: '#fff', minWidth: 0, paddingRight: '10px' }}>
                     <span style={{ marginRight: '12px', color: '#0abab5', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.15s', fontSize: '12px', flexShrink: 0 }}>
                         {hasChildren ? '▶' : '•'}
                     </span>
@@ -452,6 +457,17 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
             setLocalMatrix(INITIAL_ASSORTMENT);
         }
     }, [assortmentMatrix]);
+
+    useEffect(() => {
+        const refreshAdminView = () => setIsAdmin(isClientAdminView());
+        window.addEventListener('teaHubViewModeChanged', refreshAdminView);
+        window.addEventListener('storage', refreshAdminView);
+
+        return () => {
+            window.removeEventListener('teaHubViewModeChanged', refreshAdminView);
+            window.removeEventListener('storage', refreshAdminView);
+        };
+    }, []);
 
     // Функция сохранения на сервер
     const saveMatrix = (newMatrix: any[]) => {

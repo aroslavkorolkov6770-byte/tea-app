@@ -96,6 +96,8 @@ export const setClientViewMode = (mode: ClientViewMode) => {
 
     localStorage.setItem('system_view_mode', mode);
     sessionStorage.setItem('system_view_mode', mode);
+    window.dispatchEvent(new CustomEvent('teaHubViewModeChanged', { detail: { mode } }));
+    window.dispatchEvent(new Event('storage'));
 };
 
 export const getClientLandingPath = (user?: Partial<ClientSessionUser> | null) => {

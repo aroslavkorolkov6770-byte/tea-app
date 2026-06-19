@@ -615,7 +615,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                                           <path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                       </svg>
                                                   </div>
-                                                  <div onClick={(e) => { e.stopPropagation(); setCopyingItem(file.id); }} className="card-icon-btn edit-btn" title="Добавить в другой раздел">
+                                                  <div onClick={(e) => { e.stopPropagation(); setCopyingItem(file.id); }} className="card-icon-btn copy-btn" title="Добавить в другой раздел">
                                                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                           <rect x="9" y="9" width="11" height="11" rx="2" stroke="#0abab5" strokeWidth="2"/>
                                                           <path d="M6 15H5C3.89543 15 3 14.1046 3 13V5C3 3.89543 3.89543 3 5 3H13C14.1046 3 15 3.89543 15 5V6" stroke="#0abab5" strokeWidth="2" strokeLinecap="round"/>
@@ -853,6 +853,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 }
                 .move-btn { color: #fff; }
                 .move-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
+
+                .copy-btn { color: #0abab5; }
+                .copy-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
 
                 .del-btn { color: #ff4d4d; }
                 .del-btn:hover { background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10,186,181,0.2); }
