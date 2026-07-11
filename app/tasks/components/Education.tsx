@@ -411,7 +411,41 @@ export default function Education({
         testGroups[sectionName] = sortSectionEntries(testGroups[sectionName]);
     });
     
-    const realTests = sortSectionEntries((dynamicTests || []).filter((t: any) => !t.isPlaceholder));
+    const getSectionTestSequence = (targetTest: any) => {
+        const targetSection = normalizeSectionName(targetTest?.section);
+
+        return sortSectionEntries(
+            (dynamicTests || []).filter((test: any) => {
+                if (!test || test.isPlaceholder) {
+                    return false;
+                }
+
+                const isSameSection = normalizeSectionName(test.section) === targetSection;
+                const hasQuiz = Array.isArray(test.quiz) && test.quiz.length > 0;
+
+                return isSameSection && hasQuiz;
+            }),
+        );
+    };
+    const getUnpassedPreviousSectionTests = (targetTest: any) => {
+        const sectionTests = getSectionTestSequence(targetTest);
+        const sectionIndex = sectionTests.findIndex((test: any) => test.id === targetTest?.id);
+
+        if (sectionIndex <= 0) {
+            return [];
+        }
+
+        return sectionTests.slice(0, sectionIndex).filter((test: any) => !completedTests.includes(test.id));
+    };
+    const buildMissingSectionTestsMessage = (tests: any[]) => {
+        return tests.map((test: any) => {
+            const sectionTests = getSectionTestSequence(test);
+            const sectionIndex = sectionTests.findIndex((sectionTest: any) => sectionTest.id === test.id);
+            const displayIndex = typeof test.order === 'number' ? test.order : sectionIndex + 1;
+
+            return `— Тест ${displayIndex}: ${stripEmoji(test.title)}`;
+        }).join('\n');
+    };
 
     const handleTestAnswer = (idx: number) => {
         if (activeAnswer !== null) return; 
@@ -515,14 +549,10 @@ export default function Education({
                                          if (file.linkedTestId) {
                                              const targetTest = dynamicTests.find((t:any) => t.id === file.linkedTestId);
                                              if (targetTest) {
-                                                 const globalIdx = realTests.findIndex((t: any) => t.id === targetTest.id);
-                                                 const unpassedTestsBefore = globalIdx > 0 ? realTests.slice(0, globalIdx).filter((t: any) => !completedTests.includes(t.id)) : [];
+                                                 const unpassedTestsBefore = getUnpassedPreviousSectionTests(targetTest);
 
                                                  if (unpassedTestsBefore.length > 0 && !isAdmin) {
-                                                     const missingList = unpassedTestsBefore.map((t: any) => {
-                                                         const originalIdx = realTests.findIndex((rt: any) => rt.id === t.id) + 1;
-                                                         return `— Тест ${originalIdx}: ${stripEmoji(t.title)}`;
-                                                     }).join('\n');
+                                                     const missingList = buildMissingSectionTestsMessage(unpassedTestsBefore);
                                                      
                                                      setLockedTestAlert({
                                                          show: true, 
@@ -766,8 +796,8 @@ export default function Education({
                        <div className="premium-cards-container">
                            {items.filter((test: any) => test.quiz && test.quiz.length > 0).map((test: any, idx: number) => {
                                    const isDone = completedTests.includes(test.id);
-                                   const globalIdx = realTests.findIndex((t: any) => t.id === test.id);
-                                   const isUnlocked = isDone || isAdmin || globalIdx <= 0 || completedTests.includes(realTests[globalIdx - 1]?.id);
+                                   const unpassedTestsBefore = getUnpassedPreviousSectionTests(test);
+                                   const isUnlocked = isDone || isAdmin || unpassedTestsBefore.length === 0;
                                    
                                    return (
                                        <div key={test.id} onClick={() => { 
@@ -779,11 +809,7 @@ export default function Education({
                                                        message: `Доступ к обычным тестам закрыт.\nНе пройдены обязательные аттестации:\n${pendingAttestations.map((t:any) => '— ' + stripEmoji(t.name)).join('\n')}`
                                                    });
                                                } else if (!isUnlocked && !isAdmin) {
-                                                   const unpassedTestsBefore = realTests.slice(0, globalIdx).filter((t: any) => !completedTests.includes(t.id));
-                                                   const missingList = unpassedTestsBefore.map((t: any) => {
-                                                       const originalIdx = realTests.findIndex((rt: any) => rt.id === t.id) + 1;
-                                                       return `— Тест ${originalIdx}: ${stripEmoji(t.title)}`;
-                                                   }).join('\n');
+                                                   const missingList = buildMissingSectionTestsMessage(unpassedTestsBefore);
                                                    
                                                    setLockedTestAlert({show: true, message: `Сначала необходимо по порядку сдать предыдущие тесты:\n\n${missingList}`});
                                                } else {
