@@ -445,6 +445,12 @@ function ShiftContent() {
       }
   };
 
+  const closeLinkedDocument = () => {
+      if (searchParams.has('documentId')) {
+          router.replace('/tasks?tab=docs');
+      }
+  };
+
   if (!isMounted || !isSessionValidated) return null;
 
   const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
@@ -582,6 +588,8 @@ function ShiftContent() {
                 userId={userId}
                 urgentFiles={urgentFiles}
                 setUrgentFiles={setUrgentFiles}
+                linkedDocumentId={searchParams.get('documentId')}
+                onCloseLinkedDocument={closeLinkedDocument}
             />
         )}
 

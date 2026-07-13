@@ -335,9 +335,9 @@ export default function PrivacyPage() {
   };
 
   return (
-    <div style={pageWrapper}>
-      <div style={backgroundOverlay} />
-      <div style={backgroundShade} />
+    <div style={pageWrapper} className="privacy-page">
+      <div style={backgroundOverlay} className="privacy-background-photo" />
+      <div style={backgroundShade} className="privacy-background-shade" />
 
       <div style={layoutShell} className="privacy-layout">
         <aside style={sidebarStyle} className="privacy-sidebar">
@@ -369,7 +369,7 @@ export default function PrivacyPage() {
           </nav>
         </aside>
 
-        <main style={contentAreaStyle}>
+        <main style={contentAreaStyle} className="privacy-content">
           <section style={heroSectionStyle}>
             <p style={eyebrowStyle}>TEA HUB</p>
             <h2 style={heroTitleStyle}>Политика, согласия и условия использования</h2>
@@ -378,7 +378,7 @@ export default function PrivacyPage() {
             </p>
           </section>
 
-          <div style={documentSurfaceStyle}>
+          <div style={documentSurfaceStyle} className="privacy-document-surface">
             {sections.map((section) => (
               <section
                 key={section.id}

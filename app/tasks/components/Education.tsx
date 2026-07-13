@@ -1,7 +1,15 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
+import SectionCollapseButton from '@/app/components/SectionCollapseButton';
+import useCollapsedSections from '@/app/hooks/useCollapsedSections';
 import { saveDataToServer } from '@/app/lib/storageClient';
+import {
+    LinkedMaterialsEditor,
+    LinkedMaterialsList,
+    type LinkedMaterialReference,
+} from './LinkedMaterials';
 
 const STORAGE_KEYS = {
     ONBOARD_ROUTE: 'tea_hub_onboard_route_v2',
@@ -124,18 +132,22 @@ export default function Education({
     selectedRouteStep, setSelectedRouteStep, closeRouteModal,
     selectedTest, setSelectedTest, closeTestModal
 }: any) {
+    const router = useRouter();
+    const { isSectionCollapsed, toggleSection } = useCollapsedSections('tea_hub_education_collapsed_sections_v1');
     
     const [showRouteForm, setShowRouteForm] = useState(false);
     const [routeFormData, setRouteFormData] = useState({ 
         id: '', title: '', time: '5 мин', section: '', order: '',
         mediaType: 'text', videoIframe: '', videoDesc: '',
-        h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '' 
+        h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '',
+        linkedMaterials: [] as LinkedMaterialReference[],
     });
 
     const [showTestForm, setShowTestForm] = useState(false);
     const [testFormData, setTestFormData] = useState({
         id: '', title: '', subtitle: '', theory: '', section: '', order: '', timeLimit: 0,
-        quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] 
+        quiz: [{ q: '', o: ['', '', '', ''], c: 0 }],
+        linkedMaterials: [] as LinkedMaterialReference[],
     });
 
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, type: 'route'|'test'|'section_route'|'section_test', targetId: string, name: string}>({ isOpen: false, type: 'route', targetId: '', name: '' });
@@ -180,6 +192,31 @@ export default function Education({
             window.localStorage.removeItem(AI_SITE_CONTEXT_CACHE_KEY);
         }
         saveDataToServer(STORAGE_KEYS.DYNAMIC_TESTS, normalizedData);
+    };
+
+    const handleOpenLinkedMaterial = (reference: LinkedMaterialReference) => {
+        if (reference.type === 'route') {
+            const targetRoute = dynamicRoute.find((route: any) => route.id === reference.id);
+            if (!targetRoute) {
+                setLockedTestAlert({ show: true, message: 'Связанная тема больше недоступна.' });
+                return;
+            }
+
+            setSelectedTest(null);
+            setSelectedRouteStep(targetRoute);
+            router.push(`/tasks?tab=edu&routeId=${encodeURIComponent(reference.id)}`, { scroll: false });
+            return;
+        }
+
+        const targetDocument = (urgentFiles || []).find((file: any) => file.id === reference.id && !file.isDocPlaceholder);
+        if (!targetDocument) {
+            setLockedTestAlert({ show: true, message: 'Связанный документ больше недоступен.' });
+            return;
+        }
+
+        setSelectedRouteStep(null);
+        setSelectedTest(null);
+        router.push(`/tasks?tab=docs&documentId=${encodeURIComponent(reference.id)}`);
     };
 
     useEffect(() => {
@@ -316,6 +353,7 @@ export default function Education({
             title: testFormData.title, subtitle: testFormData.subtitle, theory: testFormData.theory,
             section: normalizeSectionName(testFormData.section), order: testFormData.order,
             timeLimit: testFormData.timeLimit || 0,
+            linkedMaterials: testFormData.linkedMaterials,
             quiz: testFormData.quiz.map((q: any) => ({ q: q.q || 'Без вопроса?', o: [q.o[0] || '1', q.o[1] || '2', q.o[2] || '3', q.o[3] || '4'], c: q.c }))
         };
         const newList = upsertOrderedSectionItem([...dynamicTests], newTest);
@@ -648,7 +686,7 @@ export default function Education({
                    <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                        <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'route', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
                        <button onClick={() => { 
-                           setRouteFormData({ id: '', title: '', time: '5 мин', section: '', order: '', mediaType: 'text', videoIframe: '', videoDesc: '', h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '' }); 
+                           setRouteFormData({ id: '', title: '', time: '5 мин', section: '', order: '', mediaType: 'text', videoIframe: '', videoDesc: '', h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '', linkedMaterials: [] });
                            setShowRouteForm(true); 
                        }} className="hover-unified-app" style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВАЯ ТЕМА</button>
                    </div>
@@ -658,12 +696,17 @@ export default function Education({
             <div style={{ marginBottom: '60px' }}>
                {Object.entries(theoryGroups).map(([secName, items]: any) => (
                    <div key={secName} style={{ marginBottom: '40px' }}>
-                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
+                       <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: isSectionCollapsed('theory:' + secName) ? 0 : '20px' }}>
                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '8px', marginBottom: '-4px'}}>
                                    <path d="M22 19A2 2 0 0 1 20 21H4A2 2 0 0 1 2 19V5A2 2 0 0 1 4 3H9L11 5H20A2 2 0 0 1 22 7V19Z" fill="rgba(10,186,181,0.1)" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                </svg>
                                {secName}
+                               <SectionCollapseButton
+                                   isCollapsed={isSectionCollapsed('theory:' + secName)}
+                                   onToggle={() => toggleSection('theory:' + secName)}
+                                   sectionName={secName}
+                               />
                            </h3>
                            {isAdmin && secName !== 'Основной раздел' && (
                                <div style={{display: 'flex', gap: '15px'}}>
@@ -684,7 +727,7 @@ export default function Education({
                            )}
                        </div>
                        
-                       <div className="premium-cards-container">
+                       {!isSectionCollapsed('theory:' + secName) && <div className="premium-cards-container section-collapsible-content">
                            {items.filter((step: any) => step.h1 !== 'DELETE_ME').map((step: any, idx: number) => {
                                    const isDone = completedRoute.includes(step.id);
                                    return (
@@ -698,7 +741,7 @@ export default function Education({
                                                       <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} className="card-icon-btn move-btn" title="Переместить">
                                                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                                       </div>
-                                                      <div onClick={(e) => { e.stopPropagation(); setRouteFormData({ id: step.id, title: step.title, time: step.time || '5 мин', section: step.section || '', order: String(step.order || idx + 1), mediaType: step.mediaType || 'text', videoIframe: step.videoIframe || '', videoDesc: step.videoDesc || '', h1: step.h1, t1: step.t1, img1: step.img1 || '', h2: step.h2, t2: step.t2, img2: step.img2 || '', h3: step.h3, t3: step.t3, img3: step.img3 || '' }); setShowRouteForm(true); }} className="card-icon-btn edit-btn" title="Редактировать">
+                                                      <div onClick={(e) => { e.stopPropagation(); setRouteFormData({ id: step.id, title: step.title, time: step.time || '5 мин', section: step.section || '', order: String(step.order || idx + 1), mediaType: step.mediaType || 'text', videoIframe: step.videoIframe || '', videoDesc: step.videoDesc || '', h1: step.h1, t1: step.t1, img1: step.img1 || '', h2: step.h2, t2: step.t2, img2: step.img2 || '', h3: step.h3, t3: step.t3, img3: step.img3 || '', linkedMaterials: Array.isArray(step.linkedMaterials) ? step.linkedMaterials : [] }); setShowRouteForm(true); }} className="card-icon-btn edit-btn" title="Редактировать">
                                                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                                       </div>
                                                       <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} className="card-icon-btn del-btn" title="Удалить">
@@ -743,7 +786,7 @@ export default function Education({
                                    );
                                })
                            }
-                       </div>
+                       </div>}
                    </div>
                ))}
             </div>
@@ -755,7 +798,7 @@ export default function Education({
                    <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                        <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'test', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
                        <button onClick={() => { 
-                           setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: '', order: '', timeLimit: 0, quiz: [{ q: '', o: ['', '', '', ''], c: 0 }] }); 
+                           setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: '', order: '', timeLimit: 0, quiz: [{ q: '', o: ['', '', '', ''], c: 0 }], linkedMaterials: [] });
                            setShowTestForm(true); 
                        }} style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВЫЙ ТЕСТ</button>
                    </div>
@@ -765,7 +808,7 @@ export default function Education({
             <div style={{ marginBottom: '60px' }}>
                {Object.entries(testGroups).map(([secName, items]: any) => (
                    <div key={secName} style={{ marginBottom: '40px' }}>
-                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
+                       <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: isSectionCollapsed('test:' + secName) ? 0 : '20px' }}>
                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '8px', marginBottom: '-4px'}}>
                                    <path d="M9 2H15A1 1 0 0 1 16 3V5A1 1 0 0 1 15 6H9A1 1 0 0 1 8 5V3A1 1 0 0 1 9 2Z" fill="rgba(10,186,181,0.1)" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -773,6 +816,11 @@ export default function Education({
                                    <path d="M9 12H15M9 16H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                </svg>
                                {secName}
+                               <SectionCollapseButton
+                                   isCollapsed={isSectionCollapsed('test:' + secName)}
+                                   onToggle={() => toggleSection('test:' + secName)}
+                                   sectionName={secName}
+                               />
                            </h3>
                            {isAdmin && secName !== 'Основной раздел' && (
                                <div style={{display: 'flex', gap: '15px'}}>
@@ -793,7 +841,7 @@ export default function Education({
                            )}
                        </div>
                        
-                       <div className="premium-cards-container">
+                       {!isSectionCollapsed('test:' + secName) && <div className="premium-cards-container section-collapsible-content">
                            {items.filter((test: any) => test.quiz && test.quiz.length > 0).map((test: any, idx: number) => {
                                    const isDone = completedTests.includes(test.id);
                                    const unpassedTestsBefore = getUnpassedPreviousSectionTests(test);
@@ -838,7 +886,8 @@ export default function Education({
                                                           setTestFormData({
                                                               id: test.id, title: test.title, subtitle: test.subtitle, theory: test.theory,
                                                               section: test.section || '', order: String(test.order || idx + 1), timeLimit: test.timeLimit || 0,
-                                                              quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }]
+                                                              quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }],
+                                                              linkedMaterials: Array.isArray(test.linkedMaterials) ? test.linkedMaterials : [],
                                                           }); 
                                                           setShowTestForm(true); 
                                                       }} className="card-icon-btn edit-btn" title="Редактировать">
@@ -870,7 +919,7 @@ export default function Education({
                                    );
                                })
                            }
-                       </div>
+                       </div>}
                    </div>
                ))}
             </div>
@@ -1044,6 +1093,13 @@ export default function Education({
                             </div>
                         )}
 
+                        <LinkedMaterialsList
+                            value={selectedRouteStep.linkedMaterials}
+                            routes={dynamicRoute}
+                            documents={urgentFiles}
+                            onOpen={handleOpenLinkedMaterial}
+                        />
+
                         {completedRoute.includes(selectedRouteStep.id) ? (
                             <button className="hover-unified-app" onClick={closeRouteModal} style={{...checkKnowledgeBtn, background: '#111', color: '#0abab5', border: '1px solid #0abab5'} as any}>МАТЕРИАЛ ПРОЙДЕН (ЗАКРЫТЬ)</button>
                         ) : (
@@ -1101,9 +1157,9 @@ export default function Education({
                                 <div>
                                     <h3 style={{fontSize: '16px', color: '#0abab5', marginBottom: '15px', fontWeight: '900'}}>Блоки теории (макс. 3)</h3>
                                     {[1, 2, 3].map((num) => {
-                                        const hKey = `h${num}` as keyof typeof routeFormData;
-                                        const tKey = `t${num}` as keyof typeof routeFormData;
-                                        const imgKey = `img${num}` as keyof typeof routeFormData;
+                                        const hKey = `h${num}` as 'h1' | 'h2' | 'h3';
+                                        const tKey = `t${num}` as 't1' | 't2' | 't3';
+                                        const imgKey = `img${num}` as 'img1' | 'img2' | 'img3';
 
                                         return (
                                             <div key={num} style={{background: '#0d0f0d', padding: '15px', borderRadius: '20px', border: '1px solid #222', marginBottom: '15px'}}>
@@ -1127,6 +1183,13 @@ export default function Education({
                                 </div>
                             )}
                         </div>
+                        <LinkedMaterialsEditor
+                            value={routeFormData.linkedMaterials}
+                            onChange={(linkedMaterials) => setRouteFormData({ ...routeFormData, linkedMaterials })}
+                            routes={dynamicRoute}
+                            documents={urgentFiles}
+                            currentRouteId={routeFormData.id || undefined}
+                        />
                         <button className="hover-unified-app" onClick={handleSaveRoute} style={saveBtn as any}>СОХРАНИТЬ ТЕМУ</button>
                         <div className="hover-link-unified-app" onClick={() => setShowRouteForm(false)} style={cancelLink as any}>ОТМЕНА</div>
                     </div>
@@ -1152,6 +1215,12 @@ export default function Education({
                              <span style={{fontSize:'13px', color:'#888', fontWeight:'bold'}}>Порог: <span style={{color:'#0abab5'}}>80%</span></span>
                          </div>
                      </div>
+                     <LinkedMaterialsList
+                         value={selectedTest.linkedMaterials}
+                         routes={dynamicRoute}
+                         documents={urgentFiles}
+                         onOpen={handleOpenLinkedMaterial}
+                     />
                      <button className="hover-unified-app" style={saveBtn as any}>НАЧАТЬ ТЕСТИРОВАНИЕ</button>
                   </div>
                </div>
@@ -1178,6 +1247,13 @@ export default function Education({
                                 Можно поменять порядковый номер теста прямо здесь. Нумерация внутри раздела перестроится автоматически.
                             </div>
                         </div>
+
+                        <LinkedMaterialsEditor
+                            value={testFormData.linkedMaterials}
+                            onChange={(linkedMaterials) => setTestFormData({ ...testFormData, linkedMaterials })}
+                            routes={dynamicRoute}
+                            documents={urgentFiles}
+                        />
 
                         <div style={{borderTop: '1px solid #222', paddingTop: '20px'}}>
                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
@@ -1258,6 +1334,12 @@ export default function Education({
                              <span style={{fontSize:'13px', color:'#888', fontWeight:'bold'}}>Порог: <span style={{color:'#0abab5'}}>80%</span></span>
                          </div>
                      </div>
+                     <LinkedMaterialsList
+                         value={selectedTest.linkedMaterials}
+                         routes={dynamicRoute}
+                         documents={urgentFiles}
+                         onOpen={handleOpenLinkedMaterial}
+                     />
                      <button onClick={() => { 
                          setActiveTestSession({ ...selectedTest, quiz: shuffleArray(selectedTest.quiz || []) }); 
                          if (selectedTest.timeLimit > 0) setTimeLeft(selectedTest.timeLimit * 60);

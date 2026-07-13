@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
+import ThemeToggle from '@/app/components/ThemeToggle';
 import {
   applyClientAuthState,
   clearClientAuthState,
@@ -512,6 +513,7 @@ export default function Navigation() {
     <>
       {!isLoggedIn ? (
         <header style={guestHeader} className="guest-header">
+           <ThemeToggle />
            <div onClick={() => setShowLoginModal(true)} className="hover-unified-app" style={loginBtn}>ВХОД</div>
         </header>
       ) : (
@@ -600,6 +602,7 @@ export default function Navigation() {
               </div>
              
              <div style={topActions} className="top-actions">
+                <ThemeToggle />
                 {/* Заменен эмодзи колокольчика на векторный SVG */}
                 <div onClick={() => setIsNotifOpen(true)} className="top-icon-btn" style={topIcon}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1153,7 +1156,7 @@ function SearchIcon() {
 }
 
 // --- СТИЛИ ---
-const guestHeader: any = { position: 'fixed', top: '20px', right: '40px', zIndex: 1000 };
+const guestHeader: any = { position: 'fixed', top: '20px', right: '40px', zIndex: 1000, display: 'flex', alignItems: 'center', gap: '12px' };
 const loginBtn: any = { background: '#0ABAB5', color: '#000', padding: '12px 35px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize:'14px' };
 
 const sidebarStyle: any = { width: '260px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '22px 20px 40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };

@@ -1,6 +1,8 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
+import SectionCollapseButton from '@/app/components/SectionCollapseButton';
+import useCollapsedSections from '@/app/hooks/useCollapsedSections';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 
 // --- КЛЮЧИ ПАМЯТИ ---
@@ -43,7 +45,55 @@ const getPreviewKind = (fileName: string) => {
     return 'iframe';
 };
 
-export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles }: any) {
+type LinkedDocumentPreview = {
+    file: any;
+    objectUrl: string;
+    kind: string;
+    loading: boolean;
+    error: string;
+};
+
+const buildDocxPreviewHtml = (objectUrl: string) => `
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        html, body { margin: 0; min-height: 100%; background: #141716; color: #fff; font-family: Arial, sans-serif; }
+        #document-container { min-height: 100vh; }
+        #loading { padding: 70px 20px; color: #0abab5; text-align: center; font-weight: 700; }
+        .docx-wrapper { background: transparent !important; padding: 24px 12px !important; }
+        .docx-wrapper > section.docx { margin: 0 auto 24px !important; box-shadow: 0 12px 40px rgba(0,0,0,.45) !important; }
+        @media (max-width: 700px) { .docx-wrapper { padding: 10px 0 !important; } }
+    </style>
+    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
+</head>
+<body>
+    <div id="document-container"><div id="loading">Подготовка документа...</div></div>
+    <script>
+        const documentUrl = ${JSON.stringify(objectUrl)};
+        fetch(documentUrl)
+            .then((response) => {
+                if (!response.ok) throw new Error('Не удалось получить документ');
+                return response.blob();
+            })
+            .then((blob) => {
+                const container = document.getElementById('document-container');
+                const loading = document.getElementById('loading');
+                return window.docx.renderAsync(blob, container).then(() => loading.remove());
+            })
+            .catch((error) => {
+                document.getElementById('loading').textContent = 'Не удалось открыть документ.';
+                console.error(error);
+            });
+    </script>
+</body>
+</html>`;
+
+export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles, linkedDocumentId, onCloseLinkedDocument }: any) {
+    const { isSectionCollapsed, toggleSection } = useCollapsedSections('tea_hub_document_collapsed_sections_v1');
     // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ ПАПКАМИ ---
     const [promptSection, setPromptSection] = useState<{isOpen: boolean, name: string}>({ isOpen: false, name: '' });
     const [renameSectionPrompt, setRenameSectionPrompt] = useState<{isOpen: boolean, oldName: string, newName: string}>({ isOpen: false, oldName: '', newName: '' });
@@ -63,6 +113,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
     const [successModal, setSuccessModal] = useState({ show: false, title: '', text: '' });
     const [errorModal, setErrorModal] = useState({ show: false, text: '' });
+    const [linkedPreview, setLinkedPreview] = useState<LinkedDocumentPreview | null>(null);
+    const linkedPreviewIdRef = useRef<string | null>(null);
+    const linkedPreviewObjectUrlRef = useRef<string>('');
 
     // Фильтруем ТОЛЬКО нормативные документы (исключаем дедлайны и тесты)
     const allDocs = (urgentFiles || []).filter((f: any) => {
@@ -74,6 +127,84 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     const existingDocSections = Array.from(new Set(
         allDocs.map((f: any) => f.section?.trim() || 'Основной раздел')
     ));
+
+    const releaseLinkedPreviewObjectUrl = () => {
+        if (linkedPreviewObjectUrlRef.current) {
+            URL.revokeObjectURL(linkedPreviewObjectUrlRef.current);
+            linkedPreviewObjectUrlRef.current = '';
+        }
+    };
+
+    const closeLinkedPreview = () => {
+        releaseLinkedPreviewObjectUrl();
+        linkedPreviewIdRef.current = null;
+        setLinkedPreview(null);
+        if (typeof onCloseLinkedDocument === 'function') {
+            onCloseLinkedDocument();
+        }
+    };
+
+    useEffect(() => {
+        if (!linkedDocumentId || linkedPreviewIdRef.current === linkedDocumentId) {
+            return;
+        }
+
+        const targetDocument = allDocs.find((file: any) => file.id === linkedDocumentId && !file.isDocPlaceholder);
+        if (!targetDocument) {
+            return;
+        }
+
+        linkedPreviewIdRef.current = linkedDocumentId;
+        const targetSection = targetDocument.section?.trim() || 'Основной раздел';
+        if (isSectionCollapsed(targetSection)) {
+            toggleSection(targetSection);
+        }
+
+        releaseLinkedPreviewObjectUrl();
+        setLinkedPreview({ file: targetDocument, objectUrl: '', kind: getPreviewKind(targetDocument.name || ''), loading: true, error: '' });
+
+        const loadLinkedDocument = async () => {
+            try {
+                let fileBase64 = targetDocument.data;
+                if (!fileBase64 && targetDocument.hasSeparateData) {
+                    const response = await fetch(`/api/storage?t=${Date.now()}&key=file_data_${targetDocument.id}`, { cache: 'no-store' });
+                    if (!response.ok) {
+                        throw new Error('Сервер не вернул данные документа');
+                    }
+                    fileBase64 = await response.json();
+                }
+
+                if (!fileBase64) {
+                    throw new Error('Данные документа не найдены на сервере');
+                }
+
+                const objectUrl = base64ToBlobUrl(fileBase64);
+                linkedPreviewObjectUrlRef.current = objectUrl;
+                setLinkedPreview({ file: targetDocument, objectUrl, kind: getPreviewKind(targetDocument.name || ''), loading: false, error: '' });
+
+                window.setTimeout(() => {
+                    document.getElementById(`document-card-${targetDocument.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 150);
+            } catch (error) {
+                console.error('Ошибка открытия связанного документа:', error);
+                setLinkedPreview({
+                    file: targetDocument,
+                    objectUrl: '',
+                    kind: getPreviewKind(targetDocument.name || ''),
+                    loading: false,
+                    error: error instanceof Error ? error.message : 'Не удалось открыть документ',
+                });
+            }
+        };
+
+        void loadLinkedDocument();
+    }, [linkedDocumentId, urgentFiles]);
+
+    useEffect(() => {
+        return () => {
+            releaseLinkedPreviewObjectUrl();
+        };
+    }, []);
 
     const updateFilesState = async (newFiles: any[]) => {
         setUrgentFiles(newFiles);
@@ -486,6 +617,46 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
     const docGroups = groupItems(allDocs);
 
+    const renderLinkedPreviewContent = () => {
+        if (!linkedPreview) {
+            return null;
+        }
+
+        if (linkedPreview.loading) {
+            return <div className="linked-document-preview-message">Подготовка документа...</div>;
+        }
+
+        if (linkedPreview.error) {
+            return <div className="linked-document-preview-message" style={{ color: '#ff4d4d' }}>{linkedPreview.error}</div>;
+        }
+
+        if (linkedPreview.kind === 'docx') {
+            return <iframe title={`Предпросмотр ${linkedPreview.file.name}`} srcDoc={buildDocxPreviewHtml(linkedPreview.objectUrl)} />;
+        }
+
+        if (linkedPreview.kind === 'image') {
+            return <img src={linkedPreview.objectUrl} alt={linkedPreview.file.name} />;
+        }
+
+        if (linkedPreview.kind === 'video') {
+            return <video src={linkedPreview.objectUrl} controls />;
+        }
+
+        if (linkedPreview.kind === 'audio') {
+            return <audio src={linkedPreview.objectUrl} controls />;
+        }
+
+        if (linkedPreview.kind === 'unsupported') {
+            return (
+                <div className="linked-document-preview-message">
+                    Этот формат нельзя надежно показать внутри браузера. Документ выбран и открыт, используйте кнопку скачивания ниже.
+                </div>
+            );
+        }
+
+        return <iframe title={`Предпросмотр ${linkedPreview.file.name}`} src={linkedPreview.objectUrl} />;
+    };
+
     return (
         <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
             
@@ -580,10 +751,15 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                ) : (
                    Object.entries(docGroups).map(([secName, items]: any) => (
                        <div key={secName} style={{ marginBottom: '40px' }}>
-                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: '20px' }}>
+                           <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: isSectionCollapsed(secName) ? 0 : '20px' }}>
                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
                                    <CustomIcon name="folder" size={22} color="#0abab5" />
                                    {secName}
+                                   <SectionCollapseButton
+                                       isCollapsed={isSectionCollapsed(secName)}
+                                       onToggle={() => toggleSection(secName)}
+                                       sectionName={secName}
+                                   />
                                </h3>
                                {isAdmin && secName !== 'Основной раздел' && (
                                    <div style={{display: 'flex', gap: '15px'}}>
@@ -598,14 +774,14 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                )}
                            </div>
                            
-                           <div className="premium-cards-container">
+                           {!isSectionCollapsed(secName) && <div className="premium-cards-container section-collapsible-content">
                                {items.length === 0 ? (
                                    <div style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>
                                        В этом разделе пока нет документов...
                                    </div>
                                ) : (
                                    items.map((file: any) => (
-                                       <div key={file.id} className="premium-card">
+                                       <div key={file.id} id={`document-card-${file.id}`} className="premium-card linked-document-card-target">
                                           
                                           {isAdmin && (
                                               <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
@@ -652,11 +828,34 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                        </div>
                                    ))
                                )}
-                           </div>
+                           </div>}
                        </div>
                    ))
                )}
             </div>
+
+            {linkedPreview && (
+                <div className="linked-document-preview-overlay" onClick={closeLinkedPreview}>
+                    <div className="linked-document-preview-modal" onClick={(event) => event.stopPropagation()}>
+                        <div className="linked-document-preview-header">
+                            <div>
+                                <strong>{linkedPreview.file.name}</strong>
+                                <span>{linkedPreview.file.section?.trim() || 'Основной раздел'}</span>
+                            </div>
+                            <button type="button" className="linked-document-preview-close" onClick={closeLinkedPreview} aria-label="Закрыть документ" title="Закрыть">
+                                <CustomIcon name="close" size={20} color="#ff4d4d" />
+                            </button>
+                        </div>
+                        <div className="linked-document-preview-body">
+                            {renderLinkedPreviewContent()}
+                        </div>
+                        <div className="linked-document-preview-actions">
+                            <button type="button" onClick={() => handleOpenPreview(linkedPreview.file)}>ОТКРЫТЬ ОТДЕЛЬНО</button>
+                            <button type="button" onClick={() => handleDownloadFile(linkedPreview.file)}>СКАЧАТЬ</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* МИНИ-ОКНА АДМИНА */}
             {promptSection.isOpen && (

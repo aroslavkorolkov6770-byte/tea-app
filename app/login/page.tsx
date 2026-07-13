@@ -207,10 +207,10 @@ export default function LoginPage() {
   if (!isMounted) return null;
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box', overflowX: 'hidden', maxWidth: '100vw' }}>
+    <div className="login-page" style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box', overflowX: 'hidden', maxWidth: '100vw' }}>
       
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url("https://u.9111s.ru/uploads/202402/17/a0254a12ef37da5aaf5c5646a30baab8.webp")', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: -2, backgroundColor: '#000' }} />
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: -1 }} />
+      <div className="login-background-photo" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url("https://u.9111s.ru/uploads/202402/17/a0254a12ef37da5aaf5c5646a30baab8.webp")', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: -2, backgroundColor: '#000' }} />
+      <div className="login-background-shade" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: -1 }} />
 
       <Link href="/" className="hover-link-auth" style={{ position: 'absolute', top: '30px', left: '40px', color: '#0abab5', textDecoration: 'none', fontWeight: '900', fontSize: '14px', letterSpacing: '1px' }}>
           ← НА ГЛАВНУЮ
