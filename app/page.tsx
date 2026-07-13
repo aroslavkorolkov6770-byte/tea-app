@@ -56,20 +56,22 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="home-page" style={{ minHeight: '100vh', position: 'relative', color: '#fff', fontFamily: 'Inter, sans-serif', overflowX: 'hidden' }}>
+    <div className="home-page" style={{ minHeight: '100vh', position: 'relative', isolation: 'isolate', color: '#fff', fontFamily: 'Inter, sans-serif', overflowX: 'hidden' }}>
       
       {/* 1. ФОНОВОЕ ФОТО */}
-      <div className="home-photo" style={{
+      <div className="home-photo" aria-hidden="true" style={{
         position: 'fixed',
         top: 0, left: 0, right: 0, bottom: 0,
         backgroundImage: 'url("https://u.9111s.ru/uploads/202402/17/a0254a12ef37da5aaf5c5646a30baab8.webp")', 
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        zIndex: -2,
+        backgroundRepeat: 'no-repeat',
+        pointerEvents: 'none',
+        zIndex: 0,
         backgroundColor: '#000'
       }} />
       
-      <div className="home-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.9) 100%)', zIndex: -1 }} />
+      <div className="home-overlay" aria-hidden="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.9) 100%)', pointerEvents: 'none', zIndex: 0 }} />
 
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Navigation />
