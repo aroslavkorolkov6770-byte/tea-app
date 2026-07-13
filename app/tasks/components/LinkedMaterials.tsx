@@ -78,7 +78,7 @@ const buildOptions = (routes: RouteMaterialSource[], documents: DocumentMaterial
       type: "route" as const,
       id: String(route.id),
       title: String(route.title || "Тема без названия"),
-      section: String(route.section?.trim() || "Основной раздел"),
+      section: String(route.section || "").trim() || "Основной раздел",
       order: Number(route.order) || Number.MAX_SAFE_INTEGER,
     }))
     .sort((left, right) => left.section.localeCompare(right.section, "ru") || left.order - right.order || left.title.localeCompare(right.title, "ru"));
@@ -89,7 +89,7 @@ const buildOptions = (routes: RouteMaterialSource[], documents: DocumentMaterial
       type: "document" as const,
       id: String(documentItem.id),
       title: String(documentItem.name || "Документ без названия"),
-      section: String(documentItem.section?.trim() || "Основной раздел"),
+      section: String(documentItem.section || "").trim() || "Основной раздел",
     }))
     .sort((left, right) => left.section.localeCompare(right.section, "ru") || left.title.localeCompare(right.title, "ru"));
 
