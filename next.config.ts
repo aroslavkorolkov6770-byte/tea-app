@@ -1,11 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* Здесь можно добавлять другие настройки, например, домены для картинок */
-  
-  // Мы не добавляем сюда блоки typescript и eslint с флагами ignore, 
-  // поэтому Next.js будет использовать стандартное поведение: 
-  // полная проверка перед деплоем.
+  async headers() {
+    return [
+      {
+        source: '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

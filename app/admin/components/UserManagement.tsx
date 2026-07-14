@@ -12,6 +12,9 @@ export default function UserManagement({
     const [showUserForm, setShowUserForm] = useState(false);
     const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
     const [confirmModal, setConfirmModal] = useState({ show: false, id: '' });
+    const [passwordResetModal, setPasswordResetModal] = useState({ show: false, userId: '', userName: '' });
+    const [temporaryPassword, setTemporaryPassword] = useState('');
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
 
     const filteredUsers = users.filter((u: any) => 
         u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
@@ -114,6 +117,58 @@ export default function UserManagement({
         setConfirmModal({ show: false, id: '' });
     };
 
+    const openPasswordResetModal = (user: any) => {
+        setTemporaryPassword('');
+        setPasswordResetModal({ show: true, userId: user.id, userName: user.name });
+    };
+
+    const closePasswordResetModal = () => {
+        if (isResettingPassword) {
+            return;
+        }
+
+        setTemporaryPassword('');
+        setPasswordResetModal({ show: false, userId: '', userName: '' });
+    };
+
+    const executePasswordReset = async () => {
+        if (temporaryPassword.trim().length < 8) {
+            setErrorModal({ show: true, text: 'Временный пароль должен содержать не менее 8 символов.' });
+            return;
+        }
+
+        setIsResettingPassword(true);
+
+        try {
+            const response = await fetch('/api/admin/users/password', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: passwordResetModal.userId,
+                    temporaryPassword: temporaryPassword.trim(),
+                }),
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || !result?.user) {
+                throw new Error(result?.error || 'Не удалось сбросить пароль сотрудника');
+            }
+
+            setUsers(users.map((user: any) => (user.id === result.user.id ? result.user : user)));
+            setTemporaryPassword('');
+            setPasswordResetModal({ show: false, userId: '', userName: '' });
+            setShowSuccessModal({
+                show: true,
+                title: 'ПАРОЛЬ СБРОШЕН',
+                text: `Для ${passwordResetModal.userName} установлен новый временный пароль. Передайте его сотруднику безопасным способом.`,
+            });
+        } catch (error: any) {
+            setErrorModal({ show: true, text: error?.message || 'Не удалось сбросить пароль сотрудника' });
+        } finally {
+            setIsResettingPassword(false);
+        }
+    };
+
     return (
         <>
             <div style={flexSpace as any}>
@@ -134,7 +189,7 @@ export default function UserManagement({
                         filteredUsers.map((u: any) => {
                             const avatarImg = userAvatars[u.id] || u.avatar;
                             return (
-                            <div key={u.id} style={userCardStyle as any}>
+                            <div key={u.id} className="user-management-card" style={userCardStyle as any}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                         <div style={{ width: '45px', height: '45px', borderRadius: '15px', background: '#222', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -153,7 +208,7 @@ export default function UserManagement({
                                         <div className="hover-unified-app" onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex' }}><CustomIcon name="close" size={15} color="#ff4d4d" /></div>
                                     )}
                                 </div>
-                                <div style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
+                                <div className="user-management-credentials" style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
                                         <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{getLoginLabel(u)}</span>
                                     </div>
@@ -161,6 +216,15 @@ export default function UserManagement({
                                         <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#888', fontFamily: 'monospace', fontWeight: 'bold' }}>скрыт</span>
                                     </div>
                                 </div>
+                                {u.role === 'staff' && !u.systemAccount && !u.ghostAccount && (
+                                    <button
+                                        type="button"
+                                        className="hover-unified-app user-management-password-button"
+                                        onClick={() => openPasswordResetModal(u)}
+                                    >
+                                        СБРОСИТЬ ПАРОЛЬ
+                                    </button>
+                                )}
                             </div>
                             )
                         })
@@ -198,6 +262,50 @@ export default function UserManagement({
                             <button className="hover-unified-app" onClick={() => setConfirmModal({ show: false, id: '' })} style={{...saveBtn, background: '#222', color: '#fff', flex: 1} as any}>ОТМЕНА</button>
                             <button className="hover-unified-app" onClick={executeDelete} style={{...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1} as any}>УДАЛИТЬ</button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {passwordResetModal.show && (
+                <div style={modalOverlay as any} onClick={closePasswordResetModal}>
+                    <div className="user-management-reset-modal" style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
+                        <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
+                        <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>СБРОСИТЬ ПАРОЛЬ?</h2>
+                        <p style={{ color: '#ccc', fontSize: '15px', lineHeight: 1.55, marginBottom: '22px' }}>
+                            Старый пароль сотрудника <strong>{passwordResetModal.userName}</strong> перестанет работать сразу после подтверждения. Передайте новый временный пароль только самому сотруднику.
+                        </p>
+                        <label className="user-management-password-label" htmlFor="temporary-employee-password">Новый временный пароль</label>
+                        <input
+                            id="temporary-employee-password"
+                            type="text"
+                            autoComplete="new-password"
+                            value={temporaryPassword}
+                            onChange={event => setTemporaryPassword(event.target.value)}
+                            placeholder="Не менее 8 символов"
+                            style={{ ...adminIn, marginBottom: '20px' } as any}
+                            disabled={isResettingPassword}
+                        />
+                        <div className="user-management-reset-actions">
+                            <button
+                                type="button"
+                                className="hover-unified-app"
+                                onClick={closePasswordResetModal}
+                                style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1 } as any}
+                                disabled={isResettingPassword}
+                            >
+                                ОТМЕНА
+                            </button>
+                            <button
+                                type="button"
+                                className="hover-unified-app"
+                                onClick={executePasswordReset}
+                                style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1 } as any}
+                                disabled={isResettingPassword}
+                            >
+                                {isResettingPassword ? 'СОХРАНЯЕМ...' : 'СБРОСИТЬ'}
+                            </button>
+                        </div>
+                        <p className="user-management-password-hint">После входа сотрудник сможет заменить временный пароль в своём профиле.</p>
                     </div>
                 </div>
             )}

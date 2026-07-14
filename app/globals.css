@@ -410,6 +410,63 @@ html[data-theme="light"] .profile-dropdown {
   box-shadow: 0 20px 50px rgba(25, 55, 48, 0.16) !important;
 }
 
+.user-management-password-button {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 12px;
+  border: 1px solid rgba(10, 186, 181, 0.34);
+  border-radius: 11px;
+  background: rgba(10, 186, 181, 0.08);
+  color: var(--app-accent);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.user-management-password-label {
+  display: block;
+  margin: 0 0 8px 4px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.user-management-reset-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.user-management-password-hint {
+  margin: 16px 0 0;
+  color: var(--app-text-soft);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+html[data-theme="light"] .user-management-card,
+html[data-theme="light"] .user-management-reset-modal {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+html[data-theme="light"] .user-management-credentials {
+  background: var(--app-surface-strong) !important;
+  border-color: var(--app-border) !important;
+}
+
+html[data-theme="light"] .user-management-password-button {
+  background: rgba(10, 186, 181, 0.1) !important;
+}
+
+@media (max-width: 560px) {
+  .user-management-reset-actions {
+    flex-direction: column;
+  }
+}
+
 .linked-materials-editor,
 .linked-materials-view {
   margin: 24px 0;
