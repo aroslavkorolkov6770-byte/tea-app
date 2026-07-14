@@ -782,7 +782,7 @@ export default function Products({
 
                         <div className={`products-sidebar-content ${isSectionMenuOpen ? "open" : ""}`} style={{ display: isSectionMenuOpen ? "block" : "none" }}>
                             <button
-                                className="hover-unified-app"
+                                className={`products-category-button hover-unified-app ${selectedTreePath.length === 0 ? "is-selected" : ""}`}
                                 onClick={() => setSelectedTreePath([])}
                                 style={{ width: "100%", background: selectedTreePath.length === 0 ? "rgba(10,186,181,0.14)" : "#151515", color: selectedTreePath.length === 0 ? "#fff" : "#cfcfcf", border: `1px solid ${selectedTreePath.length === 0 ? "rgba(10,186,181,0.42)" : "#262626"}`, borderRadius: "14px", padding: "12px 14px", fontWeight: "900", cursor: "pointer", textAlign: "left", marginBottom: "10px" }}
                             >
@@ -802,6 +802,7 @@ export default function Products({
                 <div style={{ minWidth: 0 }}>
                     {hitProducts.length > 0 && (
                         <div
+                            className="products-hit-section"
                             style={{
                                 background: "linear-gradient(135deg, rgba(255,215,0,0.05) 0%, rgba(0,0,0,0) 100%)",
                                 border: "1px solid rgba(255,215,0,0.2)",
@@ -843,7 +844,7 @@ export default function Products({
                             {hitPriorityOptions.length > 1 && (
                                 <div className="hit-priority-switcher custom-scroll" style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "8px", marginBottom: "18px" }}>
                                     <button
-                                        className="hover-unified-app"
+                                        className={`product-priority-filter hover-unified-app ${selectedHitPriority === null ? "is-selected" : ""}`}
                                         onClick={() => setSelectedHitPriority("all")}
                                         style={{ background: selectedHitPriority === "all" ? "rgba(255,215,0,0.16)" : "#151515", color: selectedHitPriority === "all" ? "#ffd700" : "#bdbdbd", border: `1px solid ${selectedHitPriority === "all" ? "rgba(255,215,0,0.42)" : "#2a2a2a"}`, borderRadius: "999px", padding: "9px 14px", fontSize: "12px", fontWeight: "900", cursor: "pointer", whiteSpace: "nowrap" }}
                                     >
@@ -852,7 +853,7 @@ export default function Products({
                                     {hitPriorityOptions.map((priority) => (
                                         <button
                                             key={priority}
-                                            className="hover-unified-app"
+                                            className={`product-priority-filter hover-unified-app ${selectedHitPriority === priority ? "is-selected" : ""}`}
                                             onClick={() => setSelectedHitPriority(priority)}
                                             style={{ background: selectedHitPriority === priority ? "rgba(255,215,0,0.16)" : "#151515", color: selectedHitPriority === priority ? "#ffd700" : "#bdbdbd", border: `1px solid ${selectedHitPriority === priority ? "rgba(255,215,0,0.42)" : "#2a2a2a"}`, borderRadius: "999px", padding: "9px 14px", fontSize: "12px", fontWeight: "900", cursor: "pointer", whiteSpace: "nowrap" }}
                                         >
@@ -1310,7 +1311,7 @@ function SidebarSectionNode({
     return (
         <div>
             <button
-                className="hover-unified-app"
+                className={`products-category-button hover-unified-app ${selected ? "is-selected" : ""}`}
                 onClick={() => setSelectedTreePath(selected ? [] : node.path)}
                 style={{
                     width: "100%",

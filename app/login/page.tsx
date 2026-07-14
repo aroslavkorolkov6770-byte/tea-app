@@ -219,35 +219,35 @@ export default function LoginPage() {
       <div className="login-box" style={{ background: '#0a0a0a', padding: '50px 40px', borderRadius: '35px', width: '100%', maxWidth: '390px', border: '1px solid #222', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', animation: 'scaleIn 0.4s ease', boxSizing: 'border-box' }}>
         
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <h1 style={{ margin: 0, color: '#fff', fontSize: '28px', fontWeight: '900', letterSpacing: '1px' }}>TEA <span style={{color: '#0abab5'}}>HUB</span></h1>
-            <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 'bold' }}>
+            <h1 className="login-header-title" style={{ margin: 0, color: '#fff', fontSize: '28px', fontWeight: '900', letterSpacing: '1px' }}>TEA <span style={{color: '#0abab5'}}>HUB</span></h1>
+            <p className="login-header-subtitle" style={{ margin: '5px 0 0 0', color: '#666', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 'bold' }}>
                 {isLoginMode ? 'Вход в платформу' : 'Активация аккаунта'}
             </p>
         </div>
 
         {infoMessage && (
-            <div style={{ background: 'rgba(10, 186, 181, 0.1)', border: '1px solid rgba(10, 186, 181, 0.3)', padding: '15px', borderRadius: '15px', color: '#0abab5', fontSize: '13px', textAlign: 'center', marginBottom: '25px', lineHeight: '1.5', fontWeight: 'bold', animation: 'fadeInUp 0.3s ease' }}>
+            <div className="login-info-message" style={{ background: 'rgba(10, 186, 181, 0.1)', border: '1px solid rgba(10, 186, 181, 0.3)', padding: '15px', borderRadius: '15px', color: '#0abab5', fontSize: '13px', textAlign: 'center', marginBottom: '25px', lineHeight: '1.5', fontWeight: 'bold', animation: 'fadeInUp 0.3s ease' }}>
                 {infoMessage}
             </div>
         )}
         
         {!isLoginMode && (
-            <input type="text" placeholder="Ваше Имя (для профиля)" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
+            <input className="login-input" type="text" placeholder="Ваше Имя (для профиля)" value={regName} onChange={(e)=>setRegName(e.target.value)} style={inputS} />
         )}
         
-        <input type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
-        <input type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
+        <input className="login-input" type="text" placeholder="Логин" value={login} onChange={(e)=>setLogin(e.target.value)} style={inputS} />
+        <input className="login-input" type="password" placeholder="Пароль" value={pass} onChange={(e)=>setPass(e.target.value)} style={inputS} onKeyDown={(e) => { if(e.key === 'Enter') { isLoginMode ? handleLogin() : handleRegister() } }} />
         
         {!isLoginMode && (
-            <div style={{ animation: 'fadeInUp 0.3s ease' }}>
-                <input type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
-                <input type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
-                <input type="text" placeholder="Номер телефона (только цифры)" value={regPhone} onChange={(e)=>setRegPhone(e.target.value.replace(/\D/g, ''))} style={inputS} />
+            <div className="registration-fields" style={{ animation: 'fadeInUp 0.3s ease' }}>
+                <input className="login-input" type="email" placeholder="E-mail адрес" value={email} onChange={(e)=>setEmail(e.target.value)} style={inputS} />
+                <input className="login-input" type="text" placeholder="Telegram (напр. @nik_name)" value={regTg} onChange={(e)=>setRegTg(e.target.value)} style={inputS} />
+                <input className="login-input" type="text" placeholder="Номер телефона (только цифры)" value={regPhone} onChange={(e)=>setRegPhone(e.target.value.replace(/\D/g, ''))} style={inputS} />
 
                 {/* НОВОЕ: Блок с галочкой согласия */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '5px', marginBottom: '20px' }}>
+                <div className="login-consent-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '5px', marginBottom: '20px' }}>
                     <div 
-                        className="hover-unified-auth"
+                        className="login-consent-checkbox hover-unified-auth"
                         onClick={() => setIsConsentGiven(!isConsentGiven)}
                         style={{ 
                             width: '24px', height: '24px', flexShrink: 0, 
@@ -258,7 +258,7 @@ export default function LoginPage() {
                     >
                         {isConsentGiven && <span style={{ color: '#0abab5', display: 'inline-flex' }}><CustomIcon name="check" size={16} color="#0abab5" /></span>}
                     </div>
-                    <div style={{ color: '#888', fontSize: '12px', lineHeight: '1.4' }}>
+                    <div className="login-consent-text" style={{ color: '#888', fontSize: '12px', lineHeight: '1.4' }}>
                         Я даю согласие на <a href="/privacy?doc=processing#processing" style={{ color: '#0abab5', textDecoration: 'underline' }}>обработку персональных данных</a>
                     </div>
                 </div>
@@ -267,13 +267,13 @@ export default function LoginPage() {
 
         {failedAttempts >= 3 && (
             <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '20px', marginTop: '10px' }}>
-                <div style={teaGuardContainerStyle as any}>
+                <div className="tea-guard" style={teaGuardContainerStyle as any}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <div onClick={handleCaptchaClick} style={teaGuardCheckboxStyle(isCaptchaVerified) as any}>
+                        <div className="tea-guard-checkbox" onClick={handleCaptchaClick} style={teaGuardCheckboxStyle(isCaptchaVerified) as any}>
                             {isCaptchaLoading && <div className="captcha-spinner"></div>}
                             {isCaptchaVerified && <span style={{ color: '#0abab5', display: 'inline-flex' }}><CustomIcon name="check" size={24} color="#0abab5" /></span>}
                         </div>
-                        <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>Я человек</span>
+                        <span className="tea-guard-label" style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>Я человек</span>
                     </div>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -283,8 +283,8 @@ export default function LoginPage() {
                             <path d="M10 11V9a2 2 0 014 0v2" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round"/>
                             <circle cx="12" cy="13.5" r="1" fill="#0abab5"/>
                         </svg>
-                        <div style={{ color: '#fff', fontSize: '11px', fontWeight: '900', marginTop: '4px', letterSpacing: '0.5px' }}>TeaGuard</div>
-                        <div style={{ color: '#666', fontSize: '9px', marginTop: '2px' }}>by Tea Hub</div>
+                        <div className="tea-guard-brand" style={{ color: '#fff', fontSize: '11px', fontWeight: '900', marginTop: '4px', letterSpacing: '0.5px' }}>TeaGuard</div>
+                        <div className="tea-guard-subtitle" style={{ color: '#666', fontSize: '9px', marginTop: '2px' }}>by Tea Hub</div>
                     </div>
                 </div>
             </div>
@@ -297,7 +297,7 @@ export default function LoginPage() {
         )}
         
         <div style={{ textAlign: 'center', marginTop: '25px' }}>
-            <span style={{ color: '#666', fontSize: '13px' }}>
+            <span className="login-mode-copy" style={{ color: '#666', fontSize: '13px' }}>
                 {isLoginMode ? 'Нет аккаунта или первый вход? ' : 'Уже активировали аккаунт? '}
             </span>
             <span 
@@ -318,12 +318,12 @@ export default function LoginPage() {
 
       {/* --- МОДАЛЬНОЕ ОКНО ОШИБКИ --- */}
       {errorMessage && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40000 }} onClick={() => setErrorMessage("")}>
-              <div style={{ background: '#111', padding: '40px 30px', borderRadius: '30px', width: '90%', maxWidth: '380px', border: '1px solid #333', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)', animation: 'scaleIn 0.2s ease' }} onClick={e => e.stopPropagation()}>
+          <div className="login-error-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40000 }} onClick={() => setErrorMessage("")}>
+              <div className="login-error-modal" style={{ background: '#111', padding: '40px 30px', borderRadius: '30px', width: '90%', maxWidth: '380px', border: '1px solid #333', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)', animation: 'scaleIn 0.2s ease' }} onClick={e => e.stopPropagation()}>
                   <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                   <h2 style={{ color: '#ff4d4d', fontSize: '20px', fontWeight: '900', marginBottom: '15px', textTransform: 'uppercase' }}>Ошибка</h2>
                   <p style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5', marginBottom: '25px' }}>{errorMessage}</p>
-                  <div className="hover-unified-auth" onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ПОНЯТНО</div>
+                  <div className="login-error-dismiss hover-unified-auth" onClick={() => setErrorMessage("")} style={{ width: '100%', padding: '14px', background: '#333', color: '#fff', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', transition: '0.2s' }}>ПОНЯТНО</div>
               </div>
           </div>
       )}

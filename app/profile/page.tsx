@@ -314,7 +314,7 @@ function ProfileContent() {
             <main style={{ flex: 1, padding: '120px 20px 140px 20px', maxWidth: '100%', boxSizing: 'border-box' }}>
                 <div style={{ maxWidth: '600px', margin: '0 auto' }}>
                     
-                    <section style={profileHeaderCardStyle}>
+                    <section className="profile-hero-card" style={profileHeaderCardStyle}>
                         
                         {/* Прозрачный фон для закрытия меню шестерёнки по клику вне его */}
                         {isMenuOpen && (
@@ -337,7 +337,7 @@ function ProfileContent() {
                             </div>
                         )}
 
-                        <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
+                        <div className="profile-avatar-frame" style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
                             {profile.avatar ? (
                                 <img src={profile.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" />
                             ) : (
@@ -354,7 +354,7 @@ function ProfileContent() {
                     {/* Блок статистики обучения показывается только для сотрудников */}
                     {userRole !== 'admin' && (
                         <div style={{ animation: 'fadeInUp 0.5s ease' }}>
-                            <section style={progressSectionStyle}>
+                            <section className="profile-theme-surface" style={progressSectionStyle}>
                                 <div style={{ marginBottom: '25px' }}>
                                     <div style={labelRow}><span style={{color:'#888'}}>ПЛАН НА НЕДЕЛЮ</span><span style={{color:'#0abab5'}}>{progress.routeCount}/{progress.totalRoute}</span></div>
                                     <div style={barBg}><div style={{ ...barFill, width: `${Math.min((progress.routeCount / (progress.totalRoute || 1)) * 100, 100)}%` }} /></div>
@@ -368,7 +368,7 @@ function ProfileContent() {
                     )}
 
                     <h3 style={sectionTitle}>СВЯЗЬ</h3>
-                    <section style={contactCardStyle}>
+                    <section className="profile-theme-surface" style={contactCardStyle}>
                         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                             <div style={contactIconStyle}><CustomIcon name="chat" size={22} color="#0abab5" /></div>
                             <div style={{ flex: 1 }}>

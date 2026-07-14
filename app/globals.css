@@ -196,11 +196,24 @@ html[data-theme="light"] .tasks-main {
 }
 
 html[data-theme="light"] .home-overlay {
-  background: linear-gradient(180deg, rgba(242, 248, 246, 0.68) 0%, rgba(242, 248, 246, 0.94) 100%) !important;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.9) 100%) !important;
 }
 
 html[data-theme="light"] .home-photo {
-  filter: saturate(0.72) brightness(1.16);
+  filter: none !important;
+}
+
+html[data-theme="light"] .home-page .home-main > section:first-child h1 {
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .home-page .home-main > section:first-child p {
+  color: #d8e0de !important;
+}
+
+html[data-theme="light"] .home-page .home-badge {
+  background: rgba(0, 0, 0, 0.28) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
 }
 
 html[data-theme="light"] .privacy-page {
@@ -274,6 +287,37 @@ html[data-theme="light"] .login-box {
   box-shadow: 0 22px 55px rgba(32, 67, 59, 0.16) !important;
 }
 
+html[data-theme="light"] .login-header-title,
+html[data-theme="light"] .login-consent-text,
+html[data-theme="light"] .login-mode-copy,
+html[data-theme="light"] .tea-guard-label,
+html[data-theme="light"] .tea-guard-brand {
+  color: var(--app-text) !important;
+}
+
+html[data-theme="light"] .login-header-subtitle,
+html[data-theme="light"] .tea-guard-subtitle {
+  color: var(--app-text-soft) !important;
+}
+
+html[data-theme="light"] .login-consent-checkbox,
+html[data-theme="light"] .tea-guard,
+html[data-theme="light"] .tea-guard-checkbox,
+html[data-theme="light"] .login-error-modal {
+  background: var(--app-surface-strong) !important;
+  border-color: var(--app-border-strong) !important;
+  color: var(--app-text) !important;
+}
+
+html[data-theme="light"] .login-error-dismiss {
+  background: var(--app-surface-soft) !important;
+  color: var(--app-text) !important;
+}
+
+html[data-theme="light"] .login-page .hover-unified-auth:hover {
+  color: #11413e !important;
+}
+
 html[data-theme="light"] .home-features > div {
   background: rgba(255, 255, 255, 0.82) !important;
   border-color: rgba(23, 33, 31, 0.12) !important;
@@ -311,6 +355,45 @@ html[data-theme="light"] .tasks-modal {
   color: var(--app-text) !important;
 }
 
+html[data-theme="light"] .documents-upload-zone,
+html[data-theme="light"] .documents-upload-panel,
+html[data-theme="light"] .documents-upload-file-list,
+html[data-theme="light"] .documents-empty-state,
+html[data-theme="light"] .profile-hero-card,
+html[data-theme="light"] .profile-avatar-frame,
+html[data-theme="light"] .profile-notification-card,
+html[data-theme="light"] .profile-theme-surface,
+html[data-theme="light"] .notification-help-modal,
+html[data-theme="light"] .notification-step-card {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+html[data-theme="light"] .profile-avatar-frame {
+  background: var(--app-surface-soft) !important;
+}
+
+html[data-theme="light"] .products-sidebar-toggle,
+html[data-theme="light"] .products-category-button,
+html[data-theme="light"] .product-priority-filter,
+html[data-theme="light"] .hit-scroll-button,
+html[data-theme="light"] .admin-action-icon {
+  background: var(--app-surface-soft) !important;
+  border-color: var(--app-border-strong) !important;
+  color: var(--app-text-muted) !important;
+}
+
+html[data-theme="light"] .products-category-button.is-selected {
+  background: rgba(10, 186, 181, 0.14) !important;
+  border-color: rgba(10, 186, 181, 0.42) !important;
+  color: #11413e !important;
+}
+
+html[data-theme="light"] .products-hit-section {
+  background: rgba(255, 215, 0, 0.045) !important;
+}
+
 html[data-theme="light"] .search-box-container input,
 html[data-theme="light"] input,
 html[data-theme="light"] textarea,
@@ -326,13 +409,23 @@ html[data-theme="light"] textarea::placeholder {
 
 html[data-theme="light"] [style*="background: rgb(0, 0, 0)"],
 html[data-theme="light"] [style*="background:#000"],
-html[data-theme="light"] [style*="background: #000"] {
+html[data-theme="light"] [style*="background: #000"],
+html[data-theme="light"] [style*="background-color: rgb(0, 0, 0)"] {
   background: var(--app-surface-strong) !important;
 }
 
+html[data-theme="light"] [style*="background: rgb(10, 10, 10)"],
+html[data-theme="light"] [style*="background: rgb(13, 13, 13)"],
+html[data-theme="light"] [style*="background: rgb(13, 15, 13)"],
 html[data-theme="light"] [style*="background: rgb(17, 17, 17)"],
+html[data-theme="light"] [style*="background: rgb(21, 21, 21)"],
 html[data-theme="light"] [style*="background:#111"],
-html[data-theme="light"] [style*="background: #111"] {
+html[data-theme="light"] [style*="background: #111"],
+html[data-theme="light"] [style*="background-color: rgb(10, 10, 10)"],
+html[data-theme="light"] [style*="background-color: rgb(13, 13, 13)"],
+html[data-theme="light"] [style*="background-color: rgb(13, 15, 13)"],
+html[data-theme="light"] [style*="background-color: rgb(17, 17, 17)"],
+html[data-theme="light"] [style*="background-color: rgb(21, 21, 21)"] {
   background: var(--app-surface) !important;
 }
 
@@ -341,7 +434,11 @@ html[data-theme="light"] [style*="background:#161816"],
 html[data-theme="light"] [style*="background: #161816"],
 html[data-theme="light"] [style*="background: rgb(26, 26, 26)"],
 html[data-theme="light"] [style*="background:#1a1a1a"],
-html[data-theme="light"] [style*="background: #1a1a1a"] {
+html[data-theme="light"] [style*="background: #1a1a1a"],
+html[data-theme="light"] [style*="background: rgb(34, 34, 34)"],
+html[data-theme="light"] [style*="background-color: rgb(22, 24, 22)"],
+html[data-theme="light"] [style*="background-color: rgb(26, 26, 26)"],
+html[data-theme="light"] [style*="background-color: rgb(34, 34, 34)"] {
   background: var(--app-surface-soft) !important;
 }
 
@@ -389,6 +486,44 @@ html[data-theme="light"] .drop-item,
 html[data-theme="light"] .ai-session-title,
 html[data-theme="light"] .ai-footer-text {
   color: var(--app-text-muted) !important;
+}
+
+html[data-theme="light"] .nav-item.active:not(.sub-item) {
+  background: rgba(10, 186, 181, 0.14) !important;
+  color: #11413e !important;
+}
+
+html[data-theme="light"] .sub-item-arrow {
+  color: var(--app-text-soft) !important;
+}
+
+html[data-theme="light"] .cal-day {
+  color: var(--app-text-muted) !important;
+}
+
+html[data-theme="light"] .cal-day:hover,
+html[data-theme="light"] .cal-day.today {
+  color: #071312 !important;
+}
+
+html[data-theme="light"] .ai-session-item.active {
+  background: rgba(10, 186, 181, 0.12) !important;
+  border-color: rgba(10, 186, 181, 0.35) !important;
+}
+
+html[data-theme="light"] .ai-send-btn {
+  background: rgba(10, 186, 181, 0.14) !important;
+  border-color: rgba(10, 186, 181, 0.4) !important;
+}
+
+html[data-theme="light"] [style*="border: 1px solid rgb(26, 26, 26)"],
+html[data-theme="light"] [style*="border: 1px solid rgb(34, 34, 34)"],
+html[data-theme="light"] [style*="border: 1px solid rgb(38, 38, 38)"],
+html[data-theme="light"] [style*="border: 1px solid rgb(42, 42, 42)"],
+html[data-theme="light"] [style*="border: 1px solid rgb(51, 51, 51)"],
+html[data-theme="light"] [style*="border: 2px dashed rgb(34, 34, 34)"],
+html[data-theme="light"] [style*="border: 1px dashed rgb(51, 51, 51)"] {
+  border-color: var(--app-border) !important;
 }
 
 html[data-theme="light"] .premium-card:hover,
