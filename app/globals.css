@@ -493,6 +493,27 @@ html[data-theme="light"] .nav-item.active:not(.sub-item) {
   color: #11413e !important;
 }
 
+html[data-theme="light"] .account-mode-switch {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+}
+
+html[data-theme="light"] .account-mode-switch-title {
+  color: var(--app-text-soft) !important;
+}
+
+html[data-theme="light"] .account-mode-switch-button {
+  background: var(--app-surface-soft) !important;
+  border-color: var(--app-border-strong) !important;
+  color: var(--app-text-muted) !important;
+}
+
+html[data-theme="light"] .account-mode-switch-button.is-active {
+  background: rgba(10, 186, 181, 0.14) !important;
+  border-color: rgba(10, 186, 181, 0.48) !important;
+  color: #11413e !important;
+}
+
 html[data-theme="light"] .sub-item-arrow {
   color: var(--app-text-soft) !important;
 }

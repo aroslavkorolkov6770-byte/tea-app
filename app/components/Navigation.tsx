@@ -534,12 +534,13 @@ export default function Navigation() {
                 <span style={logoText}>Меню</span>
              </div>
              {sessionUser?.canSwitchMode && (
-                <div style={modeSwitchWrap}>
-                    <div style={modeSwitchTitle}>Режим аккаунта</div>
-                    <div style={modeSwitchSegment}>
+                <div className="account-mode-switch" style={modeSwitchWrap}>
+                    <div className="account-mode-switch-title" style={modeSwitchTitle}>Режим аккаунта</div>
+                    <div className="account-mode-switch-options" style={modeSwitchSegment}>
                         <button
                             type="button"
                             onClick={() => handleViewModeChange('admin')}
+                            className={`account-mode-switch-button ${currentViewMode === 'admin' ? 'is-active' : ''}`}
                             style={modeSwitchButton(currentViewMode === 'admin')}
                         >
                             Админ
@@ -547,6 +548,7 @@ export default function Navigation() {
                         <button
                             type="button"
                             onClick={() => handleViewModeChange('staff')}
+                            className={`account-mode-switch-button ${currentViewMode === 'staff' ? 'is-active' : ''}`}
                             style={modeSwitchButton(currentViewMode === 'staff')}
                         >
                             Сотрудник
