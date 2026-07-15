@@ -11,7 +11,7 @@ TEA HUB - закрытая B2B-платформа для обучения сот
 - Локальная рабочая папка: `C:\Users\KROLL\.codex\worktrees\6dd6\tea-app-main`.
 - Репозиторий: `https://github.com/aroslavkorolkov6770-byte/tea-app.git`.
 - Текущая ветка: `codex/aroslavkorolkov6770-byte/tea-appgithub`.
-- Последний зафиксированный коммит: `c59b521 Record deadline regression fix`.
+- Последний функциональный коммит: `464a0c0 Improve document previews`.
 - Рабочая ветка может отличаться от `origin/main`; перед заливкой нужно проверить `git status`, `git log --oneline -5` и `git diff`.
 
 ## Стек
