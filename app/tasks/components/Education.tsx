@@ -10,6 +10,10 @@ import {
     LinkedMaterialsList,
     type LinkedMaterialReference,
 } from './LinkedMaterials';
+import AiContentGenerator, {
+    type AiDraftKind,
+    type AiGeneratedDraftResult,
+} from './AiContentGenerator';
 
 const STORAGE_KEYS = {
     ONBOARD_ROUTE: 'tea_hub_onboard_route_v2',
@@ -149,6 +153,13 @@ export default function Education({
         quiz: [{ q: '', o: ['', '', '', ''], c: 0 }],
         linkedMaterials: [] as LinkedMaterialReference[],
     });
+    const [createMenu, setCreateMenu] = useState<AiDraftKind | null>(null);
+    const [aiGeneratorKind, setAiGeneratorKind] = useState<AiDraftKind | null>(null);
+    const [aiReview, setAiReview] = useState<{
+        kind: AiDraftKind;
+        sourceFiles: string[];
+        warnings: string[];
+    } | null>(null);
 
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, type: 'route'|'test'|'section_route'|'section_test', targetId: string, name: string}>({ isOpen: false, type: 'route', targetId: '', name: '' });
     const [confirmSectionDelete, setConfirmSectionDelete] = useState({ isOpen: false, type: 'route' as 'route'|'test', name: '' });
@@ -323,6 +334,7 @@ export default function Education({
         const newList = upsertOrderedSectionItem([...dynamicRoute], routeDraft);
         updateRouteState(newList);
         setShowRouteForm(false);
+        setAiReview(null);
     };
 
     const handleRouteComplete = (id: string) => {
@@ -359,6 +371,102 @@ export default function Education({
         const newList = upsertOrderedSectionItem([...dynamicTests], newTest);
         updateTestsState(newList);
         setShowTestForm(false);
+        setAiReview(null);
+    };
+
+    const openManualRouteForm = () => {
+        setRouteFormData({
+            id: '', title: '', time: '5 мин', section: '', order: '',
+            mediaType: 'text', videoIframe: '', videoDesc: '',
+            h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '',
+            linkedMaterials: [],
+        });
+        setAiReview(null);
+        setCreateMenu(null);
+        setShowRouteForm(true);
+    };
+
+    const openManualTestForm = () => {
+        setTestFormData({
+            id: '', title: '', subtitle: '', theory: '', section: '', order: '', timeLimit: 0,
+            quiz: [{ q: '', o: ['', '', '', ''], c: 0 }],
+            linkedMaterials: [],
+        });
+        setAiReview(null);
+        setCreateMenu(null);
+        setShowTestForm(true);
+    };
+
+    const openAiGenerator = (kind: AiDraftKind) => {
+        setCreateMenu(null);
+        setAiGeneratorKind(kind);
+    };
+
+    const handleAiDraftGenerated = (result: AiGeneratedDraftResult) => {
+        setAiGeneratorKind(null);
+        setAiReview({
+            kind: result.draft.kind,
+            sourceFiles: result.sourceFiles,
+            warnings: result.warnings,
+        });
+
+        if (result.draft.kind === 'topic') {
+            const [firstBlock, secondBlock, thirdBlock] = result.draft.blocks;
+            setRouteFormData({
+                id: '',
+                title: result.draft.title,
+                time: result.draft.time || '5 мин',
+                section: result.draft.section || '',
+                order: '',
+                mediaType: 'text',
+                videoIframe: '',
+                videoDesc: '',
+                h1: firstBlock?.heading || '',
+                t1: firstBlock?.text || '',
+                img1: '',
+                h2: secondBlock?.heading || '',
+                t2: secondBlock?.text || '',
+                img2: '',
+                h3: thirdBlock?.heading || '',
+                t3: thirdBlock?.text || '',
+                img3: '',
+                linkedMaterials: [],
+            });
+            setShowRouteForm(true);
+            return;
+        }
+
+        setTestFormData({
+            id: '',
+            title: result.draft.title,
+            subtitle: result.draft.subtitle,
+            theory: result.draft.theory,
+            section: result.draft.section || '',
+            order: '',
+            timeLimit: 0,
+            quiz: result.draft.questions.map((question) => ({
+                q: question.question,
+                o: [
+                    question.options[0] || '',
+                    question.options[1] || '',
+                    question.options[2] || '',
+                    question.options[3] || '',
+                ],
+                c: question.correctIndex,
+            })),
+            linkedMaterials: [],
+        });
+        setShowTestForm(true);
+    };
+
+    const closeRouteEditor = () => {
+        setShowRouteForm(false);
+        setAiReview(null);
+    };
+
+    const closeTestEditor = () => {
+        setShowTestForm(false);
+        setAiReview(null);
     };
 
     const handleMoveItem = (targetSection: string) => {
@@ -448,6 +556,12 @@ export default function Education({
     Object.keys(testGroups).forEach((sectionName) => {
         testGroups[sectionName] = sortSectionEntries(testGroups[sectionName]);
     });
+
+    const educationSections = Array.from(new Set(
+        [...(dynamicRoute || []), ...(dynamicTests || [])]
+            .filter((item: any) => !item.isPlaceholder || item.section)
+            .map((item: any) => normalizeSectionName(item.section)),
+    )).sort((left, right) => left.localeCompare(right, 'ru'));
     
     const getSectionTestSequence = (targetTest: any) => {
         const targetSection = normalizeSectionName(targetTest?.section);
@@ -685,10 +799,28 @@ export default function Education({
                {isAdmin && (
                    <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                        <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'route', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
-                       <button onClick={() => { 
-                           setRouteFormData({ id: '', title: '', time: '5 мин', section: '', order: '', mediaType: 'text', videoIframe: '', videoDesc: '', h1: '', t1: '', img1: '', h2: '', t2: '', img2: '', h3: '', t3: '', img3: '', linkedMaterials: [] });
-                           setShowRouteForm(true); 
-                       }} className="hover-unified-app" style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВАЯ ТЕМА</button>
+                       <div className="education-create-wrap">
+                           <button
+                               onClick={() => setCreateMenu(createMenu === 'topic' ? null : 'topic')}
+                               className="hover-unified-app education-create-trigger"
+                               style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}
+                               aria-expanded={createMenu === 'topic'}
+                           >
+                               + НОВАЯ ТЕМА <span>⌄</span>
+                           </button>
+                           {createMenu === 'topic' && (
+                               <div className="education-create-menu">
+                                   <button type="button" onClick={openManualRouteForm}>
+                                       <span className="education-create-icon">+</span>
+                                       <span><strong>Создать вручную</strong><small>Пустой редактор темы</small></span>
+                                   </button>
+                                   <button type="button" onClick={() => openAiGenerator('topic')}>
+                                       <span className="education-create-icon is-ai">AI</span>
+                                       <span><strong>Создать через Alice AI</strong><small>Черновик из документов</small></span>
+                                   </button>
+                               </div>
+                           )}
+                       </div>
                    </div>
                )}
             </div>
@@ -741,7 +873,7 @@ export default function Education({
                                                       <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} className="card-icon-btn move-btn" title="Переместить">
                                                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                                       </div>
-                                                      <div onClick={(e) => { e.stopPropagation(); setRouteFormData({ id: step.id, title: step.title, time: step.time || '5 мин', section: step.section || '', order: String(step.order || idx + 1), mediaType: step.mediaType || 'text', videoIframe: step.videoIframe || '', videoDesc: step.videoDesc || '', h1: step.h1, t1: step.t1, img1: step.img1 || '', h2: step.h2, t2: step.t2, img2: step.img2 || '', h3: step.h3, t3: step.t3, img3: step.img3 || '', linkedMaterials: Array.isArray(step.linkedMaterials) ? step.linkedMaterials : [] }); setShowRouteForm(true); }} className="card-icon-btn edit-btn" title="Редактировать">
+                                                      <div onClick={(e) => { e.stopPropagation(); setAiReview(null); setRouteFormData({ id: step.id, title: step.title, time: step.time || '5 мин', section: step.section || '', order: String(step.order || idx + 1), mediaType: step.mediaType || 'text', videoIframe: step.videoIframe || '', videoDesc: step.videoDesc || '', h1: step.h1, t1: step.t1, img1: step.img1 || '', h2: step.h2, t2: step.t2, img2: step.img2 || '', h3: step.h3, t3: step.t3, img3: step.img3 || '', linkedMaterials: Array.isArray(step.linkedMaterials) ? step.linkedMaterials : [] }); setShowRouteForm(true); }} className="card-icon-btn edit-btn" title="Редактировать">
                                                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                                       </div>
                                                       <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} className="card-icon-btn del-btn" title="Удалить">
@@ -797,10 +929,28 @@ export default function Education({
                 {isAdmin && (
                    <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                        <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'test', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
-                       <button onClick={() => { 
-                           setTestFormData({ id: '', title: '', subtitle: '', theory: '', section: '', order: '', timeLimit: 0, quiz: [{ q: '', o: ['', '', '', ''], c: 0 }], linkedMaterials: [] });
-                           setShowTestForm(true); 
-                       }} style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}>+ НОВЫЙ ТЕСТ</button>
+                       <div className="education-create-wrap">
+                           <button
+                               onClick={() => setCreateMenu(createMenu === 'test' ? null : 'test')}
+                               className="hover-unified-app education-create-trigger"
+                               style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}
+                               aria-expanded={createMenu === 'test'}
+                           >
+                               + НОВЫЙ ТЕСТ <span>⌄</span>
+                           </button>
+                           {createMenu === 'test' && (
+                               <div className="education-create-menu">
+                                   <button type="button" onClick={openManualTestForm}>
+                                       <span className="education-create-icon">+</span>
+                                       <span><strong>Создать вручную</strong><small>Пустой редактор теста</small></span>
+                                   </button>
+                                   <button type="button" onClick={() => openAiGenerator('test')}>
+                                       <span className="education-create-icon is-ai">AI</span>
+                                       <span><strong>Создать через Alice AI</strong><small>Вопросы из документов</small></span>
+                                   </button>
+                               </div>
+                           )}
+                       </div>
                    </div>
                 )}
             </div>
@@ -883,6 +1033,7 @@ export default function Education({
                                                       </div>
                                                       <div onClick={(e) => { 
                                                           e.stopPropagation(); 
+                                                          setAiReview(null);
                                                           setTestFormData({
                                                               id: test.id, title: test.title, subtitle: test.subtitle, theory: test.theory,
                                                               section: test.section || '', order: String(test.order || idx + 1), timeLimit: test.timeLimit || 0,
@@ -1049,6 +1200,15 @@ export default function Education({
                 </div>
             )}
 
+            {aiGeneratorKind && (
+                <AiContentGenerator
+                    initialKind={aiGeneratorKind}
+                    sections={educationSections}
+                    onClose={() => setAiGeneratorKind(null)}
+                    onGenerated={handleAiDraftGenerated}
+                />
+            )}
+
             {/* --- ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" --- */}
             {selectedRouteStep && !showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteModal}>
@@ -1111,11 +1271,19 @@ export default function Education({
 
             {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ --- */}
             {showRouteForm && (
-                <div style={modalOverlay as any} onClick={() => setShowRouteForm(false)}>
+                <div style={modalOverlay as any} onClick={closeRouteEditor}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto', padding: '40px 30px'} as any} onClick={e => e.stopPropagation()}>
                         <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontWeight: '900' }}>
-                            {routeFormData.id ? 'Редактировать тему' : 'Новая тема'}
+                            {aiReview?.kind === 'topic' ? 'Проверка AI-черновика' : (routeFormData.id ? 'Редактировать тему' : 'Новая тема')}
                         </h2>
+
+                        {aiReview?.kind === 'topic' && (
+                            <div className="ai-review-banner">
+                                <div className="ai-review-banner-head"><span>ALICE AI</span><strong>Черновик еще не создан на сайте</strong></div>
+                                <p>Проверьте текст и при необходимости исправьте его. Источники: {aiReview.sourceFiles.join(', ')}.</p>
+                                {aiReview.warnings.length > 0 && <small>Не прочитано: {aiReview.warnings.join(' ')}</small>}
+                            </div>
+                        )}
                         
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
                             <input autoComplete="new-password" name={"title_" + Date.now()} style={adminIn as any} placeholder="Название темы (напр. История чая)" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} />
@@ -1190,8 +1358,10 @@ export default function Education({
                             documents={urgentFiles}
                             currentRouteId={routeFormData.id || undefined}
                         />
-                        <button className="hover-unified-app" onClick={handleSaveRoute} style={saveBtn as any}>СОХРАНИТЬ ТЕМУ</button>
-                        <div className="hover-link-unified-app" onClick={() => setShowRouteForm(false)} style={cancelLink as any}>ОТМЕНА</div>
+                        <button className="hover-unified-app" onClick={handleSaveRoute} style={saveBtn as any}>
+                            {aiReview?.kind === 'topic' ? 'ПРОВЕРЕНО: СОЗДАТЬ ТЕМУ' : 'СОХРАНИТЬ ТЕМУ'}
+                        </button>
+                        <div className="hover-link-unified-app" onClick={closeRouteEditor} style={cancelLink as any}>ОТМЕНА</div>
                     </div>
                 </div>
             )}
@@ -1228,11 +1398,19 @@ export default function Education({
 
             {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ --- */}
             {showTestForm && (
-                <div style={modalOverlay as any} onClick={() => setShowTestForm(false)}>
+                <div style={modalOverlay as any} onClick={closeTestEditor}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto', padding: '40px 30px'} as any} onClick={e => e.stopPropagation()}>
                         <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontWeight: '900' }}>
-                            {testFormData.id ? 'Редактировать тест' : 'Новый тест'}
+                            {aiReview?.kind === 'test' ? 'Проверка AI-черновика' : (testFormData.id ? 'Редактировать тест' : 'Новый тест')}
                         </h2>
+
+                        {aiReview?.kind === 'test' && (
+                            <div className="ai-review-banner">
+                                <div className="ai-review-banner-head"><span>ALICE AI</span><strong>Тест еще не создан на сайте</strong></div>
+                                <p>Проверьте каждый вопрос, варианты и отмеченный правильный ответ. Источники: {aiReview.sourceFiles.join(', ')}.</p>
+                                {aiReview.warnings.length > 0 && <small>Не прочитано: {aiReview.warnings.join(' ')}</small>}
+                            </div>
+                        )}
                         
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px'}}>
                             <input autoComplete="new-password" style={adminIn as any} placeholder="Название теста" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} />
@@ -1287,8 +1465,10 @@ export default function Education({
                             ))}
                         </div>
 
-                        <button className="hover-unified-app" onClick={handleSaveTestForm} style={saveBtn as any}>СОХРАНИТЬ ТЕСТ</button>
-                        <div className="hover-link-unified-app" onClick={() => setShowTestForm(false)} style={cancelLink as any}>ОТМЕНА</div>
+                        <button className="hover-unified-app" onClick={handleSaveTestForm} style={saveBtn as any}>
+                            {aiReview?.kind === 'test' ? 'ПРОВЕРЕНО: СОЗДАТЬ ТЕСТ' : 'СОХРАНИТЬ ТЕСТ'}
+                        </button>
+                        <div className="hover-link-unified-app" onClick={closeTestEditor} style={cancelLink as any}>ОТМЕНА</div>
                     </div>
                 </div>
             )}
@@ -1533,6 +1713,72 @@ export default function Education({
                 .deadline-card:hover { border-color: #ff4d4d !important; box-shadow: 0 8px 25px rgba(255, 77, 77, 0.15) !important; }
                 .deadline-card:active { background: rgba(255, 77, 77, 0.05) !important; border-color: #ff4d4d !important; }
 
+                .education-create-wrap { position: relative; z-index: 30; }
+                .education-create-trigger { display: inline-flex; align-items: center; gap: 8px; }
+                .education-create-trigger > span { font-size: 15px; line-height: 1; }
+                .education-create-menu {
+                    position: absolute;
+                    top: calc(100% + 9px);
+                    right: 0;
+                    width: 264px;
+                    padding: 7px;
+                    background: #121716;
+                    border: 1px solid #2b3734;
+                    border-radius: 17px;
+                    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.42);
+                }
+                .education-create-menu > button {
+                    width: 100%;
+                    display: grid;
+                    grid-template-columns: 38px minmax(0, 1fr);
+                    align-items: center;
+                    gap: 11px;
+                    padding: 10px;
+                    color: #fff;
+                    background: transparent;
+                    border: 0;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    text-align: left;
+                }
+                .education-create-menu > button:hover { background: rgba(10, 186, 181, 0.1); }
+                .education-create-menu > button > span:last-child { min-width: 0; }
+                .education-create-menu strong { display: block; font-size: 12px; font-weight: 900; }
+                .education-create-menu small { display: block; margin-top: 3px; color: #72827f; font-size: 10px; font-weight: 650; }
+                .education-create-icon {
+                    width: 36px;
+                    height: 36px;
+                    display: grid;
+                    place-items: center;
+                    color: #8da09c;
+                    background: #202725;
+                    border: 1px solid #303b38;
+                    border-radius: 11px;
+                    font-size: 18px;
+                    font-weight: 950;
+                }
+                .education-create-icon.is-ai { color: #001817; background: #20dfd3; border-color: #20dfd3; font-size: 10px; }
+                .ai-review-banner {
+                    padding: 15px;
+                    margin: -8px 0 22px;
+                    color: #9db0ac;
+                    background: linear-gradient(135deg, rgba(10, 186, 181, 0.12), rgba(10, 186, 181, 0.035));
+                    border: 1px solid rgba(32, 223, 211, 0.25);
+                    border-radius: 15px;
+                }
+                .ai-review-banner-head { display: flex; align-items: center; gap: 9px; }
+                .ai-review-banner-head span { padding: 5px 7px; color: #001817; background: #20dfd3; border-radius: 6px; font-size: 9px; font-weight: 950; letter-spacing: 0.8px; }
+                .ai-review-banner-head strong { color: #eafffc; font-size: 12px; }
+                .ai-review-banner p { margin: 10px 0 0; font-size: 11px; line-height: 1.55; }
+                .ai-review-banner > small { display: block; margin-top: 8px; color: #e0aa55; font-size: 10px; line-height: 1.45; }
+
+                html[data-theme="light"] .education-create-menu { background: #fff; border-color: #cfdcd9; box-shadow: 0 22px 50px rgba(31, 59, 53, 0.18); }
+                html[data-theme="light"] .education-create-menu > button { color: #172421; }
+                html[data-theme="light"] .education-create-menu > button:hover { background: #eaf8f5; }
+                html[data-theme="light"] .education-create-icon { color: #4b625d; background: #edf3f1; border-color: #d5e0dd; }
+                html[data-theme="light"] .ai-review-banner { color: #506b65; background: linear-gradient(135deg, #e4f7f3, #f7fbfa); border-color: #acdcd5; }
+                html[data-theme="light"] .ai-review-banner-head strong { color: #19332e; }
+
                 /* СТИЛИ КНОПОК ДЕЙСТВИЙ (АДМИН) */
                 .card-icon-btn {
                     width: 34px;
@@ -1628,6 +1874,7 @@ export default function Education({
                         font-size: 14px !important;
                         line-height: 1.5 !important;
                     }
+                    .education-create-menu { right: auto; left: 0; width: min(264px, calc(100vw - 40px)); }
                 }
             `}</style>
         </section>

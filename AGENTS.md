@@ -3,3 +3,12 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
+
+## Постоянная документация проекта
+
+- После каждого завершенного изменения кода обязательно обновляй Markdown-файлы проекта до финального ответа, коммита или деплоя.
+- `PROJECT_CONTEXT.md` должен отражать актуальное устройство проекта и важные постоянные правила.
+- `TASKS.md` должен отражать текущий статус задачи: что сделано, что проверено и что осталось.
+- `HANDOFF.md` должен содержать короткое актуальное состояние для продолжения работы в новом чате.
+- `DEPLOYMENT.md` обновляй, если изменились процесс выкладки, ветка, серверный путь, команды или проверка после релиза.
+- Не записывай в Markdown-файлы пароли, токены, ключи API, VAPID-ключи, SSH-данные и другие секреты.
