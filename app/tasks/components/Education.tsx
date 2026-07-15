@@ -24,6 +24,36 @@ const STORAGE_KEYS = {
 };
 const AI_SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
 
+type DeadlineMaterialReference = {
+    type: 'document' | 'route' | 'test';
+    id: string;
+};
+
+const getDeadlineMaterialReference = (deadline: any): DeadlineMaterialReference | null => {
+    const linkedMaterial = deadline?.linkedMaterial;
+    if (
+        linkedMaterial
+        && (linkedMaterial.type === 'document' || linkedMaterial.type === 'route' || linkedMaterial.type === 'test')
+        && typeof linkedMaterial.id === 'string'
+        && linkedMaterial.id.trim()
+    ) {
+        return { type: linkedMaterial.type, id: linkedMaterial.id.trim() };
+    }
+
+    if (typeof deadline?.linkedTestId === 'string' && deadline.linkedTestId.trim()) {
+        return { type: 'test', id: deadline.linkedTestId.trim() };
+    }
+
+    return null;
+};
+
+const getDeadlineActionLabel = (reference: DeadlineMaterialReference | null) => {
+    if (reference?.type === 'document') return 'ОТКРЫТЬ ДОКУМЕНТ ↗';
+    if (reference?.type === 'route') return 'ОТКРЫТЬ ТЕМУ ↗';
+    if (reference?.type === 'test') return 'ПРОЙТИ ТЕСТ ↗';
+    return '';
+};
+
 const stripEmoji = (str: string) => {
     if (!str) return '';
     return str.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
@@ -228,6 +258,42 @@ export default function Education({
         setSelectedRouteStep(null);
         setSelectedTest(null);
         router.push(`/tasks?tab=docs&documentId=${encodeURIComponent(reference.id)}`);
+    };
+
+    const handleOpenDeadlineMaterial = (deadline: any) => {
+        const reference = getDeadlineMaterialReference(deadline);
+        if (!reference) return;
+
+        if (reference.type !== 'test') {
+            handleOpenLinkedMaterial({ type: reference.type, id: reference.id });
+            return;
+        }
+
+        const targetTest = dynamicTests.find((test: any) => test.id === reference.id);
+        if (!targetTest) {
+            setLockedTestAlert({ show: true, message: 'Прикрепленный тест больше недоступен.' });
+            return;
+        }
+
+        const unpassedTestsBefore = getUnpassedPreviousSectionTests(targetTest);
+        if (unpassedTestsBefore.length > 0 && !isAdmin) {
+            const missingList = buildMissingSectionTestsMessage(unpassedTestsBefore);
+            setLockedTestAlert({
+                show: true,
+                message: `Для прохождения этого дедлайна необходимо по порядку сдать предыдущие тесты:\n\n${missingList}`,
+            });
+            return;
+        }
+
+        if (isLockedByUrgent && !isAdmin) {
+            setLockedTestAlert({
+                show: true,
+                message: `Доступ к тестам закрыт.\nНе пройдены обязательные аттестации:\n${pendingAttestations.map((test: any) => '— ' + stripEmoji(test.name)).join('\n')}`,
+            });
+            return;
+        }
+
+        setSelectedTest(targetTest);
     };
 
     useEffect(() => {
@@ -696,28 +762,8 @@ export default function Education({
                     <div className="premium-cards-container"> 
                         {urgentTasks.map((file: any) => (
                             file.id && file.id.startsWith('deadline_') ? (
-                                <div key={file.id} className="premium-card deadline-card" style={{ borderColor: '#ff4d4d', borderWidth: '1px', cursor: file.linkedTestId ? 'pointer' : 'default' }}
-                                     onClick={() => {
-                                         if (file.linkedTestId) {
-                                             const targetTest = dynamicTests.find((t:any) => t.id === file.linkedTestId);
-                                             if (targetTest) {
-                                                 const unpassedTestsBefore = getUnpassedPreviousSectionTests(targetTest);
-
-                                                 if (unpassedTestsBefore.length > 0 && !isAdmin) {
-                                                     const missingList = buildMissingSectionTestsMessage(unpassedTestsBefore);
-                                                     
-                                                     setLockedTestAlert({
-                                                         show: true, 
-                                                         message: `Для прохождения этого дедлайна необходимо по порядку сдать предыдущие тесты:\n\n${missingList}`
-                                                     });
-                                                 } else if (isLockedByUrgent && !isAdmin) {
-                                                     setLockedTestAlert({show: true, message: `Доступ к тестам закрыт.\nНе пройдены обязательные аттестации:\n${pendingAttestations.map((t:any) => '— ' + stripEmoji(t.name)).join('\n')}`});
-                                                 } else {
-                                                     setSelectedTest(targetTest);
-                                                 }
-                                             }
-                                         }
-                                     }}
+                                <div key={file.id} className="premium-card deadline-card" style={{ borderColor: '#ff4d4d', borderWidth: '1px', cursor: getDeadlineMaterialReference(file) ? 'pointer' : 'default' }}
+                                     onClick={() => handleOpenDeadlineMaterial(file)}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '15px', marginBottom: '15px' }}>
                                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -757,7 +803,7 @@ export default function Education({
                                         <div style={{ color: '#ff4d4d', fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>{file.size}</div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div style={{ color: '#555', fontSize: '11px', fontWeight: 'bold' }}>Назначено: {file.date}</div>
-                                            {file.linkedTestId && <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold' }}>ПРОЙТИ ТЕСТ ↗</div>}
+                                            {getDeadlineMaterialReference(file) && <div style={{ fontSize: '11px', color: '#0abab5', fontWeight: 'bold' }}>{getDeadlineActionLabel(getDeadlineMaterialReference(file))}</div>}
                                         </div>
                                     </div>
                                 </div>

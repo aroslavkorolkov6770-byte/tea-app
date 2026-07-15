@@ -28,6 +28,30 @@ const ADMIN_CACHE_KEYS = {
   USER_STATS: 'th_admin_user_stats_v1',
 };
 
+type DeadlineMaterialType = 'document' | 'route' | 'test';
+
+type DeadlineMaterialReference = {
+  type: DeadlineMaterialType;
+  id: string;
+  title: string;
+};
+
+type DeadlineMaterialOption = DeadlineMaterialReference & {
+  section: string;
+};
+
+const DEADLINE_MATERIAL_LABELS: Record<DeadlineMaterialType, string> = {
+  document: 'документ',
+  route: 'тема',
+  test: 'тест',
+};
+
+const DEADLINE_MATERIAL_OBJECT_LABELS: Record<DeadlineMaterialType, string> = {
+  document: 'документ',
+  route: 'тему',
+  test: 'тест',
+};
+
 export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -44,6 +68,7 @@ export default function AdminDashboard() {
   const [usersStats, setUsersStats] = useState<Record<string, {route: number, basics: number}>>({});
   const [totalBasicsModules, setTotalBasicsModules] = useState(50);
   const [totalRouteSteps, setTotalRouteSteps] = useState(5);
+  const [dynamicRoute, setDynamicRoute] = useState<any[]>([]);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -54,9 +79,9 @@ export default function AdminDashboard() {
   const [eventTab, setEventTab] = useState<'personal' | 'deadline'>('personal');
 
   const [dynamicTests, setDynamicTests] = useState<any[]>([]);
-  const [linkedTestId, setLinkedTestId] = useState<string>("");
-  
-  const [testSearchQuery, setTestSearchQuery] = useState("");
+  const [deadlineMaterialType, setDeadlineMaterialType] = useState<DeadlineMaterialType>('test');
+  const [selectedDeadlineMaterial, setSelectedDeadlineMaterial] = useState<DeadlineMaterialReference | null>(null);
+  const [deadlineSearchQuery, setDeadlineSearchQuery] = useState("");
   const [showTestDropdown, setShowTestDropdown] = useState(false);
 
   const [testTypesList, setTestTypesList] = useState<any[]>([{ id: 't1', name: ' Итоговая аттестация' }, { id: 't2', name: ' Переаттестация' }]);
@@ -108,7 +133,10 @@ export default function AdminDashboard() {
 
           if (cachedRoute) {
               const parsedRoute = JSON.parse(cachedRoute);
-              if (Array.isArray(parsedRoute)) setTotalRouteSteps(parsedRoute.length);
+              if (Array.isArray(parsedRoute)) {
+                  setDynamicRoute(parsedRoute);
+                  setTotalRouteSteps(parsedRoute.length);
+              }
           }
 
           if (cachedTypes) setTestTypesList(JSON.parse(cachedTypes));
@@ -183,6 +211,7 @@ export default function AdminDashboard() {
             setTotalBasicsModules(Array.isArray(loadedTests) ? loadedTests.length : 0);
             setTotalRouteSteps(Array.isArray(dynamicRouteData) ? dynamicRouteData.length : 5);
             if (Array.isArray(dynamicRouteData)) {
+                setDynamicRoute(dynamicRouteData);
                 localStorage.setItem(ADMIN_CACHE_KEYS.ROUTE, JSON.stringify(dynamicRouteData));
             }
 
@@ -383,30 +412,38 @@ export default function AdminDashboard() {
       setNoteText(notes[key] || ""); 
       setNoteType('personal'); 
       setDeadlineTarget('Все'); 
-      setLinkedTestId('');
-      setTestSearchQuery('');
+      setDeadlineMaterialType('test');
+      setSelectedDeadlineMaterial(null);
+      setDeadlineSearchQuery('');
   };
   
   const closeNotePanel = () => { 
       setSelectedDateKey(null); 
       setNoteText(""); 
-      setLinkedTestId(''); 
-      setTestSearchQuery('');
+      setSelectedDeadlineMaterial(null);
+      setDeadlineSearchQuery('');
+      setShowTestDropdown(false);
   };
 
   const saveNote = async () => {
       if (!selectedDateKey) return;
       if (!noteText.trim()) { const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); return; }
+      if (noteType === 'deadline' && deadlineMaterialType !== 'test' && deadlineSearchQuery.trim() && !selectedDeadlineMaterial) {
+          setErrorModal({ show: true, text: `Выберите ${DEADLINE_MATERIAL_OBJECT_LABELS[deadlineMaterialType]} из списка или очистите поле.` });
+          return;
+      }
       if (isProcessing) return; setIsProcessing(true);
+      let shouldClosePanel = false;
       try {
           const newNotes = { ...notes };
           let adminNoteText = noteText.trim();
           
           if (noteType === 'deadline') {
-              let finalLinkedTestId = linkedTestId;
+              let finalLinkedMaterial = selectedDeadlineMaterial;
+              let finalLinkedTestId = finalLinkedMaterial?.type === 'test' ? finalLinkedMaterial.id : '';
 
-              if (linkedTestId.startsWith('tpl_')) {
-                  const templateName = linkedTestId.replace('tpl_', '');
+              if (finalLinkedTestId.startsWith('tpl_')) {
+                  const templateName = finalLinkedTestId.replace('tpl_', '');
                   const newDynTest = {
                       id: 't_' + Date.now(),
                       title: templateName,
@@ -418,13 +455,14 @@ export default function AdminDashboard() {
                   };
                   const updatedTests = [...dynamicTests, newDynTest];
                   setDynamicTests(updatedTests);
-                  saveDataToServer('tea_hub_dynamic_tests_v1', updatedTests);
+                  await saveDataToServer('tea_hub_dynamic_tests_v1', updatedTests);
                   finalLinkedTestId = newDynTest.id;
+                  finalLinkedMaterial = { type: 'test', id: newDynTest.id, title: newDynTest.title };
               } 
-              else if (testSearchQuery.trim() && !linkedTestId) {
+              else if (deadlineMaterialType === 'test' && deadlineSearchQuery.trim() && !selectedDeadlineMaterial) {
                   const newDynTest = {
                       id: 't_' + Date.now(),
-                      title: testSearchQuery.trim(),
+                      title: deadlineSearchQuery.trim(),
                       subtitle: 'Индивидуальный тест',
                       theory: '',
                       section: 'Индивидуальные',
@@ -433,8 +471,9 @@ export default function AdminDashboard() {
                   };
                   const updatedTests = [...dynamicTests, newDynTest];
                   setDynamicTests(updatedTests);
-                  saveDataToServer('tea_hub_dynamic_tests_v1', updatedTests);
+                  await saveDataToServer('tea_hub_dynamic_tests_v1', updatedTests);
                   finalLinkedTestId = newDynTest.id;
+                  finalLinkedMaterial = { type: 'test', id: newDynTest.id, title: newDynTest.title };
               }
 
               const targetName = deadlineTarget === 'Все' ? 'Всем' : users.find(u => u.id === deadlineTarget)?.name || deadlineTarget;
@@ -447,7 +486,8 @@ export default function AdminDashboard() {
                   date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), 
                   target: deadlineTarget, 
                   isTest: false,
-                  linkedTestId: finalLinkedTestId || null
+                  linkedTestId: finalLinkedTestId || null,
+                  linkedMaterial: finalLinkedMaterial || null,
               };
               
               const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_urgent_files_v1`);
@@ -456,12 +496,17 @@ export default function AdminDashboard() {
               setUrgentFiles(updatedFiles);
               await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
               
-              const pushUrl = finalLinkedTestId ? `/tasks?tab=edu&testId=${finalLinkedTestId}` : '/tasks?tab=edu';
+              const pushUrl = finalLinkedMaterial?.type === 'document'
+                  ? `/tasks?tab=docs&documentId=${encodeURIComponent(finalLinkedMaterial.id)}`
+                  : finalLinkedMaterial?.type === 'route'
+                      ? `/tasks?tab=edu&routeId=${encodeURIComponent(finalLinkedMaterial.id)}`
+                      : finalLinkedTestId
+                          ? `/tasks?tab=edu&testId=${encodeURIComponent(finalLinkedTestId)}`
+                          : '/tasks?tab=edu';
               
               let emailBody = `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`;
-              if (finalLinkedTestId) {
-                  const tName = dynamicTests.find(t => t.id === finalLinkedTestId)?.title || testSearchQuery.replace('[Аттестация] ', '') || "Тест";
-                  emailBody += `\nК задаче прикреплен тест: "${tName}". Откройте платформу для прохождения.`;
+              if (finalLinkedMaterial) {
+                  emailBody += `\nК задаче прикреплен ${DEADLINE_MATERIAL_LABELS[finalLinkedMaterial.type]}: "${finalLinkedMaterial.title}". Откройте платформу для выполнения.`;
               }
               
               setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена.` });
@@ -473,8 +518,15 @@ export default function AdminDashboard() {
           
           newNotes[selectedDateKey] = adminNoteText;
           setNotes(newNotes);
-          saveDataToServer('admin_cal_notes_v1', newNotes);
-      } finally { setIsProcessing(false); closeNotePanel(); }
+          await saveDataToServer('admin_cal_notes_v1', newNotes);
+          shouldClosePanel = true;
+      } catch (error) {
+          console.error('Ошибка сохранения дедлайна', error);
+          setErrorModal({ show: true, text: 'Не удалось сохранить дедлайн. Данные формы оставлены без изменений, попробуйте ещё раз.' });
+      } finally {
+          setIsProcessing(false);
+          if (shouldClosePanel) closeNotePanel();
+      }
   };
 
   const deleteNote = () => { 
@@ -557,10 +609,42 @@ export default function AdminDashboard() {
   const addTestQuestion = () => setTestFormData({...testFormData, quiz: [...testFormData.quiz, { q: '', o: ['', '', '', ''], c: 0 }]});
   const removeTestQuestion = (index: number) => setTestFormData({...testFormData, quiz: testFormData.quiz.filter((_, i) => i !== index)});
 
-  const allOptions = [
-      ...dynamicTests.map(t => ({ id: t.id, title: t.title, type: 'test' })),
-      ...testTypesList.map(t => ({ id: 'tpl_' + t.name, title: `[Аттестация] ${t.name}`, type: 'template' }))
-  ];
+  const deadlineMaterialOptions: DeadlineMaterialOption[] = [
+      ...urgentFiles
+          .filter(file => file && !file.isDocPlaceholder && !file.isTest && !String(file.id || '').startsWith('deadline_'))
+          .map(file => ({
+              id: String(file.id || ''),
+              title: String(file.name || 'Документ без названия'),
+              type: 'document' as const,
+              section: String(file.section || '').trim() || 'Основной раздел',
+          })),
+      ...dynamicRoute
+          .filter(route => route && !route.isPlaceholder && route.h1 !== 'DELETE_ME')
+          .map(route => ({
+              id: String(route.id || ''),
+              title: String(route.title || 'Тема без названия'),
+              type: 'route' as const,
+              section: String(route.section || '').trim() || 'Основной раздел',
+          })),
+      ...dynamicTests.map(test => ({
+          id: String(test?.id || ''),
+          title: String(test?.title || 'Тест без названия'),
+          type: 'test' as const,
+          section: String(test?.section || '').trim() || 'Тесты',
+      })),
+      ...testTypesList.map(testTypeItem => ({
+          id: `tpl_${String(testTypeItem?.name || '')}`,
+          title: `[Аттестация] ${String(testTypeItem?.name || 'Без названия')}`,
+          type: 'test' as const,
+          section: 'Шаблоны аттестаций',
+      })),
+  ].filter(option => option.id);
+
+  const visibleDeadlineMaterialOptions = deadlineMaterialOptions.filter(option => {
+      if (option.type !== deadlineMaterialType) return false;
+      const normalizedQuery = deadlineSearchQuery.trim().toLocaleLowerCase('ru');
+      return !normalizedQuery || `${option.title} ${option.section}`.toLocaleLowerCase('ru').includes(normalizedQuery);
+  });
 
   if (!isMounted) return <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', display: 'flex' }}><Navigation /><div style={{ width: '260px', flexShrink: 0 }} /></div>;
 
@@ -675,15 +759,45 @@ export default function AdminDashboard() {
                     </select>
                     
                     <div style={{ position: 'relative', marginTop: '15px' }}>
-                        <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Прикрепить тест (найти или создать новый):</div>
+                        <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Прикрепить материал:</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
+                            {([
+                                { type: 'document', label: 'Документ' },
+                                { type: 'route', label: 'Тема' },
+                                { type: 'test', label: 'Тест' },
+                            ] as Array<{ type: DeadlineMaterialType; label: string }>).map(item => (
+                                <button
+                                    key={item.type}
+                                    type="button"
+                                    onClick={() => {
+                                        setDeadlineMaterialType(item.type);
+                                        setSelectedDeadlineMaterial(null);
+                                        setDeadlineSearchQuery('');
+                                        setShowTestDropdown(false);
+                                    }}
+                                    style={{
+                                        padding: '9px 6px',
+                                        borderRadius: '10px',
+                                        border: `1px solid ${deadlineMaterialType === item.type ? '#0abab5' : '#333'}`,
+                                        background: deadlineMaterialType === item.type ? 'rgba(10,186,181,0.15)' : '#111',
+                                        color: deadlineMaterialType === item.type ? '#0abab5' : '#888',
+                                        cursor: 'pointer',
+                                        fontSize: '11px',
+                                        fontWeight: '900',
+                                    }}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
                         <input 
                             type="text"
                             style={{ ...adminIn, marginBottom: 0, padding: '12px' } as any}
-                            placeholder="Введите название или выберите..."
-                            value={testSearchQuery}
+                            placeholder={deadlineMaterialType === 'test' ? 'Найдите или создайте тест...' : `Найдите ${DEADLINE_MATERIAL_OBJECT_LABELS[deadlineMaterialType]}...`}
+                            value={deadlineSearchQuery}
                             onChange={(e) => {
-                                setTestSearchQuery(e.target.value);
-                                setLinkedTestId(''); 
+                                setDeadlineSearchQuery(e.target.value);
+                                setSelectedDeadlineMaterial(null);
                                 setShowTestDropdown(true);
                             }}
                             onFocus={() => setShowTestDropdown(true)}
@@ -692,26 +806,27 @@ export default function AdminDashboard() {
                         {showTestDropdown && (
                             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#111', border: '1px solid #333', borderRadius: '12px', maxHeight: '150px', overflowY: 'auto', zIndex: 1000, marginTop: '5px' }} className="custom-scroll">
                                 <div 
-                                    onClick={() => { setLinkedTestId(''); setTestSearchQuery(''); setShowTestDropdown(false); }}
+                                    onClick={() => { setSelectedDeadlineMaterial(null); setDeadlineSearchQuery(''); setShowTestDropdown(false); }}
                                     style={{ padding: '10px 12px', cursor: 'pointer', fontSize: '13px', color: '#888', borderBottom: '1px solid #222' }}
                                     onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
                                     onMouseLeave={(e) => e.currentTarget.style.color = '#888'}
                                 >
-                                     Без теста
+                                     Без прикрепленного материала
                                 </div>
-                                {allOptions.filter(o => o.title.toLowerCase().includes(testSearchQuery.toLowerCase())).map(opt => (
+                                {visibleDeadlineMaterialOptions.slice(0, 30).map(option => (
                                     <div 
-                                        key={opt.id}
+                                        key={`${option.type}:${option.id}`}
                                         onClick={() => {
-                                            setLinkedTestId(opt.id);
-                                            setTestSearchQuery(opt.title.replace('[Аттестация] ', ''));
+                                            setSelectedDeadlineMaterial({ type: option.type, id: option.id, title: option.title.replace('[Аттестация] ', '') });
+                                            setDeadlineSearchQuery(option.title.replace('[Аттестация] ', ''));
                                             setShowTestDropdown(false);
                                         }}
                                         style={{ padding: '10px 12px', cursor: 'pointer', fontSize: '13px', color: '#fff', borderBottom: '1px solid #222' }}
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(10,186,181,0.2)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                     >
-                                        {opt.title}
+                                        <div>{option.title}</div>
+                                        <div style={{ color: '#666', fontSize: '10px', marginTop: '3px' }}>{option.section}</div>
                                     </div>
                                 ))}
                             </div>
