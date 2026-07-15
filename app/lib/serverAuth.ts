@@ -222,7 +222,21 @@ export const ensureBaseUsers = () => {
         return baseUsers;
     }
 
-    const normalizedUsers = currentUsers.map(normalizeStoredUser);
+    let systemAdminFound = false;
+    const normalizedUsers = currentUsers.reduce<StoredUser[]>((users, currentUser) => {
+        const normalizedUser = normalizeStoredUser(currentUser);
+
+        if (normalizedUser.id === SYSTEM_ADMIN_ID) {
+            if (systemAdminFound) {
+                return users;
+            }
+
+            systemAdminFound = true;
+        }
+
+        users.push(normalizedUser);
+        return users;
+    }, []);
 
     if (!normalizedUsers.some((user) => user.id === 'u_admin')) {
         normalizedUsers.unshift(baseUsers[0]);
