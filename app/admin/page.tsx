@@ -52,6 +52,24 @@ const DEADLINE_MATERIAL_OBJECT_LABELS: Record<DeadlineMaterialType, string> = {
   test: 'тест',
 };
 
+const buildDeadlineTaskText = (
+  noteText: string,
+  selectedMaterial: DeadlineMaterialReference | null,
+  materialType: DeadlineMaterialType,
+  searchQuery: string,
+) => {
+  const enteredText = noteText.trim();
+  if (enteredText) return enteredText;
+
+  const materialTitle = selectedMaterial?.title.trim()
+    || (materialType === 'test' ? searchQuery.trim() : '');
+  if (!materialTitle) return '';
+
+  if (materialType === 'document') return `Изучить документ «${materialTitle}»`;
+  if (materialType === 'route') return `Изучить тему «${materialTitle}»`;
+  return `Пройти тест «${materialTitle}»`;
+};
+
 export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -427,7 +445,12 @@ export default function AdminDashboard() {
 
   const saveNote = async () => {
       if (!selectedDateKey) return;
-      if (!noteText.trim()) { const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); return; }
+      const deadlineTaskText = buildDeadlineTaskText(noteText, selectedDeadlineMaterial, deadlineMaterialType, deadlineSearchQuery);
+      if (noteType === 'personal' && !noteText.trim()) { const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); return; }
+      if (noteType === 'deadline' && !deadlineTaskText) {
+          setErrorModal({ show: true, text: 'Введите текст задачи или выберите материал для дедлайна.' });
+          return;
+      }
       if (noteType === 'deadline' && deadlineMaterialType !== 'test' && deadlineSearchQuery.trim() && !selectedDeadlineMaterial) {
           setErrorModal({ show: true, text: `Выберите ${DEADLINE_MATERIAL_OBJECT_LABELS[deadlineMaterialType]} из списка или очистите поле.` });
           return;
@@ -477,11 +500,11 @@ export default function AdminDashboard() {
               }
 
               const targetName = deadlineTarget === 'Все' ? 'Всем' : users.find(u => u.id === deadlineTarget)?.name || deadlineTarget;
-              adminNoteText = `[Дедлайн: ${targetName}]\n${noteText.trim()}`;
+              adminNoteText = `[Дедлайн: ${targetName}]\n${deadlineTaskText}`;
               
               const newDeadlineTask = { 
                   id: 'deadline_' + Date.now(), 
-                  name: ' Дедлайн: ' + noteText.trim(),
+                  name: ' Дедлайн: ' + deadlineTaskText,
                   size: 'Выполнить до: ' + formattedSelectedDate(), 
                   date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), 
                   target: deadlineTarget, 
@@ -504,14 +527,14 @@ export default function AdminDashboard() {
                           ? `/tasks?tab=edu&testId=${encodeURIComponent(finalLinkedTestId)}`
                           : '/tasks?tab=edu';
               
-              let emailBody = `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${noteText.trim()}`;
+              let emailBody = `Вам назначен дедлайн (выполнить до: ${formattedSelectedDate()}).\nЗадача: ${deadlineTaskText}`;
               if (finalLinkedMaterial) {
                   emailBody += `\nК задаче прикреплен ${DEADLINE_MATERIAL_LABELS[finalLinkedMaterial.type]}: "${finalLinkedMaterial.title}". Откройте платформу для выполнения.`;
               }
               
               setShowSuccessModal({ show: true, title: 'ДЕДЛАЙН НАЗНАЧЕН', text: `Задача сохранена.` });
               Promise.allSettled([
-                  sendPushNotification(deadlineTarget, { title: ' Новый дедлайн', body: noteText.trim(), url: pushUrl }),
+                  sendPushNotification(deadlineTarget, { title: ' Новый дедлайн', body: deadlineTaskText, url: pushUrl }),
                   sendEmailNotification(deadlineTarget, ' Внимание: Новый дедлайн!', emailBody),
               ]).catch((error) => console.error('Ошибка фоновой отправки дедлайна', error));
           }
