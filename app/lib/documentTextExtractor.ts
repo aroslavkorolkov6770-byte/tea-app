@@ -3,35 +3,87 @@ import JSZip from 'jszip';
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 import * as XLSX from 'xlsx';
+import { decodeTextBytes } from '@/app/lib/documentPreview';
 
 export const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_EXTRACTED_CHARACTERS_PER_FILE = 30_000;
 
 const PLAIN_TEXT_EXTENSIONS = new Set([
     '.txt',
+    '.text',
     '.md',
     '.markdown',
     '.csv',
     '.tsv',
     '.json',
+    '.jsonl',
+    '.ndjson',
     '.xml',
+    '.xsd',
+    '.xsl',
     '.html',
     '.htm',
     '.yaml',
     '.yml',
+    '.toml',
+    '.ini',
+    '.cfg',
+    '.conf',
+    '.config',
+    '.properties',
+    '.env',
     '.log',
+    '.sql',
+    '.graphql',
+    '.gql',
+    '.css',
+    '.scss',
+    '.sass',
+    '.less',
+    '.js',
+    '.mjs',
+    '.cjs',
+    '.jsx',
+    '.ts',
+    '.tsx',
+    '.py',
+    '.java',
+    '.c',
+    '.cc',
+    '.cpp',
+    '.h',
+    '.hpp',
+    '.cs',
+    '.go',
+    '.rs',
+    '.php',
+    '.rb',
+    '.swift',
+    '.kt',
+    '.kts',
+    '.sh',
+    '.bash',
+    '.zsh',
+    '.ps1',
+    '.bat',
+    '.cmd',
 ]);
 
 const SPREADSHEET_EXTENSIONS = new Set(['.xls', '.xlsx', '.xlsm', '.xlsb', '.ods']);
 
-function normalizeExtractedText(value: string): string {
+type DocumentExtractionOptions = {
+    maxSizeBytes?: number;
+    maxCharacters?: number;
+};
+
+function normalizeExtractedText(value: string, maxCharacters: number): string {
     return value
         .replace(/\0/g, '')
         .replace(/\r\n/g, '\n')
         .replace(/[ \t]+\n/g, '\n')
         .replace(/\n{4,}/g, '\n\n\n')
         .trim()
-        .slice(0, MAX_EXTRACTED_CHARACTERS_PER_FILE);
+        .slice(0, maxCharacters);
 }
 
 function decodeXmlEntities(value: string): string {
@@ -104,17 +156,28 @@ function extractSpreadsheetText(buffer: Buffer): string {
 }
 
 function extractRtfText(buffer: Buffer): string {
-    return buffer
-        .toString('utf8')
+    const source = buffer.toString('latin1');
+    return source
+        .replace(/\\u(-?\d+)\??/gi, (_match, value: string) => {
+            const codePoint = Number(value);
+            return String.fromCharCode(codePoint < 0 ? codePoint + 65_536 : codePoint);
+        })
+        .replace(/\\'([0-9a-f]{2})/gi, (_match, value: string) => {
+            return new TextDecoder('windows-1251').decode(Uint8Array.of(Number.parseInt(value, 16)));
+        })
         .replace(/\\par[d]?/gi, '\n')
-        .replace(/\\'[0-9a-f]{2}/gi, ' ')
         .replace(/\\[a-z]+-?\d* ?/gi, '')
+        .replace(/\\[{}\\]/g, '')
         .replace(/[{}]/g, ' ');
 }
 
-export async function extractTextFromDocument(file: File): Promise<string> {
-    if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
-        throw new Error(`Файл превышает лимит 10 МБ: ${file.name}`);
+export async function extractTextFromDocument(file: File, options: DocumentExtractionOptions = {}): Promise<string> {
+    const maxSizeBytes = options.maxSizeBytes ?? MAX_DOCUMENT_SIZE_BYTES;
+    const maxCharacters = options.maxCharacters ?? MAX_EXTRACTED_CHARACTERS_PER_FILE;
+
+    if (file.size > maxSizeBytes) {
+        const maxSizeMegabytes = Math.floor(maxSizeBytes / (1024 * 1024));
+        throw new Error(`Файл превышает лимит ${maxSizeMegabytes} МБ: ${file.name}`);
     }
 
     const extension = path.extname(file.name).toLowerCase();
@@ -122,7 +185,7 @@ export async function extractTextFromDocument(file: File): Promise<string> {
     let extractedText = '';
 
     if (PLAIN_TEXT_EXTENSIONS.has(extension) || file.type.startsWith('text/')) {
-        extractedText = buffer.toString('utf8');
+        extractedText = decodeTextBytes(new Uint8Array(buffer)) ?? '';
     } else if (extension === '.docx') {
         const result = await mammoth.extractRawText({ buffer });
         extractedText = result.value;
@@ -143,10 +206,14 @@ export async function extractTextFromDocument(file: File): Promise<string> {
     } else if (extension === '.rtf') {
         extractedText = extractRtfText(buffer);
     } else {
-        throw new Error(`Формат ${extension || file.type || 'не определен'} пока не поддерживается`);
+        const decodedText = decodeTextBytes(new Uint8Array(buffer));
+        if (decodedText === null) {
+            throw new Error(`Формат ${extension || file.type || 'не определен'} пока не поддерживается`);
+        }
+        extractedText = decodedText;
     }
 
-    const normalizedText = normalizeExtractedText(extractedText);
+    const normalizedText = normalizeExtractedText(extractedText, maxCharacters);
     if (!normalizedText) {
         throw new Error(`В файле ${file.name} не найден текст`);
     }

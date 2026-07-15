@@ -3,6 +3,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
 import SectionCollapseButton from '@/app/components/SectionCollapseButton';
 import useCollapsedSections from '@/app/hooks/useCollapsedSections';
+import {
+    dataUrlToBlobUrl,
+    decodeTextDataUrl,
+    getDocumentPreviewKind,
+    type DocumentPreviewKind,
+} from '@/app/lib/documentPreview';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 
 // --- КЛЮЧИ ПАМЯТИ ---
@@ -10,45 +16,14 @@ const STORAGE_KEYS = {
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
 };
 const AI_SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
-
-// Конвертер: Превращает текстовый код файла в настоящий виртуальный файл
-const base64ToBlobUrl = (base64Data: string) => {
-    try {
-        const arr = base64Data.split(',');
-        const mimeMatch = arr[0].match(/:(.*?);/);
-        const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
-        }
-        const blob = new Blob([u8arr], { type: mime });
-        return URL.createObjectURL(blob);
-    } catch (e) {
-        console.error("Ошибка конвертации Blob", e);
-        return base64Data;
-    }
-};
-
-const getFileExtension = (fileName: string) => fileName.split('.').pop()?.toLowerCase() || '';
-
-const getPreviewKind = (fileName: string) => {
-    const extension = getFileExtension(fileName);
-    if (extension === 'docx') return 'docx';
-    if (['pdf'].includes(extension)) return 'pdf';
-    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(extension)) return 'image';
-    if (['mp4', 'webm', 'ogg', 'mov'].includes(extension)) return 'video';
-    if (['mp3', 'wav', 'ogg', 'm4a'].includes(extension)) return 'audio';
-    if (['txt', 'md', 'json', 'csv'].includes(extension)) return 'text';
-    if (['doc', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar'].includes(extension)) return 'unsupported';
-    return 'iframe';
-};
+const base64ToBlobUrl = dataUrlToBlobUrl;
+const getPreviewKind = getDocumentPreviewKind;
 
 type LinkedDocumentPreview = {
     file: any;
     objectUrl: string;
-    kind: string;
+    text: string;
+    kind: DocumentPreviewKind;
     loading: boolean;
     error: string;
 };
@@ -144,6 +119,109 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         }
     };
 
+    const loadFileData = async (file: any): Promise<string> => {
+        if (typeof file.data === 'string' && file.data) {
+            return file.data;
+        }
+
+        if (!file.hasSeparateData) {
+            throw new Error('Данные документа не найдены на сервере');
+        }
+
+        const response = await fetch(`/api/storage?t=${Date.now()}&key=file_data_${file.id}`, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error('Сервер не вернул данные документа');
+        }
+
+        const fileData = await response.json();
+        if (typeof fileData !== 'string' || !fileData) {
+            throw new Error('Данные документа не найдены на сервере');
+        }
+
+        return fileData;
+    };
+
+    const loadExtractedText = async (file: any): Promise<string> => {
+        const requestBody = file.hasSeparateData && !file.data
+            ? { fileId: file.id, fileName: file.name }
+            : { fileId: file.id, fileName: file.name, dataUrl: file.data };
+        const response = await fetch('/api/document-preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || typeof payload.text !== 'string') {
+            throw new Error(payload.error || 'Не удалось прочитать документ');
+        }
+        return payload.text;
+    };
+
+    const prepareDocumentPreview = async (file: any): Promise<LinkedDocumentPreview> => {
+        const detectedKind = getDocumentPreviewKind(file.name || '');
+        if (detectedKind === 'office') {
+            const extractedText = await loadExtractedText(file);
+            return { file, objectUrl: '', text: extractedText, kind: detectedKind, loading: false, error: '' };
+        }
+
+        const fileData = await loadFileData(file);
+        if (detectedKind === 'text' || detectedKind === 'unknown') {
+            const decodedText = decodeTextDataUrl(fileData);
+            if (decodedText !== null) {
+                return { file, objectUrl: '', text: decodedText, kind: 'text', loading: false, error: '' };
+            }
+            if (detectedKind === 'text') {
+                throw new Error('Файл имеет текстовое расширение, но содержит бинарные данные');
+            }
+        }
+
+        const objectUrl = dataUrlToBlobUrl(fileData);
+        return {
+            file,
+            objectUrl,
+            text: '',
+            kind: detectedKind === 'unknown' ? 'unsupported' : detectedKind,
+            loading: false,
+            error: '',
+        };
+    };
+
+    const loadLinkedPreview = async (file: any, scrollToCard: boolean) => {
+        releaseLinkedPreviewObjectUrl();
+        setLinkedPreview({
+            file,
+            objectUrl: '',
+            text: '',
+            kind: getDocumentPreviewKind(file.name || ''),
+            loading: true,
+            error: '',
+        });
+
+        try {
+            const preview = await prepareDocumentPreview(file);
+            if (preview.objectUrl) {
+                linkedPreviewObjectUrlRef.current = preview.objectUrl;
+            }
+            setLinkedPreview(preview);
+
+            if (scrollToCard) {
+                window.setTimeout(() => {
+                    document.getElementById(`document-card-${file.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 150);
+            }
+        } catch (error) {
+            console.error('Ошибка открытия связанного документа:', error);
+            setLinkedPreview({
+                file,
+                objectUrl: '',
+                text: '',
+                kind: getDocumentPreviewKind(file.name || ''),
+                loading: false,
+                error: error instanceof Error ? error.message : 'Не удалось открыть документ',
+            });
+        }
+    };
+
     useEffect(() => {
         if (!linkedDocumentId || linkedPreviewIdRef.current === linkedDocumentId) {
             return;
@@ -160,44 +238,11 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             toggleSection(targetSection);
         }
 
-        releaseLinkedPreviewObjectUrl();
-        setLinkedPreview({ file: targetDocument, objectUrl: '', kind: getPreviewKind(targetDocument.name || ''), loading: true, error: '' });
+        const previewTimer = window.setTimeout(() => {
+            void loadLinkedPreview(targetDocument, true);
+        }, 0);
 
-        const loadLinkedDocument = async () => {
-            try {
-                let fileBase64 = targetDocument.data;
-                if (!fileBase64 && targetDocument.hasSeparateData) {
-                    const response = await fetch(`/api/storage?t=${Date.now()}&key=file_data_${targetDocument.id}`, { cache: 'no-store' });
-                    if (!response.ok) {
-                        throw new Error('Сервер не вернул данные документа');
-                    }
-                    fileBase64 = await response.json();
-                }
-
-                if (!fileBase64) {
-                    throw new Error('Данные документа не найдены на сервере');
-                }
-
-                const objectUrl = base64ToBlobUrl(fileBase64);
-                linkedPreviewObjectUrlRef.current = objectUrl;
-                setLinkedPreview({ file: targetDocument, objectUrl, kind: getPreviewKind(targetDocument.name || ''), loading: false, error: '' });
-
-                window.setTimeout(() => {
-                    document.getElementById(`document-card-${targetDocument.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 150);
-            } catch (error) {
-                console.error('Ошибка открытия связанного документа:', error);
-                setLinkedPreview({
-                    file: targetDocument,
-                    objectUrl: '',
-                    kind: getPreviewKind(targetDocument.name || ''),
-                    loading: false,
-                    error: error instanceof Error ? error.message : 'Не удалось открыть документ',
-                });
-            }
-        };
-
-        void loadLinkedDocument();
+        return () => window.clearTimeout(previewTimer);
     }, [linkedDocumentId, urgentFiles]);
 
     useEffect(() => {
@@ -364,7 +409,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     };
 
     // Интеллектуальный предпросмотр
-    const handleOpenPreview = async (file: any) => {
+    const handleLegacyPreview = async (file: any) => {
         if (!file.data && !file.hasSeparateData) {
             alert("Этот файл был загружен в старой версии и недоступен для просмотра.");
             return;
@@ -488,6 +533,95 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             newWindow.document.close();
         } catch (e) {
             newWindow.document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#ff4d4d;font-weight:bold;font-size:20px;">Произошла ошибка при загрузке документа.</div>';
+        }
+    };
+
+    const handleOpenPreview = async (file: any) => {
+        const previewKind = getDocumentPreviewKind(file.name || '');
+        if (!['text', 'office', 'unknown'].includes(previewKind)) {
+            await handleLegacyPreview(file);
+            return;
+        }
+
+        if (!file.data && !file.hasSeparateData) {
+            alert('Этот файл был загружен в старой версии и недоступен для просмотра.');
+            return;
+        }
+
+        const newWindow = window.open('', '_blank');
+        if (!newWindow) {
+            alert('Пожалуйста, разрешите всплывающие окна в браузере для предпросмотра документов.');
+            return;
+        }
+
+        const writeWindowShell = () => {
+            newWindow.document.open();
+            newWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="ru">
+                <head>
+                    <meta charset="UTF-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { margin: 0; min-height: 100vh; background: #0d0f0d; color: #f4f6f5; font-family: Arial, sans-serif; }
+                        main { width: min(1100px, 100%); min-height: 100vh; margin: 0 auto; padding: 28px; }
+                        pre { min-height: calc(100vh - 56px); margin: 0; padding: 28px; overflow: auto; border: 1px solid #26302d; border-radius: 16px; background: #151917; color: #f4f6f5; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; font: 15px/1.65 Consolas, monospace; }
+                        .message { min-height: calc(100vh - 56px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #c4cbc8; }
+                        .message strong { color: #f4f6f5; font-size: 24px; }
+                        .message a { margin-top: 24px; padding: 13px 24px; border-radius: 12px; background: #0abab5; color: #07100f; text-decoration: none; font-weight: 900; }
+                        @media (max-width: 700px) { main { padding: 10px; } pre { min-height: calc(100vh - 20px); padding: 18px; border-radius: 12px; font-size: 13px; } }
+                    </style>
+                </head>
+                <body><main id="preview-root"><div class="message">Подготовка документа...</div></main></body>
+                </html>
+            `);
+            newWindow.document.close();
+            newWindow.document.title = `Предпросмотр: ${file.name || 'Документ'}`;
+            return newWindow.document.getElementById('preview-root');
+        };
+
+        const loadingRoot = writeWindowShell();
+        try {
+            const preview = await prepareDocumentPreview(file);
+            const root = newWindow.document.getElementById('preview-root') || loadingRoot;
+            if (!root) {
+                throw new Error('Не удалось создать окно предпросмотра');
+            }
+            root.replaceChildren();
+
+            if (preview.kind === 'text' || preview.kind === 'office') {
+                const textElement = newWindow.document.createElement('pre');
+                textElement.textContent = preview.text || 'Файл пуст.';
+                root.appendChild(textElement);
+            } else {
+                const message = newWindow.document.createElement('div');
+                message.className = 'message';
+                const title = newWindow.document.createElement('strong');
+                title.textContent = 'Файл не является текстовым';
+                const description = newWindow.document.createElement('p');
+                description.textContent = 'Этот бинарный формат нельзя безопасно показать как текст. Файл можно скачать и открыть в подходящей программе.';
+                const downloadLink = newWindow.document.createElement('a');
+                downloadLink.href = preview.objectUrl;
+                downloadLink.download = file.name || 'document';
+                downloadLink.textContent = 'СКАЧАТЬ ФАЙЛ';
+                message.append(title, description, downloadLink);
+                root.appendChild(message);
+            }
+
+            if (preview.objectUrl) {
+                newWindow.addEventListener('beforeunload', () => URL.revokeObjectURL(preview.objectUrl), { once: true });
+            }
+        } catch (error) {
+            console.error('Ошибка текстового предпросмотра:', error);
+            const root = newWindow.document.getElementById('preview-root') || loadingRoot;
+            if (root) {
+                root.replaceChildren();
+                const message = newWindow.document.createElement('div');
+                message.className = 'message';
+                message.textContent = error instanceof Error ? error.message : 'Не удалось открыть документ';
+                root.appendChild(message);
+            }
         }
     };
 
@@ -646,6 +780,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             return <audio src={linkedPreview.objectUrl} controls />;
         }
 
+        if (linkedPreview.kind === 'text' || linkedPreview.kind === 'office') {
+            return <pre className="linked-document-preview-text">{linkedPreview.text || 'Файл пуст.'}</pre>;
+        }
+
         if (linkedPreview.kind === 'unsupported') {
             return (
                 <div className="linked-document-preview-message">
@@ -683,7 +821,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                             <div>
                                 <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#fff', margin: '0 0 8px 0' }}>Загрузить документы</h3>
                                 <p style={{ color: '#666', fontSize: '14px', margin: 0, maxWidth: '400px', lineHeight: '1.5' }}>
-                                    Перетащите сюда файлы (PDF, DOCX, TXT) или нажмите на это окно для выбора с устройства
+                                    Перетащите сюда текстовые, офисные, PDF, изображения, аудио или видео
                                 </p>
                             </div>
                             <input type="file" multiple id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing} onChange={(e) => { if (e.target.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.target.files as FileList)]); }} />
