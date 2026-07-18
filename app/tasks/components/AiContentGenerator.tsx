@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from 'react';
+import CustomIcon from '@/app/components/CustomIcon';
 
 export type AiDraftKind = 'topic' | 'test';
 
@@ -160,13 +161,13 @@ export default function AiContentGenerator({
     const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
     return (
-        <div className="ai-generator-overlay" role="presentation">
-            <div className="ai-generator-shell" role="dialog" aria-modal="true" aria-labelledby="ai-generator-title">
+        <div className="ai-generator-overlay">
+            <section className="ai-generator-shell" aria-labelledby="ai-generator-title">
                 <div className="ai-generator-rail">
-                    <div className="ai-generator-mark">AI</div>
+                    <div className="ai-generator-mark"><CustomIcon name="brain" size={24} color="currentColor" accent="none" /></div>
                     <div>
-                        <div className="ai-generator-kicker">ALICE AI</div>
-                        <h2 id="ai-generator-title">Черновик материала</h2>
+                        <div className="ai-generator-kicker">ВАТЭС AI</div>
+                        <h2 id="ai-generator-title">Создание материала</h2>
                     </div>
                     <div className="ai-generator-steps" aria-label="Этапы создания">
                         <div className={step === 1 ? 'is-active' : 'is-complete'}>
@@ -183,7 +184,7 @@ export default function AiContentGenerator({
                         </div>
                     </div>
                     <p className="ai-generator-note">
-                        Alice AI подготовит текст. Материал появится на сайте только после вашей проверки и сохранения.
+                        AI подготовит основу. Материал появится в библиотеке только после вашей проверки и сохранения.
                     </p>
                 </div>
 
@@ -193,7 +194,7 @@ export default function AiContentGenerator({
                             <span>Шаг {step} из 2</span>
                             <h3>{step === 1 ? 'Добавьте источники' : 'Настройте результат'}</h3>
                         </div>
-                        <button type="button" onClick={onClose} disabled={isLoading} aria-label="Закрыть">×</button>
+                        <button type="button" onClick={onClose} disabled={isLoading} aria-label="Закрыть"><CustomIcon name="close" size={20} color="currentColor" accent="none" /></button>
                     </div>
 
                     {step === 1 ? (
@@ -253,7 +254,7 @@ export default function AiContentGenerator({
                                         <div className="ai-file-row" key={getFileKey(file)}>
                                             <span className="ai-file-type">{file.name.split('.').pop()?.slice(0, 4).toUpperCase() || 'FILE'}</span>
                                             <span className="ai-file-name">{file.name}<small>{formatFileSize(file.size)}</small></span>
-                                            <button type="button" onClick={() => removeFile(file)} aria-label={`Удалить ${file.name}`}>×</button>
+                                            <button type="button" onClick={() => removeFile(file)} aria-label={`Удалить ${file.name}`}><CustomIcon name="close" size={18} color="currentColor" accent="none" /></button>
                                         </div>
                                     ))}
                                 </div>
@@ -325,11 +326,11 @@ export default function AiContentGenerator({
                             {step === 1 ? 'Отмена' : 'Назад'}
                         </button>
                         <button type="button" className="ai-primary-button" onClick={step === 1 ? moveToSettings : generateDraft} disabled={isLoading}>
-                            {isLoading ? <><span className="ai-spinner" />Alice AI готовит черновик</> : (step === 1 ? 'Продолжить' : `Создать черновик ${kind === 'topic' ? 'темы' : 'теста'}`)}
+                            {isLoading ? <><span className="ai-spinner" />Ватэс AI готовит черновик</> : (step === 1 ? 'Продолжить' : `Создать черновик ${kind === 'topic' ? 'темы' : 'теста'}`)}
                         </button>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <style jsx global>{`
                 .ai-generator-overlay {
@@ -644,6 +645,355 @@ export default function AiContentGenerator({
                     .ai-primary-button { grid-row: 1; min-width: 0; }
                     .ai-source-summary { grid-template-columns: 1fr auto; }
                     .ai-source-summary > span { grid-column: 1 / -1; }
+                }
+
+                /* Vates AI workspace */
+                .ai-generator-overlay {
+                    position: relative;
+                    inset: auto;
+                    z-index: auto;
+                    display: block;
+                    padding: 0;
+                    background: transparent;
+                    backdrop-filter: none;
+                }
+                .ai-generator-shell {
+                    width: 100%;
+                    max-height: none;
+                    min-height: min(720px, calc(100dvh - 118px));
+                    grid-template-columns: 286px minmax(0, 1fr);
+                    color: var(--vates-ink);
+                    background: var(--vates-surface);
+                    border: 1px solid color-mix(in srgb, var(--vates-accent) 24%, var(--vates-border));
+                    border-radius: 22px;
+                    box-shadow: 0 18px 44px color-mix(in srgb, var(--vates-ink) 8%, transparent);
+                }
+                .ai-generator-rail {
+                    padding: 32px 28px 28px;
+                    background:
+                        radial-gradient(circle at 18% 2%, color-mix(in srgb, var(--vates-accent) 20%, transparent), transparent 36%),
+                        linear-gradient(160deg, color-mix(in srgb, var(--vates-accent-soft) 72%, var(--vates-surface)) 0%, var(--vates-canvas) 100%);
+                    border-right: 1px solid var(--vates-border);
+                }
+                .ai-generator-rail::after {
+                    right: -112px;
+                    bottom: 32px;
+                    border-color: color-mix(in srgb, var(--vates-accent) 14%, transparent);
+                    box-shadow: 0 0 0 34px color-mix(in srgb, var(--vates-accent) 4%, transparent), 0 0 0 68px color-mix(in srgb, var(--vates-accent) 2%, transparent);
+                }
+                .ai-generator-mark {
+                    width: 48px;
+                    height: 48px;
+                    margin-bottom: 22px;
+                    color: #fff;
+                    background: var(--vates-accent);
+                    border-radius: 15px;
+                    box-shadow: 0 12px 26px color-mix(in srgb, var(--vates-accent) 25%, transparent);
+                }
+                .ai-generator-kicker {
+                    color: var(--vates-accent);
+                    font-size: 11px;
+                    letter-spacing: 0.14em;
+                }
+                .ai-generator-rail h2 {
+                    max-width: 210px;
+                    color: var(--vates-ink);
+                    font-size: 27px;
+                    line-height: 1.08;
+                }
+                .ai-generator-steps {
+                    gap: 12px;
+                    margin-top: 38px;
+                }
+                .ai-generator-steps > div {
+                    grid-template-columns: 36px 1fr;
+                    min-height: 52px;
+                    padding: 8px 10px;
+                    color: var(--vates-muted);
+                    border: 1px solid transparent;
+                    border-radius: 14px;
+                }
+                .ai-generator-steps span {
+                    width: 34px;
+                    height: 34px;
+                    color: var(--vates-muted);
+                    background: color-mix(in srgb, var(--vates-surface) 78%, transparent);
+                    border-color: var(--vates-border);
+                }
+                .ai-generator-steps .is-active {
+                    color: var(--vates-ink);
+                    background: color-mix(in srgb, var(--vates-surface) 80%, transparent);
+                    border-color: color-mix(in srgb, var(--vates-accent) 22%, var(--vates-border));
+                }
+                .ai-generator-steps .is-active span,
+                .ai-generator-steps .is-complete span {
+                    color: #fff;
+                    background: var(--vates-accent);
+                    border-color: var(--vates-accent);
+                }
+                .ai-generator-steps .is-complete { color: var(--vates-accent); }
+                .ai-generator-note {
+                    color: var(--vates-muted);
+                    font-size: 12px;
+                    line-height: 1.6;
+                }
+                .ai-generator-main {
+                    max-height: none;
+                    background: var(--vates-surface);
+                }
+                .ai-generator-head {
+                    align-items: center;
+                    padding: 27px 32px 20px;
+                    border-bottom: 1px solid color-mix(in srgb, var(--vates-border) 70%, transparent);
+                }
+                .ai-generator-head span {
+                    color: var(--vates-accent);
+                    font-size: 10px;
+                    letter-spacing: 0.13em;
+                }
+                .ai-generator-head h3 {
+                    margin-top: 7px;
+                    color: var(--vates-ink);
+                    font-size: 24px;
+                    letter-spacing: -0.03em;
+                }
+                .ai-generator-head > button,
+                .ai-file-row > button {
+                    color: var(--vates-muted);
+                }
+                .ai-generator-head > button {
+                    display: grid;
+                    place-items: center;
+                    border: 1px solid var(--vates-border);
+                    border-radius: 11px;
+                    background: var(--vates-surface);
+                }
+                .ai-generator-head > button:hover {
+                    color: var(--vates-ink);
+                    background: var(--vates-accent-soft);
+                    border-color: color-mix(in srgb, var(--vates-accent) 30%, var(--vates-border));
+                }
+                .ai-generator-content {
+                    padding: 22px 32px 26px;
+                    overflow: visible;
+                    scrollbar-width: thin;
+                    scrollbar-color: color-mix(in srgb, var(--vates-accent) 42%, transparent) transparent;
+                }
+                .ai-kind-switch {
+                    gap: 12px;
+                    margin-bottom: 20px;
+                }
+                .ai-kind-switch button {
+                    min-height: 62px;
+                    padding: 12px 14px;
+                    color: var(--vates-muted);
+                    background: var(--vates-canvas);
+                    border-color: var(--vates-border);
+                    border-radius: 15px;
+                }
+                .ai-kind-switch button span {
+                    color: var(--vates-accent);
+                    background: var(--vates-accent-soft);
+                }
+                .ai-kind-switch button.is-selected {
+                    color: var(--vates-ink);
+                    background: color-mix(in srgb, var(--vates-accent-soft) 68%, var(--vates-surface));
+                    border-color: color-mix(in srgb, var(--vates-accent) 56%, var(--vates-border));
+                    box-shadow: 0 0 0 3px color-mix(in srgb, var(--vates-accent) 8%, transparent);
+                }
+                .ai-kind-switch button.is-selected span {
+                    color: #fff;
+                    background: var(--vates-accent);
+                }
+                .ai-drop-zone {
+                    min-height: 224px;
+                    color: var(--vates-muted);
+                    background:
+                        linear-gradient(90deg, color-mix(in srgb, var(--vates-accent) 4%, transparent) 1px, transparent 1px),
+                        linear-gradient(color-mix(in srgb, var(--vates-accent) 4%, transparent) 1px, transparent 1px),
+                        color-mix(in srgb, var(--vates-accent-soft) 32%, var(--vates-surface));
+                    background-size: 24px 24px;
+                    border-color: color-mix(in srgb, var(--vates-accent) 44%, var(--vates-border));
+                    border-radius: 19px;
+                }
+                .ai-drop-zone:hover,
+                .ai-drop-zone.is-dragging {
+                    background-color: var(--vates-accent-soft);
+                    border-color: var(--vates-accent);
+                    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vates-accent) 30%, transparent);
+                }
+                .ai-drop-icon {
+                    color: #fff;
+                    background: var(--vates-accent);
+                    border-color: var(--vates-accent);
+                    box-shadow: 0 12px 24px color-mix(in srgb, var(--vates-accent) 19%, transparent);
+                }
+                .ai-drop-zone strong,
+                .ai-file-summary strong,
+                .ai-file-name,
+                .ai-source-summary strong,
+                .ai-settings-grid label,
+                .ai-instructions {
+                    color: var(--vates-ink);
+                }
+                .ai-drop-zone small,
+                .ai-file-summary,
+                .ai-file-name small,
+                .ai-instructions > span small {
+                    color: var(--vates-muted);
+                }
+                .ai-file-row {
+                    background: var(--vates-canvas);
+                    border-color: var(--vates-border);
+                }
+                .ai-file-type {
+                    color: var(--vates-accent);
+                    background: var(--vates-accent-soft);
+                }
+                .ai-source-summary {
+                    background: var(--vates-accent-soft);
+                    border-color: color-mix(in srgb, var(--vates-accent) 22%, var(--vates-border));
+                }
+                .ai-source-summary > span,
+                .ai-source-summary button { color: var(--vates-accent); }
+                .ai-settings-grid input,
+                .ai-settings-grid select,
+                .ai-instructions textarea {
+                    color: var(--vates-ink);
+                    background: var(--vates-surface);
+                    border-color: var(--vates-border);
+                }
+                .ai-settings-grid input:focus,
+                .ai-settings-grid select:focus,
+                .ai-instructions textarea:focus {
+                    border-color: var(--vates-accent);
+                    box-shadow: 0 0 0 3px color-mix(in srgb, var(--vates-accent) 11%, transparent);
+                }
+                .ai-review-reminder {
+                    background: color-mix(in srgb, #f3b544 10%, var(--vates-surface));
+                    border-color: color-mix(in srgb, #f3b544 28%, var(--vates-border));
+                }
+                .ai-review-reminder p { color: var(--vates-muted); }
+                .ai-generator-error {
+                    color: #b93849;
+                    background: color-mix(in srgb, #e95367 9%, var(--vates-surface));
+                    border-color: color-mix(in srgb, #e95367 28%, var(--vates-border));
+                }
+                .ai-generator-footer {
+                    padding: 18px 32px 24px;
+                    background: color-mix(in srgb, var(--vates-canvas) 52%, var(--vates-surface));
+                    border-top-color: var(--vates-border);
+                }
+                .ai-generator-footer button { min-height: 46px; }
+                .ai-secondary-button {
+                    color: var(--vates-ink);
+                    background: var(--vates-surface);
+                    border-color: var(--vates-border);
+                }
+                .ai-primary-button {
+                    color: #fff;
+                    background: var(--vates-accent);
+                    border-color: var(--vates-accent);
+                }
+                .ai-primary-button:hover:not(:disabled) {
+                    background: color-mix(in srgb, var(--vates-accent) 84%, #000);
+                    border-color: color-mix(in srgb, var(--vates-accent) 84%, #000);
+                }
+                .ai-spinner {
+                    border-color: rgba(255, 255, 255, 0.35);
+                    border-top-color: #fff;
+                }
+
+                @media (max-width: 760px) {
+                    .ai-generator-overlay {
+                        padding: 0;
+                    }
+                    .ai-generator-shell {
+                        width: 100%;
+                        min-height: 0;
+                        max-height: none;
+                        grid-template-columns: 1fr;
+                        grid-template-rows: auto auto;
+                        border: 1px solid var(--vates-border);
+                        border-radius: 18px;
+                    }
+                    .ai-generator-rail {
+                        display: grid;
+                        grid-template-columns: auto minmax(0, 1fr);
+                        align-items: center;
+                        gap: 12px;
+                        padding: 14px 18px;
+                        border-right: 0;
+                        border-bottom: 1px solid var(--vates-border);
+                    }
+                    .ai-generator-rail::after,
+                    .ai-generator-note { display: none; }
+                    .ai-generator-mark {
+                        width: 42px;
+                        height: 42px;
+                        grid-row: 1;
+                        margin: 0;
+                    }
+                    .ai-generator-kicker { margin-bottom: 3px; }
+                    .ai-generator-rail h2 {
+                        max-width: none;
+                        font-size: 18px;
+                    }
+                    .ai-generator-steps {
+                        grid-column: 1 / -1;
+                        grid-template-columns: repeat(3, minmax(0, 1fr));
+                        gap: 6px;
+                        margin-top: 2px;
+                    }
+                    .ai-generator-steps > div {
+                        min-height: auto;
+                        grid-template-columns: auto 1fr;
+                        gap: 6px;
+                        padding: 4px;
+                    }
+                    .ai-generator-steps span {
+                        width: 24px;
+                        height: 24px;
+                        font-size: 8px;
+                    }
+                    .ai-generator-steps strong { font-size: 9px; }
+                    .ai-generator-main { max-height: none; }
+                    .ai-generator-head { padding: 18px 18px 14px; }
+                    .ai-generator-head h3 { font-size: 21px; }
+                    .ai-generator-content { padding: 18px; }
+                    .ai-generator-footer { padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); }
+                    .ai-generator-error { margin-right: 18px; margin-left: 18px; }
+                    .ai-kind-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                    .ai-settings-grid { grid-template-columns: 1fr; }
+                    .ai-drop-zone { min-height: 190px; }
+                }
+                @media (max-width: 500px) {
+                    .ai-generator-rail { padding-inline: 14px; }
+                    .ai-generator-steps strong { display: none; }
+                    .ai-generator-steps > div { justify-content: center; }
+                    .ai-generator-head { padding-inline: 15px; }
+                    .ai-generator-content { padding: 15px; }
+                    .ai-kind-switch { gap: 8px; }
+                    .ai-kind-switch button {
+                        min-height: 58px;
+                        gap: 7px;
+                        padding: 10px;
+                        font-size: 10px;
+                    }
+                    .ai-drop-zone {
+                        min-height: 178px;
+                        padding: 18px 13px;
+                    }
+                    .ai-generator-footer {
+                        grid-template-columns: 0.7fr 1.3fr;
+                        padding-inline: 15px;
+                    }
+                    .ai-generator-footer button {
+                        min-width: 0;
+                        padding-inline: 10px;
+                        font-size: 11px;
+                    }
+                    .ai-primary-button { grid-row: auto; }
                 }
             `}</style>
         </div>

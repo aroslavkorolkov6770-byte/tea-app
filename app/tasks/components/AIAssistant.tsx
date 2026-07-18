@@ -224,7 +224,7 @@ const buildSiteContextPrompt = (records: SiteSearchRecord[], query: string) => {
     });
 
     return [
-        '=== ВНУТРЕННИЙ ПОИСК ПО ВСЕМУ САЙТУ TEA HUB ===',
+        '=== ВНУТРЕННИЙ ПОИСК ПО ВСЕЙ ПЛАТФОРМЕ ВАТЭС ===',
         `Общий охват данных: ${overview}.`,
         scopedResults.length > 0
             ? `Найдено релевантных совпадений по запросу "${query}":\n${lines.join('\n')}`
@@ -241,17 +241,13 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
     const [isTyping, setIsTyping] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
+    const [historyQuery, setHistoryQuery] = useState("");
     
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
     const siteKnowledgeCacheRef = useRef<SiteSearchRecord[] | null>(null);
-
-    const quickPrompts = [
-        "Как правильно заваривать Те Гуань Инь?",
-        "Что делать, если сломалась кофемашина?",
-        "Сценарий общения, если гость грубит"
-    ];
 
     // =========================================================================
     // ОПРЕДЕЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (АДМИН - 100% ПРИОРИТЕТ)
@@ -329,6 +325,27 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         }
     }, [sessions, activeSessionId, isTyping]);
 
+    useEffect(() => {
+        if (!showClearConfirm) {
+            return;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setShowClearConfirm(false);
+            }
+        };
+
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', closeOnEscape);
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [showClearConfirm]);
+
     const loadSiteKnowledge = async () => {
         if (siteKnowledgeCacheRef.current) {
             return siteKnowledgeCacheRef.current;
@@ -388,7 +405,21 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         }).catch(err => console.error("Ошибка сохранения на сервер", err));
     };
 
+    const focusComposer = () => {
+        window.setTimeout(() => inputRef.current?.focus(), 0);
+    };
+
     const createNewSession = () => {
+        const existingEmptySession = sessions.find((session) => session.messages.length === 0);
+
+        if (existingEmptySession) {
+            setActiveSessionId(existingEmptySession.id);
+            setHistoryQuery("");
+            setIsMobileHistoryOpen(false);
+            focusComposer();
+            return;
+        }
+
         const newSession: ChatSession = {
             id: `chat_${Date.now()}`,
             title: "Новый диалог",
@@ -397,7 +428,9 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         };
         saveSessions([newSession, ...sessions]);
         setActiveSessionId(newSession.id);
-        setIsMobileHistoryOpen(false); 
+        setHistoryQuery("");
+        setIsMobileHistoryOpen(false);
+        focusComposer();
     };
 
     const clearHistory = () => {
@@ -429,8 +462,36 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         return b.updatedAt - a.updatedAt;
     });
 
+    const normalizedHistoryQuery = normalizeSearchValue(historyQuery);
+    const visibleSessions = sortedSessions.filter((session) => {
+        if (!normalizedHistoryQuery) {
+            return true;
+        }
+
+        return normalizeSearchValue(`${session.title} ${session.messages.map((message) => message.content).join(' ')}`).includes(normalizedHistoryQuery);
+    });
+
+    const formatMessageCount = (count: number) => {
+        const lastTwoDigits = count % 100;
+        const lastDigit = count % 10;
+
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+            return `${count} сообщений`;
+        }
+
+        if (lastDigit === 1) {
+            return `${count} сообщение`;
+        }
+
+        if (lastDigit >= 2 && lastDigit <= 4) {
+            return `${count} сообщения`;
+        }
+
+        return `${count} сообщений`;
+    };
+
     const handleSendMessage = async (text: string) => {
-        if (!text.trim() || !currentUserId) return;
+        if (!text.trim() || !currentUserId || isTyping) return;
 
         let currentActiveId = activeSessionId;
         let currentSessions = [...sessions];
@@ -464,6 +525,9 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
 
         saveSessions(updatedSessions);
         setInputValue("");
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto';
+        }
         setIsTyping(true);
 
         try {
@@ -484,7 +548,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                     });
 
                     Object.entries(routeGroups).forEach(([secName, items]) => {
-                        siteContext += `\n📁 ПАПКА: "${secName}"\n`;
+                        siteContext += `\nПАПКА: "${secName}"\n`;
                         items.forEach((route: any, idx: number) => {
                             siteContext += `  - Урок ${idx + 1}: ${route.title} (ID: ${route.id})\n`;
                             
@@ -510,7 +574,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                     });
 
                     Object.entries(testGroups).forEach(([secName, items]) => {
-                        siteContext += `\n📁 ПАПКА: "${secName}"\n`;
+                        siteContext += `\nПАПКА: "${secName}"\n`;
                         items.forEach((test: any, idx: number) => {
                             siteContext += `  - Тест ${idx + 1}: ${test.title} (${test.subtitle}). База: ${test.theory}\n`;
                         });
@@ -571,7 +635,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             }
 
             if (!aiText) {
-                aiText = `🚨 СЫРОЙ ОТВЕТ ЯНДЕКСА:\n${JSON.stringify(data, null, 2)}`;
+                aiText = `СЫРОЙ ОТВЕТ ЯНДЕКСА:\n${JSON.stringify(data, null, 2)}`;
             }
 
             const aiMsg: Message = {
@@ -587,14 +651,14 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             saveSessions(finalSessions);
 
         } catch (error: any) {
-            console.error("❌ ОШИБКА:", error);
+            console.error("ОШИБКА:", error);
 
-            let displayError = `🚨 СИСТЕМНАЯ ОШИБКА:\n\n${error.message}`;
+            let displayError = `СИСТЕМНАЯ ОШИБКА:\n\n${error.message}`;
             const errStr = error.message?.toLowerCase() || '';
             
             // ИСПРАВЛЕНИЕ: Перехват системной ошибки о токенах
             if (errStr.includes('token') || errStr.includes('quota') || errStr.includes('429') || errStr.includes('402') || errStr.includes('limit') || errStr.includes('баланс') || errStr.includes('too many requests')) {
-                displayError = "⚠️ Токены закончились, просьба обратиться к администратору.";
+                displayError = "Токены закончились, просьба обратиться к администратору.";
             }
 
             const errorMsg: Message = {
@@ -625,134 +689,163 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
     }
 
     return (
-        <section className="ai-monolithic-section" style={{ animation: 'fadeInUp 0.5s ease' }}>
+        <section className="ai-monolithic-section">
+            <header className="vates-page-heading vates-ai-heading">
+                <div>
+                    <span className="vates-eyebrow">Ватэс AI</span>
+                    <h1>AI-ассистент</h1>
+                    <p>Быстрые ответы по регламентам, обучению, документам и товарной базе компании.</p>
+                </div>
+            </header>
+
             <div className="ai-monolithic-container">
                 {isMobileHistoryOpen && (
-                    <div className="ai-mobile-overlay" onClick={() => setIsMobileHistoryOpen(false)}></div>
+                    <button
+                        type="button"
+                        className="ai-mobile-overlay"
+                        aria-label="Закрыть историю диалогов"
+                        onClick={() => setIsMobileHistoryOpen(false)}
+                    />
                 )}
-                
-                {/* --- БОКОВАЯ ПАНЕЛЬ ИСТОРИИ --- */}
-                <div className={`ai-sidebar custom-scroll ${isMobileHistoryOpen ? 'open' : ''}`}>
-                    <div style={{ padding: '20px' }}>
-                        <button 
-                            className="hover-unified-app"
+
+                <aside className={`ai-sidebar custom-scroll ${isMobileHistoryOpen ? 'open' : ''}`}>
+                    <div className="ai-sidebar-create">
+                        <div className="ai-sidebar-heading">
+                            <strong>История</strong>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="hover-unified-app ai-new-session-button"
                             onClick={createNewSession}
-                            style={{ width: '100%', padding: '14px', background: 'transparent', border: '1px solid #0abab5', color: '#0abab5', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
-                            <span style={{ fontSize: '18px' }}>+</span> НОВЫЙ ДИАЛОГ
+                            <CustomIcon name="chat" size={17} color="currentColor" accent="none" />
+                            Новый чат
                         </button>
+
+                        {sessions.length > 0 && (
+                            <label className="ai-history-search">
+                                <span className="ai-history-search-icon" aria-hidden="true" />
+                                <input
+                                    type="search"
+                                    value={historyQuery}
+                                    onChange={(event) => setHistoryQuery(event.target.value)}
+                                    placeholder="Поиск"
+                                    aria-label="Поиск по истории диалогов"
+                                />
+                            </label>
+                        )}
                     </div>
 
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px' }}>
-                        <div style={{ fontSize: '11px', color: '#666', fontWeight: '900', letterSpacing: '1px', marginBottom: '15px', paddingLeft: '10px' }}>ИСТОРИЯ ЗАПРОСОВ</div>
-                        
-                        {sortedSessions.map((s: ChatSession) => (
-                            <div 
-                                key={s.id} 
-                                onClick={() => { setActiveSessionId(s.id); setIsMobileHistoryOpen(false); }}
-                                className={`ai-session-item ${activeSessionId === s.id ? 'active' : ''}`}
-                            >
-                                <div className="ai-session-title">
-                                    {s.title}
-                                </div>
-                                
-                                <div className={`ai-session-actions ${s.isPinned ? 'pinned' : ''}`}>
-                                    <button 
-                                        className={`ai-pin-btn ${s.isPinned ? 'active' : ''}`} 
-                                        onClick={(e) => togglePin(s.id, e)}
-                                        title={s.isPinned ? "Открепить" : "Закрепить"}
-                                    >
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill={s.isPinned ? "#ffd700" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <line x1="12" y1="17" x2="12" y2="22"></line>
-                                            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.68V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3v4.68a2 2 0 0 1-1.11 1.87l-1.78.89A2 2 0 0 0 5 15.24Z"></path>
-                                        </svg>
-                                    </button>
-                                    
-                                    <button 
-                                        className="ai-session-del-btn" 
-                                        onClick={(e) => deleteSession(s.id, e)}
-                                        title="Удалить диалог"
-                                    >
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                                        </svg>
-                                    </button>
-                                </div>
+                    <div className="ai-sidebar-history custom-scroll">
+                        {visibleSessions.length === 0 ? (
+                            <div className="ai-history-empty">
+                                <strong>{sessions.length === 0 ? 'Диалогов пока нет' : 'Ничего не найдено'}</strong>
+                                <p>{sessions.length === 0 ? 'Задайте первый вопрос — чат появится здесь.' : 'Измените поисковый запрос.'}</p>
                             </div>
-                        ))}
-                    </div>
+                        ) : (
+                            visibleSessions.map((session: ChatSession) => (
+                                <div key={session.id} className={`ai-session-item ${activeSessionId === session.id ? 'active' : ''}`}>
+                                    <button
+                                        type="button"
+                                        className="ai-session-select"
+                                        onClick={() => {
+                                            setActiveSessionId(session.id);
+                                            setIsMobileHistoryOpen(false);
+                                            focusComposer();
+                                        }}
+                                    >
+                                        <span className="ai-session-icon">
+                                            <CustomIcon name={session.isPinned ? 'star' : 'chat'} size={16} color="currentColor" accent="none" />
+                                        </span>
+                                        <span className="ai-session-copy">
+                                            <strong className="ai-session-title">{session.title}</strong>
+                                            <small>{formatMessageCount(session.messages.length)} · {new Date(session.updatedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}</small>
+                                        </span>
+                                    </button>
 
-                    <div style={{ padding: '10px 20px', fontSize: '10px', color: '#444', textAlign: 'center', borderTop: '1px solid #1a1a1a', fontWeight: 'bold' }}>
-                        ID аккаунта: {currentUserId}
+                                    <div className={`ai-session-actions ${session.isPinned ? 'pinned' : ''}`}>
+                                        <button
+                                            type="button"
+                                            className={`ai-pin-btn ${session.isPinned ? 'active' : ''}`}
+                                            onClick={(event) => togglePin(session.id, event)}
+                                            title={session.isPinned ? 'Открепить' : 'Закрепить'}
+                                            aria-label={session.isPinned ? 'Открепить диалог' : 'Закрепить диалог'}
+                                        >
+                                            <CustomIcon name="star" size={15} color="currentColor" accent="none" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="ai-session-del-btn"
+                                            onClick={(event) => deleteSession(session.id, event)}
+                                            title="Удалить диалог"
+                                            aria-label="Удалить диалог"
+                                        >
+                                            <CustomIcon name="close" size={15} color="currentColor" accent="none" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
 
                     {sessions.length > 0 && (
-                        <div style={{ padding: '20px', borderTop: '1px solid #1a1a1a' }}>
-                            <button 
-                                className="hover-unified-app"
+                        <div className="ai-sidebar-clear">
+                            <button
+                                type="button"
+                                className="hover-unified-app ai-clear-history-button"
                                 onClick={() => setShowClearConfirm(true)}
-                                style={{ width: '100%', padding: '12px', background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', transition: '0.2s' }}
                             >
-                                ОЧИСТИТЬ ИСТОРИЮ
+                                Очистить историю
                             </button>
                         </div>
                     )}
-                </div>
+                </aside>
 
-                {/* --- ОКНО ДИАЛОГА --- */}
                 <div className="ai-chat-area">
-                    <div className="ai-mobile-header">
-                        <div style={{ fontWeight: '900', color: '#fff', fontSize: '16px' }}>TeaMaster <span style={{ color: '#0abab5' }}>AI</span></div>
-                        <button onClick={() => setIsMobileHistoryOpen(true)} className="ai-history-btn">🕒 История</button>
-                    </div>
+                    <header className="ai-chat-toolbar">
+                        <button type="button" onClick={() => setIsMobileHistoryOpen(true)} className="ai-history-btn">
+                            <CustomIcon name="chat" size={16} color="currentColor" accent="none" />
+                            История
+                        </button>
+
+                        <div className="ai-active-dialog">
+                            <strong>{activeSession?.title || 'Новый чат'}</strong>
+                        </div>
+                    </header>
 
                     <div className="ai-messages custom-scroll" ref={chatContainerRef}>
-                        
-                        {!activeSession || activeSession.messages.length === 0 ? (
-                            <div className="ai-empty-state">
-                                <div style={{ fontSize: '50px', marginBottom: '20px' }}>🤖</div>
-                                <h3 style={{ color: '#fff', fontSize: '22px', fontWeight: '900', marginBottom: '10px' }}>TeaMaster AI</h3>
-                                <p style={{ color: '#666', fontSize: '15px', marginBottom: '30px', lineHeight: '1.5' }}>
-                                    Задайте любой вопрос по регламентам, стандартам сервиса или товарной матрице компании.
-                                </p>
-                                <div className="quick-prompts-container">
-                                    {quickPrompts.map((prompt, idx) => (
-                                        <div 
-                                            key={idx} 
-                                            onClick={() => handleSendMessage(prompt)}
-                                            className="quick-prompt"
-                                        >
-                                            {prompt}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            activeSession.messages.map((msg: Message) => (
-                                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: '20px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', maxWidth: '85%', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
-                                        <div className={`ai-avatar ${msg.role}`}>
-                                            {msg.role === 'user' ? '👤' : '🤖'}
-                                        </div>
-                                        <div className={`ai-bubble ${msg.role}`} style={msg.content.includes('СИСТЕМНАЯ ОШИБКА') || msg.content.includes('СЫРОЙ ОТВЕТ') ? { border: '1px solid #ff4d4d', background: 'rgba(255,77,77,0.1)' } : {}}>
-                                            {msg.content}
-                                        </div>
+                        {activeSession && activeSession.messages.length > 0 && (
+                            activeSession.messages.map((message: Message) => (
+                                <div key={message.id} className={`ai-message-row ${message.role}`}>
+                                    <div className={`ai-avatar ${message.role}`}>
+                                        <CustomIcon
+                                            name={message.role === 'user' ? 'user' : 'brain'}
+                                            size={18}
+                                            color="currentColor"
+                                            accent="none"
+                                        />
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#555', marginTop: '6px', padding: msg.role === 'user' ? '0 52px 0 0' : '0 0 0 52px' }}>
-                                        {msg.timestamp}
+                                    <div className="ai-message-body">
+                                        <div className={`ai-bubble ${message.role} ${message.content.includes('СИСТЕМНАЯ ОШИБКА') || message.content.includes('СЫРОЙ ОТВЕТ') ? 'is-error' : ''}`}>
+                                            {message.content}
+                                        </div>
+                                        <time>{message.timestamp}</time>
                                     </div>
                                 </div>
                             ))
                         )}
 
                         {isTyping && (
-                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', maxWidth: '85%', marginBottom: '20px' }}>
-                                <div className="ai-avatar ai">🤖</div>
-                                <div className="ai-bubble ai" style={{ padding: '15px 25px' }}>
-                                    <div className="typing-indicator">
-                                        <span></span><span></span><span></span>
+                            <div className="ai-message-row ai">
+                                <div className="ai-avatar ai">
+                                    <CustomIcon name="brain" size={18} color="currentColor" accent="none" />
+                                </div>
+                                <div className="ai-message-body">
+                                    <div className="ai-bubble ai ai-typing-bubble">
+                                        <div className="typing-indicator"><span /><span /><span /></div>
                                     </div>
+                                    <time>Формирует ответ</time>
                                 </div>
                             </div>
                         )}
@@ -761,44 +854,46 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                     <div className="ai-input-wrapper">
                         <div className="ai-input-box">
                             <textarea
+                                ref={inputRef}
                                 value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
+                                onChange={(event) => {
+                                    setInputValue(event.target.value);
+                                    event.currentTarget.style.height = 'auto';
+                                    event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 144)}px`;
+                                }}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Спросить TeaMaster AI..."
+                                placeholder="Напишите сообщение..."
+                                aria-label="Вопрос для AI-ассистента"
                                 className="custom-scroll ai-textarea"
                                 rows={1}
                             />
-                            <button 
+                            <button
+                                type="button"
                                 onClick={() => handleSendMessage(inputValue)}
                                 disabled={!inputValue.trim() || isTyping}
                                 className="ai-send-btn"
+                                aria-label="Отправить вопрос"
                             >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
+                                <CustomIcon name="send" size={19} color="currentColor" accent="none" />
+                                <span>Отправить</span>
                             </button>
-                        </div>
-                        <div className="ai-footer-text">
-                            ИИ может допускать ошибки. Проверяйте важную информацию по регламентам.
                         </div>
                     </div>
                 </div>
             </div>
 
             {showClearConfirm && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', zIndex: 50000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
-                    <div style={{ background: '#111', padding: '40px', borderRadius: '30px', border: '1px solid #333', textAlign: 'center', maxWidth: '400px', width: '90%' }}>
-                        <div style={{ width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px auto' }}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
-                        <h2 style={{ fontSize: '22px', color: '#ff4d4d', marginBottom: '15px', fontWeight: '900' }}>УДАЛИТЬ ИСТОРИЮ?</h2>
-                        <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '30px', lineHeight: '1.5' }}>
-                            Вы собираетесь безвозвратно удалить все диалоги с нейросетью. Это действие нельзя отменить.
-                        </p>
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                            <button onClick={clearHistory} style={{ flex: 1, padding: '15px', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>УДАЛИТЬ</button>
-                            <button onClick={() => setShowClearConfirm(false)} style={{ flex: 1, padding: '15px', background: '#222', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>ОТМЕНА</button>
+                <div className="ai-confirm-overlay" role="presentation" onClick={() => setShowClearConfirm(false)}>
+                    <section className="ai-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="ai-clear-history-title" onClick={(event) => event.stopPropagation()}>
+                        <span className="ai-confirm-icon"><CustomIcon name="alert" size={30} color="currentColor" /></span>
+                        <span className="vates-eyebrow">Необратимое действие</span>
+                        <h2 id="ai-clear-history-title">Удалить всю историю?</h2>
+                        <p>Все диалоги AI-ассистента будут удалены. Восстановить их после подтверждения не получится.</p>
+                        <div className="ai-confirm-actions">
+                            <button type="button" className="vates-button secondary" onClick={() => setShowClearConfirm(false)}>Отмена</button>
+                            <button type="button" className="vates-button danger" onClick={clearHistory}>Удалить историю</button>
                         </div>
-                    </div>
+                    </section>
                 </div>
             )}
 
@@ -854,7 +949,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 @media (max-width: 768px) {
                     .ai-monolithic-section { margin: -10px -15px -50px -15px; height: calc(100vh - 70px); }
                     .ai-mobile-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #1a1a1a; background: #0a0a0a; }
-                    .ai-history-btn { background: rgba(10,186,181,0.1); color: #0abab5; border: 1px solid rgba(10,186,181,0.3); padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 13px; transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease; }
+                    .ai-history-btn { display: inline-flex; align-items: center; gap: 8px; background: rgba(10,186,181,0.1); color: #0abab5; border: 1px solid rgba(10,186,181,0.3); padding: 8px 16px; border-radius: 10px; font-weight: 800; font-size: 13px; transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease, color 0.16s ease; }
                     .ai-history-btn:hover { transform: translateY(1px) scale(0.985); box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10, 186, 181, 0.24); background: rgba(10,186,181,0.14); border-color: rgba(10,186,181,0.45); color: #fff; }
                     .ai-history-btn:active { transform: translateY(2px) scale(0.97); box-shadow: inset 0 3px 8px rgba(0,0,0,0.24); }
                     .ai-sidebar { position: fixed; top: 0; left: -300px; width: 280px !important; height: 100vh; background: #000; z-index: 10006; box-shadow: 10px 0 30px rgba(0,0,0,0.8); }

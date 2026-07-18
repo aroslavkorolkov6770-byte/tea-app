@@ -114,10 +114,10 @@ export default function FileManager({
             await saveDataToServer('tea_hub_urgent_files_v1', updatedFiles);
             
             const namesStr = fileNames.join(', ');
-            const pushSent = await sendPushNotification('Все', { title: ' Новые учебные материалы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' });
-            const emailSent = await sendEmailNotification('Все', ' Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`);
+            const pushSent = await sendPushNotification('Все', { title: ' Новые документы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' });
+            const emailSent = await sendEmailNotification('Все', 'Новые документы', `Администратор добавил новые документы: ${namesStr}`);
 
-            setShowSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) загружены в раздел "${finalSection}". ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
+            setShowSuccessModal({ show: true, title: 'ДОКУМЕНТЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) загружены в раздел "${finalSection}". ${pushSent || emailSent ? '(Уведомления отправлены)' : ''}` });
             setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); setNewUploadSectionName('');
         } catch(e) {
             setErrorModal({ show: true, text: "Произошла ошибка при пакетной загрузке файлов." });
@@ -170,14 +170,14 @@ export default function FileManager({
               onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]); }}
             >
                <div style={docBadgeStyle as any}><CustomIcon name="file" size={24} color="#0abab5" /></div>
-               <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '5px' }}>Загрузка учебных материалов</h3>
+               <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '5px' }}>Загрузка документов</h3>
                
                {(!selectedFiles || selectedFiles.length === 0) ? (
                    <>
                        <p style={{ color: '#888', fontSize: '13px', marginBottom: '15px', maxWidth: '500px', margin: '0 auto 15px auto', lineHeight: '1.4' }}>Перетащите сюда документы (PDF, DOCX, TXT) или нажмите кнопку.</p>
                        <input type="file" multiple id="file-upload-admin" style={{ display: 'none' }} disabled={isProcessing} onChange={(e) => { if (e.target.files?.length) setSelectedFiles(prev => [...prev, ...Array.from(e.target.files as FileList)]); }} />
                        <button onClick={() => document.getElementById('file-upload-admin')?.click()} disabled={isProcessing} style={{ ...actionBtn, background: '#0abab5', color: '#000', border: 'none', padding: '10px 25px' } as any}>ВЫБРАТЬ ФАЙЛЫ</button>
-                       {uploadedMaterials.length > 0 && <div onClick={() => setShowFilesList(true)} style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}>Загруженный материал ({uploadedMaterials.length})</div>}
+                       {uploadedMaterials.length > 0 && <div onClick={() => setShowFilesList(true)} style={{ marginTop: '15px', color: '#0abab5', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}>Загруженные документы ({uploadedMaterials.length})</div>}
                    </>
                ) : (
                    <div style={{ background: '#000', padding: '15px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333', maxWidth: '100%', textAlign: 'left' }}>
@@ -234,7 +234,7 @@ export default function FileManager({
                     <div style={{ ...modalContentSmall, maxWidth: '400px', padding: '35px', textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
                         <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>УДАЛИТЬ?</h2>
-                        <p style={{ color: '#ccc', fontSize: '15px', marginBottom: '25px' }}>Вы действительно хотите удалить этот учебный материал?</p>
+                        <p style={{ color: '#ccc', fontSize: '15px', marginBottom: '25px' }}>Вы действительно хотите удалить этот документ?</p>
                         <div style={{ display: 'flex', gap: '15px' }}>
                             <button onClick={() => setConfirmModal({ show: false, id: '', name: '' })} style={{ ...saveBtn, background: '#222', color: '#fff', flex: 1 } as any}>ОТМЕНА</button>
                             <button onClick={executeDeleteFile} style={{ ...saveBtn, background: '#ff4d4d', color: '#fff', flex: 1 } as any}>УДАЛИТЬ</button>

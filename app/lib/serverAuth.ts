@@ -8,9 +8,6 @@ export const AUTH_COOKIE_NAME = 'tea_hub_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const USERS_KEY = 'tea_hub_users_v1';
 const HASH_PREFIX = 'scrypt';
-const SYSTEM_ADMIN_ID = 'u_staff';
-const SYSTEM_ADMIN_LOGIN = 'system admin';
-const SYSTEM_ADMIN_PASSWORD = '6Jr6731R';
 const dataDir = path.join(process.cwd(), 'data');
 const jsonFileCache = new Map<string, { parsed: unknown; modifiedAtMs: number }>();
 
@@ -23,6 +20,7 @@ export interface StoredUser {
     passHash?: string;
     role: UserRole;
     name: string;
+    location?: string;
     isRegistered?: boolean;
     registered?: boolean;
     email?: string;
@@ -75,19 +73,6 @@ export const shouldKeepLegacyPassword = (user: Pick<StoredUser, 'login'>, nextPa
     return user.login === '11' && passwordToCheck === '11';
 };
 
-const isLegacySystemAccount = (user: Partial<StoredUser>) => {
-    const normalizedName = typeof user.name === 'string' ? user.name.trim().toLowerCase() : '';
-    return (
-        user.id === 'u_staff' ||
-        user.id === 'u_staff_new' ||
-        user.login === '1' ||
-        user.login === '1.1' ||
-        user.login === SYSTEM_ADMIN_LOGIN ||
-        normalizedName === 'ярик' ||
-        normalizedName === 'системный администратор'
-    );
-};
-
 const normalizeStoredUser = (user: StoredUser): StoredUser => {
     const normalizedUser: StoredUser = { ...user };
 
@@ -95,36 +80,11 @@ const normalizeStoredUser = (user: StoredUser): StoredUser => {
         normalizedUser.isRegistered = normalizedUser.registered;
     }
 
-    delete normalizedUser.registered;
-
-    if (isLegacySystemAccount(normalizedUser)) {
-        normalizedUser.id = SYSTEM_ADMIN_ID;
-        normalizedUser.login = SYSTEM_ADMIN_LOGIN;
-        normalizedUser.role = 'admin';
-        normalizedUser.name = 'Системный администратор';
-        normalizedUser.isRegistered = true;
-        normalizedUser.systemAccount = true;
-        normalizedUser.ghostAccount = true;
-        normalizedUser.profileDisabled = false;
-        normalizedUser.profileOwnerOnly = true;
-        normalizedUser.hideFromStats = true;
-        normalizedUser.canSwitchMode = true;
-        normalizedUser.accountLabel = 'Системный администратор';
-        if (!verifyPassword(normalizedUser, SYSTEM_ADMIN_PASSWORD)) {
-            normalizedUser.passHash = hashPassword(SYSTEM_ADMIN_PASSWORD);
-        }
-        delete normalizedUser.pass;
-    }
-
     if (!normalizedUser.name) {
         normalizedUser.name = normalizedUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник';
     }
 
     return normalizedUser;
-};
-
-const haveUsersChanged = (originalUsers: StoredUser[], normalizedUsers: StoredUser[]) => {
-    return JSON.stringify(originalUsers) !== JSON.stringify(normalizedUsers);
 };
 
 export const readJsonFile = <T = any>(key: string, fallback: T): T => {
@@ -222,32 +182,10 @@ export const ensureBaseUsers = () => {
         return baseUsers;
     }
 
-    let systemAdminFound = false;
-    const normalizedUsers = currentUsers.reduce<StoredUser[]>((users, currentUser) => {
-        const normalizedUser = normalizeStoredUser(currentUser);
-
-        if (normalizedUser.id === SYSTEM_ADMIN_ID) {
-            if (systemAdminFound) {
-                return users;
-            }
-
-            systemAdminFound = true;
-        }
-
-        users.push(normalizedUser);
-        return users;
-    }, []);
+    const normalizedUsers = currentUsers.map(normalizeStoredUser);
 
     if (!normalizedUsers.some((user) => user.id === 'u_admin')) {
         normalizedUsers.unshift(baseUsers[0]);
-    }
-
-    if (!normalizedUsers.some((user) => user.id === SYSTEM_ADMIN_ID)) {
-        normalizedUsers.push(baseUsers[1]);
-    }
-
-    if (haveUsersChanged(currentUsers, normalizedUsers)) {
-        writeJsonFile(USERS_KEY, normalizedUsers);
     }
 
     return normalizedUsers;
@@ -277,19 +215,12 @@ baseUsers = [
         isRegistered: true,
     },
     {
-        id: SYSTEM_ADMIN_ID,
-        login: SYSTEM_ADMIN_LOGIN,
-        passHash: hashPassword(SYSTEM_ADMIN_PASSWORD),
-        role: 'admin',
-        name: 'Системный администратор',
+        id: 'u_staff',
+        login: '1',
+        pass: '1',
+        role: 'staff',
+        name: 'Ярик',
         isRegistered: true,
-        systemAccount: true,
-        ghostAccount: true,
-        profileDisabled: false,
-        profileOwnerOnly: true,
-        hideFromStats: true,
-        canSwitchMode: true,
-        accountLabel: 'Системный администратор',
     },
 ];
 
@@ -350,6 +281,7 @@ export const toPublicUser = (user: StoredUser) => ({
     login: user.login,
     role: user.role,
     name: user.name || (user.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+    location: user.location || '',
     isRegistered: user.isRegistered ?? true,
     email: user.email || '',
     avatar: user.avatar || '',

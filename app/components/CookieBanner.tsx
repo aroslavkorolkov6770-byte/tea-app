@@ -30,8 +30,8 @@ export default function CookieBanner() {
 
   return (
     <>
-      <div style={bannerStyle as any}>
-        <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#0abab5', fontWeight: '900' }}>Авторизация и сессия </h3>
+      <div style={bannerStyle as any} className="vates-cookie-banner">
+        <h3>Авторизация и сессия</h3>
         <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#ccc', lineHeight: '1.5' }}>
           Мы используем файлы cookie для сохранения вашей сессии. Согласны ли вы оставаться в системе на этом устройстве, чтобы не вводить логин и пароль каждый раз?
         </p>
@@ -41,8 +41,8 @@ export default function CookieBanner() {
         </p>
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={handleAccept} style={btnYes as any}>ДА, СОГЛАСЕН</button>
-          <button onClick={handleDecline} style={btnNo as any}>НЕТ (только на сеанс)</button>
+          <button onClick={handleAccept} style={btnYes as any} className="vates-button vates-button-primary">Да, согласен</button>
+          <button onClick={handleDecline} style={btnNo as any} className="vates-button vates-button-secondary">Только на сеанс</button>
         </div>
       </div>
 

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import ThemeToggle from '@/app/components/ThemeToggle';
+import VatesLogo from '@/app/components/VatesLogo';
+import type { CustomIconName } from '@/app/components/CustomIcon';
 import {
   applyClientAuthState,
   clearClientAuthState,
@@ -32,9 +34,9 @@ export default function Navigation() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [sessionUser, setSessionUser] = useState<ClientSessionUser | null>(null);
   const [currentViewMode, setCurrentViewMode] = useState<'admin' | 'staff'>('staff');
+  const [currentHash, setCurrentHash] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -212,10 +214,6 @@ export default function Navigation() {
         }
     };
 
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-        setIsSidebarOpen(false);
-    }
-
     const handleVisibilityRefresh = () => {
         if (document.visibilityState === 'visible') {
             loadServerData();
@@ -238,6 +236,13 @@ export default function Navigation() {
         document.removeEventListener('visibilitychange', handleVisibilityRefresh);
     };
   }, [isProtectedPath, router]);
+
+  useEffect(() => {
+    const syncHash = () => setCurrentHash(window.location.hash);
+    syncHash();
+    window.addEventListener('hashchange', syncHash);
+    return () => window.removeEventListener('hashchange', syncHash);
+  }, [pathname]);
 
   const handleLogin = async () => {
     if (failedAttempts >= 3 && !isCaptchaVerified) {
@@ -479,7 +484,7 @@ export default function Navigation() {
         results.push({
           id: `p_${product.id || product.code || product.name}`,
           title: product.name || 'Товар',
-          subtitle: `Продукты${product.category ? ` • ${product.category}` : ''}`,
+          subtitle: `Товары${product.category ? ` • ${product.category}` : ''}`,
           link: `/tasks?tab=products&productId=${encodeURIComponent(product.id || product.code || product.name || '')}`,
         });
       }
@@ -492,47 +497,67 @@ export default function Navigation() {
   const handleResultClick = (link: string) => {
     setIsSearchOpen(false);
     setSearchQuery('');
-    if (window.innerWidth <= 768) setIsSidebarOpen(false);
     router.push(link);
   };
 
-  const sideItems = [
-    { 
-      id: userRole === 'admin' ? '/admin' : '/tasks?tab=welcome',
-      label: userRole === 'admin' ? 'Меню управления' : 'Статистика',
-      isSubItem: false 
-    },
-    { id: '/tasks?tab=edu', label: 'Обучение', isSubItem: false },
-    { id: '/tasks?tab=docs', label: 'База документов', isSubItem: true },
-    { id: '/tasks?tab=assortment', label: 'Ассортимент', isSubItem: false },
-    { id: '/tasks?tab=products', label: 'Продукты', isSubItem: true },
-    { id: '/tasks?tab=standards', label: 'ИИ Помощник', isSubItem: false },
+  const adminSideItems: Array<{ id: string; label: string; icon: CustomIconName }> = [
+    { id: '/admin', label: 'Рабочее пространство', icon: 'day' },
+    { id: '/admin#employees', label: 'Сотрудники', icon: 'user' },
+    { id: '/tasks?tab=paths', label: 'Учебные пути', icon: 'book' },
+    { id: '/tasks?tab=edu', label: 'Материалы', icon: 'cap' },
+    { id: '/tasks?tab=docs', label: 'Документы', icon: 'file' },
+    { id: '/tasks?tab=assortment', label: 'Ассортимент', icon: 'sprout' },
+    { id: '/tasks?tab=products', label: 'Товары', icon: 'brew' },
+    { id: '/tasks?tab=standards', label: 'AI-ассистент', icon: 'brain' },
   ];
+
+  const staffSideItems: Array<{ id: string; label: string; icon: CustomIconName }> = [
+    { id: '/tasks?tab=edu', label: 'Материалы', icon: 'cap' },
+    { id: '/tasks?tab=welcome', label: 'Мой прогресс', icon: 'rocket' },
+    { id: '/tasks?tab=docs', label: 'Документы', icon: 'file' },
+    { id: '/tasks?tab=assortment', label: 'Ассортимент', icon: 'sprout' },
+    { id: '/tasks?tab=products', label: 'Товары', icon: 'brew' },
+    { id: '/tasks?tab=standards', label: 'AI-ассистент', icon: 'brain' },
+  ];
+
+  const sideItems = userRole === 'admin' ? adminSideItems : staffSideItems;
+  const bottomSideItems = userRole === 'admin'
+    ? [adminSideItems[0], adminSideItems[1], adminSideItems[2], adminSideItems[3], adminSideItems[4]]
+    : [staffSideItems[0], staffSideItems[5], staffSideItems[1]];
+
+  const isCurrentNavItem = (itemId: string) => {
+    if (itemId === '/admin#employees') {
+      return pathname === '/admin' && currentHash === '#employees';
+    }
+
+    if (itemId === '/admin') {
+      return pathname === '/admin' && currentHash !== '#employees';
+    }
+
+    if (typeof window === 'undefined') {
+      return itemId === pathname;
+    }
+
+    return `${pathname}${window.location.search}` === itemId;
+  };
 
   return (
     <>
       {!isLoggedIn ? (
         <header style={guestHeader} className="guest-header">
-           <ThemeToggle />
-           <div onClick={() => setShowLoginModal(true)} className="hover-unified-app" style={loginBtn}>ВХОД</div>
+           <VatesLogo className="guest-brand-logo" priority />
+           <div className="guest-header-actions">
+             <ThemeToggle />
+             <button type="button" onClick={() => setShowLoginModal(true)} className="vates-button vates-button-primary" style={loginBtn}>Войти</button>
+           </div>
         </header>
       ) : (
         <>
-          {isSidebarOpen && <div className="sidebar-mobile-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
-
-          <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="sidebar-toggle-fixed"
-              style={sidebarToggleStyle as any}
-              aria-label="Переключить меню"
-          >
-              <MenuIcon />
-          </button>
-
-          <aside style={{ ...sidebarStyle, left: isSidebarOpen ? 0 : '-260px', transition: '0.3s ease' }} className="nav-sidebar">
-            <div style={logoArea}>
-                <span style={logoText}>Меню</span>
-             </div>
+           <aside style={sidebarStyle} className="nav-sidebar">
+             <div style={logoArea}>
+                 <VatesLogo className="nav-brand-logo nav-brand-logo--full" priority />
+                 <VatesLogo className="nav-brand-logo nav-brand-logo--symbol" variant="symbol" priority />
+              </div>
              {sessionUser?.canSwitchMode && (
                 <div className="account-mode-switch" style={modeSwitchWrap}>
                     <div className="account-mode-switch-title" style={modeSwitchTitle}>Режим аккаунта</div>
@@ -556,26 +581,52 @@ export default function Navigation() {
                     </div>
                 </div>
              )}
-             <nav style={sideNav}>
-                {sideItems.map(item => {
-                    const isActive = (pathname + (typeof window !== 'undefined' ? window.location.search : '')) === item.id;
-                    return (
+              <nav style={sideNav} className="vates-sidebar-nav" aria-label="Основная навигация">
+                 {sideItems.map(item => {
+                     const isActive = isCurrentNavItem(item.id);
+                     const isAdminSectionLink = item.id === '/admin' || item.id === '/admin#employees';
+                     const linkContent = (
+                       <>
+                         <span className="nav-item-icon" aria-hidden="true">
+                           <CustomIcon name={item.icon} size={20} color="currentColor" />
+                         </span>
+                         <span className="nav-item-label">{item.label}</span>
+                       </>
+                     );
+
+                     if (isAdminSectionLink) {
+                       return (
+                         <a
+                           key={item.id}
+                           href={item.id}
+                           className={`nav-item ${isActive ? 'active' : ''}`}
+                           title={item.label}
+                         >
+                           {linkContent}
+                         </a>
+                       );
+                     }
+
+                     return (
                         <Link 
                             key={item.id} 
                             href={item.id} 
-                            className={`nav-item ${isActive ? 'active' : ''} ${item.isSubItem ? 'sub-item' : ''}`}
-                            onClick={() => { if (typeof window !== 'undefined' && window.innerWidth <= 768) setIsSidebarOpen(false); }}
+                            className={`nav-item ${isActive ? 'active' : ''}`}
+                            title={item.label}
                         >
-                            {item.isSubItem && <span className="sub-item-arrow" aria-hidden="true">↳</span>}
-                            <span>{item.label}</span>
+                            {linkContent}
                         </Link>
                     );
                 })}
              </nav>
           </aside>
 
-          <header style={{ ...topBarStyle, left: isSidebarOpen ? '260px' : '72px', transition: '0.3s ease' }} className="nav-topbar">
-             <div style={searchBox} className="search-box-container hover-search-surface">
+           <header style={topBarStyle} className="nav-topbar">
+              <VatesLogo className="vates-mobile-brand-logo" priority />
+              <div className="vates-workspace-label">
+                <strong>ООО «Чайная Артель»</strong>
+              </div>
+              <div style={searchBox} className="search-box-container hover-search-surface">
                 <span style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}><SearchIcon /></span>
                 <input 
                   type="text" 
@@ -617,11 +668,12 @@ export default function Navigation() {
                 </div>
                 
                 {/* Заменен эмодзи профиля на векторный SVG */}
-                <div onClick={() => setIsProfileOpen(!isProfileOpen)} className="top-icon-btn" style={profileTrigger}>
+                 <div onClick={() => setIsProfileOpen(!isProfileOpen)} className="top-icon-btn vates-profile-trigger" style={profileTrigger}>
                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                        <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="currentColor"/>
                    </svg>
-                   {isProfileOpen && (
+                    <span className="vates-profile-name">{sessionUser?.name || 'Профиль'}</span>
+                    {isProfileOpen && (
                      <div style={profileDropdown}>
                         {(!sessionUser?.profileDisabled || sessionUser?.profileOwnerOnly) && (
                           <Link href="/profile" className="drop-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -636,9 +688,39 @@ export default function Navigation() {
                    )}
                 </div>
              </div>
-          </header>
+           </header>
 
-          {isNotifOpen && (
+           <nav className={`vates-bottom-nav ${userRole === 'admin' ? 'is-admin' : 'is-staff'}`} aria-label="Мобильная навигация">
+             {bottomSideItems.map((item) => {
+               const isActive = isCurrentNavItem(item.id);
+               const linkContent = (
+                 <>
+                   <CustomIcon name={item.icon} size={19} color="currentColor" />
+                   <span>{item.label}</span>
+                 </>
+               );
+
+               if (item.id === '/admin' || item.id === '/admin#employees') {
+                 return (
+                   <a key={`mobile-${item.id}`} href={item.id} className={`vates-bottom-nav-item ${isActive ? 'active' : ''}`}>
+                     {linkContent}
+                   </a>
+                 );
+               }
+
+               return (
+                 <Link
+                   key={`mobile-${item.id}`}
+                   href={item.id}
+                   className={`vates-bottom-nav-item ${isActive ? 'active' : ''}`}
+                 >
+                   {linkContent}
+                 </Link>
+               );
+             })}
+           </nav>
+
+           {isNotifOpen && (
             <div style={notifOverlayStyle as any} onClick={() => setIsNotifOpen(false)}>
               <div style={notifSidebarStyle as any} className="notif-sidebar-custom" onClick={e => e.stopPropagation()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', gap: '15px' }}>
@@ -647,7 +729,7 @@ export default function Navigation() {
                       {notifications.length > 0 && (
                           <span onClick={clearAllNotifications} style={{ fontSize: '11px', color: '#ff4d4d', cursor: 'pointer', fontWeight: '900', textTransform: 'uppercase', borderBottom: '1px dashed #ff4d4d', transition: '0.2s', whiteSpace: 'nowrap' }}>Очистить всё</span>
                       )}
-                      <div onClick={() => setIsNotifOpen(false)} style={{ cursor: 'pointer', fontSize: '20px', opacity: 0.5, flexShrink: 0 }}>X</div>
+                      <button type="button" className="vates-icon-button" onClick={() => setIsNotifOpen(false)} aria-label="Закрыть уведомления" title="Закрыть"><CustomIcon name="close" size={18} color="currentColor" /></button>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -658,7 +740,7 @@ export default function Navigation() {
                       <div key={n.id} style={notifItemStyle as any}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
                           <div style={{ fontSize: '14px', fontWeight: '900', color: '#0abab5' }}>{n.title}</div>
-                          <div onClick={() => removeNotification(n.id)} style={{ cursor: 'pointer', fontSize: '16px', color: '#666', paddingLeft: '10px' }}>X</div>
+                          <button type="button" className="vates-icon-button" onClick={() => removeNotification(n.id)} aria-label="Удалить уведомление" title="Удалить"><CustomIcon name="close" size={15} color="currentColor" /></button>
                         </div>
                         <div style={{ fontSize: '13px', color: '#ccc', lineHeight: '1.4' }}>{n.text}</div>
                         <div style={{ fontSize: '10px', color: '#555', marginTop: '10px', fontWeight: 'bold' }}>{n.time}</div>
@@ -699,8 +781,9 @@ export default function Navigation() {
       {showLoginModal && (
         <div style={modalOverlay}>
           <div className="modal-content-custom" style={{ ...modalContent, maxHeight: '90vh', overflowY: 'auto' }}>
+            <VatesLogo className="modal-brand-logo" />
             <h2 style={{color:'#fff', textAlign:'center', marginBottom:'25px', fontWeight: '900', letterSpacing: '1px', fontSize: '18px'}}>
-                {isLoginMode ? 'ВХОД В СИСТЕМУ' : 'АКТИВАЦИЯ АККАУНТА'}
+                {isLoginMode ? 'Войти в аккаунт' : 'Активировать аккаунт'}
             </h2>
             
             {!isLoginMode && (
@@ -753,17 +836,17 @@ export default function Navigation() {
                                 <path d="M10 11V9a2 2 0 014 0v2" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round"/>
                                 <circle cx="12" cy="13.5" r="1" fill="#0abab5"/>
                             </svg>
-                            <div style={{ color: '#fff', fontSize: '11px', fontWeight: '900', marginTop: '4px', letterSpacing: '0.5px' }}>TeaGuard</div>
-                            <div style={{ color: '#666', fontSize: '9px', marginTop: '2px' }}>by Tea Hub</div>
+                            <div style={{ color: '#fff', fontSize: '11px', fontWeight: '900', marginTop: '4px', letterSpacing: '0.5px' }}>Vates Guard</div>
+                            <div style={{ color: '#666', fontSize: '9px', marginTop: '2px' }}>Ватэс</div>
                         </div>
                     </div>
                 </div>
             )}
             
             {isLoginMode ? (
-                <div className="hover-unified-app" onClick={handleLogin} style={modalLoginBtn}>ВОЙТИ</div>
+                <div className="hover-unified-app" onClick={handleLogin} style={modalLoginBtn}>Войти</div>
             ) : (
-                <div className="hover-unified-app" onClick={handleRegister} style={modalLoginBtn}>ЗАРЕГИСТРИРОВАТЬСЯ</div>
+                <div className="hover-unified-app" onClick={handleRegister} style={modalLoginBtn}>Активировать аккаунт</div>
             )}
             
             <div 
@@ -787,7 +870,7 @@ export default function Navigation() {
                 setIsCaptchaVerified(false); 
                 setIsCaptchaLoading(false); 
                 setIsConsentGiven(false);
-            }} className="hover-link-unified-app" style={closeText}>ОТМЕНА</div>
+            }} className="hover-link-unified-app" style={closeText}>Отмена</div>
           </div>
         </div>
       )}
@@ -1021,66 +1104,7 @@ export default function Navigation() {
             box-shadow: inset 0 3px 8px rgba(0,0,0,0.24);
         }
 
-        .sidebar-mobile-overlay { display: none; }
-        .sidebar-toggle-fixed {
-            position: fixed;
-            top: 22px;
-            left: 30px;
-            z-index: 10006;
-            width: 36px;
-            height: 36px;
-            border: 1px solid #222;
-            border-radius: 10px;
-            background: #111;
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            padding: 0;
-            box-shadow: none;
-            transition: top 0.3s ease, left 0.3s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-        }
-
-        .sidebar-toggle-fixed:hover {
-            color: #fff !important;
-            transform: translateY(1px) scale(0.985);
-            border-color: rgba(10, 186, 181, 0.45) !important;
-            background: rgba(10, 186, 181, 0.14) !important;
-            box-shadow: inset 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(10, 186, 181, 0.24);
-        }
-
-        .sidebar-toggle-fixed:active {
-            transform: translateY(2px) scale(0.97);
-            box-shadow: inset 0 3px 8px rgba(0,0,0,0.24);
-        }
-
-        @media (max-width: 768px) {
-            .nav-topbar {
-                left: 0 !important;
-                padding: 0 10px 0 72px !important;
-                height: 70px !important;
-                gap: 8px !important;
-            }
-            .nav-sidebar {
-                z-index: 10005 !important;
-            }
-            .sidebar-toggle-fixed {
-                top: 16px !important;
-                left: 16px !important;
-                width: 40px !important;
-                height: 40px !important;
-                border-radius: 12px !important;
-            }
-            .sidebar-mobile-overlay {
-                display: block !important;
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.6);
-                z-index: 10004;
-                backdrop-filter: blur(5px);
-            }
-
+        @media (max-width: 767px) {
             .search-box-container {
                 width: 100% !important;
                 max-width: 100% !important;
@@ -1140,14 +1164,6 @@ export default function Navigation() {
   );
 }
 
-function MenuIcon() {
-    return (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 7H20M4 12H20M4 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-    );
-}
-
 function SearchIcon() {
     return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -1161,7 +1177,7 @@ function SearchIcon() {
 const guestHeader: any = { position: 'fixed', top: '20px', right: '40px', zIndex: 1000, display: 'flex', alignItems: 'center', gap: '12px' };
 const loginBtn: any = { background: '#0ABAB5', color: '#000', padding: '12px 35px', borderRadius: '15px', fontWeight: '900', cursor: 'pointer', fontSize:'14px' };
 
-const sidebarStyle: any = { width: '260px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '22px 20px 40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };
+const sidebarStyle: any = { width: '248px', height: '100vh', background: '#000', position: 'fixed', left: 0, top: 0, padding: '22px 20px 40px 20px', display: 'flex', flexDirection: 'column', zIndex: 1001, borderRight: '1px solid #1a1a1a', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif' };
 const logoArea: any = { display: 'flex', alignItems: 'center', minHeight: '36px', gap: '15px', color: '#fff', marginBottom: '50px', paddingLeft: '58px' };
 const logoIcon: any = { fontSize: '24px', cursor: 'pointer' };
 const warningBadgeStyle: any = { width: '60px', height: '60px', borderRadius: '18px', border: '1px solid rgba(255,77,77,0.35)', background: 'rgba(255,77,77,0.08)', color: '#ff4d4d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: '900', margin: '0 auto 15px auto' };
@@ -1189,7 +1205,6 @@ const searchDropdownStyle: any = { position: 'absolute', top: '55px', left: 0, w
 const searchResultItem: any = { padding: '16px 20px', borderBottom: '1px solid #1a1a1a', cursor: 'pointer', transition: '0.2s' };
 const topActions: any = { display: 'flex', alignItems: 'center', gap: '30px' };
 const topIcon: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', cursor: 'pointer', transition: '0.3s', flexShrink: 0 };
-const sidebarToggleStyle: React.CSSProperties = { width: '36px', height: '36px', border: '1px solid #222', borderRadius: '10px', background: '#111', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0 };
 const profileTrigger: any = { width: '48px', height: '48px', background: '#111', border: '1px solid #222', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', color: '#888', transition: '0.3s' };
 const profileDropdown: any = { position: 'absolute', top: '65px', right: 0, background: '#111', border: '1px solid #222', borderRadius: '20px', width: '220px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', zIndex: 10003 };
 const notifOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.4)', zIndex: 20000, display: 'flex', justifyContent: 'flex-end' };

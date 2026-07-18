@@ -34,8 +34,6 @@ export async function GET() {
                 email: currentUser.email || '',
                 firstLogin: new Date().toISOString(),
             };
-
-            writeJsonFile(`profile_data_${currentUser.id}`, profile);
         }
 
         return NextResponse.json({

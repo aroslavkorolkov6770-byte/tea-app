@@ -1,6 +1,6 @@
 // Версия 3.0 (Специально для iOS)
 self.addEventListener('push', function (event) {
-    let data = { title: 'Tea Hub', body: 'Новое уведомление' };
+    let data = { title: 'Ватэс', body: 'Новое уведомление' };
 
     if (event.data) {
         try {
@@ -20,7 +20,7 @@ self.addEventListener('push', function (event) {
 
     // Обязательно заворачиваем в waitUntil, иначе iOS убьет пуш
     event.waitUntil(
-        self.registration.showNotification(data.title || 'Tea Hub', options)
+        self.registration.showNotification(data.title || 'Ватэс', options)
     );
 });
 

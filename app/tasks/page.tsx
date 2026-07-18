@@ -1,7 +1,9 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
+import CustomIcon from '@/app/components/CustomIcon';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
+import { DEFAULT_TRAINING_TESTS } from '@/app/tasks/data/defaultTrainingTests';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { clearClientAuthState, isClientAdminView } from '@/app/lib/authClient';
 
@@ -11,6 +13,7 @@ import Assortment from './components/Assortment';
 import AIAssistant from './components/AIAssistant';
 import Documents from './components/Documents';
 import Products from './components/Products'; // ДОБАВЛЕН ИМПОРТ НОВОГО РАЗДЕЛА ПРОДУКТОВ
+import LearningPaths from './components/LearningPaths';
 
 // --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
@@ -38,14 +41,13 @@ function ShiftContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [isSessionValidated, setIsSessionValidated] = useState(false);
   const [activeTab, setActiveTab] = useState('welcome');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [userId, setUserId] = useState<string>('');
   
   // --- ГЛОБАЛЬНЫЕ ДАННЫЕ (ПЕРЕДАЮТСЯ В МОДУЛИ КАК PROPS) ---
   const [dynamicRoute, setDynamicRoute] = useState<any[]>([]);
-  const [dynamicTests, setDynamicTests] = useState<any[]>([]);
+  const [dynamicTests, setDynamicTests] = useState<any[]>(DEFAULT_TRAINING_TESTS);
   const [completedRoute, setCompletedRoute] = useState<string[]>([]);
   const [completedTests, setCompletedTests] = useState<string[]>([]); 
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
@@ -106,7 +108,7 @@ function ShiftContent() {
 
           if (cachedDynamicTests) {
               const parsed = JSON.parse(cachedDynamicTests);
-              if (Array.isArray(parsed)) setDynamicTests(parsed);
+              if (Array.isArray(parsed) && parsed.length > 0) setDynamicTests(parsed);
           }
 
           if (cachedAssortment) {
@@ -193,8 +195,9 @@ function ShiftContent() {
           }
 
           if (Array.isArray(sTestsData)) {
-              setDynamicTests(sTestsData);
-              localStorage.setItem(CLIENT_CACHE_KEYS.DYNAMIC_TESTS, JSON.stringify(sTestsData));
+              const resolvedTests = sTestsData.length > 0 ? sTestsData : DEFAULT_TRAINING_TESTS;
+              setDynamicTests(resolvedTests);
+              localStorage.setItem(CLIENT_CACHE_KEYS.DYNAMIC_TESTS, JSON.stringify(resolvedTests));
           }
 
           if (Array.isArray(sRouteData)) {
@@ -342,9 +345,6 @@ function ShiftContent() {
 
     bootPage();
 
-    const handleToggle = () => setIsSidebarOpen(prev => !prev);
-    window.addEventListener('sidebarToggle', handleToggle);
-
     const syncInterval = setInterval(async () => {
         if (document.visibilityState !== 'visible') {
             return;
@@ -379,7 +379,6 @@ function ShiftContent() {
 
     return () => {
         isDisposed = true;
-        window.removeEventListener('sidebarToggle', handleToggle);
         clearInterval(syncInterval);
         window.removeEventListener('focus', focusHandler);
     };
@@ -434,14 +433,14 @@ function ShiftContent() {
   const closeRouteModal = () => {
       setSelectedRouteStep(null);
       if (searchParams.has('routeId')) {
-          router.replace('/tasks?tab=edu'); 
+          router.replace('/tasks?tab=edu', { scroll: false });
       }
   };
 
   const closeTestModal = () => {
       setSelectedTest(null);
       if (searchParams.has('testId')) {
-          router.replace('/tasks?tab=edu'); 
+          router.replace('/tasks?tab=edu', { scroll: false });
       }
   };
 
@@ -477,15 +476,15 @@ function ShiftContent() {
   const pathLine = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY}`;
 
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
+    <div className="vates-app-page vates-tasks-page" style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
       <Navigation />
       
-      <div className="desktop-sidebar-spacer" style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
+      <div className="desktop-sidebar-spacer" aria-hidden="true" />
 
       <main className="tasks-main" style={{ flex: 1, padding: '120px 60px 60px 60px', transition: '0.3s', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         
         {(!isPushBound && (pushStatus === 'default' || pushStatus === 'granted') && userId !== 'guest') && (
-            <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
+            <div className="tasks-push-binding-banner" style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', animation: 'fadeInUp 0.4s ease' }}>
                 <div>
                     <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Синхронизация уведомлений</h3>
                     <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Нажмите кнопку справа, чтобы жестко привязать это устройство к вашему рабочему аккаунту.</p>
@@ -496,8 +495,31 @@ function ShiftContent() {
 
         {/* --- ВКЛАДКА 1: СТАТИСТИКА (ДАШБОРД) --- */}
         {activeTab === 'welcome' && (
-            <div style={{ animation: 'fadeInUp 0.6s ease' }}>
-                <h1 className="tasks-title" style={{fontSize:'36px', fontWeight:'900', marginBottom:'40px'}}>Центр управления мастером</h1>
+            <div className="vates-staff-dashboard" style={{ animation: 'fadeInUp 0.6s ease' }}>
+                <header className="vates-page-heading">
+                    <div>
+                        <span className="vates-eyebrow">Рабочее пространство</span>
+                        <h1>Моё обучение</h1>
+                        <p>Ваш прогресс, обязательные материалы и ближайшие учебные шаги.</p>
+                    </div>
+                </header>
+
+                <section className="vates-staff-progress-hero">
+                    <div>
+                        <span className="vates-eyebrow">Общий прогресс</span>
+                        <h2>{currentStatus.label}</h2>
+                        <p>Продолжайте обучение, чтобы последовательно открыть следующие темы и тесты.</p>
+                    </div>
+                    <div className="vates-staff-progress-ring" style={{ '--staff-progress': `${totalHubPercent * 3.6}deg` } as React.CSSProperties}>
+                        <span>{totalHubPercent}%</span>
+                    </div>
+                </section>
+
+                <div className="vates-staff-kpis">
+                    <div><CustomIcon name="book" size={22} color="var(--vates-accent)" /><span>Темы</span><strong>{completedRoute.length}/{dynamicRoute.length}</strong></div>
+                    <div><CustomIcon name="cap" size={22} color="var(--vates-accent)" /><span>Тесты</span><strong>{completedTests.length}/{dynamicTests.length}</strong></div>
+                    <div><CustomIcon name="alert" size={22} color="var(--app-warning)" /><span>Документы</span><strong>{urgentFiles.length}</strong></div>
+                </div>
                 
                 <section className="tasks-chart-card" style={wideChartCard}>
                     <div className="tasks-flex-space" style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'20px', flexWrap: 'wrap', gap:'20px'}}>
@@ -581,7 +603,16 @@ function ShiftContent() {
             />
         )}
 
-        {/* --- ВКЛАДКА 2.1: ДОКУМЕНТЫ --- */}
+        {/* --- ВКЛАДКА 2.1: УЧЕБНЫЕ ПУТИ --- */}
+        {activeTab === 'paths' && (
+            <LearningPaths
+                isAdmin={isAdmin}
+                dynamicRoute={dynamicRoute}
+                dynamicTests={dynamicTests}
+            />
+        )}
+
+        {/* --- ВКЛАДКА 2.2: ДОКУМЕНТЫ --- */}
         {activeTab === 'docs' && (
             <Documents 
                 isAdmin={isAdmin}
@@ -627,7 +658,7 @@ function ShiftContent() {
         * { box-sizing: border-box; }
         body { overflow-x: hidden; width: 100vw; margin: 0; padding: 0; }
 
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
             
             .tasks-main { padding: 90px 15px 50px 15px !important; }

@@ -23,6 +23,7 @@ const STORAGE_KEYS = {
     URGENT_FILES: 'tea_hub_urgent_files_v1'        
 };
 const AI_SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
+const LEGACY_MATERIAL_EDITOR_ENABLED = false;
 
 type DeadlineMaterialReference = {
     type: 'document' | 'route' | 'test';
@@ -62,6 +63,25 @@ const stripEmoji = (str: string) => {
 const normalizeText = (text: string) => {
     if (!text) return '';
     return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+};
+
+const getRussianCountLabel = (value: number, one: string, few: string, many: string) => {
+    const lastTwoDigits = Math.abs(value) % 100;
+    const lastDigit = Math.abs(value) % 10;
+
+    if (lastTwoDigits > 10 && lastTwoDigits < 20) {
+        return many;
+    }
+
+    if (lastDigit === 1) {
+        return one;
+    }
+
+    if (lastDigit > 1 && lastDigit < 5) {
+        return few;
+    }
+
+    return many;
 };
 
 const normalizeEmbeddedPlayerMarkup = (markup: string) => {
@@ -185,6 +205,8 @@ export default function Education({
     });
     const [createMenu, setCreateMenu] = useState<AiDraftKind | null>(null);
     const [aiGeneratorKind, setAiGeneratorKind] = useState<AiDraftKind | null>(null);
+    const [materialSearchQuery, setMaterialSearchQuery] = useState('');
+    const [materialTypeFilter, setMaterialTypeFilter] = useState<'all' | 'topic' | 'test'>('all');
     const [aiReview, setAiReview] = useState<{
         kind: AiDraftKind;
         sourceFiles: string[];
@@ -218,6 +240,77 @@ export default function Education({
     const [urgentTestAnswers, setUrgentTestAnswers] = useState<number[]>([]);
     const [zoomedImg, setZoomedImg] = useState<string | null>(null);
 
+    const isMaterialSubpageOpen = Boolean(
+        selectedRouteStep
+        || selectedTest
+        || showRouteForm
+        || showTestForm
+        || aiGeneratorKind
+        || activeTestSession
+    );
+    const isBlockingModalOpen = Boolean(activeUrgentTest || reviewTest || testResultModal.show || cancelTestConfirm.show || zoomedImg);
+    const materialCatalogScrollPositionRef = React.useRef<number | null>(null);
+    const wasMaterialSubpageOpenRef = React.useRef(false);
+
+    const rememberMaterialCatalogScrollPosition = () => {
+        if (materialCatalogScrollPositionRef.current === null) {
+            materialCatalogScrollPositionRef.current = window.scrollY;
+        }
+    };
+
+    useEffect(() => {
+        if (!isBlockingModalOpen) return;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isBlockingModalOpen]);
+
+    useEffect(() => {
+        const wasOpen = wasMaterialSubpageOpenRef.current;
+        wasMaterialSubpageOpenRef.current = isMaterialSubpageOpen;
+
+        if (!wasOpen && isMaterialSubpageOpen) {
+            rememberMaterialCatalogScrollPosition();
+            window.scrollTo({ top: 0, behavior: 'auto' });
+            return;
+        }
+
+        if (wasOpen && !isMaterialSubpageOpen && materialCatalogScrollPositionRef.current !== null) {
+            const savedScrollPosition = materialCatalogScrollPositionRef.current;
+            materialCatalogScrollPositionRef.current = null;
+            let frameId = 0;
+            let frameCount = 0;
+
+            const restoreScrollPosition = () => {
+                const maximumScrollPosition = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+                const catalogCanReachSavedPosition = maximumScrollPosition >= savedScrollPosition - 1;
+
+                if (catalogCanReachSavedPosition || frameCount >= 60) {
+                    window.scrollTo(0, Math.min(savedScrollPosition, maximumScrollPosition));
+                    return;
+                }
+
+                frameCount += 1;
+                frameId = window.requestAnimationFrame(restoreScrollPosition);
+            };
+
+            frameId = window.requestAnimationFrame(restoreScrollPosition);
+
+            return () => {
+                window.cancelAnimationFrame(frameId);
+            };
+        }
+    }, [isMaterialSubpageOpen]);
+
+    useEffect(() => {
+        if (!isMaterialSubpageOpen) return;
+        window.scrollTo({ top: 0, behavior: 'auto' });
+    }, [selectedRouteStep?.id, selectedTest?.id, aiGeneratorKind, showRouteForm, showTestForm, activeTestSession?.id, isMaterialSubpageOpen]);
+
     const updateRouteState = (newData: any[]) => {
         const normalizedData = normalizeOrderedCollection(newData);
         setDynamicRoute(normalizedData);
@@ -244,6 +337,7 @@ export default function Education({
             }
 
             setSelectedTest(null);
+            rememberMaterialCatalogScrollPosition();
             setSelectedRouteStep(targetRoute);
             router.push(`/tasks?tab=edu&routeId=${encodeURIComponent(reference.id)}`, { scroll: false });
             return;
@@ -293,6 +387,7 @@ export default function Education({
             return;
         }
 
+        rememberMaterialCatalogScrollPosition();
         setSelectedTest(targetTest);
     };
 
@@ -441,6 +536,7 @@ export default function Education({
     };
 
     const openManualRouteForm = () => {
+        rememberMaterialCatalogScrollPosition();
         setRouteFormData({
             id: '', title: '', time: '5 мин', section: '', order: '',
             mediaType: 'text', videoIframe: '', videoDesc: '',
@@ -453,6 +549,7 @@ export default function Education({
     };
 
     const openManualTestForm = () => {
+        rememberMaterialCatalogScrollPosition();
         setTestFormData({
             id: '', title: '', subtitle: '', theory: '', section: '', order: '', timeLimit: 0,
             quiz: [{ q: '', o: ['', '', '', ''], c: 0 }],
@@ -463,7 +560,55 @@ export default function Education({
         setShowTestForm(true);
     };
 
+    const openRouteEditor = (step: any, fallbackOrder?: number) => {
+        rememberMaterialCatalogScrollPosition();
+        setAiReview(null);
+        setSelectedRouteStep(null);
+        setRouteFormData({
+            id: step.id,
+            title: step.title,
+            time: step.time || '5 мин',
+            section: step.section || '',
+            order: String(step.order || fallbackOrder || ''),
+            mediaType: step.mediaType || 'text',
+            videoIframe: step.videoIframe || '',
+            videoDesc: step.videoDesc || '',
+            h1: step.h1 || '',
+            t1: step.t1 || '',
+            img1: step.img1 || '',
+            h2: step.h2 || '',
+            t2: step.t2 || '',
+            img2: step.img2 || '',
+            h3: step.h3 || '',
+            t3: step.t3 || '',
+            img3: step.img3 || '',
+            linkedMaterials: Array.isArray(step.linkedMaterials) ? step.linkedMaterials : [],
+        });
+        setShowRouteForm(true);
+    };
+
+    const openTestEditor = (test: any, fallbackOrder?: number) => {
+        rememberMaterialCatalogScrollPosition();
+        setAiReview(null);
+        setSelectedTest(null);
+        setTestFormData({
+            id: test.id,
+            title: test.title,
+            subtitle: test.subtitle || '',
+            theory: test.theory || '',
+            section: test.section || '',
+            order: String(test.order || fallbackOrder || ''),
+            timeLimit: test.timeLimit || 0,
+            quiz: test.quiz && test.quiz.length > 0
+                ? JSON.parse(JSON.stringify(test.quiz))
+                : [{ q: '', o: ['', '', '', ''], c: 0 }],
+            linkedMaterials: Array.isArray(test.linkedMaterials) ? test.linkedMaterials : [],
+        });
+        setShowTestForm(true);
+    };
+
     const openAiGenerator = (kind: AiDraftKind) => {
+        rememberMaterialCatalogScrollPosition();
         setCreateMenu(null);
         setAiGeneratorKind(kind);
     };
@@ -623,6 +768,41 @@ export default function Education({
         testGroups[sectionName] = sortSectionEntries(testGroups[sectionName]);
     });
 
+    const normalizedMaterialSearch = isAdmin ? materialSearchQuery.trim().toLocaleLowerCase('ru') : '';
+    const matchesMaterialSearch = (item: any) => {
+        if (!normalizedMaterialSearch) {
+            return true;
+        }
+
+        return [item?.title, item?.name, normalizeSectionName(item?.section)]
+            .filter(Boolean)
+            .join(' ')
+            .toLocaleLowerCase('ru')
+            .includes(normalizedMaterialSearch);
+    };
+    const filterMaterialGroups = (groups: Record<string, any[]>) => Object.fromEntries(
+        Object.entries(groups)
+            .map(([sectionName, items]) => {
+                const matchingItems = items.filter(matchesMaterialSearch);
+
+                // Техническая запись сохраняет пустой раздел, но не является учебным материалом.
+                return [sectionName, isAdmin ? matchingItems : matchingItems.filter((item: any) => !item.isPlaceholder)];
+            })
+            .filter(([, items]) => items.length > 0),
+    );
+    const filteredTheoryGroups = filterMaterialGroups(theoryGroups);
+    const filteredTestGroups = filterMaterialGroups(testGroups);
+    const filteredTopicCount = Object.values(filteredTheoryGroups)
+        .flat()
+        .filter((item: any) => !item.isPlaceholder && item.h1 !== 'DELETE_ME').length;
+    const filteredTestCount = Object.values(filteredTestGroups)
+        .flat()
+        .filter((item: any) => !item.isPlaceholder && Array.isArray(item.quiz) && item.quiz.length > 0).length;
+    const filteredMaterialCount = (
+        (materialTypeFilter === 'test' ? 0 : filteredTopicCount)
+        + (materialTypeFilter === 'topic' ? 0 : filteredTestCount)
+    );
+
     const educationSections = Array.from(new Set(
         [...(dynamicRoute || []), ...(dynamicTests || [])]
             .filter((item: any) => !item.isPlaceholder || item.section)
@@ -750,11 +930,135 @@ export default function Education({
         } catch (e) { console.error("Ошибка", e); }
     };
 
+    const visibleRouteSteps = dynamicRoute.filter((item: any) => !item.isPlaceholder && item.id !== 'DELETE_ME');
+    const visibleTests = dynamicTests.filter((item: any) => !item.isPlaceholder && item.id !== 'DELETE_ME');
+    const completedLearningItems = completedRoute.length + completedTests.length;
+    const totalLearningItems = visibleRouteSteps.length + visibleTests.length;
+    const learningProgress = totalLearningItems > 0
+        ? Math.min(100, Math.round((completedLearningItems / totalLearningItems) * 100))
+        : 0;
+
     return (
-        <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
+        <section className={`vates-education-screen${isMaterialSubpageOpen ? ' is-material-subpage-open' : ''}`} style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
+            <header className="vates-page-heading">
+                <div>
+                    <span className="vates-eyebrow">Учебные материалы</span>
+                    <h1>Материалы</h1>
+                    <p>{isAdmin ? 'Создавайте темы и тесты вручную или с помощью AI.' : 'Продолжайте назначенный путь и следите за своим прогрессом.'}</p>
+                </div>
+            </header>
+
+            {isAdmin ? (
+                <>
+                    <section className="vates-material-studio">
+                        <header className="vates-material-studio-heading">
+                            <span className="vates-material-studio-icon">
+                                <CustomIcon name="material" size={27} color="currentColor" accent="none" />
+                            </span>
+                            <div>
+                                <span className="vates-eyebrow">Студия материалов</span>
+                                <h2>Создайте материал удобным способом</h2>
+                                <p>Начните с чистого редактора или подготовьте проверяемый черновик через Ватэс AI.</p>
+                            </div>
+                        </header>
+
+                        <div className="vates-material-studio-grid">
+                            <article className="vates-material-studio-card is-topic">
+                                <div className="vates-material-studio-card-head">
+                                    <span className="vates-material-studio-card-icon">
+                                        <CustomIcon name="material" size={25} color="currentColor" accent="none" />
+                                    </span>
+                                </div>
+                                <div className="vates-material-studio-copy">
+                                    <span>Учебный материал</span>
+                                    <h3>Создать тему</h3>
+                                    <p>Соберите текст, иллюстрации или видео в последовательный учебный материал.</p>
+                                </div>
+                                <div className="vates-material-studio-actions">
+                                    <button type="button" className="vates-button secondary" onClick={openManualRouteForm}>
+                                        <CustomIcon name="edit" size={17} color="currentColor" accent="none" />
+                                        Создать самому
+                                    </button>
+                                    <button type="button" className="vates-button primary" onClick={() => openAiGenerator('topic')}>
+                                        <CustomIcon name="brain" size={17} color="currentColor" accent="none" />
+                                        Создать через AI
+                                    </button>
+                                </div>
+                            </article>
+
+                            <article className="vates-material-studio-card is-test">
+                                <div className="vates-material-studio-card-head">
+                                    <span className="vates-material-studio-card-icon">
+                                        <CustomIcon name="cap" size={25} color="currentColor" accent="none" />
+                                    </span>
+                                </div>
+                                <div className="vates-material-studio-copy">
+                                    <span>Проверка знаний</span>
+                                    <h3>Создать тест</h3>
+                                    <p>Добавьте вопросы вручную или получите основу теста из загруженных документов.</p>
+                                </div>
+                                <div className="vates-material-studio-actions">
+                                    <button type="button" className="vates-button secondary" onClick={openManualTestForm}>
+                                        <CustomIcon name="edit" size={17} color="currentColor" accent="none" />
+                                        Создать самому
+                                    </button>
+                                    <button type="button" className="vates-button primary" onClick={() => openAiGenerator('test')}>
+                                        <CustomIcon name="brain" size={17} color="currentColor" accent="none" />
+                                        Создать через AI
+                                    </button>
+                                </div>
+                            </article>
+                        </div>
+
+                        <footer className="vates-material-studio-footer">
+                            <div>
+                                <span className="vates-material-studio-footer-icon"><CustomIcon name="folder" size={19} color="currentColor" accent="none" /></span>
+                                <div>
+                                    <strong>Организуйте библиотеку</strong>
+                                    <span>Разделы сохраняют понятную структуру тем и тестов.</span>
+                                </div>
+                            </div>
+                            <div className="vates-material-studio-footer-actions">
+                                <button type="button" className="vates-button secondary compact" onClick={() => setPromptSection({isOpen: true, type: 'route', name: ''})}>Добавить раздел тем</button>
+                                <button type="button" className="vates-button secondary compact" onClick={() => setPromptSection({isOpen: true, type: 'test', name: ''})}>Добавить раздел тестов</button>
+                            </div>
+                        </footer>
+                    </section>
+
+                    <section className="vates-material-catalog-toolbar" aria-label="Поиск и фильтрация материалов">
+                        <label className="vates-material-search-field">
+                            <span className="vates-material-search-icon"><CustomIcon name="eye" size={18} color="currentColor" accent="none" /></span>
+                            <input
+                                type="search"
+                                value={materialSearchQuery}
+                                onChange={(event) => setMaterialSearchQuery(event.target.value)}
+                                placeholder="Найти тему, тест или раздел"
+                                aria-label="Поиск материалов"
+                            />
+                        </label>
+                        <select value={materialTypeFilter} onChange={(event) => setMaterialTypeFilter(event.target.value as 'all' | 'topic' | 'test')} aria-label="Тип материала">
+                            <option value="all">Все материалы</option>
+                            <option value="topic">Только темы</option>
+                            <option value="test">Только тесты</option>
+                        </select>
+                        <span className="vates-material-result-count">Найдено: <strong>{filteredMaterialCount}</strong></span>
+                    </section>
+                </>
+            ) : (
+                <section className="vates-learning-hero">
+                    <div>
+                        <span className="vates-eyebrow">Текущий путь</span>
+                        <h2>Базовая подготовка сотрудника</h2>
+                        <p>{completedLearningItems} из {totalLearningItems} учебных шагов завершено</p>
+                    </div>
+                    <div className="vates-learning-ring" style={{ '--learning-progress': `${learningProgress * 3.6}deg` } as React.CSSProperties}>
+                        <span>{learningProgress}%</span>
+                    </div>
+                </section>
+            )}
             
             {/* --- СРОЧНО К ПРОХОЖДЕНИЮ --- */}
-            <div style={{ marginBottom: '50px', width: '100%', boxSizing: 'border-box' }}>
+            {!isAdmin && <div className="vates-urgent-learning" style={{ marginBottom: '50px', width: '100%', boxSizing: 'border-box' }}>
                 <div className="tasks-flex-space" style={flexSpace as any}>
                     <h2 className="tasks-title" style={{ ...sectionTitle, color: '#ff4d4d', margin: 0 } as any}>Срочно к прохождению</h2>
                 </div>
@@ -837,43 +1141,21 @@ export default function Education({
                         У вас нет срочных заданий.
                     </div>
                 )}
-            </div>
+            </div>}
 
             {/* --- БЛОК 1: ТЕОРИЯ --- */}
-            <div className="tasks-flex-space" style={flexSpace as any}>
-               <h2 className="tasks-title" style={sectionTitle as any}>Теория</h2>
-               {isAdmin && (
-                   <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-                       <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'route', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
-                       <div className="education-create-wrap">
-                           <button
-                               onClick={() => setCreateMenu(createMenu === 'topic' ? null : 'topic')}
-                               className="hover-unified-app education-create-trigger"
-                               style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}
-                               aria-expanded={createMenu === 'topic'}
-                           >
-                               + НОВАЯ ТЕМА <span>⌄</span>
-                           </button>
-                           {createMenu === 'topic' && (
-                               <div className="education-create-menu">
-                                   <button type="button" onClick={openManualRouteForm}>
-                                       <span className="education-create-icon">+</span>
-                                       <span><strong>Создать вручную</strong><small>Пустой редактор темы</small></span>
-                                   </button>
-                                   <button type="button" onClick={() => openAiGenerator('topic')}>
-                                       <span className="education-create-icon is-ai">AI</span>
-                                       <span><strong>Создать через Alice AI</strong><small>Черновик из документов</small></span>
-                                   </button>
-                               </div>
-                           )}
-                       </div>
-                   </div>
-               )}
+            {(!isAdmin || materialTypeFilter !== 'test') && <section className="vates-material-catalog-section">
+            <div className="vates-material-section-heading">
+               <div>
+                   <span className="vates-eyebrow">{isAdmin ? 'База тем' : 'Ваше обучение'}</span>
+                   <h2 className="tasks-title">{isAdmin ? 'Темы учебного пути' : 'Назначенный путь'}</h2>
+                   {!isAdmin && <p>Проходите материалы по порядку и возвращайтесь к ним в любое время.</p>}
+               </div>
             </div>
             
-            <div style={{ marginBottom: '60px' }}>
-               {Object.entries(theoryGroups).map(([secName, items]: any) => (
-                   <div key={secName} style={{ marginBottom: '40px' }}>
+            <div className="vates-material-groups">
+               {Object.entries(filteredTheoryGroups).map(([secName, items]: any) => (
+                   <section className="vates-material-group" key={secName}>
                        <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: isSectionCollapsed('theory:' + secName) ? 0 : '20px' }}>
                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '8px', marginBottom: '-4px'}}>
@@ -886,7 +1168,7 @@ export default function Education({
                                    sectionName={secName}
                                />
                            </h3>
-                           {isAdmin && secName !== 'Основной раздел' && (
+                           {isAdmin && (
                                <div style={{display: 'flex', gap: '15px'}}>
                                    <span onClick={() => setRenameSectionPrompt({isOpen: true, type: 'route', oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '3px', marginBottom: '-2px'}}>
@@ -905,105 +1187,100 @@ export default function Education({
                            )}
                        </div>
                        
-                       {!isSectionCollapsed('theory:' + secName) && <div className="premium-cards-container section-collapsible-content">
-                           {items.filter((step: any) => step.h1 !== 'DELETE_ME').map((step: any, idx: number) => {
+                       {!isSectionCollapsed('theory:' + secName) && <div className="premium-cards-container section-collapsible-content vates-material-card-grid">
+                           {items.filter((step: any) => !step.isPlaceholder && step.h1 !== 'DELETE_ME').length === 0 && (
+                               <div className="vates-material-section-empty">
+                                   <span className="vates-material-section-empty-icon"><CustomIcon name="folder" size={19} color="currentColor" accent="none" /></span>
+                                   <div>
+                                       <strong>Раздел пока пуст</strong>
+                                       <span>Добавьте тему, когда учебный материал будет готов.</span>
+                                   </div>
+                               </div>
+                           )}
+                           {items.filter((step: any) => !step.isPlaceholder && step.h1 !== 'DELETE_ME').map((step: any, idx: number) => {
                                    const isDone = completedRoute.includes(step.id);
                                    return (
-                                       <div key={step.id} onClick={() => setSelectedRouteStep(step)} className="premium-card">
-                                          
-                                          <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr auto' : '1fr', gap: '10px 15px', alignItems: 'start', marginBottom: '15px' }}>
-                                              <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'800', marginBottom: '0', display: 'block'}}>Урок {step.order || idx + 1}</span>
-                                              
-                                              {isAdmin && (
-                                                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, zIndex: 10, gridColumn: '2 / 3', gridRow: '1 / 2' }} onClick={e => e.stopPropagation()}>
-                                                      <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} className="card-icon-btn move-btn" title="Переместить">
-                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                      </div>
-                                                      <div onClick={(e) => { e.stopPropagation(); setAiReview(null); setRouteFormData({ id: step.id, title: step.title, time: step.time || '5 мин', section: step.section || '', order: String(step.order || idx + 1), mediaType: step.mediaType || 'text', videoIframe: step.videoIframe || '', videoDesc: step.videoDesc || '', h1: step.h1, t1: step.t1, img1: step.img1 || '', h2: step.h2, t2: step.t2, img2: step.img2 || '', h3: step.h3, t3: step.t3, img3: step.img3 || '', linkedMaterials: Array.isArray(step.linkedMaterials) ? step.linkedMaterials : [] }); setShowRouteForm(true); }} className="card-icon-btn edit-btn" title="Редактировать">
-                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                      </div>
-                                                      <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} className="card-icon-btn del-btn" title="Удалить">
-                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                      </div>
-                                                  </div>
-                                              )}
+                                        <article key={step.id} onClick={() => {
+                                            rememberMaterialCatalogScrollPosition();
+                                            setSelectedRouteStep(step);
+                                        }} className={`premium-card vates-material-card is-topic ${isDone ? 'is-complete' : ''}`}>
+                                             <header className="vates-material-card-header">
+                                                <div className="vates-material-card-type">
+                                                    <span className="vates-material-card-type-icon"><CustomIcon name="material" size={19} color="currentColor" accent="none" /></span>
+                                                    <div>
+                                                        <span>Тема</span>
+                                                        <strong>Урок {step.order || idx + 1}</strong>
+                                                    </div>
+                                                </div>
 
-                                              <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', color: '#fff', lineHeight: '1.35', display: 'flex', alignItems: 'flex-start', gap: '10px', gridColumn: '1 / -1', minHeight: '64px'}}>
-                                                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '1px'}}>
-                                                      <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" fill="rgba(10,186,181,0.15)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M14 2V8H20" fill="rgba(10,186,181,0.3)" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M8 13H16" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M8 17H13" stroke="#0abab5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                  </svg>
-                                                  <span style={{display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', wordBreak: 'normal', overflowWrap: 'break-word', hyphens: 'auto'}}>
-                                                      {stripEmoji(step.title)}
-                                                  </span>
-                                              </h4>
-                                          </div>
-                                          
-                                          <div style={{ marginTop: 'auto' }}>
-                                              <div style={pBarBg as any}><div style={pBarFill(isDone ? 100 : 0) as any} /></div>
-                                              <div style={cardFooter as any}>
-                                                  <span>{isDone ? 'Выполнено' : 'Начать'}</span>
-                                                  <span>
-                                                      {step.mediaType === 'video' ? (
-                                                          <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M23 7L16 12L23 17V7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                              Видео
-                                                          </span>
-                                                      ) : (
-                                                          <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M6.5 2H20V22H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                              Чтение
-                                                          </span>
-                                                      )} • {step.time}
-                                                  </span>
-                                              </div>
-                                          </div>
-                                       </div>
+                                                {isAdmin && (
+                                                    <div className="vates-material-card-actions" onClick={e => e.stopPropagation()}>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setMovingItem({id: step.id, type: 'route'}); }} className="card-icon-btn move-btn" title="Переместить" aria-label={`Переместить тему «${stripEmoji(step.title)}»`}>
+                                                            <CustomIcon name="folder" size={17} color="currentColor" accent="none" />
+                                                        </button>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); openRouteEditor(step, idx + 1); }} className="card-icon-btn edit-btn" title="Редактировать" aria-label={`Редактировать тему «${stripEmoji(step.title)}»`}>
+                                                            <CustomIcon name="edit" size={17} color="currentColor" accent="none" />
+                                                        </button>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'route', targetId: step.id, name: step.title}); }} className="card-icon-btn del-btn" title="Удалить" aria-label={`Удалить тему «${stripEmoji(step.title)}»`}>
+                                                            <CustomIcon name="x" size={17} color="currentColor" accent="none" />
+                                                        </button>
+                                                    </div>
+                                                 )}
+                                             </header>
+
+                                             {isDone && (
+                                                 <div className="vates-material-complete-banner">
+                                                     <span className="vates-material-complete-banner-icon"><CustomIcon name="check" size={16} color="currentColor" accent="none" /></span>
+                                                     <span className="vates-material-complete-banner-copy"><strong>Тема изучена</strong><small>Результат сохранен</small></span>
+                                                     <span className="vates-material-complete-banner-label">Готово</span>
+                                                 </div>
+                                             )}
+
+                                            <div className="vates-material-card-copy">
+                                                <h4>{stripEmoji(step.title)}</h4>
+                                                <p>{normalizeText(step.t1 || step.videoDesc || 'Откройте материал, чтобы изучить содержание темы.')}</p>
+                                            </div>
+
+                                            <div className="vates-material-card-meta">
+                                                <span>{step.mediaType === 'video' ? 'Видео' : 'Чтение'}</span>
+                                                <span>{step.time || '5 мин'}</span>
+                                                <span>{normalizeSectionName(step.section)}</span>
+                                            </div>
+
+                                            <footer className="vates-material-card-footer">
+                                                 {isDone ? (
+                                                     <span className="vates-material-status is-complete"><span />Изучено</span>
+                                                ) : (
+                                                    <span className="vates-material-status is-ready"><span />К изучению</span>
+                                                )}
+                                                <strong>Открыть материал</strong>
+                                            </footer>
+                                        </article>
                                    );
                                })
                            }
                        </div>}
-                   </div>
+                   </section>
                ))}
+               {Object.keys(filteredTheoryGroups).length === 0 && (
+                   <div className="vates-material-empty-state">По этому запросу тем не найдено.</div>
+               )}
             </div>
+            </section>}
 
             {/* --- БЛОК 2: ТЕСТЫ --- */}
-            <div className="tasks-flex-space" style={flexSpace as any}>
-                <h2 className="tasks-title" style={sectionTitle as any}>Тесты</h2>
-                {isAdmin && (
-                   <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-                       <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, type: 'test', name: ''})} style={adminActionBtn as any}>+ НОВЫЙ РАЗДЕЛ</button>
-                       <div className="education-create-wrap">
-                           <button
-                               onClick={() => setCreateMenu(createMenu === 'test' ? null : 'test')}
-                               className="hover-unified-app education-create-trigger"
-                               style={{...adminActionBtn, background: '#0abab5', color: '#000'} as any}
-                               aria-expanded={createMenu === 'test'}
-                           >
-                               + НОВЫЙ ТЕСТ <span>⌄</span>
-                           </button>
-                           {createMenu === 'test' && (
-                               <div className="education-create-menu">
-                                   <button type="button" onClick={openManualTestForm}>
-                                       <span className="education-create-icon">+</span>
-                                       <span><strong>Создать вручную</strong><small>Пустой редактор теста</small></span>
-                                   </button>
-                                   <button type="button" onClick={() => openAiGenerator('test')}>
-                                       <span className="education-create-icon is-ai">AI</span>
-                                       <span><strong>Создать через Alice AI</strong><small>Вопросы из документов</small></span>
-                                   </button>
-                               </div>
-                           )}
-                       </div>
-                   </div>
-                )}
+            {(!isAdmin || materialTypeFilter !== 'topic') && <section className="vates-material-catalog-section is-tests">
+            <div className="vates-material-section-heading">
+                <div>
+                    <span className="vates-eyebrow">Проверка знаний</span>
+                    <h2 className="tasks-title">Тесты</h2>
+                    {!isAdmin && <p>Закрепляйте знания и открывайте следующие этапы обучения.</p>}
+                </div>
             </div>
             
-            <div style={{ marginBottom: '60px' }}>
-               {Object.entries(testGroups).map(([secName, items]: any) => (
-                   <div key={secName} style={{ marginBottom: '40px' }}>
+            <div className="vates-material-groups">
+               {Object.entries(filteredTestGroups).map(([secName, items]: any) => (
+                   <section className="vates-material-group" key={secName}>
                        <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: isSectionCollapsed('test:' + secName) ? 0 : '20px' }}>
                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '8px', marginBottom: '-4px'}}>
@@ -1018,7 +1295,7 @@ export default function Education({
                                    sectionName={secName}
                                />
                            </h3>
-                           {isAdmin && secName !== 'Основной раздел' && (
+                           {isAdmin && (
                                <div style={{display: 'flex', gap: '15px'}}>
                                    <span onClick={() => setRenameSectionPrompt({isOpen: true, type: 'test', oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '3px', marginBottom: '-2px'}}>
@@ -1037,14 +1314,23 @@ export default function Education({
                            )}
                        </div>
                        
-                       {!isSectionCollapsed('test:' + secName) && <div className="premium-cards-container section-collapsible-content">
-                           {items.filter((test: any) => test.quiz && test.quiz.length > 0).map((test: any, idx: number) => {
+                       {!isSectionCollapsed('test:' + secName) && <div className="premium-cards-container section-collapsible-content vates-material-card-grid">
+                           {items.filter((test: any) => !test.isPlaceholder && test.quiz && test.quiz.length > 0).length === 0 && (
+                               <div className="vates-material-section-empty">
+                                   <span className="vates-material-section-empty-icon"><CustomIcon name="folder" size={19} color="currentColor" accent="none" /></span>
+                                   <div>
+                                       <strong>Раздел пока пуст</strong>
+                                       <span>Добавьте тест, когда вопросы будут готовы.</span>
+                                   </div>
+                               </div>
+                           )}
+                           {items.filter((test: any) => !test.isPlaceholder && test.quiz && test.quiz.length > 0).map((test: any, idx: number) => {
                                    const isDone = completedTests.includes(test.id);
                                    const unpassedTestsBefore = getUnpassedPreviousSectionTests(test);
                                    const isUnlocked = isDone || isAdmin || unpassedTestsBefore.length === 0;
                                    
-                                   return (
-                                       <div key={test.id} onClick={() => { 
+                                    return (
+                                        <article key={test.id} onClick={() => {
                                                if (isDone) {
                                                    setReviewTest(test);
                                                } else if (isLockedByUrgent && !isAdmin) {
@@ -1057,69 +1343,83 @@ export default function Education({
                                                    
                                                    setLockedTestAlert({show: true, message: `Сначала необходимо по порядку сдать предыдущие тесты:\n\n${missingList}`});
                                                } else {
+                                                   rememberMaterialCatalogScrollPosition();
                                                    setSelectedTest(test); 
                                                }
-                                           }} 
-                                           className="premium-card" style={{ borderColor: isUnlocked || isAdmin ? '#222' : '#111', cursor: isUnlocked || isAdmin ? 'pointer' : 'not-allowed' }}
-                                       >
-                                          {(!isUnlocked && !isAdmin) && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', borderRadius: '14px', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)' }}>
-                                              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                  <rect x="5" y="11" width="14" height="10" rx="2" fill="rgba(255,255,255,0.2)" stroke="#fff" strokeWidth="2"/>
-                                                  <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-                                              </svg>
-                                          </div>}
-                                          
-                                          <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr auto' : '1fr', gap: '10px 15px', alignItems: 'start', marginBottom: '15px', opacity: isUnlocked ? 1 : 0.5 }}>
-                                              <span style={{fontSize:'12px', color: isUnlocked ? '#0abab5' : '#555', fontWeight:'800', marginBottom: '0', display: 'block'}}>Тест {test.order || idx + 1}</span>
-                                              
-                                              {isAdmin && (
-                                                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, zIndex: 10, gridColumn: '2 / 3', gridRow: '1 / 2' }} onClick={e => e.stopPropagation()}>
-                                                      <div onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} className="card-icon-btn move-btn" title="Переместить">
-                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                      </div>
-                                                      <div onClick={(e) => { 
-                                                          e.stopPropagation(); 
-                                                          setAiReview(null);
-                                                          setTestFormData({
-                                                              id: test.id, title: test.title, subtitle: test.subtitle, theory: test.theory,
-                                                              section: test.section || '', order: String(test.order || idx + 1), timeLimit: test.timeLimit || 0,
-                                                              quiz: test.quiz && test.quiz.length > 0 ? JSON.parse(JSON.stringify(test.quiz)) : [{ q: '', o: ['', '', '', ''], c: 0 }],
-                                                              linkedMaterials: Array.isArray(test.linkedMaterials) ? test.linkedMaterials : [],
-                                                          }); 
-                                                          setShowTestForm(true); 
-                                                      }} className="card-icon-btn edit-btn" title="Редактировать">
-                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                      </div>
-                                                      <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'test', targetId: test.id, name: test.title}); }} className="card-icon-btn del-btn" title="Удалить">
-                                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                      </div>
-                                                  </div>
-                                              )}
+                                           }}
+                                           className={`premium-card vates-material-card is-test ${isDone ? 'is-complete' : ''} ${!isUnlocked && !isAdmin ? 'is-locked' : ''}`}
+                                           aria-disabled={!isUnlocked && !isAdmin}
+                                        >
+                                            {(!isUnlocked && !isAdmin) && (
+                                                <div className="vates-material-card-lock">
+                                                    <CustomIcon name="blocked" size={25} color="currentColor" accent="none" />
+                                                    <strong>Сначала завершите предыдущий тест</strong>
+                                                </div>
+                                            )}
 
-                                              <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', color: isUnlocked ? '#fff' : '#666', lineHeight: '1.35', display: 'flex', alignItems: 'flex-start', gap: '10px', gridColumn: '1 / -1', minHeight: '64px'}}>
-                                                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0, marginTop: '1px'}}>
-                                                      <path d="M9 2H15C15.5523 2 16 2.44772 16 3V5C16 5.55228 15.5523 6 15 6H9C8.44772 6 8 5.55228 8 5V3C8 2.44772 8.44772 2 9 2Z" fill={isUnlocked ? "rgba(10,186,181,0.15)" : "rgba(102,102,102,0.15)"} stroke={isUnlocked ? "#0abab5" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M8 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4H16" stroke={isUnlocked ? "#0abab5" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      <path d="M9 12L11 14L15 10" stroke={isUnlocked ? "#0abab5" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                  </svg>
-                                                  <span style={{display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', wordBreak: 'normal', overflowWrap: 'break-word', hyphens: 'auto'}}>
-                                                      {stripEmoji(test.title)}
-                                                  </span>
-                                              </h4>
-                                          </div>
+                                             <header className="vates-material-card-header">
+                                                <div className="vates-material-card-type">
+                                                    <span className="vates-material-card-type-icon"><CustomIcon name="cap" size={19} color="currentColor" accent="none" /></span>
+                                                    <div>
+                                                        <span>Тест</span>
+                                                        <strong>Этап {test.order || idx + 1}</strong>
+                                                    </div>
+                                                </div>
 
-                                          <div style={{ marginTop: 'auto', opacity: isUnlocked ? 1 : 0.5 }}>
-                                              <div style={pBarBg as any}><div style={pBarFill(isDone ? 100 : 0) as any} /></div>
-                                              <div style={cardFooter as any}><span>{isDone ? 'Сдан' : 'Не сдан'}</span><span>{test.quiz?.length || 0} вопр.</span></div>
-                                          </div>
-                                       </div>
+                                                {isAdmin && (
+                                                    <div className="vates-material-card-actions" onClick={e => e.stopPropagation()}>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setMovingItem({id: test.id, type: 'test'}); }} className="card-icon-btn move-btn" title="Переместить" aria-label={`Переместить тест «${stripEmoji(test.title)}»`}>
+                                                            <CustomIcon name="folder" size={17} color="currentColor" accent="none" />
+                                                        </button>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); openTestEditor(test, idx + 1); }} className="card-icon-btn edit-btn" title="Редактировать" aria-label={`Редактировать тест «${stripEmoji(test.title)}»`}>
+                                                            <CustomIcon name="edit" size={17} color="currentColor" accent="none" />
+                                                        </button>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'test', targetId: test.id, name: test.title}); }} className="card-icon-btn del-btn" title="Удалить" aria-label={`Удалить тест «${stripEmoji(test.title)}»`}>
+                                                            <CustomIcon name="x" size={17} color="currentColor" accent="none" />
+                                                        </button>
+                                                    </div>
+                                                 )}
+                                             </header>
+
+                                             {isDone && (
+                                                 <div className="vates-material-complete-banner">
+                                                     <span className="vates-material-complete-banner-icon"><CustomIcon name="check" size={16} color="currentColor" accent="none" /></span>
+                                                     <span className="vates-material-complete-banner-copy"><strong>Тест сдан</strong><small>Результат сохранен</small></span>
+                                                     <span className="vates-material-complete-banner-label">Готово</span>
+                                                 </div>
+                                             )}
+
+                                            <div className="vates-material-card-copy">
+                                                <h4>{stripEmoji(test.title)}</h4>
+                                                <p>{normalizeText(test.subtitle || test.theory || 'Откройте тест, чтобы посмотреть описание и начать проверку знаний.')}</p>
+                                            </div>
+
+                                            <div className="vates-material-card-meta">
+                                                <span>{test.quiz?.length || 0} вопросов</span>
+                                                <span>{test.timeLimit > 0 ? `${test.timeLimit} мин` : 'Без таймера'}</span>
+                                                <span>{normalizeSectionName(test.section)}</span>
+                                            </div>
+
+                                            <footer className="vates-material-card-footer">
+                                                 {isDone ? (
+                                                     <span className="vates-material-status is-complete"><span />Сдан</span>
+                                                ) : (
+                                                    <span className="vates-material-status is-pending"><span />Не сдан</span>
+                                                )}
+                                                <strong>{isDone ? 'Посмотреть ответы' : 'Открыть тест'}</strong>
+                                            </footer>
+                                        </article>
                                    );
                                })
                            }
                        </div>}
-                   </div>
+                   </section>
                ))}
+               {Object.keys(filteredTestGroups).length === 0 && (
+                   <div className="vates-material-empty-state">По этому запросу тестов не найдено.</div>
+               )}
             </div>
+            </section>}
 
             {/* --- МИНИ-ОКНА АДМИНА --- */}
             {promptSection.isOpen && (
@@ -1257,66 +1557,262 @@ export default function Education({
 
             {/* --- ПРЕДПРОСМОТР КАРТОЧКИ "ТЕОРИЯ" --- */}
             {selectedRouteStep && !showRouteForm && (
-                <div style={modalOverlay as any} onClick={closeRouteModal}>
-                    <div className="tasks-modal custom-scroll" style={{...modalContentLarge, maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto'} as any} onClick={e => e.stopPropagation()}>
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'30px'}}>
-                            <div>
-                                <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase'}}>ТЕОРИЯ • {selectedRouteStep.time}</span>
-                                <h2 style={{fontSize:'28px', color:'#fff', fontWeight:'900', marginTop:'5px', margin:'0'}}>{selectedRouteStep.title}</h2>
+                <div className="vates-material-workspace-overlay">
+                    <section className="vates-material-workspace is-topic" role="region" aria-labelledby="vates-topic-title">
+                        <header className="vates-material-workspace-header">
+                            <button type="button" className="vates-material-back-button" onClick={closeRouteModal}>
+                                <CustomIcon name="arrow-left" size={17} color="currentColor" accent="none" />
+                                К материалам
+                            </button>
+                            <div className="vates-material-workspace-title">
+                                <span>Учебная тема · {selectedRouteStep.time || '5 мин'}</span>
+                                <h2 id="vates-topic-title">{stripEmoji(selectedRouteStep.title)}</h2>
                             </div>
-                            <div onClick={closeRouteModal} style={{cursor:'pointer', fontSize:'28px', color:'#ff4d4d', fontWeight:'bold', lineHeight: 1}}>X</div>
+                            <span className={`vates-material-workspace-status ${completedRoute.includes(selectedRouteStep.id) ? 'is-complete' : 'is-ready'}`}>
+                                <span />{completedRoute.includes(selectedRouteStep.id) ? 'Изучено' : 'Готово к изучению'}
+                            </span>
+                            <button type="button" className="vates-icon-button vates-material-close-button" onClick={closeRouteModal} aria-label="Закрыть тему" title="Закрыть">
+                                <CustomIcon name="close" size={20} color="currentColor" accent="none" />
+                            </button>
+                        </header>
+
+                        <div className="vates-material-workspace-body custom-scroll">
+                            <main className="vates-material-document">
+                                <div className="vates-material-document-intro">
+                                    <span className="vates-eyebrow">{normalizeSectionName(selectedRouteStep.section)}</span>
+                                    <h3>{stripEmoji(selectedRouteStep.title)}</h3>
+                                    <p>{selectedRouteStep.mediaType === 'video' ? 'Видео и пояснения собраны в одном учебном шаге.' : 'Изучите материал последовательно. Основные мысли разделены на удобные смысловые блоки.'}</p>
+                                </div>
+
+                                {selectedRouteStep.mediaType === 'video' ? (
+                                    <div className="vates-material-video-card">
+                                        <MemoizedVideoPlayer iframeStr={selectedRouteStep.videoIframe || ''} descText={selectedRouteStep.videoDesc || ''} />
+                                    </div>
+                                ) : (
+                                    <div className="vates-material-document-blocks">
+                                        {[1, 2, 3].map(num => {
+                                            const h = selectedRouteStep[`h${num}`];
+                                            const t = selectedRouteStep[`t${num}`];
+                                            const img = selectedRouteStep[`img${num}`];
+                                            if (!h && !t && !img) return null;
+
+                                            return (
+                                                <article key={num} className="vates-material-document-block">
+                                                    {img && (
+                                                        <button type="button" className="vates-material-document-image" onClick={() => setZoomedImg(img)} aria-label={`Увеличить изображение к блоку ${num}`}>
+                                                            <img src={img} alt="" />
+                                                            <span><CustomIcon name="eye" size={18} color="currentColor" accent="none" />Открыть изображение</span>
+                                                        </button>
+                                                    )}
+                                                    <div className="vates-material-document-block-copy">
+                                                        <span className="vates-material-document-index">{String(num).padStart(2, '0')}</span>
+                                                        <div>
+                                                            {h && <h4>{h}</h4>}
+                                                            {t && <p>{t}</p>}
+                                                        </div>
+                                                    </div>
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                <div className="vates-material-linked-section">
+                                    <LinkedMaterialsList
+                                        value={selectedRouteStep.linkedMaterials}
+                                        routes={dynamicRoute}
+                                        documents={urgentFiles}
+                                        onOpen={handleOpenLinkedMaterial}
+                                    />
+                                </div>
+                            </main>
+
+                            <aside className="vates-material-inspector">
+                                <section className="vates-material-inspector-card is-summary">
+                                    <div className="vates-material-inspector-heading">
+                                        <span className="vates-material-inspector-icon"><CustomIcon name="material" size={22} color="currentColor" accent="none" /></span>
+                                        <span className="vates-eyebrow">О материале</span>
+                                    </div>
+                                    <h3>{stripEmoji(selectedRouteStep.title)}</h3>
+                                    <dl className="vates-material-facts">
+                                        <div><dt>Формат</dt><dd>{selectedRouteStep.mediaType === 'video' ? 'Видео' : 'Чтение'}</dd></div>
+                                        <div><dt>Время</dt><dd>{selectedRouteStep.time || '5 мин'}</dd></div>
+                                        <div><dt>Раздел</dt><dd>{normalizeSectionName(selectedRouteStep.section)}</dd></div>
+                                        <div><dt>Статус</dt><dd>{completedRoute.includes(selectedRouteStep.id) ? 'Изучено' : 'Не завершено'}</dd></div>
+                                    </dl>
+                                </section>
+
+                                <section className="vates-material-inspector-card is-note">
+                                    <span className="vates-material-inspector-icon"><CustomIcon name="idea" size={22} color="currentColor" accent="none" /></span>
+                                    <h3>Как проходить тему</h3>
+                                    <p>Изучите все блоки и связанные источники. После этого отметьте материал завершённым.</p>
+                                </section>
+
+                                {isAdmin && (
+                                    <button type="button" className="vates-button secondary vates-material-edit-button" onClick={() => openRouteEditor(selectedRouteStep)}>
+                                        <CustomIcon name="edit" size={18} color="currentColor" accent="none" />
+                                        Редактировать тему
+                                    </button>
+                                )}
+                            </aside>
                         </div>
 
-                        {selectedRouteStep.mediaType === 'video' ? (
-                            <MemoizedVideoPlayer iframeStr={selectedRouteStep.videoIframe || ''} descText={selectedRouteStep.videoDesc || ''} />
-                        ) : (
-                            <div className="tasks-theory-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '25px', marginBottom: '35px'}}>
-                                {[1,2,3].map(num => {
-                                    const h = selectedRouteStep[`h${num}`];
-                                    const t = selectedRouteStep[`t${num}`];
-                                    const img = selectedRouteStep[`img${num}`];
-                                    if (!h) return null;
-                                    return (
-                                        <div key={num} className="tasks-theory-block" style={theoryBlock as any}>
-                                            {img && (
-                                                <div className="image-zoom-container" style={{position:'relative', width:'100%', height:'200px', borderRadius:'15px', overflow:'hidden', cursor:'pointer', marginBottom:'15px'}} onClick={() => setZoomedImg(img)}>
-                                                    <img src={img} alt="" style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                                                    <div style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.3)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:'13px', fontWeight:'bold'}}>
-                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '8px'}}>
-                                                            <path d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                            <path d="M21 21L16.65 16.65" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                            <path d="M11 8V14M8 11H14" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                        </svg>
-                                                        Нажмите, чтобы увеличить
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div style={theoryLabel as any}>{h}</div>
-                                            <p style={theoryText as any}>{t}</p>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        )}
-
-                        <LinkedMaterialsList
-                            value={selectedRouteStep.linkedMaterials}
-                            routes={dynamicRoute}
-                            documents={urgentFiles}
-                            onOpen={handleOpenLinkedMaterial}
-                        />
-
-                        {completedRoute.includes(selectedRouteStep.id) ? (
-                            <button className="hover-unified-app" onClick={closeRouteModal} style={{...checkKnowledgeBtn, background: '#111', color: '#0abab5', border: '1px solid #0abab5'} as any}>МАТЕРИАЛ ПРОЙДЕН (ЗАКРЫТЬ)</button>
-                        ) : (
-                            <button className="hover-unified-app" onClick={() => handleRouteComplete(selectedRouteStep.id)} style={checkKnowledgeBtn as any}>Я ИЗУЧИЛ МАТЕРИАЛ</button>
-                        )}
-                    </div>
+                        <footer className="vates-material-workspace-footer">
+                            <button type="button" className="vates-button secondary" onClick={closeRouteModal}>Закрыть</button>
+                            {completedRoute.includes(selectedRouteStep.id) ? (
+                                <button type="button" className="vates-button primary" onClick={closeRouteModal}>
+                                    <CustomIcon name="check" size={18} color="currentColor" accent="none" />
+                                    Материал изучен
+                                </button>
+                            ) : (
+                                <button type="button" className="vates-button primary" onClick={() => handleRouteComplete(selectedRouteStep.id)}>
+                                    <CustomIcon name="check" size={18} color="currentColor" accent="none" />
+                                    Отметить изученным
+                                </button>
+                            )}
+                        </footer>
+                    </section>
                 </div>
             )}
 
-            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕОРИИ --- */}
             {showRouteForm && (
+                <div className="vates-material-workspace-overlay">
+                    <section className="vates-material-workspace is-editor" role="region" aria-labelledby="vates-topic-editor-title">
+                        <header className="vates-material-workspace-header">
+                            <button type="button" className="vates-material-back-button" onClick={closeRouteEditor}>
+                                <CustomIcon name="arrow-left" size={17} color="currentColor" accent="none" />
+                                Отменить
+                            </button>
+                            <div className="vates-material-workspace-title">
+                                <span>{aiReview?.kind === 'topic' ? 'Черновик Ватэс AI' : 'Редактор темы'}</span>
+                                <h2 id="vates-topic-editor-title">{routeFormData.id ? 'Редактировать тему' : 'Новая тема'}</h2>
+                            </div>
+                            <span className="vates-material-workspace-status is-draft"><span />Не опубликовано</span>
+                            <button type="button" className="vates-icon-button vates-material-close-button" onClick={closeRouteEditor} aria-label="Закрыть редактор темы" title="Закрыть">
+                                <CustomIcon name="close" size={20} color="currentColor" accent="none" />
+                            </button>
+                        </header>
+
+                        <div className="vates-material-workspace-body custom-scroll">
+                            <main className="vates-material-editor-main">
+                                {aiReview?.kind === 'topic' && (
+                                    <div className="ai-review-banner vates-material-ai-review">
+                                        <div className="ai-review-banner-head"><span>ВАТЭС AI</span><strong>Проверьте черновик перед сохранением</strong></div>
+                                        <p>Источники: {aiReview.sourceFiles.join(', ')}.</p>
+                                        {aiReview.warnings.length > 0 && <small>Не прочитано: {aiReview.warnings.join(' ')}</small>}
+                                    </div>
+                                )}
+
+                                <section className="vates-editor-card">
+                                    <div className="vates-editor-card-heading">
+                                        <span className="vates-editor-card-icon"><CustomIcon name="material" size={21} color="currentColor" accent="none" /></span>
+                                        <div><span>Основные сведения</span><h3>Название и место в программе</h3></div>
+                                    </div>
+                                    <div className="vates-editor-fields">
+                                        <label className="is-wide"><span>Название темы</span><input autoComplete="off" placeholder="Например: Открытие смены" value={routeFormData.title} onChange={e => setRouteFormData({...routeFormData, title: e.target.value})} /></label>
+                                        <label><span>Раздел</span><input list="route-sections-modern" autoComplete="off" placeholder="Основной раздел" value={routeFormData.section} onChange={e => setRouteFormData({...routeFormData, section: e.target.value})} /></label>
+                                        <datalist id="route-sections-modern">{Array.from(new Set(dynamicRoute.map((r: any) => r.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
+                                        <label><span>Время изучения</span><input autoComplete="off" placeholder="5 мин" value={routeFormData.time} onChange={e => setRouteFormData({...routeFormData, time: e.target.value})} /></label>
+                                        <label><span>Порядковый номер</span><input inputMode="numeric" autoComplete="off" placeholder="Автоматически" value={routeFormData.order} onChange={e => setRouteFormData({...routeFormData, order: e.target.value.replace(/[^\d]/g, '')})} /></label>
+                                    </div>
+                                    <p className="vates-editor-hint">При изменении номера остальные темы в этом разделе автоматически сдвинутся.</p>
+                                </section>
+
+                                <section className="vates-editor-card">
+                                    <div className="vates-editor-card-heading is-with-control">
+                                        <span className="vates-editor-card-icon"><CustomIcon name="material" size={21} color="currentColor" accent="none" /></span>
+                                        <div><span>Содержание</span><h3>Формат учебного материала</h3></div>
+                                        <div className="vates-editor-segmented" role="group" aria-label="Формат темы">
+                                            <button type="button" className={routeFormData.mediaType === 'text' ? 'is-active' : ''} onClick={() => setRouteFormData({...routeFormData, mediaType: 'text'})}>Текст и фото</button>
+                                            <button type="button" className={routeFormData.mediaType === 'video' ? 'is-active' : ''} onClick={() => setRouteFormData({...routeFormData, mediaType: 'video'})}>Видео</button>
+                                        </div>
+                                    </div>
+
+                                    {routeFormData.mediaType === 'video' ? (
+                                        <div className="vates-editor-video-fields">
+                                            <label><span>Код видеоплеера</span><textarea className="is-code" autoComplete="off" placeholder='<iframe src="..."></iframe>' value={routeFormData.videoIframe} onChange={e => setRouteFormData({...routeFormData, videoIframe: e.target.value})} /></label>
+                                            <label><span>Описание под видео</span><textarea autoComplete="off" placeholder="Коротко объясните, что сотрудник узнает из видео" value={routeFormData.videoDesc} onChange={e => setRouteFormData({...routeFormData, videoDesc: e.target.value})} /></label>
+                                        </div>
+                                    ) : (
+                                        <div className="vates-editor-block-list">
+                                            {[1, 2, 3].map((num) => {
+                                                const hKey = `h${num}` as 'h1' | 'h2' | 'h3';
+                                                const tKey = `t${num}` as 't1' | 't2' | 't3';
+                                                const imgKey = `img${num}` as 'img1' | 'img2' | 'img3';
+
+                                                return (
+                                                    <article key={num} className="vates-editor-content-block">
+                                                        <header><span>{String(num).padStart(2, '0')}</span><div><strong>Смысловой блок {num}</strong><small>{num === 1 ? 'Основной блок' : 'Необязательный блок'}</small></div></header>
+                                                        <label><span>Заголовок</span><input autoComplete="off" placeholder={`Заголовок блока ${num}`} value={routeFormData[hKey]} onChange={e => setRouteFormData({...routeFormData, [hKey]: e.target.value})} /></label>
+                                                        <label><span>Текст</span><textarea autoComplete="off" placeholder="Раскройте одну понятную мысль, правило или порядок действий" value={routeFormData[tKey]} onChange={e => setRouteFormData({...routeFormData, [tKey]: e.target.value})} /></label>
+                                                        <div className="vates-editor-image-row">
+                                                            <label><span>Иллюстрация</span><input autoComplete="off" placeholder="Ссылка на изображение или загруженный файл" value={routeFormData[imgKey]} onChange={e => setRouteFormData({...routeFormData, [imgKey]: e.target.value})} /></label>
+                                                            <input type="file" accept="image/*" id={`modern-upload-img-${num}`} hidden onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) {
+                                                                    const reader = new FileReader();
+                                                                    reader.onload = (ev) => setRouteFormData(prev => ({...prev, [imgKey]: ev.target?.result as string}));
+                                                                    reader.readAsDataURL(file);
+                                                                }
+                                                            }}/>
+                                                            <button type="button" className="vates-button secondary compact" onClick={() => document.getElementById(`modern-upload-img-${num}`)?.click()}>
+                                                                <CustomIcon name="upload" size={16} color="currentColor" accent="none" />
+                                                                Загрузить
+                                                            </button>
+                                                        </div>
+                                                    </article>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </section>
+
+                                <section className="vates-editor-card vates-editor-linked-card">
+                                    <LinkedMaterialsEditor
+                                        value={routeFormData.linkedMaterials}
+                                        onChange={(linkedMaterials) => setRouteFormData({ ...routeFormData, linkedMaterials })}
+                                        routes={dynamicRoute}
+                                        documents={urgentFiles}
+                                        currentRouteId={routeFormData.id || undefined}
+                                    />
+                                </section>
+                            </main>
+
+                            <aside className="vates-material-inspector vates-editor-inspector">
+                                <section className="vates-material-inspector-card is-summary">
+                                    <div className="vates-material-inspector-heading">
+                                        <span className="vates-material-inspector-icon"><CustomIcon name="material" size={22} color="currentColor" accent="none" /></span>
+                                        <span className="vates-eyebrow">Предпросмотр структуры</span>
+                                    </div>
+                                    <h3>{routeFormData.title.trim() || 'Новая тема'}</h3>
+                                    <dl className="vates-material-facts">
+                                        <div><dt>Формат</dt><dd>{routeFormData.mediaType === 'video' ? 'Видео' : 'Текст'}</dd></div>
+                                        <div><dt>Раздел</dt><dd>{normalizeSectionName(routeFormData.section)}</dd></div>
+                                        <div><dt>Время</dt><dd>{routeFormData.time || 'Не указано'}</dd></div>
+                                        <div><dt>Блоки</dt><dd>{[routeFormData.h1, routeFormData.h2, routeFormData.h3].filter(Boolean).length} из 3</dd></div>
+                                    </dl>
+                                </section>
+                                <section className="vates-material-inspector-card is-note">
+                                    <span className="vates-material-inspector-icon"><CustomIcon name="idea" size={22} color="currentColor" accent="none" /></span>
+                                    <h3>Перед сохранением</h3>
+                                    <p>Проверьте последовательность блоков, читаемость текста и доступность всех связанных источников.</p>
+                                </section>
+                            </aside>
+                        </div>
+
+                        <footer className="vates-material-workspace-footer">
+                            <button type="button" className="vates-button secondary" onClick={closeRouteEditor}>Отменить</button>
+                            <button type="button" className="vates-button primary" onClick={handleSaveRoute}>
+                                <CustomIcon name="check" size={18} color="currentColor" accent="none" />
+                                {aiReview?.kind === 'topic' ? 'Проверить и создать тему' : 'Сохранить тему'}
+                            </button>
+                        </footer>
+                    </section>
+                </div>
+            )}
+
+            {/* Сохранённый прежний редактор оставлен как отключённый fallback. */}
+            {LEGACY_MATERIAL_EDITOR_ENABLED && showRouteForm && (
                 <div style={modalOverlay as any} onClick={closeRouteEditor}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto', padding: '40px 30px'} as any} onClick={e => e.stopPropagation()}>
                         <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontWeight: '900' }}>
@@ -1413,16 +1909,16 @@ export default function Education({
             )}
 
             {/* --- ПРЕДПРОСМОТР КАРТОЧКИ "ТЕСТ" --- */}
-            {selectedTest && (
-               <div style={modalOverlay as any} onClick={closeTestModal}>
-                  <div className="tasks-modal" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
+            {LEGACY_MATERIAL_EDITOR_ENABLED && selectedTest && (
+               <div className="vates-test-preview-overlay" style={modalOverlay as any} onClick={closeTestModal}>
+                  <div className="tasks-modal vates-test-preview" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'25px'}}>
                         <div>
                             <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase'}}>ТЕСТИРОВАНИЕ</span>
                             <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', marginTop:'5px', marginBottom:'15px'}}>{selectedTest.title}</h2>
                             <p style={{fontSize:'14px', color:'#0abab5', fontWeight:'bold', margin:0, lineHeight:'1.4'}}>{selectedTest.subtitle}</p>
                         </div>
-                        <div onClick={closeTestModal} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold', paddingLeft:'15px'}}>X</div>
+                        <button type="button" className="vates-icon-button" onClick={closeTestModal} aria-label="Закрыть тест" title="Закрыть"><CustomIcon name="close" size={20} color="currentColor" /></button>
                      </div>
                      <div style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '30px'}}>
                          <p style={{fontSize:'14px', color:'#ccc', lineHeight:'1.5', margin:'0 0 15px 0'}}>{selectedTest.theory}</p>
@@ -1442,8 +1938,132 @@ export default function Education({
                </div>
             )}
 
-            {/* --- РЕДАКТОР АДМИНА ДЛЯ ТЕСТОВ --- */}
             {showTestForm && (
+                <div className="vates-material-workspace-overlay">
+                    <section className="vates-material-workspace is-editor is-test-editor" role="region" aria-labelledby="vates-test-editor-title">
+                        <header className="vates-material-workspace-header">
+                            <button type="button" className="vates-material-back-button" onClick={closeTestEditor}>
+                                <CustomIcon name="arrow-left" size={17} color="currentColor" accent="none" />
+                                Отменить
+                            </button>
+                            <div className="vates-material-workspace-title">
+                                <span>{aiReview?.kind === 'test' ? 'Черновик Ватэс AI' : 'Редактор теста'}</span>
+                                <h2 id="vates-test-editor-title">{testFormData.id ? 'Редактировать тест' : 'Новый тест'}</h2>
+                            </div>
+                            <span className="vates-material-workspace-status is-draft"><span />Не опубликовано</span>
+                            <button type="button" className="vates-icon-button vates-material-close-button" onClick={closeTestEditor} aria-label="Закрыть редактор теста" title="Закрыть">
+                                <CustomIcon name="close" size={20} color="currentColor" accent="none" />
+                            </button>
+                        </header>
+
+                        <div className="vates-material-workspace-body custom-scroll">
+                            <main className="vates-material-editor-main">
+                                {aiReview?.kind === 'test' && (
+                                    <div className="ai-review-banner vates-material-ai-review">
+                                        <div className="ai-review-banner-head"><span>ВАТЭС AI</span><strong>Проверьте вопросы и правильные ответы</strong></div>
+                                        <p>Источники: {aiReview.sourceFiles.join(', ')}.</p>
+                                        {aiReview.warnings.length > 0 && <small>Не прочитано: {aiReview.warnings.join(' ')}</small>}
+                                    </div>
+                                )}
+
+                                <section className="vates-editor-card">
+                                    <div className="vates-editor-card-heading">
+                                        <span className="vates-editor-card-icon is-test"><CustomIcon name="cap" size={21} color="currentColor" accent="none" /></span>
+                                        <div><span>Основные сведения</span><h3>Название и условия прохождения</h3></div>
+                                    </div>
+                                    <div className="vates-editor-fields">
+                                        <label className="is-wide"><span>Название теста</span><input autoComplete="off" placeholder="Например: Проверка стандартов смены" value={testFormData.title} onChange={e => setTestFormData({...testFormData, title: e.target.value})} /></label>
+                                        <label><span>Раздел</span><input autoComplete="off" list="test-sections-modern" placeholder="Основной раздел" value={testFormData.section} onChange={e => setTestFormData({...testFormData, section: e.target.value})} /></label>
+                                        <datalist id="test-sections-modern">{Array.from(new Set(dynamicTests.map((t: any) => t.section).filter(Boolean))).map((sec: any) => <option key={sec} value={sec} />)}</datalist>
+                                        <label><span>Порядковый номер</span><input inputMode="numeric" autoComplete="off" placeholder="Автоматически" value={testFormData.order} onChange={e => setTestFormData({...testFormData, order: e.target.value.replace(/[^\d]/g, '')})} /></label>
+                                        <label><span>Лимит времени, минут</span><input type="number" min="0" max="180" autoComplete="off" placeholder="0 — без таймера" value={testFormData.timeLimit || ''} onChange={e => setTestFormData({...testFormData, timeLimit: Math.max(0, Number(e.target.value) || 0)})} /></label>
+                                        <label className="is-wide"><span>Краткое описание</span><input autoComplete="off" placeholder="Что проверяет этот тест" value={testFormData.subtitle} onChange={e => setTestFormData({...testFormData, subtitle: e.target.value})} /></label>
+                                        <label className="is-wide"><span>Вступление перед тестом</span><textarea autoComplete="off" placeholder="Объясните сотруднику цель теста и важные условия" value={testFormData.theory} onChange={e => setTestFormData({...testFormData, theory: e.target.value})} /></label>
+                                    </div>
+                                    <p className="vates-editor-hint">Порядок тестов внутри раздела перестраивается автоматически. Значение таймера 0 отключает ограничение времени.</p>
+                                </section>
+
+                                <section className="vates-editor-card vates-editor-linked-card">
+                                    <LinkedMaterialsEditor
+                                        value={testFormData.linkedMaterials}
+                                        onChange={(linkedMaterials) => setTestFormData({ ...testFormData, linkedMaterials })}
+                                        routes={dynamicRoute}
+                                        documents={urgentFiles}
+                                    />
+                                </section>
+
+                                <section className="vates-editor-card">
+                                    <div className="vates-editor-card-heading is-with-control">
+                                        <span className="vates-editor-card-icon is-test"><CustomIcon name="cap" size={21} color="currentColor" accent="none" /></span>
+                                        <div><span>Проверка знаний</span><h3>Вопросы ({testFormData.quiz.length})</h3></div>
+                                        <button type="button" className="vates-button secondary compact" onClick={addTestQuestion}>Добавить вопрос</button>
+                                    </div>
+
+                                    <div className="vates-test-question-list">
+                                        {testFormData.quiz.map((q: any, qIndex: number) => (
+                                            <article key={qIndex} className="vates-test-question-editor">
+                                                <header>
+                                                    <span className="vates-test-question-number">{String(qIndex + 1).padStart(2, '0')}</span>
+                                                    <div><strong>Вопрос {qIndex + 1}</strong><small>Выберите один правильный ответ</small></div>
+                                                    {testFormData.quiz.length > 1 && (
+                                                        <button type="button" onClick={() => removeTestQuestion(qIndex)} aria-label={`Удалить вопрос ${qIndex + 1}`}>
+                                                            <CustomIcon name="x" size={17} color="currentColor" accent="none" />
+                                                            Удалить
+                                                        </button>
+                                                    )}
+                                                </header>
+                                                <label className="vates-test-question-text"><span>Текст вопроса</span><input autoComplete="off" placeholder="Сформулируйте вопрос однозначно" value={q.q} onChange={e => updateTestQuestion(qIndex, 'q', e.target.value)} /></label>
+                                                <div className="vates-test-option-list">
+                                                    {[0, 1, 2, 3].map(optIndex => (
+                                                        <label key={optIndex} className={`vates-test-option-editor ${q.c === optIndex ? 'is-correct' : ''}`}>
+                                                            <input type="radio" name={`correct-answer-${qIndex}`} checked={q.c === optIndex} onChange={() => updateTestQuestion(qIndex, 'c', optIndex)} />
+                                                            <span className="vates-test-option-marker">{String.fromCharCode(65 + optIndex)}</span>
+                                                            <input autoComplete="off" placeholder={`Вариант ответа ${optIndex + 1}`} value={q.o[optIndex]} onChange={e => updateTestQuestion(qIndex, `o${optIndex}`, e.target.value)} />
+                                                            {q.c === optIndex && <strong>Правильный</strong>}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </article>
+                                        ))}
+                                    </div>
+                                </section>
+                            </main>
+
+                            <aside className="vates-material-inspector vates-editor-inspector">
+                                <section className="vates-material-inspector-card is-summary is-test">
+                                    <div className="vates-material-inspector-heading">
+                                        <span className="vates-material-inspector-icon is-test"><CustomIcon name="cap" size={22} color="currentColor" accent="none" /></span>
+                                        <span className="vates-eyebrow">Предпросмотр структуры</span>
+                                    </div>
+                                    <h3>{testFormData.title.trim() || 'Новый тест'}</h3>
+                                    <dl className="vates-material-facts">
+                                        <div><dt>Раздел</dt><dd>{normalizeSectionName(testFormData.section)}</dd></div>
+                                        <div><dt>Вопросы</dt><dd>{testFormData.quiz.length}</dd></div>
+                                        <div><dt>Таймер</dt><dd>{testFormData.timeLimit > 0 ? `${testFormData.timeLimit} мин` : 'Нет'}</dd></div>
+                                        <div><dt>Порог</dt><dd>80%</dd></div>
+                                    </dl>
+                                </section>
+                                <section className="vates-material-inspector-card is-note">
+                                    <span className="vates-material-inspector-icon"><CustomIcon name="idea" size={22} color="currentColor" accent="none" /></span>
+                                    <h3>Проверьте ответы</h3>
+                                    <p>У каждого вопроса должен быть один однозначный правильный вариант. Избегайте подсказок в формулировках.</p>
+                                </section>
+                            </aside>
+                        </div>
+
+                        <footer className="vates-material-workspace-footer">
+                            <button type="button" className="vates-button secondary" onClick={closeTestEditor}>Отменить</button>
+                            <button type="button" className="vates-button primary" onClick={handleSaveTestForm}>
+                                <CustomIcon name="check" size={18} color="currentColor" accent="none" />
+                                {aiReview?.kind === 'test' ? 'Проверить и создать тест' : 'Сохранить тест'}
+                            </button>
+                        </footer>
+                    </section>
+                </div>
+            )}
+
+            {/* Сохранённый прежний редактор оставлен как отключённый fallback. */}
+            {LEGACY_MATERIAL_EDITOR_ENABLED && showTestForm && (
                 <div style={modalOverlay as any} onClick={closeTestEditor}>
                     <div className="tasks-modal custom-scroll" style={{...modalContentMedium, margin: '0 auto', maxHeight: '90vh', overflowY: 'auto', padding: '40px 30px'} as any} onClick={e => e.stopPropagation()}>
                         <h2 style={{ textAlign: 'center', marginBottom: '25px', color: '#fff', fontWeight: '900' }}>
@@ -1543,87 +2163,143 @@ export default function Education({
 
             {/* --- ПРЕДПРОСМОТР ЭКРАНА ТЕСТА --- */}
             {selectedTest && !activeTestSession && !showTestForm && (
-               <div style={modalOverlay as any} onClick={closeTestModal}>
-                  <div className="tasks-modal" style={modalContentSmall as any} onClick={e => e.stopPropagation()}>
-                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'25px'}}>
-                        <div>
-                            <span style={{fontSize:'12px', color:'#0abab5', fontWeight:'900', letterSpacing:'1px', textTransform:'uppercase'}}>ПРЕДПРОСМОТР</span>
-                            <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', marginTop:'5px', marginBottom:'15px'}}>{selectedTest.title}</h2>
-                            <p style={{fontSize:'14px', color:'#0abab5', fontWeight:'bold', margin:0, lineHeight:'1.4'}}>{selectedTest.subtitle}</p>
+                <div className="vates-material-workspace-overlay">
+                    <section className="vates-material-workspace is-test-preview" role="region" aria-labelledby="vates-test-preview-title">
+                        <header className="vates-material-workspace-header">
+                            <button type="button" className="vates-material-back-button" onClick={closeTestModal}>
+                                <CustomIcon name="arrow-left" size={17} color="currentColor" accent="none" />
+                                К материалам
+                            </button>
+                            <div className="vates-material-workspace-title">
+                                <span>Проверка знаний · {normalizeSectionName(selectedTest.section)}</span>
+                                <h2 id="vates-test-preview-title">{stripEmoji(selectedTest.title)}</h2>
+                            </div>
+                            <span className="vates-material-workspace-status is-ready"><span />Готов к прохождению</span>
+                            <button type="button" className="vates-icon-button vates-material-close-button" onClick={closeTestModal} aria-label="Закрыть тест" title="Закрыть">
+                                <CustomIcon name="close" size={20} color="currentColor" accent="none" />
+                            </button>
+                        </header>
+
+                        <div className="vates-material-workspace-body custom-scroll">
+                            <main className="vates-test-preview-main">
+                                <section className="vates-test-preview-hero">
+                                    <span className="vates-test-preview-icon"><CustomIcon name="cap" size={28} color="currentColor" accent="none" /></span>
+                                    <span className="vates-eyebrow">Перед началом</span>
+                                    <h3>{stripEmoji(selectedTest.title)}</h3>
+                                    <p>{selectedTest.subtitle || selectedTest.theory || 'Ответьте на вопросы по изученным материалам.'}</p>
+                                </section>
+
+                                {selectedTest.theory && (
+                                    <section className="vates-test-preview-theory">
+                                        <span className="vates-editor-card-icon is-test"><CustomIcon name="material" size={21} color="currentColor" accent="none" /></span>
+                                        <div><span className="vates-eyebrow">Что нужно знать</span><p>{selectedTest.theory}</p></div>
+                                    </section>
+                                )}
+
+                                <section className="vates-test-rules-grid">
+                                    <article><strong>Читайте внимательно</strong><p>После ответа откроется следующий вопрос.</p></article>
+                                    <article><strong>Один верный вариант</strong><p>В каждом вопросе только один правильный ответ.</p></article>
+                                    <article><strong>Нужно набрать 80%</strong><p>Результат сохранится после последнего вопроса.</p></article>
+                                </section>
+
+                                <div className="vates-material-linked-section">
+                                    <LinkedMaterialsList
+                                        value={selectedTest.linkedMaterials}
+                                        routes={dynamicRoute}
+                                        documents={urgentFiles}
+                                        onOpen={handleOpenLinkedMaterial}
+                                    />
+                                </div>
+                            </main>
+
+                            <aside className="vates-material-inspector">
+                                <section className="vates-material-inspector-card is-summary is-test">
+                                    <div className="vates-material-inspector-heading">
+                                        <span className="vates-material-inspector-icon is-test"><CustomIcon name="cap" size={22} color="currentColor" accent="none" /></span>
+                                        <span className="vates-eyebrow">Параметры теста</span>
+                                    </div>
+                                    <h3>{stripEmoji(selectedTest.title)}</h3>
+                                    <dl className="vates-material-facts">
+                                        <div><dt>Вопросы</dt><dd>{selectedTest.quiz?.length || 0}</dd></div>
+                                        <div><dt>Время</dt><dd>{selectedTest.timeLimit > 0 ? `${selectedTest.timeLimit} мин` : 'Без таймера'}</dd></div>
+                                        <div><dt>Порог</dt><dd>80%</dd></div>
+                                        <div><dt>Раздел</dt><dd>{normalizeSectionName(selectedTest.section)}</dd></div>
+                                    </dl>
+                                </section>
+                                {isAdmin && (
+                                    <button type="button" className="vates-button secondary vates-material-edit-button" onClick={() => openTestEditor(selectedTest)}>
+                                        <CustomIcon name="edit" size={18} color="currentColor" accent="none" />
+                                        Редактировать тест
+                                    </button>
+                                )}
+                            </aside>
                         </div>
-                        <div onClick={closeTestModal} style={{cursor:'pointer', fontSize:'24px', color:'#ff4d4d', fontWeight:'bold', paddingLeft:'15px'}}>X</div>
-                     </div>
-                     <div style={{background: '#0d0f0d', padding: '20px', borderRadius: '20px', border: '1px solid #222', marginBottom: '30px'}}>
-                         <p style={{fontSize:'14px', color:'#ccc', lineHeight:'1.5', margin:'0 0 15px 0'}}>{selectedTest.theory}</p>
-                         <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #1a1a1a', paddingTop:'15px'}}>
-                             <span style={{fontSize:'13px', color:'#888', fontWeight:'bold'}}>Вопросов: <span style={{color:'#fff'}}>{selectedTest.quiz.length}</span></span>
-                             <span style={{fontSize:'13px', color:'#888', fontWeight:'bold'}}>Порог: <span style={{color:'#0abab5'}}>80%</span></span>
-                         </div>
-                     </div>
-                     <LinkedMaterialsList
-                         value={selectedTest.linkedMaterials}
-                         routes={dynamicRoute}
-                         documents={urgentFiles}
-                         onOpen={handleOpenLinkedMaterial}
-                     />
-                     <button onClick={() => { 
-                         setActiveTestSession({ ...selectedTest, quiz: shuffleArray(selectedTest.quiz || []) }); 
-                         if (selectedTest.timeLimit > 0) setTimeLeft(selectedTest.timeLimit * 60);
-                         else setTimeLeft(null);
-                         setSelectedTest(null); 
-                     }} className="hover-unified-app" style={saveBtn as any}>ПРИСТУПИТЬ К ТЕСТУ</button>
-                  </div>
-               </div>
+
+                        <footer className="vates-material-workspace-footer">
+                            <button type="button" className="vates-button secondary" onClick={closeTestModal}>Закрыть</button>
+                            <button type="button" className="vates-button primary" onClick={() => {
+                                setActiveTestSession({ ...selectedTest, quiz: shuffleArray(selectedTest.quiz || []) });
+                                if (selectedTest.timeLimit > 0) setTimeLeft(selectedTest.timeLimit * 60);
+                                else setTimeLeft(null);
+                                setSelectedTest(null);
+                            }}>
+                                Начать тест
+                            </button>
+                        </footer>
+                    </section>
+                </div>
             )}
 
             {/* --- АКТИВНАЯ СЕССИЯ ТЕСТА (ANTI-CHEAT + ТАЙМЕР) --- */}
             {activeTestSession && (
-               <div style={modalOverlay as any}>
-                  <div className="tasks-modal" style={{...modalContentLarge, maxWidth: '800px'} as any}>
-                     <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
-                        <div onClick={() => setCancelTestConfirm({show: true, type: 'normal'})} style={backLink as any}>← ПРЕРВАТЬ</div>
-                        
-                        <h2 style={{fontSize:'24px', color:'#fff', fontWeight:'900', textAlign:'center', flex: 2, padding: '0 20px'}}>{stripEmoji(activeTestSession.title)}</h2>
-                        
-                        <div style={{flex: 1, display: 'flex', justifyContent: 'flex-end'}}>
-                            {timeLeft !== null && (
-                                <div style={{ 
-                                    background: timeLeft < 60 ? 'rgba(255, 77, 77, 0.1)' : 'rgba(10, 186, 181, 0.1)', 
-                                    border: `1px solid ${timeLeft < 60 ? '#ff4d4d' : '#0abab5'}`,
-                                    color: timeLeft < 60 ? '#ff4d4d' : '#0abab5',
-                                    padding: '8px 15px', borderRadius: '12px', fontWeight: '900', fontSize: '18px',
-                                    boxShadow: timeLeft < 60 ? '0 0 10px rgba(255, 77, 77, 0.4)' : 'none',
-                                    display: 'inline-flex', alignItems: 'center', gap: '8px'
-                                }}>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginBottom: '-1px'}}>
-                                        <path d="M12 2V22M6 2H18M6 22H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        <path d="M12 2C12 2 7 5 7 12C7 19 12 22 12 22" fill="currentColor" opacity="0.3"/>
-                                        <path d="M12 2C12 2 17 5 17 12C17 19 12 22 12 22" fill="currentColor" opacity="0.3"/>
-                                    </svg>
-                                    {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
-                                </div>
-                            )}
-                        </div>
-                     </div>
-                     <div className="anti-cheat" style={{ animation: 'fadeInUp 0.3s ease', userSelect: 'none', WebkitUserSelect: 'none' } as any} onContextMenu={(e) => e.preventDefault()} onCopy={(e) => e.preventDefault()}>
-                        <div style={quizBox as any}>
-                            <h4 style={{color:'#0abab5', marginBottom:'20px', fontWeight:'900'}}>ВОПРОС {currentQuizStep + 1} / {activeTestSession.quiz?.length || 1}</h4>
-                            <p style={{fontSize:'22px', fontWeight:'800', marginBottom:'30px'}}>{activeTestSession.quiz?.[currentQuizStep]?.q}</p>
-                            <div style={{display:'grid', gap:'15px'}}>
-                               {activeTestSession.quiz?.[currentQuizStep]?.o.map((opt:any, i:any) => (
-                                   <div key={i} onClick={() => handleTestAnswer(i)} className={`test-answer-btn ${activeAnswer === i ? 'selected' : ''}`}>{opt}</div>
-                               ))}
+                <div className="vates-test-session-overlay vates-material-workspace-overlay">
+                    <section className="vates-quiz-workspace" role="region" aria-labelledby="vates-active-test-title">
+                        <header className="vates-quiz-header">
+                            <button type="button" className="vates-material-back-button" onClick={() => setCancelTestConfirm({show: true, type: 'normal'})}>
+                                <CustomIcon name="arrow-left" size={17} color="currentColor" accent="none" />
+                                Прервать
+                            </button>
+                            <div>
+                                <span>Проверка знаний</span>
+                                <h2 id="vates-active-test-title">{stripEmoji(activeTestSession.title)}</h2>
                             </div>
+                            {timeLeft !== null ? (
+                                <span className={`vates-quiz-timer ${timeLeft < 60 ? 'is-urgent' : ''}`}>
+                                    {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+                                </span>
+                            ) : <span className="vates-quiz-timer is-neutral">Без таймера</span>}
+                        </header>
+
+                        <div className="vates-quiz-body anti-cheat" style={{ userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties} onContextMenu={(e) => e.preventDefault()} onCopy={(e) => e.preventDefault()}>
+                            <div className="vates-quiz-progress-copy">
+                                <span>Вопрос {currentQuizStep + 1} из {activeTestSession.quiz?.length || 1}</span>
+                                <strong>{Math.round(((currentQuizStep + 1) / (activeTestSession.quiz?.length || 1)) * 100)}%</strong>
+                            </div>
+                            <div className="vates-quiz-progress"><span style={{ width: `${((currentQuizStep + 1) / (activeTestSession.quiz?.length || 1)) * 100}%` }} /></div>
+
+                            <article className="vates-quiz-question-card">
+                                <span className="vates-quiz-question-kicker">Выберите один ответ</span>
+                                <h3>{activeTestSession.quiz?.[currentQuizStep]?.q}</h3>
+                                <div className="vates-quiz-options">
+                                    {activeTestSession.quiz?.[currentQuizStep]?.o.map((opt:any, i:any) => (
+                                        <button type="button" key={i} onClick={() => handleTestAnswer(i)} disabled={activeAnswer !== null} className={`vates-quiz-option ${activeAnswer === i ? 'is-selected' : ''}`}>
+                                            <span>{String.fromCharCode(65 + i)}</span>
+                                            <strong>{opt}</strong>
+                                        </button>
+                                    ))}
+                                </div>
+                            </article>
+
+                            <p className="vates-quiz-hint">Ответ фиксируется сразу после выбора.</p>
                         </div>
-                     </div>
-                  </div>
-               </div>
+                    </section>
+                </div>
             )}
 
             {/* --- СРОЧНАЯ АТТЕСТАЦИЯ (ANTI-CHEAT + ТАЙМЕР) --- */}
             {activeUrgentTest && (
-               <div style={modalOverlay as any}>
-                  <div className="tasks-modal" style={modalContentLarge as any}>
+               <div className="vates-test-session-overlay" style={modalOverlay as any}>
+                  <div className="tasks-modal vates-test-session" style={modalContentLarge as any}>
                      <div className="tasks-modal-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'40px'}}>
                         <div onClick={() => setCancelTestConfirm({show: true, type: 'urgent'})} style={backLink as any}>← ОТЛОЖИТЬ</div>
                         
@@ -1666,7 +2342,7 @@ export default function Education({
 
             {/* КАСТОМНОЕ ОКНО ПРЕРЫВАНИЯ ТЕСТА */}
             {cancelTestConfirm.show && (
-                <div style={modalOverlay as any} onClick={() => setCancelTestConfirm({show: false, type: 'normal'})}>
+                <div className="vates-material-confirm-overlay" style={modalOverlay as any} onClick={() => setCancelTestConfirm({show: false, type: 'normal'})}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
                         <div style={{ marginBottom: '20px' }}>
                             <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1689,9 +2365,9 @@ export default function Education({
 
             {/* --- МОДАЛКА РЕЗУЛЬТАТОВ ОСНОВНОГО ТЕСТА С ОШИБКАМИ --- */}
             {testResultModal.show && (
-                <div style={{...errorOverlayStyle, zIndex: 60000} as any}>
+                <div className="vates-test-result-overlay" style={{...errorOverlayStyle, zIndex: 60000} as any}>
                     {/* ЖЕСТКАЯ ШИРИНА ДЛЯ ПРАВИЛЬНЫХ ПРОПОРЦИЙ ОКНА */}
-                    <div className="tasks-modal custom-scroll" style={{...errorModalContent, width: '100%', minWidth: '320px', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
+                    <div className="tasks-modal custom-scroll vates-test-result" style={{...errorModalContent, width: '100%', minWidth: '320px', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', borderColor: testResultModal.isPassed ? '#0abab5' : '#ff4d4d'} as any}>
                         <div style={{ marginBottom: '20px', animation: 'scaleIn 0.3s ease' }}>
                             {testResultModal.isPassed ? (
                                 <svg width="70" height="70" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1739,7 +2415,7 @@ export default function Education({
 
             {/* ФУЛСКРИН LIGHTBOX ДЛЯ ПРОСМОТРА ФОТО */}
             {zoomedImg && (
-                <div style={lightboxOverlay as any} onClick={() => setZoomedImg(null)}>
+                <div className="vates-material-lightbox-overlay" style={lightboxOverlay as any} onClick={() => setZoomedImg(null)}>
                     <div onClick={() => setZoomedImg(null)} style={{position: 'absolute', top: '20px', right: '30px', cursor: 'pointer', fontSize: '40px', color: '#ff4d4d', fontWeight: 'bold', zIndex: 90001, textShadow: '0 2px 10px rgba(0,0,0,0.5)'}}>X</div>
                     <img src={zoomedImg} style={{maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '15px'}} alt="Zoomed" />
                 </div>

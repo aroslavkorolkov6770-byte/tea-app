@@ -1,25 +1,64 @@
 "use client";
 import React, { useState } from 'react';
-import { flexSpace, sectionTitle, actionBtn, adminIn, userCardStyle, modalOverlay, modalContentSmall, saveBtn } from './adminStyles';
+import { adminIn, modalOverlay, modalContentSmall, saveBtn } from './adminStyles';
 import CustomIcon from '@/app/components/CustomIcon';
 import { saveDataToServer } from '@/app/lib/storageClient';
 
 export default function UserManagement({
-    users, setUsers, userAvatars,
+    users, setUsers, userAvatars, usersStats, totalRouteSteps, totalBasicsModules,
     setShowSuccessModal, setErrorModal, setSelectedProfileUser
 }: any) {
     const [userSearchQuery, setUserSearchQuery] = useState("");
+    const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'learning' | 'completed'>('all');
+    const [userLocationFilter, setUserLocationFilter] = useState('all');
+    const [userRoleFilter, setUserRoleFilter] = useState('all');
     const [showUserForm, setShowUserForm] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff' });
+    const [newUser, setNewUser] = useState({ name: '', login: '', pass: '', role: 'staff', location: '', newLocation: '' });
     const [confirmModal, setConfirmModal] = useState({ show: false, id: '' });
     const [passwordResetModal, setPasswordResetModal] = useState({ show: false, userId: '', userName: '' });
     const [temporaryPassword, setTemporaryPassword] = useState('');
     const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-    const filteredUsers = users.filter((u: any) => 
-        u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
-        u.login.toLowerCase().includes(userSearchQuery.toLowerCase())
-    );
+    const getUserProgress = (user: any) => {
+        const route = Number(usersStats?.[user.id]?.route || 0);
+        const basics = Number(usersStats?.[user.id]?.basics || 0);
+        const routePercent = Math.min(100, Math.round((route / Math.max(Number(totalRouteSteps) || 1, 1)) * 100));
+        const basicsPercent = Math.min(100, Math.round((basics / Math.max(Number(totalBasicsModules) || 1, 1)) * 100));
+        return Math.round((routePercent + basicsPercent) / 2);
+    };
+
+    const getUserLocation = (user: any) => {
+        return String(user?.location || user?.branch || user?.point || user?.department || 'Не указана');
+    };
+
+    const getUserPosition = (user: any) => {
+        return String(user?.position || user?.jobTitle || (user?.role === 'admin' ? 'Администратор пространства' : 'Сотрудник'));
+    };
+
+    const locationOptions: string[] = Array.from(new Set<string>(users.map((user: any) => getUserLocation(user))));
+    const assignableLocationOptions = locationOptions.filter((location) => location !== 'Не указана').sort((left, right) => left.localeCompare(right, 'ru'));
+
+    const filteredUsers = users.filter((u: any) => {
+        const normalizedQuery = userSearchQuery.toLocaleLowerCase('ru').trim();
+        const matchesQuery = !normalizedQuery
+            || String(u.name || '').toLocaleLowerCase('ru').includes(normalizedQuery)
+            || String(u.login || '').toLocaleLowerCase('ru').includes(normalizedQuery)
+            || getUserLocation(u).toLocaleLowerCase('ru').includes(normalizedQuery)
+            || getUserPosition(u).toLocaleLowerCase('ru').includes(normalizedQuery);
+        const matchesLocation = userLocationFilter === 'all' || getUserLocation(u) === userLocationFilter;
+        const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+        const progress = getUserProgress(u);
+        const matchesStatus = userStatusFilter === 'all'
+            || (userStatusFilter === 'completed' && progress >= 100)
+            || (userStatusFilter === 'learning' && progress > 0 && progress < 100);
+        return matchesQuery && matchesLocation && matchesRole && matchesStatus;
+    });
+
+    const completedCount = users.filter((user: any) => getUserProgress(user) >= 100).length;
+    const learningCount = users.filter((user: any) => {
+        const progress = getUserProgress(user);
+        return progress > 0 && progress < 100;
+    }).length;
 
     const isProtectedUser = (user: any) => {
         return user?.id === 'u_admin' || user?.id === 'u_staff' || user?.systemAccount || user?.ghostAccount;
@@ -38,7 +77,7 @@ export default function UserManagement({
             return '#f7c873';
         }
 
-        return user?.role === 'admin' ? '#ff7675' : '#0abab5';
+        return user?.role === 'admin' ? 'var(--app-danger)' : '#0abab5';
     };
 
     const getLoginLabel = (user: any) => {
@@ -57,6 +96,11 @@ export default function UserManagement({
             setErrorModal({ show: true, text: "Логин уже существует!" }); return;
         }
 
+        const location = newUser.location === '__new__' ? newUser.newLocation.trim() : newUser.location;
+        if (newUser.location === '__new__' && !location) {
+            setErrorModal({ show: true, text: 'Введите название новой точки.' }); return;
+        }
+
         fetch('/api/admin/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -65,6 +109,7 @@ export default function UserManagement({
                 login: newUser.login.trim(),
                 password: newUser.pass.trim(),
                 role: newUser.role,
+                location,
             }),
         })
             .then(async (response) => {
@@ -77,7 +122,7 @@ export default function UserManagement({
                 setUsers(updatedUsers);
                 setShowUserForm(false);
                 setShowSuccessModal({ show: true, title: 'СОТРУДНИК СОЗДАН', text: `Аккаунт для ${newUser.name} успешно добавлен.` });
-                setNewUser({ name: '', login: '', pass: '', role: 'staff' });
+                setNewUser({ name: '', login: '', pass: '', role: 'staff', location: '', newLocation: '' });
             })
             .catch((error) => {
                 setErrorModal({ show: true, text: error.message || 'Не удалось создать сотрудника' });
@@ -171,89 +216,161 @@ export default function UserManagement({
 
     return (
         <>
-            <div style={flexSpace as any}>
-                <h2 style={sectionTitle as any}>Управление персоналом</h2>
-                <span className="hover-unified-app" onClick={() => setShowUserForm(true)} style={actionBtn as any}>+ Новый сотрудник</span>
-            </div>
-
-            <div style={{ marginBottom: '20px', position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '16px', top: '15px', opacity: 0.5, display: 'flex', alignItems: 'center' }}><SearchIcon /></span>
-                <input type="text" placeholder="Поиск по имени или логину..." value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)} style={{ ...adminIn, paddingLeft: '45px', marginBottom: 0, background: '#111' } as any} />
-            </div>
-            
-            <div className="custom-scroll keep-scroll" style={{ maxHeight: '380px', overflowY: 'auto', paddingRight: '5px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-                    {filteredUsers.length === 0 ? (
-                        <div style={{ color: '#555', padding: '20px 0', textAlign: 'center' }}>Сотрудники не найдены</div>
-                    ) : (
-                        filteredUsers.map((u: any) => {
-                            const avatarImg = userAvatars[u.id] || u.avatar;
-                            return (
-                            <div key={u.id} className="user-management-card" style={userCardStyle as any}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-                                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                        <div style={{ width: '45px', height: '45px', borderRadius: '15px', background: '#222', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            {avatarImg ? <img src={avatarImg} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (
-                                                <span style={avatarFallbackText as any}>
-                                                    {u.systemAccount || u.ghostAccount ? <CustomIcon name="gear" size={18} color="#f7c873" /> : 'TH'}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <div style={{ fontWeight: 900, fontSize: '18px', color: '#fff', marginBottom: '4px' }}>{u.name}</div>
-                                            <div style={{ fontSize: '12px', color: getRoleColor(u), fontWeight: 'bold' }}>{getRoleLabel(u)}</div>
-                                        </div>
-                                    </div>
-                                    {!isProtectedUser(u) && (
-                                        <div className="hover-unified-app" onClick={() => handleDeleteUser(u.id)} style={{ cursor: 'pointer', color: '#ff4d4d', background: 'rgba(255,77,77,0.1)', padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex' }}><CustomIcon name="close" size={15} color="#ff4d4d" /></div>
-                                    )}
-                                </div>
-                                <div className="user-management-credentials" style={{ background: '#000', padding: '12px', borderRadius: '15px', border: '1px solid #222' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
-                                        <span style={{ color: '#666' }}>Логин:</span><span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}>{getLoginLabel(u)}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                        <span style={{ color: '#666' }}>Пароль:</span><span style={{ color: '#888', fontFamily: 'monospace', fontWeight: 'bold' }}>скрыт</span>
-                                    </div>
-                                </div>
-                                {u.role === 'staff' && !u.systemAccount && !u.ghostAccount && (
-                                    <button
-                                        type="button"
-                                        className="hover-unified-app user-management-password-button"
-                                        onClick={() => openPasswordResetModal(u)}
-                                    >
-                                        СБРОСИТЬ ПАРОЛЬ
-                                    </button>
-                                )}
-                            </div>
-                            )
-                        })
-                    )}
+            <section className="vates-employees-section" aria-labelledby="vates-employees-title">
+                <div className="vates-page-heading vates-section-heading">
+                    <div>
+                        <h2 id="vates-employees-title">Сотрудники</h2>
+                        <p>Сотрудники пространства и текущее состояние их обучения.</p>
+                    </div>
+                    <button type="button" className="vates-button primary" onClick={() => setShowUserForm(true)}>Добавить сотрудника</button>
                 </div>
-            </div>
+
+                <div className="vates-employee-tabs" role="tablist" aria-label="Статус обучения сотрудников">
+                    <button type="button" className={userStatusFilter === 'all' ? 'active' : ''} onClick={() => setUserStatusFilter('all')}>Все <span>{users.length}</span></button>
+                    <button type="button" className={userStatusFilter === 'learning' ? 'active' : ''} onClick={() => setUserStatusFilter('learning')}>В обучении <span>{learningCount}</span></button>
+                    <button type="button" className={userStatusFilter === 'completed' ? 'active' : ''} onClick={() => setUserStatusFilter('completed')}>Завершили <span>{completedCount}</span></button>
+                </div>
+
+                <div className="vates-employee-filters">
+                    <label>
+                        <span><SearchIcon /></span>
+                        <input type="search" placeholder="Поиск сотрудника" value={userSearchQuery} onChange={(event) => setUserSearchQuery(event.target.value)} />
+                    </label>
+                    <select value={userLocationFilter} onChange={(event) => setUserLocationFilter(event.target.value)} aria-label="Точка сотрудника">
+                        <option value="all">Все точки</option>
+                        {locationOptions.map((location) => <option key={location} value={location}>{location}</option>)}
+                    </select>
+                    <select value={userRoleFilter} onChange={(event) => setUserRoleFilter(event.target.value)} aria-label="Роль сотрудника">
+                        <option value="all">Все роли</option>
+                        <option value="staff">Сотрудники</option>
+                        <option value="admin">Администраторы</option>
+                    </select>
+                </div>
+
+                <div className="vates-table-shell">
+                    <table className="vates-employee-table">
+                        <thead>
+                            <tr>
+                                <th>Сотрудник</th>
+                                <th>Точка</th>
+                                <th>Роль</th>
+                                <th>Прогресс</th>
+                                <th>Тесты</th>
+                                <th>Статус</th>
+                                <th aria-label="Действия" />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredUsers.map((u: any) => {
+                                const avatarImg = userAvatars[u.id] || u.avatar;
+                                const progress = getUserProgress(u);
+                                const testsCompleted = Number(usersStats?.[u.id]?.basics || 0);
+                                const status = progress >= 100 ? 'Завершил' : progress > 0 ? 'Учится' : 'Не начал';
+                                const statusClass = progress >= 100 ? 'complete' : progress > 0 ? 'learning' : 'idle';
+                                const location = getUserLocation(u);
+                                const position = getUserPosition(u);
+
+                                return (
+                                    <tr key={u.id}>
+                                        <td data-label="Сотрудник">
+                                            <div className="vates-employee-person">
+                                                <div className="vates-employee-avatar">
+                                                    {avatarImg ? <img src={avatarImg} alt="" /> : (
+                                                        <span style={avatarFallbackText as any}>
+                                                            {u.systemAccount || u.ghostAccount ? <CustomIcon name="gear" size={18} color="var(--app-warning)" accent="none" /> : String(u.name || 'В').slice(0, 2).toUpperCase()}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <button type="button" onClick={() => setSelectedProfileUser(u)}>{u.name}</button>
+                                                    <span title={`Логин: ${getLoginLabel(u)}`}>{u.systemAccount || u.ghostAccount ? 'Служебная запись' : position}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td data-label="Точка">{location}</td>
+                                        <td data-label="Роль"><span style={{ color: getRoleColor(u) }}>{getRoleLabel(u)}</span></td>
+                                        <td data-label="Прогресс">
+                                            <div className="vates-table-progress"><span>{progress}%</span><b><i style={{ width: `${progress}%` }} /></b></div>
+                                        </td>
+                                        <td data-label="Тесты">{testsCompleted} из {Math.max(Number(totalBasicsModules) || 0, testsCompleted)}</td>
+                                        <td data-label="Статус"><span className={`vates-status-badge ${statusClass}`}>{status}</span></td>
+                                        <td data-label="Действия">
+                                            <div className="vates-row-actions">
+                                                <button type="button" className="vates-button compact secondary" onClick={() => setSelectedProfileUser(u)}>Профиль</button>
+                                                {!u.systemAccount && !u.ghostAccount && (
+                                                    <button type="button" className="vates-icon-action" title="Сбросить пароль" onClick={() => openPasswordResetModal(u)}><CustomIcon name="refresh" size={17} color="currentColor" accent="none" /></button>
+                                                )}
+                                                {!isProtectedUser(u) && (
+                                                    <button type="button" className="vates-icon-action danger" title="Удалить сотрудника" onClick={() => handleDeleteUser(u.id)}><CustomIcon name="close" size={17} color="currentColor" accent="none" /></button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                    {filteredUsers.length === 0 && <div className="vates-table-empty">Сотрудники не найдены</div>}
+                </div>
+            </section>
 
             {/* Модалки создания и удаления */}
             {showUserForm && (
-                <div style={modalOverlay as any}>
-                    <div style={modalContentSmall as any}>
-                        <h2 style={{color:'#0abab5', marginBottom:'25px', fontWeight: '900', textAlign: 'center'}}>НОВЫЙ СОТРУДНИК</h2>
-                        <input style={adminIn as any} placeholder="Имя (напр. Анна)" value={newUser.name} onChange={e=>setNewUser({...newUser, name: e.target.value})} />
-                        <input style={adminIn as any} placeholder="Логин" value={newUser.login} onChange={e=>setNewUser({...newUser, login: e.target.value})} />
-                        <input style={adminIn as any} placeholder="Пароль" value={newUser.pass} onChange={e=>setNewUser({...newUser, pass: e.target.value})} />
-                        
-                        <div style={{ textAlign: 'left', marginBottom: '15px', color: '#888', fontSize: '13px', fontWeight: 'bold', marginLeft: '5px' }}>Роль пользователя:</div>
-                        <select style={adminIn as any} value={newUser.role} onChange={e=>setNewUser({...newUser, role: e.target.value})}>
-                            <option value="staff"> Чайный мастер (Сотрудник)</option>
-                            <option value="admin"> Администратор</option>
-                        </select>
-                        <button className="hover-unified-app" onClick={handleCreateUser} style={{...saveBtn, marginTop: '20px'} as any}>СОЗДАТЬ УЧЕТКУ</button>
-                        <div className="hover-link-unified-app" onClick={()=>setShowUserForm(false)} style={{textAlign:'center', marginTop:'20px', cursor:'pointer', color:'#666', fontWeight:'bold'}}>ОТМЕНА</div>
+                <div className="vates-employee-modal-overlay" style={modalOverlay as any}>
+                    <div className="vates-employee-create-modal">
+                        <div className="vates-employee-create-header">
+                            <span>Новая учетная запись</span>
+                            <h2>Добавить сотрудника</h2>
+                            <p>Укажите доступ, роль и точку работы сотрудника.</p>
+                        </div>
+                        <div className="vates-employee-form-grid">
+                            <label className="vates-employee-form-field">
+                                <span>Имя сотрудника</span>
+                                <input placeholder="Например, Анна Лебедева" value={newUser.name} onChange={(event) => setNewUser({ ...newUser, name: event.target.value })} />
+                            </label>
+                            <label className="vates-employee-form-field">
+                                <span>Логин</span>
+                                <input autoComplete="username" placeholder="Логин для входа" value={newUser.login} onChange={(event) => setNewUser({ ...newUser, login: event.target.value })} />
+                            </label>
+                            <label className="vates-employee-form-field">
+                                <span>Временный пароль</span>
+                                <input type="password" autoComplete="new-password" placeholder="Пароль для первого входа" value={newUser.pass} onChange={(event) => setNewUser({ ...newUser, pass: event.target.value })} />
+                            </label>
+                            <label className="vates-employee-form-field">
+                                <span>Роль</span>
+                                <select value={newUser.role} onChange={(event) => setNewUser({ ...newUser, role: event.target.value })}>
+                                    <option value="staff">Чайный мастер</option>
+                                    <option value="admin">Администратор</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div className="vates-employee-location-panel">
+                            <div>
+                                <span className="vates-employee-form-label">Точка работы</span>
+                                <p>Выберите существующую точку или добавьте новую.</p>
+                            </div>
+                            <select value={newUser.location} onChange={(event) => setNewUser({ ...newUser, location: event.target.value, newLocation: event.target.value === '__new__' ? newUser.newLocation : '' })} aria-label="Точка работы">
+                                <option value="">Без точки</option>
+                                {assignableLocationOptions.map((location) => <option key={location} value={location}>{location}</option>)}
+                                <option value="__new__">Создать новую точку</option>
+                            </select>
+                            {newUser.location === '__new__' && (
+                                <label className="vates-employee-form-field is-new-location">
+                                    <span>Название новой точки</span>
+                                    <input maxLength={120} placeholder="Например, ТЦ Центральный" value={newUser.newLocation} onChange={(event) => setNewUser({ ...newUser, newLocation: event.target.value })} />
+                                </label>
+                            )}
+                        </div>
+                        <div className="vates-employee-create-actions">
+                            <button type="button" className="vates-button secondary" onClick={() => setShowUserForm(false)}>Отмена</button>
+                            <button type="button" className="vates-button primary" onClick={handleCreateUser}>Создать учетную запись</button>
+                        </div>
                     </div>
                 </div>
             )}
 
             {confirmModal.show && (
-                <div style={modalOverlay as any} onClick={() => setConfirmModal({ show: false, id: '' })}>
+                <div className="vates-employee-modal-overlay" style={modalOverlay as any} onClick={() => setConfirmModal({ show: false, id: '' })}>
                     <div style={{...modalContentSmall, textAlign: 'center'} as any} onClick={e => e.stopPropagation()}>
                         <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>УДАЛИТЬ?</h2>
@@ -267,7 +384,7 @@ export default function UserManagement({
             )}
 
             {passwordResetModal.show && (
-                <div style={modalOverlay as any} onClick={closePasswordResetModal}>
+                <div className="vates-employee-modal-overlay" style={modalOverlay as any} onClick={closePasswordResetModal}>
                     <div className="user-management-reset-modal" style={{ ...modalContentSmall, textAlign: 'center' } as any} onClick={e => e.stopPropagation()}>
                         <div style={warningBadgeStyle as any}><CustomIcon name="alert" size={34} color="#ff4d4d" /></div>
                         <h2 style={{ color: '#ff4d4d', fontWeight: '900', marginBottom: '15px' }}>СБРОСИТЬ ПАРОЛЬ?</h2>

@@ -364,12 +364,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             await updateFilesState(updatedFiles);
             
             const namesStr = fileNames.join(', ');
-            setSuccessModal({ show: true, title: 'МАТЕРИАЛЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) загружены в раздел "${finalSection}".` });
+            setSuccessModal({ show: true, title: 'ДОКУМЕНТЫ ОТПРАВЛЕНЫ', text: `Файлы (${selectedFiles.length} шт.) загружены в раздел "${finalSection}".` });
             setSelectedFiles([]); setUploadSection('Основной раздел'); setIsCreatingNewUploadSection(false); setNewUploadSectionName('');
 
             Promise.allSettled([
-                sendPushNotification('Все', { title: 'Новые учебные материалы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' }),
-                sendEmailNotification('Все', 'Новые учебные материалы', `Администратор добавил новые документы: ${namesStr}`),
+                sendPushNotification('Все', { title: 'Новые документы', body: `Добавлены файлы: ${namesStr}`, url: '/tasks?tab=docs' }),
+                sendEmailNotification('Все', 'Новые документы', `Администратор добавил новые документы: ${namesStr}`),
             ]).catch((error) => {
                 console.error('Ошибка фоновой отправки уведомлений по документам', error);
             });
@@ -470,7 +470,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 <body>
                     ${isDocx ? `
                         <div id="docx-container">
-                            <div id="loading" class="docx-loading">⏳ Обработка документа...</div>
+                            <div id="loading" class="docx-loading">Обработка документа...</div>
                         </div>
                         <script>
                             fetch("${objectUrl}")
@@ -795,12 +795,22 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         return <iframe title={`Предпросмотр ${linkedPreview.file.name}`} src={linkedPreview.objectUrl} />;
     };
 
+    const visibleDocumentsCount = Object.values(docGroups).reduce((total: number, items: any) => total + items.length, 0);
+
     return (
-        <section style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
-            
+        <section className="vates-documents-screen" style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
+            <header className="vates-page-heading">
+                <div>
+                    <span className="vates-eyebrow">База знаний</span>
+                    <h1>Документы</h1>
+                    <p>Документы компании, инструкции и файлы для обучения сотрудников.</p>
+                </div>
+                <span className="vates-page-counter">{visibleDocumentsCount} документов</span>
+            </header>
+
             {/* БЛОК ЗАГРУЗКИ */}
             {isAdmin && (
-                <div style={{ marginBottom: '40px' }}>
+                <div className="vates-documents-upload-shell" style={{ marginBottom: '40px' }}>
                     {(!selectedFiles || selectedFiles.length === 0) ? (
                         <div 
                             className="documents-upload-zone"
@@ -873,23 +883,27 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 </div>
             )}
 
-            <div style={flexSpace as any}>
-               <h2 style={{ fontSize: '28px', fontWeight: '900', color: '#fff', margin: 0 }}>Нормативные документы</h2>
+            <div className="vates-documents-library-heading" style={flexSpace as any}>
+               <div>
+                   <span className="vates-eyebrow">Библиотека</span>
+                   <h2 style={{ fontSize: '28px', fontWeight: '900', color: '#fff', margin: 0 }}>Нормативные документы</h2>
+               </div>
                {isAdmin && (
-                   <button className="hover-unified-app" onClick={() => setPromptSection({isOpen: true, name: ''})} style={adminActionBtn as any}>
-                       + НОВЫЙ РАЗДЕЛ
+                   <button type="button" className="vates-button primary vates-documents-create-section-button" onClick={() => setPromptSection({isOpen: true, name: ''})}>
+                       <CustomIcon name="folder" size={18} color="currentColor" accent="none" />
+                       Новый раздел
                    </button>
                )}
             </div>
             
-            <div style={{ marginBottom: '60px' }}>
+            <div className="vates-documents-library" style={{ marginBottom: '60px' }}>
                {Object.keys(docGroups).length === 0 ? (
                    <div className="documents-empty-state" style={{ color: '#666', fontSize: '15px', background: '#111', padding: '40px', borderRadius: '30px', border: '1px dashed #333', textAlign: 'center', lineHeight: '1.5' }}>
-                       {isAdmin ? 'В этом разделе пока нет документов.\nНажмите «+ НОВЫЙ РАЗДЕЛ», чтобы создать первую папку.' : 'Нет доступных нормативных документов.'}
+                       {isAdmin ? 'В этом разделе пока нет документов.\nНажмите «Новый раздел», чтобы создать первую папку.' : 'Нет доступных нормативных документов.'}
                    </div>
                ) : (
                    Object.entries(docGroups).map(([secName, items]: any) => (
-                       <div key={secName} style={{ marginBottom: '40px' }}>
+                       <div key={secName} className="vates-document-section" style={{ marginBottom: '40px' }}>
                            <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: isSectionCollapsed(secName) ? 0 : '20px' }}>
                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
                                    <CustomIcon name="folder" size={22} color="#0abab5" />
@@ -900,8 +914,8 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                        sectionName={secName}
                                    />
                                </h3>
-                               {isAdmin && secName !== 'Основной раздел' && (
-                                   <div style={{display: 'flex', gap: '15px'}}>
+                               {isAdmin && (
+                                   <div className="vates-document-section-actions" style={{display: 'flex', gap: '15px'}}>
                                        <span className="hover-link-unified-app" onClick={() => setRenameSectionPrompt({isOpen: true, oldName: secName, newName: secName})} style={{ color: '#0abab5', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '5px' }}><CustomIcon name="edit" size={12} color="#0abab5" /> РЕДАКТИРОВАТЬ</span>
                                        <span className="hover-link-unified-app" onClick={() => setConfirmDelete({isOpen: true, type: 'section', targetId: secName, name: secName})} style={{ color: '#ff4d4d', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '3px', marginBottom: '-2px'}}>
@@ -915,12 +929,12 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                            
                            {!isSectionCollapsed(secName) && <div className="premium-cards-container section-collapsible-content">
                                {items.length === 0 ? (
-                                   <div style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>
+                                   <div className="vates-document-section-empty" style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>
                                        В этом разделе пока нет документов...
                                    </div>
                                ) : (
                                    items.map((file: any) => (
-                                       <div key={file.id} id={`document-card-${file.id}`} className="premium-card linked-document-card-target">
+                                       <div key={file.id} id={`document-card-${file.id}`} className="premium-card linked-document-card-target vates-document-row">
                                           
                                           {isAdmin && (
                                               <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
@@ -945,10 +959,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                           )}
                                           
                                           {/* Обертка с отступом, чтобы текст не лез под иконки */}
-                                          <div style={{ paddingRight: isAdmin ? '85px' : '0', marginBottom: '15px' }}>
-                                              <div style={{fontSize:'11px', color:'#0abab5', fontWeight:'800', marginBottom: '8px', opacity: 0.8}}>{file.date || 'Документ'}</div>
+                                          <div className="vates-document-row-copy" style={{ paddingRight: isAdmin ? '85px' : '0', marginBottom: '15px' }}>
+                                              <div className="vates-document-row-date" style={{fontSize:'11px', color:'#0abab5', fontWeight:'800', marginBottom: '8px', opacity: 0.8}}>{file.date || 'Документ'}</div>
                                               
-                                              <h4 style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
+                                              <h4 className="vates-document-row-title" style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
                                                   {/* Новый премиальный векторный значок документа */}
                                                   <CustomIcon name="file" size={22} color="#0abab5" />
                                                   <span>{file.name}</span>
@@ -956,9 +970,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                           </div>
                                           
                                           {/* Фикс скачущего текста: блок кнопок и веса прижат к низу карточки */}
-                                          <div style={{ marginTop: 'auto' }}>
-                                              <div style={{ color: '#555', fontSize: '12px', marginBottom: '15px', fontWeight: 'bold' }}>Вес: {file.size}</div>
-                                              <div style={{ display: 'flex', gap: '10px' }}>
+                                          <div className="vates-document-row-footer" style={{ marginTop: 'auto' }}>
+                                              <div className="vates-document-row-size" style={{ color: '#555', fontSize: '12px', marginBottom: '15px', fontWeight: 'bold' }}>Размер: {file.size}</div>
+                                              <div className="vates-document-row-buttons" style={{ display: 'flex', gap: '10px' }}>
                                                   <button onClick={() => handleOpenPreview(file)} className="doc-action-btn">ОТКРЫТЬ</button>
                                                   <button onClick={() => handleDownloadFile(file)} className="doc-action-btn"><CustomIcon name="download" size={14} color="#0abab5" /> СКАЧАТЬ</button>
                                               </div>
@@ -975,7 +989,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
             {linkedPreview && (
                 <div className="linked-document-preview-overlay" onClick={closeLinkedPreview}>
-                    <div className="linked-document-preview-modal" onClick={(event) => event.stopPropagation()}>
+                    <div className="linked-document-preview-modal vates-document-preview-modal" onClick={(event) => event.stopPropagation()}>
                         <div className="linked-document-preview-header">
                             <div>
                                 <strong>{linkedPreview.file.name}</strong>

@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import CustomIcon from '@/app/components/CustomIcon';
+import ThemeToggle from '@/app/components/ThemeToggle';
+import VatesLogo from '@/app/components/VatesLogo';
 import { applyClientAuthState, getClientLandingPath, type ClientSessionUser } from '@/app/lib/authClient';
 
 export default function LoginPage() {
@@ -26,7 +28,7 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
 
-  // Состояния TeaGuard
+  // Состояния Vates Guard
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [isCaptchaLoading, setIsCaptchaLoading] = useState(false);
@@ -207,19 +209,33 @@ export default function LoginPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="login-page" style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box', overflowX: 'hidden', maxWidth: '100vw' }}>
+    <div className={`login-page ${isLoginMode ? 'login-page--login-mode' : 'login-page--registration-mode'}`} style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box', overflowX: 'hidden', maxWidth: '100vw' }}>
       
       <div className="login-background-photo" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url("https://u.9111s.ru/uploads/202402/17/a0254a12ef37da5aaf5c5646a30baab8.webp")', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: -2, backgroundColor: '#000' }} />
       <div className="login-background-shade" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: -1 }} />
+
+      <section className="vates-auth-story">
+          <div className="vates-auth-story-top">
+              <VatesLogo className="vates-auth-logo" priority />
+          </div>
+          <div className="vates-auth-message">
+              <h1>Обучение команды — под вашим контролем.</h1>
+              <p>Отслеживайте прохождение, ответы и пробелы в знаниях, чтобы вовремя подключать наставника и принимать решения на фактах.</p>
+          </div>
+      </section>
 
       <Link href="/" className="hover-link-auth" style={{ position: 'absolute', top: '30px', left: '40px', color: '#0abab5', textDecoration: 'none', fontWeight: '900', fontSize: '14px', letterSpacing: '1px' }}>
           ← НА ГЛАВНУЮ
       </Link>
 
+      <div className="login-theme-toggle">
+          <ThemeToggle />
+      </div>
+
       <div className="login-box" style={{ background: '#0a0a0a', padding: '50px 40px', borderRadius: '35px', width: '100%', maxWidth: '390px', border: '1px solid #222', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', animation: 'scaleIn 0.4s ease', boxSizing: 'border-box' }}>
         
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <h1 className="login-header-title" style={{ margin: 0, color: '#fff', fontSize: '28px', fontWeight: '900', letterSpacing: '1px' }}>TEA <span style={{color: '#0abab5'}}>HUB</span></h1>
+            <VatesLogo className="login-header-logo" priority />
             <p className="login-header-subtitle" style={{ margin: '5px 0 0 0', color: '#666', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 'bold' }}>
                 {isLoginMode ? 'Вход в платформу' : 'Активация аккаунта'}
             </p>
@@ -283,8 +299,8 @@ export default function LoginPage() {
                             <path d="M10 11V9a2 2 0 014 0v2" stroke="#0abab5" strokeWidth="1.5" strokeLinecap="round"/>
                             <circle cx="12" cy="13.5" r="1" fill="#0abab5"/>
                         </svg>
-                        <div className="tea-guard-brand" style={{ color: '#fff', fontSize: '11px', fontWeight: '900', marginTop: '4px', letterSpacing: '0.5px' }}>TeaGuard</div>
-                        <div className="tea-guard-subtitle" style={{ color: '#666', fontSize: '9px', marginTop: '2px' }}>by Tea Hub</div>
+                        <div className="tea-guard-brand" style={{ color: '#fff', fontSize: '11px', fontWeight: '900', marginTop: '4px', letterSpacing: '0.5px' }}>Vates Guard</div>
+                        <div className="tea-guard-subtitle" style={{ color: '#666', fontSize: '9px', marginTop: '2px' }}>Ватэс</div>
                     </div>
                 </div>
             </div>
@@ -298,7 +314,7 @@ export default function LoginPage() {
         
         <div style={{ textAlign: 'center', marginTop: '25px' }}>
             <span className="login-mode-copy" style={{ color: '#666', fontSize: '13px' }}>
-                {isLoginMode ? 'Нет аккаунта или первый вход? ' : 'Уже активировали аккаунт? '}
+                {isLoginMode ? 'Первый вход? ' : 'Уже активировали аккаунт? '}
             </span>
             <span 
                 onClick={() => { 

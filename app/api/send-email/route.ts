@@ -33,13 +33,13 @@ export async function POST(req: Request) {
 
         // Формируем письмо с заголовками, которые "любят" почтовые сервисы
         await transporter.sendMail({
-            from: `"Tea Hub LMS" <${process.env.SMTP_USER}>`,
+            from: `"Ватэс" <${process.env.SMTP_USER}>`,
             to: to,
             subject: subject,
             text: text,
             html: `
                 <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-                    <h2 style="color: #0abab5;">Tea Hub: Уведомление</h2>
+                    <h2 style="color: #2e7d78;">Ватэс: уведомление</h2>
                     <p>${text.replace(/\n/g, '<br>')}</p>
                     <br>
                     <hr style="border: 0; border-top: 1px solid #eee;">

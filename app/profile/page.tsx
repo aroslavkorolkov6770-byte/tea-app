@@ -30,6 +30,9 @@ function ProfileContent() {
     
     const [userRole, setUserRole] = useState('staff');
     const [userId, setUserId] = useState('guest');
+    const [userLogin, setUserLogin] = useState('');
+    const [userLocation, setUserLocation] = useState('Не указана');
+    const [testResults, setTestResults] = useState<any[]>([]);
     
     // Стейты для кнопки PUSH-уведомлений
     const [pushBtnText, setPushBtnText] = useState('ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ');
@@ -94,10 +97,12 @@ function ProfileContent() {
 
                 setUserRole(role);
                 setUserId(currentId);
+                setUserLogin(sessionUser.login || '');
 
                 const profileResponse = await fetch('/api/account/profile', { cache: 'no-store' });
                 const profileData = profileResponse.ok ? await profileResponse.json() : null;
                 const pData = profileData?.profile || {};
+                setUserLocation(profileData?.user?.location || 'Не указана');
 
                 setProfile({
                     name: currentName,
@@ -107,24 +112,21 @@ function ProfileContent() {
                     email: pData.email || '',
                 });
 
-                // Загружаем статистику только для сотрудников
-                if (role !== 'admin') {
-                    const routeData = await fetch(`/api/storage?key=prog_route_${currentId}`).then(r => r.json()).catch(() => []);
-                    const basicsData = await fetch(`/api/storage?key=prog_basics_${currentId}`).then(r => r.json()).catch(() => []);
-                    
-                    const rDb = await fetch(`/api/storage?key=tea_hub_dynamic_route_v2`).then(r => r.json()).catch(() => []);
-                    const bDb = await fetch(`/api/storage?key=tea_hub_dynamic_basics_v2`).then(r => r.json()).catch(() => []);
-                    
-                    const rTotal = Array.isArray(rDb) && rDb.length > 0 ? rDb.length : 5;
-                    const bTotal = Array.isArray(bDb) && bDb.length > 0 ? bDb.reduce((acc: number, s: any) => acc + (s.modules?.length || 0), 0) : 50;
+                const [routeData, basicsData, routeDb, testsDb, resultsDb] = await Promise.all([
+                    fetch(`/api/storage?key=prog_route_${currentId}`).then((response) => response.json()).catch(() => []),
+                    fetch(`/api/storage?key=prog_tests_${currentId}`).then((response) => response.json()).catch(() => []),
+                    fetch('/api/storage?key=tea_hub_dynamic_route_v2').then((response) => response.json()).catch(() => []),
+                    fetch('/api/storage?key=tea_hub_dynamic_tests_v1').then((response) => response.json()).catch(() => []),
+                    fetch('/api/storage?key=tea_hub_test_results_v1').then((response) => response.json()).catch(() => []),
+                ]);
 
-                    setProgress({
-                        routeCount: Array.isArray(routeData) ? routeData.length : 0,
-                        basicsCount: Array.isArray(basicsData) ? basicsData.length : 0,
-                        totalRoute: rTotal,
-                        totalBasics: bTotal
-                    });
-                }
+                setProgress({
+                    routeCount: Array.isArray(routeData) ? routeData.length : 0,
+                    basicsCount: Array.isArray(basicsData) ? basicsData.length : 0,
+                    totalRoute: Array.isArray(routeDb) ? routeDb.length : 5,
+                    totalBasics: Array.isArray(testsDb) ? testsDb.length : 0,
+                });
+                setTestResults(Array.isArray(resultsDb) ? resultsDb : []);
 
                 // Проверка подписки на Push
                 if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -305,14 +307,239 @@ function ProfileContent() {
 
     if (!isMounted) return <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh' }} />;
 
+    const routePercent = Math.min((progress.routeCount / Math.max(progress.totalRoute, 1)) * 100, 100);
+    const testsPercent = Math.min((progress.basicsCount / Math.max(progress.totalBasics, 1)) * 100, 100);
+    const personalTestResults = testResults.filter((result: any) => result?.userName === profile.name);
+    const passedTests = personalTestResults.filter((result: any) => Number(result?.score) >= 80).length;
+    const learningStatus = routePercent >= 100 ? 'Завершено' : routePercent > 0 ? 'В обучении' : 'Не начато';
+    const learningStatusClass = routePercent >= 100 ? 'is-complete' : routePercent > 0 ? 'is-learning' : 'is-idle';
+    const roleLabel = userRole === 'admin' ? 'Администратор' : 'Сотрудник';
+    const position = userRole === 'admin' ? 'Администратор пространства' : 'Чайный мастер';
+
     return (
-        <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', overflowX: 'hidden' }}>
+        <div className="vates-app-page vates-own-profile-page vates-personal-profile-page">
+            <Navigation />
+            <div className="sidebar-spacer" aria-hidden="true" />
+
+            <main className="vates-personal-profile-main">
+                <div className="vates-own-profile-content vates-personal-profile-content">
+                    <header className="vates-page-heading vates-personal-profile-heading">
+                        <div>
+                            <span className="vates-eyebrow">Учетная запись</span>
+                            <h1>Мой профиль</h1>
+                            <p>Личные данные, обучение и настройки учетной записи.</p>
+                        </div>
+                    </header>
+
+                    <div className="vates-profile-top-grid">
+                        <section className="vates-profile-person-card">
+                            <div className="vates-profile-avatar">
+                                {profile.avatar ? (
+                                    <img src={profile.avatar} alt={profile.name || 'Аватар пользователя'} />
+                                ) : (
+                                    <span>{profile.name?.slice(0, 2).toUpperCase() || 'ВТ'}</span>
+                                )}
+                            </div>
+                            <div className="vates-profile-person-copy">
+                                <h3>{profile.name || 'Пользователь'}</h3>
+                                <p>{position} · {userLocation}</p>
+                                <div className="vates-profile-person-actions">
+                                    <button type="button" className="vates-button secondary compact" onClick={() => setIsEditing(true)}>Редактировать профиль</button>
+                                    <button type="button" className="vates-button primary compact" onClick={handleOpenAuthChange}>Сменить пароль</button>
+                                    <button type="button" className="vates-button danger compact" onClick={handleLogout}>Выйти</button>
+                                </div>
+                                <div className="vates-profile-facts">
+                                    <div><span>Роль</span><strong>{roleLabel}</strong></div>
+                                    <div><span>Логин</span><strong>{userLogin || 'Нет данных'}</strong></div>
+                                    <div><span>Статус обучения</span><strong><span className={`vates-status-pill ${learningStatusClass}`}>{learningStatus}</span></strong></div>
+                                    <div><span>Тесты</span><strong>{passedTests} из {personalTestResults.length}</strong></div>
+                                </div>
+                                <div className="vates-profile-contact-line">
+                                    <span>{profile.email || 'E-mail не указан'}</span>
+                                    <span>{profile.phone || 'Телефон не указан'}</span>
+                                    <span>{profile.tg || 'Telegram не указан'}</span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="vates-profile-path-card">
+                            <div className="vates-card-heading">
+                                <div>
+                                    <span className="vates-eyebrow">Назначенный путь</span>
+                                    <h3>Базовая подготовка · v1.2</h3>
+                                </div>
+                                <span className="vates-status-pill is-complete">Опубликован</span>
+                            </div>
+                            <div className="vates-profile-progress-copy">
+                                <strong>{Math.round(routePercent)}%</strong>
+                                <span>{progress.routeCount} из {progress.totalRoute} шагов</span>
+                            </div>
+                            <div className="vates-progress-track"><span style={{ width: `${routePercent}%` }} /></div>
+                            <div className="vates-profile-path-details">
+                                <div><span>Начало</span><strong>Нет данных</strong></div>
+                                <div><span>Последний шаг</span><strong>{progress.routeCount > 0 ? `${progress.routeCount}-й шаг` : 'Не начат'}</strong></div>
+                            </div>
+                            <button type="button" className="vates-profile-path-link" onClick={() => document.getElementById('vates-own-profile-progress')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Открыть путь</button>
+                        </section>
+                    </div>
+
+                    <div className="vates-profile-content-grid">
+                        <div className="vates-profile-main-column">
+                            <section className="vates-content-card">
+                                <div className="vates-card-heading with-action">
+                                    <div>
+                                        <span className="vates-eyebrow">Учетная запись</span>
+                                        <h3>Данные авторизации</h3>
+                                    </div>
+                                    <button type="button" className="vates-button secondary compact" onClick={handleOpenAuthChange}>Сменить пароль</button>
+                                </div>
+                                <div className="vates-auth-grid">
+                                    <label><span>Логин доступа</span><strong>{userLogin || 'Нет данных'}</strong></label>
+                                    <label><span>Пароль</span><strong className="is-muted">Скрыт</strong></label>
+                                </div>
+                            </section>
+
+                            <section className="vates-content-card">
+                                <div className="vates-card-heading with-action">
+                                    <div>
+                                        <span className="vates-eyebrow">Контактные данные</span>
+                                        <h3>Связь</h3>
+                                    </div>
+                                    <button type="button" className="vates-button secondary compact" onClick={() => setIsEditing(true)}>Редактировать</button>
+                                </div>
+                                <div className="vates-own-profile-contact-grid">
+                                    <div><span>Telegram</span><strong>{profile.tg || 'Не указан'}</strong></div>
+                                    <div><span>E-mail</span><strong>{profile.email || 'Не указан'}</strong></div>
+                                    <div><span>Телефон</span><strong>{profile.phone || 'Не указан'}</strong></div>
+                                </div>
+                            </section>
+
+                            <section className="vates-content-card" id="vates-own-profile-progress">
+                                <div className="vates-card-heading">
+                                    <div>
+                                        <span className="vates-eyebrow">Последняя активность</span>
+                                        <h3>Результаты обучения</h3>
+                                    </div>
+                                </div>
+                                {personalTestResults.length === 0 ? (
+                                    <div className="vates-empty-state">Действий по обучению пока нет.</div>
+                                ) : (
+                                    <div className="vates-profile-results">
+                                        {personalTestResults.map((result: any, index: number) => {
+                                            const isPassed = Number(result.score) >= 80;
+                                            return (
+                                                <article key={`${result.id || result.testId || result.testName}-${index}`} className="vates-profile-result-row">
+                                                    <div><strong>{result.testName || 'Тест'}</strong><span>{result.date || 'Дата не указана'} · Попытка {result.attempts || 1}</span></div>
+                                                    <span className={`vates-status-pill ${isPassed ? 'is-complete' : 'is-danger'}`}>{result.score ?? 0}%</span>
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
+                        </div>
+
+                        <aside className="vates-profile-side-column">
+                            <section className="vates-content-card">
+                                <div className="vates-card-heading">
+                                    <div><span className="vates-eyebrow">Прогресс</span><h3>Обучение</h3></div>
+                                </div>
+                                <div className="vates-profile-metric">
+                                    <div><span>Учебный путь</span><strong>{progress.routeCount}/{progress.totalRoute}</strong></div>
+                                    <div className="vates-progress-track"><span style={{ width: `${routePercent}%` }} /></div>
+                                </div>
+                                <div className="vates-profile-metric">
+                                    <div><span>Тесты</span><strong>{progress.basicsCount}/{progress.totalBasics}</strong></div>
+                                    <div className="vates-progress-track"><span style={{ width: `${testsPercent}%` }} /></div>
+                                </div>
+                                <div className="vates-profile-summary-grid">
+                                    <div><strong>{passedTests}</strong><span>тестов сдано</span></div>
+                                    <div><strong>{personalTestResults.length}</strong><span>всего попыток</span></div>
+                                </div>
+                            </section>
+
+                            <section className="vates-content-card vates-own-profile-notification-card">
+                                <div className="vates-card-heading">
+                                    <div><span className="vates-eyebrow">Уведомления</span><h3>Настройка оповещений</h3></div>
+                                    <span className={`vates-status-pill ${pushBtnText.includes('ПЕРЕПРИВЯЗАТЬ') ? 'is-complete' : 'is-idle'}`}>{pushBtnText.includes('ПЕРЕПРИВЯЗАТЬ') ? 'Активно' : 'Не активно'}</span>
+                                </div>
+                                <p>Подключите push-уведомления или откройте пошаговую инструкцию для устройства.</p>
+                                <button type="button" className="vates-button primary own-profile-full-button" onClick={handleSubscribeToPush}>{pushBtnText}</button>
+                                <button type="button" className="vates-button secondary own-profile-full-button" onClick={() => setIsHelpModalOpen(true)}>Открыть инструкцию</button>
+                            </section>
+                        </aside>
+                    </div>
+                </div>
+
+                {isEditing && (
+                    <div className="vates-own-profile-overlay" onClick={() => setIsEditing(false)}>
+                        <section className="vates-own-profile-dialog" onClick={(event) => event.stopPropagation()}>
+                            <header><div><span className="vates-eyebrow">Личные данные</span><h2>Редактировать профиль</h2></div><button type="button" className="vates-icon-button" onClick={() => setIsEditing(false)} aria-label="Закрыть редактор"><CustomIcon name="close" size={18} color="currentColor" /></button></header>
+                            <div className="vates-own-profile-form-grid">
+                                <label><span>Имя</span><input value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })} placeholder="Ваше имя" /></label>
+                                <label><span>Ссылка на фото</span><input value={profile.avatar} onChange={(event) => setProfile({ ...profile, avatar: event.target.value })} placeholder="URL фотографии" /></label>
+                                <label className="vates-own-profile-upload"><span>Аватар с устройства</span><input type="file" id="avatar-upload" accept="image/*" onChange={handleAvatarUpload} /><button type="button" className="vates-button secondary compact" onClick={() => document.getElementById('avatar-upload')?.click()}>Выбрать файл</button></label>
+                                <label><span>Telegram</span><input value={profile.tg} onChange={(event) => setProfile({ ...profile, tg: event.target.value })} placeholder="@username" /></label>
+                                <label><span>E-mail</span><input type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} placeholder="name@example.com" /></label>
+                                <label><span>Телефон</span><input value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: event.target.value })} placeholder="Номер телефона" /></label>
+                            </div>
+                            <div className="vates-own-profile-dialog-actions"><button type="button" className="vates-button secondary" onClick={() => setIsEditing(false)}>Отмена</button><button type="button" className="vates-button primary" onClick={handleSaveProfile}>Сохранить изменения</button></div>
+                        </section>
+                    </div>
+                )}
+
+                {isAuthModalOpen && (
+                    <div className="vates-own-profile-overlay" onClick={() => setIsAuthModalOpen(false)}>
+                        <section className="vates-own-profile-dialog vates-own-profile-password-dialog" onClick={(event) => event.stopPropagation()}>
+                            <header><div><span className="vates-eyebrow">Безопасность</span><h2>Смена пароля</h2></div><button type="button" className="vates-icon-button" onClick={() => setIsAuthModalOpen(false)} aria-label="Закрыть смену пароля"><CustomIcon name="close" size={18} color="currentColor" /></button></header>
+                            <div className="vates-own-profile-form-grid">
+                                <label><span>Логин доступа</span><strong>{newLogin || userLogin || 'Нет данных'}</strong></label>
+                                <label><span>Новый пароль</span><input type="password" autoComplete="new-password" value={newPass} onChange={(event) => setNewPass(event.target.value)} placeholder="Введите новый пароль" /></label>
+                            </div>
+                            <div className="vates-own-profile-dialog-actions"><button type="button" className="vates-button secondary" onClick={() => setIsAuthModalOpen(false)}>Отмена</button><button type="button" className="vates-button primary" onClick={handleChangeAuth}>Сохранить пароль</button></div>
+                        </section>
+                    </div>
+                )}
+
+                {isHelpModalOpen && (
+                    <div className="vates-own-profile-overlay" onClick={() => setIsHelpModalOpen(false)}>
+                        <section className="vates-own-profile-dialog vates-own-profile-help-dialog" onClick={(event) => event.stopPropagation()}>
+                            <header><div><span className="vates-eyebrow">Уведомления</span><h2>Настройка оповещений</h2></div><button type="button" className="vates-icon-button" onClick={() => setIsHelpModalOpen(false)} aria-label="Закрыть инструкцию"><CustomIcon name="close" size={18} color="currentColor" /></button></header>
+                            <div className="vates-own-profile-help-tabs">
+                                <button type="button" className={helpTab === 'ios' ? 'active' : ''} onClick={() => setHelpTab('ios')}>iOS</button>
+                                <button type="button" className={helpTab === 'android' ? 'active' : ''} onClick={() => setHelpTab('android')}>Android</button>
+                                <button type="button" className={helpTab === 'desktop' ? 'active' : ''} onClick={() => setHelpTab('desktop')}>ПК</button>
+                                <button type="button" className={helpTab === 'email' ? 'active' : ''} onClick={() => setHelpTab('email')}>Почта</button>
+                            </div>
+                            <div className="vates-own-profile-help-copy">
+                                {helpTab === 'ios' && <p>Откройте Ватэс в Safari, добавьте сайт на экран «Домой», затем подключите уведомления из этого профиля.</p>}
+                                {helpTab === 'android' && <p>Откройте Ватэс в Google Chrome, нажмите «Подключить уведомления» и подтвердите разрешение браузера.</p>}
+                                {helpTab === 'desktop' && <p>Нажмите «Подключить уведомления» и разрешите браузеру показывать уведомления от Ватэс.</p>}
+                                {helpTab === 'email' && <p>Укажите e-mail в контактных данных. При получении писем проверьте папку «Спам».</p>}
+                            </div>
+                            <div className="vates-own-profile-dialog-actions"><button type="button" className="vates-button primary" onClick={() => setIsHelpModalOpen(false)}>Понятно, закрыть</button></div>
+                        </section>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+
+    return (
+        <div className="vates-app-page profile-page vates-own-profile-page" style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', overflowX: 'hidden' }}>
             <Navigation />
             
-            <div style={{ width: '260px', flexShrink: 0 }} className="sidebar-spacer" />
+            <div className="sidebar-spacer" aria-hidden="true" />
 
             <main style={{ flex: 1, padding: '120px 20px 140px 20px', maxWidth: '100%', boxSizing: 'border-box' }}>
-                <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+                <div className="vates-own-profile-content" style={{ maxWidth: '980px', margin: '0 auto' }}>
+                    <header className="vates-page-heading">
+                        <div>
+                            <span className="vates-eyebrow">Учетная запись</span>
+                            <h1>Мой профиль</h1>
+                            <p>Контактные данные, прогресс обучения и настройки уведомлений.</p>
+                        </div>
+                    </header>
                     
                     <section className="profile-hero-card" style={profileHeaderCardStyle}>
                         
@@ -495,7 +722,7 @@ function ProfileContent() {
                             {helpTab === 'ios' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
                                     <p style={helpDescStyle as any}>Операционная система iOS разрешает получать Push-уведомления с платформ <b>только в случае установки сайта на домашний экран устройства</b>.</p>
-                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Откройте платформу Tea Hub строго в Safari.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Откройте платформу Ватэс строго в Safari.</div></div>
                                     <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>Нажмите кнопку <b>«Поделиться»</b>.</div></div>
                                     <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>3</div><div style={stepTextStyle as any}>Выберите пункт <b>«На экран "Домой"»</b>.</div></div>
                                     <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>4</div><div style={stepTextStyle as any}>Запустите приложение через иконку на рабочем столе.</div></div>
@@ -506,7 +733,7 @@ function ProfileContent() {
                             {helpTab === 'android' && (
                                 <div style={{ animation: 'fadeIn 0.3s ease' }}>
                                     <p style={helpDescStyle as any}>Рекомендуется использовать браузер <b>Google Chrome</b>.</p>
-                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Зайдите в Tea Hub через Google Chrome.</div></div>
+                                    <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>1</div><div style={stepTextStyle as any}>Зайдите в Ватэс через Google Chrome.</div></div>
                                     <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>2</div><div style={stepTextStyle as any}>В профиле нажмите кнопку <b>«ПОДКЛЮЧИТЬ УВЕДОМЛЕНИЯ»</b>.</div></div>
                                     <div className="notification-step-card" style={stepCardStyle as any}><div style={stepNumStyle as any}>3</div><div style={stepTextStyle as any}>Выберите <b>«Разрешить»</b>.</div></div>
                                 </div>
@@ -541,8 +768,8 @@ function ProfileContent() {
                 ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
                 ::-webkit-scrollbar-track { background: transparent; }
                 body { overflow-x: hidden; width: 100vw; }
-                @media (max-width: 768px) { .sidebar-spacer { display: none; } }
-                @media (max-width: 768px) {
+                @media (max-width: 767px) { .sidebar-spacer { display: none; } }
+                @media (max-width: 767px) {
                     .notification-help-modal {
                         padding: 24px 18px !important;
                         border-radius: 28px !important;

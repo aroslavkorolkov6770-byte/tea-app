@@ -31,7 +31,7 @@ const compareOrderedLabels = (leftLabel: string, rightLabel: string, leftOrder?:
         return leftRank - rightRank;
     }
 
-    return leftLabel.localeCompare(rightLabel, "ru");
+    return leftLabel.localeCompare(rightLabel, "ru", { numeric: true });
 };
 
 const buildProductSearchText = (product: CatalogProduct) =>
@@ -82,7 +82,11 @@ const buildAssortmentCategoryOrderMap = (assortmentMatrix: any[]) => {
     const safeMatrix = Array.isArray(assortmentMatrix) ? assortmentMatrix : [];
 
     const walkNodes = (nodes: any[], depthWeight: number) => {
-        nodes.forEach((node: any, index: number) => {
+        const orderedNodes = [...nodes].sort((left, right) =>
+            compareOrderedLabels(String(left?.title || ""), String(right?.title || "")),
+        );
+
+        orderedNodes.forEach((node: any, index: number) => {
             const title = typeof node?.title === "string" ? node.title : "";
             const normalizedTitle = normalizeAssortmentLabel(title);
             if (normalizedTitle && !orderMap.has(normalizedTitle)) {
@@ -370,6 +374,7 @@ export default function Products({
     const [viewProduct, setViewProduct] = useState<CatalogProduct | null>(null);
     const [visibleCatalogCount, setVisibleCatalogCount] = useState(60);
     const hitScrollRef = useRef<HTMLDivElement | null>(null);
+    const catalogScrollPositionRef = useRef(0);
     const handledProductParamRef = useRef("");
     const isViewStateHydratedRef = useRef(false);
     const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -511,13 +516,36 @@ export default function Products({
     const toggleHit = async (event: React.MouseEvent, id: string) => {
         event.stopPropagation();
         const nextProducts = products.map((product) => (product.id === id ? normalizeProduct({ ...product, isHit: !product.isHit }) : product));
+        const changedProduct = nextProducts.find((product) => product.id === id);
+        if (changedProduct) {
+            setViewProduct((currentProduct) => currentProduct?.id === id ? changedProduct : currentProduct);
+        }
         await persistProducts(nextProducts);
     };
 
     const toggleHidden = async (event: React.MouseEvent, id: string) => {
         event.stopPropagation();
         const nextProducts = products.map((product) => (product.id === id ? normalizeProduct({ ...product, isHidden: !product.isHidden }) : product));
+        const changedProduct = nextProducts.find((product) => product.id === id);
+        if (changedProduct) {
+            setViewProduct((currentProduct) => currentProduct?.id === id ? changedProduct : currentProduct);
+        }
         await persistProducts(nextProducts);
+    };
+
+    const openProductWorkspace = (product: CatalogProduct) => {
+        if (typeof window !== "undefined") {
+            catalogScrollPositionRef.current = window.scrollY;
+        }
+        setViewProduct(product);
+        window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+    };
+
+    const closeProductWorkspace = () => {
+        setViewProduct(null);
+        window.requestAnimationFrame(() => {
+            window.scrollTo({ top: catalogScrollPositionRef.current, behavior: "auto" });
+        });
     };
 
     const exportToCSV = () => {
@@ -712,71 +740,185 @@ export default function Products({
     };
 
     const selectedSectionLabel = selectedTreePath[selectedTreePath.length - 1] || "Все разделы";
+    const hiddenProductsCount = isAdmin ? preparedProducts.filter((product) => product.isHidden).length : 0;
+    const catalogOverview = [
+        { label: "Всего товаров", value: baseFiltered.length, icon: "material" as const },
+        { label: "Разделов", value: categoryTree.length, icon: "folder" as const },
+        { label: "Обязательных", value: hitProducts.length, icon: "flame" as const },
+        ...(isAdmin ? [{ label: "Скрыто", value: hiddenProductsCount, icon: "hidden" as const }] : []),
+    ];
+
+    if (viewProduct && !showProductForm) {
+        const productStatus = viewProduct.isHidden
+            ? "Скрыт от сотрудников"
+            : viewProduct.isHit
+                ? "Обязательный товар"
+                : "Доступен команде";
+
+        return (
+            <section className="vates-products-screen vates-product-workspace">
+                <header className="vates-product-workspace-header">
+                    <button type="button" className="hover-unified-app vates-button secondary vates-product-workspace-back" onClick={closeProductWorkspace}>
+                        <CustomIcon name="arrow-left" size={17} color="currentColor" accent="none" />
+                        К товарам
+                    </button>
+                    <span className={`vates-product-workspace-status ${viewProduct.isHidden ? "is-hidden" : viewProduct.isHit ? "is-required" : ""}`}>
+                        {productStatus}
+                    </span>
+                </header>
+
+                <section className="vates-product-workspace-hero">
+                    <span className="vates-eyebrow">Карточка товара</span>
+                    <p>{getCategoryLabel(viewProduct)}</p>
+                    <h1>{viewProduct.name}</h1>
+                    <span>{getProductSecondaryLine(viewProduct)}</span>
+                </section>
+
+                <div className="vates-product-workspace-layout">
+                    <main className="vates-product-workspace-main">
+                        <section className="vates-product-workspace-card">
+                            <span className="vates-eyebrow">Описание</span>
+                            <h2>Информация для команды</h2>
+                            <p>{viewProduct.desc || "Описание товара пока не заполнено."}</p>
+                        </section>
+
+                        <section className="vates-product-workspace-card">
+                            <span className="vates-eyebrow">Размещение в каталоге</span>
+                            <h2>Путь и группа</h2>
+                            <p>{viewProduct.groupPath || "Группа для этого товара пока не указана."}</p>
+                        </section>
+                    </main>
+
+                    <aside className="vates-product-workspace-aside">
+                        <section className="vates-product-workspace-card vates-product-workspace-facts">
+                            <span className="vates-eyebrow">Параметры</span>
+                            <h2>Сводка</h2>
+                            <dl>
+                                <div><dt>Код</dt><dd>{viewProduct.code || "Не указан"}</dd></div>
+                                <div><dt>Приоритет</dt><dd>{viewProduct.priority || "Не указан"}</dd></div>
+                                <div><dt>Категория</dt><dd>{getCategoryLabel(viewProduct)}</dd></div>
+                                <div><dt>Статус</dt><dd>{productStatus}</dd></div>
+                            </dl>
+                        </section>
+
+                        {isAdmin && (
+                            <section className="vates-product-workspace-card vates-product-workspace-actions">
+                                <span className="vates-eyebrow">Управление</span>
+                                <h2>Действия администратора</h2>
+                                <button
+                                    type="button"
+                                    className="hover-unified-app vates-button primary"
+                                    onClick={() => {
+                                        setProductFormData(normalizeProduct(viewProduct));
+                                        setViewProduct(null);
+                                        setShowProductForm(true);
+                                    }}
+                                >
+                                    <CustomIcon name="edit" size={16} color="currentColor" />
+                                    Редактировать товар
+                                </button>
+                                <button type="button" className="hover-unified-app vates-button secondary" onClick={(event) => toggleHit(event, viewProduct.id)}>
+                                    <CustomIcon name={viewProduct.isHit ? "flame" : "star"} size={16} color="currentColor" />
+                                    {viewProduct.isHit ? "Убрать из обязательных" : "Добавить в обязательные"}
+                                </button>
+                                <button type="button" className="hover-unified-app vates-button secondary" onClick={(event) => toggleHidden(event, viewProduct.id)}>
+                                    <CustomIcon name={viewProduct.isHidden ? "eye" : "hidden"} size={16} color="currentColor" />
+                                    {viewProduct.isHidden ? "Показать сотрудникам" : "Скрыть от сотрудников"}
+                                </button>
+                            </section>
+                        )}
+                    </aside>
+                </div>
+            </section>
+        );
+    }
 
     return (
-        <section style={{ animation: "fadeInUp 0.6s ease", maxWidth: "100%" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "25px", flexWrap: "wrap", gap: "15px" }}>
+        <section className="vates-products-screen">
+            <div className="vates-page-heading vates-products-heading">
                 <div>
-                    <h2 style={{ fontSize: "32px", fontWeight: "900", margin: 0, color: "#fff" }}>Товары и Продукты</h2>
+                    <span className="vates-eyebrow">Каталог компании</span>
+                    <h1>Товары</h1>
+                    <p>Управляйте каталогом, категориями и приоритетами для команды.</p>
                 </div>
 
                 {isAdmin && (
-                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                        <button className="hover-unified-app" onClick={exportToCSV} style={{ ...adminActionBtn, background: "rgba(255,255,255,0.05)", color: "#aaa", border: "1px solid #333", display: "inline-flex", alignItems: "center", gap: "8px" } as any}>
-                            <CustomIcon name="download" size={16} color="#aaa" /> ЭКСПОРТ CSV
+                    <div className="vates-products-heading-actions">
+                        <button className="hover-unified-app vates-button secondary" onClick={exportToCSV}>
+                            <CustomIcon name="download" size={16} color="currentColor" /> Экспорт CSV
                         </button>
                         <input type="file" accept=".csv,.xls,.xlsx" id="products-upload" style={{ display: "none" }} onChange={handleImportFile} />
-                        <button className="hover-unified-app" onClick={() => document.getElementById("products-upload")?.click()} style={{ ...adminActionBtn, background: "rgba(255,255,255,0.05)", color: "#aaa", border: "1px solid #333", display: "inline-flex", alignItems: "center", gap: "8px" } as any}>
-                            <CustomIcon name="upload" size={16} color="#aaa" /> ИМПОРТ EXCEL / CSV
+                        <button className="hover-unified-app vates-button secondary" onClick={() => document.getElementById("products-upload")?.click()}>
+                            <CustomIcon name="upload" size={16} color="currentColor" /> Импорт файла
                         </button>
                         <button
                             onClick={() => {
                                 setProductFormData(normalizeProduct({}));
                                 setShowProductForm(true);
                             }}
-                            className="hover-unified-app"
-                            style={{ ...adminActionBtn, background: "#0abab5", color: "#000" } as any}
+                            className="hover-unified-app vates-button primary"
                         >
-                            + НОВЫЙ ТОВАР
+                            <CustomIcon name="material" size={16} color="currentColor" accent="none" /> Новый товар
                         </button>
                         <button
                             onClick={() => setConfirmClearAll(true)}
-                            className="hover-unified-app"
-                            style={{ ...adminActionBtn, background: "rgba(255,77,77,0.08)", color: "#ff4d4d", border: "1px solid rgba(255,77,77,0.35)" } as any}
+                            className="hover-unified-app vates-button secondary danger"
                         >
-                            ОЧИСТИТЬ КАТАЛОГ
+                            <CustomIcon name="close" size={15} color="currentColor" /> Очистить
                         </button>
                     </div>
                 )}
             </div>
 
-            <div style={{ position: "relative", marginBottom: "25px" }}>
-                <span style={{ position: "absolute", left: "16px", top: "15px", opacity: 0.5, fontSize: "14px", display: "flex", alignItems: "center" }}>
-                    <SearchIcon />
-                </span>
-                <input
-                    type="text"
-                    placeholder="Поиск по названию, коду, категории, описанию..."
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    style={{ ...adminIn, paddingLeft: "45px", background: "#111", border: "1px solid #222" } as any}
-                />
+            <div className="vates-products-overview" aria-label="Сводка по каталогу">
+                {catalogOverview.map((item) => (
+                    <div className="vates-products-overview-item" key={item.label}>
+                        <span className="vates-products-overview-icon">
+                            <CustomIcon name={item.icon} size={19} color="currentColor" accent="none" />
+                        </span>
+                        <span>
+                            <strong>{item.value.toLocaleString("ru-RU")}</strong>
+                            <small>{item.label}</small>
+                        </span>
+                    </div>
+                ))}
+            </div>
+
+            <div className="vates-products-toolbar">
+                <label className="vates-products-search">
+                    <span className="vates-products-search-icon">
+                        <SearchIcon />
+                    </span>
+                    <input
+                        type="text"
+                        placeholder="Найти товар, код или категорию"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        className="vates-products-search-input"
+                    />
+                </label>
+                <div className="vates-products-result-summary">
+                    <span>{selectedSectionLabel}</span>
+                    <strong>{searchedProducts.length.toLocaleString("ru-RU")}</strong>
+                </div>
             </div>
 
             <div className="products-layout-shell" style={{ display: "grid", gridTemplateColumns: categoryTree.length > 0 ? "280px minmax(0, 1fr)" : "1fr", gap: "24px", alignItems: "start" }}>
                 {categoryTree.length > 0 && (
-                    <aside className="products-sidebar" style={{ background: "#111", border: "1px solid #222", borderRadius: "24px", padding: "18px", position: "sticky", top: "94px" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: isSectionMenuOpen ? "14px" : 0 }}>
+                    <aside className="products-sidebar">
+                        <div className="products-sidebar-head" style={{ marginBottom: isSectionMenuOpen ? "12px" : 0 }}>
                             <button
                                 className="hover-unified-app products-sidebar-toggle"
                                 onClick={() => setIsSectionMenuOpen((prev) => !prev)}
-                                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", background: "#151515", border: "1px solid #262626", borderRadius: "16px", color: "#fff", padding: "12px 14px", cursor: "pointer", textAlign: "left" }}
                             >
-                                <div>
-                                    <div style={{ fontSize: "11px", color: "#888", fontWeight: "900", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "4px" }}>Разделы</div>
-                                    <div style={{ fontSize: "14px", fontWeight: "900", lineHeight: 1.3 }}>{selectedSectionLabel}</div>
+                                <div className="products-sidebar-title">
+                                    <span className="products-sidebar-title-icon"><CustomIcon name="folder" size={18} color="currentColor" accent="none" /></span>
+                                    <span>
+                                        <small>Разделы каталога</small>
+                                        <strong>{selectedSectionLabel}</strong>
+                                    </span>
                                 </div>
-                                <div style={{ color: "#0abab5", fontWeight: "900", fontSize: "18px", lineHeight: 1 }}>{isSectionMenuOpen ? "−" : "+"}</div>
+                                <span className="products-sidebar-state" aria-hidden="true">{isSectionMenuOpen ? "−" : "+"}</span>
                             </button>
                         </div>
 
@@ -784,13 +926,12 @@ export default function Products({
                             <button
                                 className={`products-category-button hover-unified-app ${selectedTreePath.length === 0 ? "is-selected" : ""}`}
                                 onClick={() => setSelectedTreePath([])}
-                                style={{ width: "100%", background: selectedTreePath.length === 0 ? "rgba(10,186,181,0.14)" : "#151515", color: selectedTreePath.length === 0 ? "#fff" : "#cfcfcf", border: `1px solid ${selectedTreePath.length === 0 ? "rgba(10,186,181,0.42)" : "#262626"}`, borderRadius: "14px", padding: "12px 14px", fontWeight: "900", cursor: "pointer", textAlign: "left", marginBottom: "10px" }}
                             >
-                                Все разделы
-                                <span style={{ float: "right", color: selectedTreePath.length === 0 ? "#0abab5" : "#777", fontSize: "12px" }}>{baseFiltered.length}</span>
+                                <span>Все разделы</span>
+                                <strong>{baseFiltered.length.toLocaleString("ru-RU")}</strong>
                             </button>
 
-                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div className="products-sidebar-tree">
                                 {categoryTree.map((node) => (
                                     <SidebarSectionNode key={node.key} node={node} selectedTreePath={selectedTreePath} setSelectedTreePath={setSelectedTreePath} />
                                 ))}
@@ -799,7 +940,7 @@ export default function Products({
                     </aside>
                 )}
 
-                <div style={{ minWidth: 0 }}>
+                <div className="vates-products-catalog" style={{ minWidth: 0 }}>
                     {hitProducts.length > 0 && (
                         <div
                             className="products-hit-section"
@@ -812,33 +953,42 @@ export default function Products({
                                 boxShadow: "0 10px 30px rgba(255,215,0,0.03)",
                             }}
                         >
-                            <div className="hits-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", marginBottom: "25px", flexWrap: "wrap" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
-                                    <CustomIcon name="flame" size={30} color="#ffd700" />
-                                    <h3 style={{ fontSize: "20px", color: "#ffd700", fontWeight: "900", margin: 0, textTransform: "uppercase", letterSpacing: "1px" }}>Обязательно к продаже</h3>
+                            <div className="hits-header-row">
+                                <div className="hits-heading-copy">
+                                    <span className="hits-heading-icon"><CustomIcon name="flame" size={21} color="currentColor" /></span>
+                                    <span>
+                                        <small>Фокус команды</small>
+                                        <h3>Обязательно к продаже</h3>
+                                    </span>
                                 </div>
-                                {visibleHitProducts.length > 1 && (
-                                    <div className="hit-scroll-actions" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                        <button
-                                            type="button"
-                                            aria-label="Прокрутить обязательные товары назад"
-                                            className="hover-unified-app hit-scroll-button"
-                                            onClick={() => scrollHitProducts("prev")}
-                                            style={{ background: "#151515", color: "#ffd700", border: "1px solid rgba(255,215,0,0.3)", borderRadius: "14px", width: "42px", height: "42px", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "20px", fontWeight: "900", lineHeight: 1 }}
-                                        >
-                                            ‹
-                                        </button>
-                                        <button
-                                            type="button"
-                                            aria-label="Прокрутить обязательные товары вперёд"
-                                            className="hover-unified-app hit-scroll-button"
-                                            onClick={() => scrollHitProducts("next")}
-                                            style={{ background: "#151515", color: "#ffd700", border: "1px solid rgba(255,215,0,0.3)", borderRadius: "14px", width: "42px", height: "42px", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "20px", fontWeight: "900", lineHeight: 1 }}
-                                        >
-                                            ›
-                                        </button>
-                                    </div>
-                                )}
+                                <div className="hits-header-controls">
+                                    <span className="hits-product-count" aria-label={`Обязательных товаров: ${hitProducts.length}`}>
+                                        <strong>{hitProducts.length}</strong>
+                                        <small>в подборке</small>
+                                    </span>
+                                    {visibleHitProducts.length > 1 && (
+                                        <div className="hit-scroll-actions">
+                                            <button
+                                                type="button"
+                                                aria-label="Прокрутить обязательные товары назад"
+                                                className="hover-unified-app hit-scroll-button"
+                                                onClick={() => scrollHitProducts("prev")}
+                                                style={{ background: "#151515", color: "#ffd700", border: "1px solid rgba(255,215,0,0.3)", borderRadius: "14px", width: "42px", height: "42px", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "20px", fontWeight: "900", lineHeight: 1 }}
+                                            >
+                                                ‹
+                                            </button>
+                                            <button
+                                                type="button"
+                                                aria-label="Прокрутить обязательные товары вперёд"
+                                                className="hover-unified-app hit-scroll-button"
+                                                onClick={() => scrollHitProducts("next")}
+                                                style={{ background: "#151515", color: "#ffd700", border: "1px solid rgba(255,215,0,0.3)", borderRadius: "14px", width: "42px", height: "42px", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "20px", fontWeight: "900", lineHeight: 1 }}
+                                            >
+                                                ›
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {hitPriorityOptions.length > 1 && (
@@ -871,7 +1021,7 @@ export default function Products({
                                         <div
                                             key={`hit-${product.id}`}
                                             className={`premium-card hit-card product-hit-card ${isSingle ? "single-hit" : ""}`}
-                                            onClick={() => setViewProduct(product)}
+                                            onClick={() => openProductWorkspace(product)}
                                             style={{
                                                 minWidth: "100%",
                                                 width: "100%",
@@ -916,10 +1066,13 @@ export default function Products({
                                     </div>
 
                                     <div className={`product-card-footer ${isSingle ? "single-hit-stats" : ""}`} style={{ marginTop: "18px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "16px", minWidth: isSingle ? "220px" : "auto" }}>
-                                        <div style={{ flex: 1 }}>
-                                            {product.code && <div style={{ fontSize: "11px", color: "#888" }}>Код: {product.code}</div>}
+                                        <div className="vates-product-hit-status">
+                                            <CustomIcon name="flame" size={18} color="currentColor" />
+                                            <span>
+                                                <strong>Обязательный ассортимент</strong>
+                                                <small>В фокусе продаж</small>
+                                            </span>
                                         </div>
-                                        {product.priority && <div style={{ fontSize: "11px", color: "#b4a264", fontWeight: "900" }}>Приоритет: {product.priority}</div>}
                                     </div>
                                 </div>
                                     );
@@ -928,74 +1081,75 @@ export default function Products({
                         </div>
                     )}
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "25px" }}>
-                        <h3 style={{ fontSize: "20px", color: "#fff", fontWeight: "900", margin: 0, textTransform: "uppercase" }}>
-                            {selectedTreePath.length > 0 ? `Каталог: ${selectedTreePath[selectedTreePath.length - 1]}` : "Весь каталог"}
-                        </h3>
-                        <div style={{ height: "1px", background: "#222", flex: 1 }}></div>
+                    <div className="vates-products-catalog-heading">
+                        <div>
+                            <span className="vates-eyebrow">Товарная база</span>
+                            <h3>{selectedTreePath.length > 0 ? selectedTreePath[selectedTreePath.length - 1] : "Весь каталог"}</h3>
+                        </div>
+                        <span className="vates-products-catalog-count">{searchedProducts.length.toLocaleString("ru-RU")} позиций</span>
                     </div>
 
                     <div className="premium-cards-container">
                         {searchedProducts.length === 0 ? (
-                            <div style={{ color: "#555", fontSize: "14px", background: "#111", padding: "30px", borderRadius: "30px", border: "1px dashed #222", textAlign: "center", gridColumn: "1 / -1" }}>
-                                Товары не найдены
+                            <div className="vates-products-empty">
+                                <CustomIcon name="material" size={26} color="currentColor" accent="none" />
+                                <strong>Товары не найдены</strong>
+                                <span>Измените запрос или выберите другой раздел.</span>
                             </div>
                         ) : (
                             visibleCatalogProducts.map((product) => {
                                 const metaItems = getMetaItems(product);
                                 return (
-                                    <div key={product.id} className="premium-card product-card" onClick={() => setViewProduct(product)} style={{ padding: "25px", opacity: product.isHidden ? 0.4 : 1, filter: product.isHidden ? "grayscale(100%)" : "none", display: "flex", flexDirection: "column" }}>
-                                {isAdmin && (
-                                    <div className="product-card-actions" style={{ display: "flex", gap: "8px", zIndex: 10, flexWrap: "wrap", justifyContent: "flex-end", marginBottom: "14px" }}>
-                                        <div onClick={(event) => toggleHit(event, product.id)} className="admin-action-icon" style={{ ...textIconStyle, color: product.isHit ? "#ffd700" : "#666" } as any} title="В обязательные">
-                                            <CustomIcon name={product.isHit ? "flame" : "star"} size={16} color={product.isHit ? "#ffd700" : "#666"} />
-                                        </div>
-                                        <div onClick={(event) => toggleHidden(event, product.id)} className="admin-action-icon" style={{ ...textIconStyle, color: product.isHidden ? "#ff4d4d" : "#0abab5" } as any} title="Скрыть/Показать">
-                                            <CustomIcon name={product.isHidden ? "hidden" : "eye"} size={16} color={product.isHidden ? "#ff4d4d" : "#0abab5"} />
-                                        </div>
-                                        <div onClick={(event) => { event.stopPropagation(); setProductFormData(normalizeProduct(product)); setShowProductForm(true); }} className="admin-action-icon" style={textIconStyle as any} title="Редактировать">
-                                            <CustomIcon name="edit" size={16} color="#0abab5" />
-                                        </div>
-                                        <div onClick={(event) => { event.stopPropagation(); setConfirmDelete({ isOpen: true, id: product.id, name: product.name }); }} className="admin-action-icon" style={delIconStyle as any} title="Удалить">
-                                            <CustomIcon name="close" size={16} color="#ff4d4d" />
+                                    <article key={product.id} className={`premium-card product-card ${product.isHidden ? "is-hidden" : ""}`} onClick={() => openProductWorkspace(product)}>
+                                <div className="product-card-topline">
+                                    <div className="product-card-category">
+                                        <span><CustomIcon name="material" size={16} color="currentColor" accent="none" /></span>
+                                        <div>
+                                            <small>Категория</small>
+                                            <strong>{getProductSecondaryLine(product)}</strong>
                                         </div>
                                     </div>
-                                )}
+                                    {isAdmin && (
+                                        <div className="product-card-actions">
+                                            <button type="button" onClick={(event) => toggleHit(event, product.id)} className={`admin-action-icon ${product.isHit ? "is-active-warning" : ""}`} title="В обязательные">
+                                                <CustomIcon name={product.isHit ? "flame" : "star"} size={16} color="currentColor" />
+                                            </button>
+                                            <button type="button" onClick={(event) => toggleHidden(event, product.id)} className={`admin-action-icon ${product.isHidden ? "is-active-danger" : "is-active"}`} title="Скрыть или показать">
+                                                <CustomIcon name={product.isHidden ? "hidden" : "eye"} size={16} color="currentColor" />
+                                            </button>
+                                            <button type="button" onClick={(event) => { event.stopPropagation(); setProductFormData(normalizeProduct(product)); setShowProductForm(true); }} className="admin-action-icon is-active" title="Редактировать">
+                                                <CustomIcon name="edit" size={16} color="currentColor" />
+                                            </button>
+                                            <button type="button" onClick={(event) => { event.stopPropagation(); setConfirmDelete({ isOpen: true, id: product.id, name: product.name }); }} className="admin-action-icon is-active-danger" title="Удалить">
+                                                <CustomIcon name="close" size={16} color="currentColor" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
 
-                                {isAdmin && product.isHidden && (
-                                    <div style={{ alignSelf: "flex-end", background: "#ff4d4d", color: "#fff", padding: "4px 10px", borderRadius: "8px", fontWeight: "bold", fontSize: "10px", marginBottom: "12px" }}>
-                                        СКРЫТО
-                                    </div>
-                                )}
-
-                                <div className="product-card-body" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", marginBottom: "18px", minHeight: "64px" }}>
-                                    <h4 className="product-card-title" style={{ fontSize: "18px", margin: 0, fontWeight: "bold", wordBreak: "break-word", color: "#fff", lineHeight: "1.3" }}>{product.name}</h4>
+                                <div className="product-card-body">
+                                    <h4 className="product-card-title">{product.name}</h4>
+                                    <p className="product-card-description">{product.desc || "Описание товара пока не заполнено."}</p>
                                 </div>
 
                                 {metaItems.length > 0 && (
-                                    <div className="product-meta-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "8px", marginBottom: "18px" }}>
+                                    <div className="product-meta-grid">
                                         {metaItems.map((item) => (
-                                            <div key={`${product.id}-${item.label}`} style={{ background: "#0d0d0d", border: "1px solid #202020", borderRadius: "12px", padding: "9px 10px" }}>
-                                                <div style={{ fontSize: "10px", color: "#777", marginBottom: "4px" }}>{item.label}</div>
-                                                <div style={{ fontSize: "12px", color: "#fff", fontWeight: "800", wordBreak: "break-word" }}>{item.value}</div>
+                                            <div key={`${product.id}-${item.label}`}>
+                                                <div>{item.label}</div>
+                                                <div>{item.value}</div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
 
-                                <div className="product-card-footer" style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "16px", paddingTop: "15px", borderTop: "1px solid #222" }}>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        {product.desc ? (
-                                            <div style={{ color: "#777", fontSize: "12px", lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                                                {product.desc}
-                                            </div>
-                                        ) : (
-                                            <div style={{ color: "#555", fontSize: "12px" }}>Описание не заполнено</div>
-                                        )}
-                                    </div>
-                                    {product.priority && <div style={{ textAlign: "right", flexShrink: 0, fontSize: "11px", color: "#0abab5", fontWeight: "900" }}>Приоритет: {product.priority}</div>}
+                                <div className="product-card-footer">
+                                    <span className={product.isHidden ? "is-hidden" : product.isHit ? "is-required" : ""}>
+                                        {product.isHidden ? "Скрыт от сотрудников" : product.isHit ? "Обязательный товар" : "Доступен команде"}
+                                    </span>
+                                    <strong>Открыть карточку</strong>
                                 </div>
-                            </div>
+                            </article>
                                 );
                             })
                         )}
@@ -1063,46 +1217,6 @@ export default function Products({
 
                         <button className="hover-unified-app" onClick={handleSaveProduct} style={saveBtn as any}>СОХРАНИТЬ ТОВАР</button>
                         <div className="hover-link-unified-app" onClick={() => setShowProductForm(false)} style={cancelLink as any}>ОТМЕНА</div>
-                    </div>
-                </div>
-            )}
-
-            {viewProduct && !showProductForm && (
-                <div style={modalOverlay as any} onClick={() => setViewProduct(null)}>
-                    <div className="tasks-modal custom-scroll" style={{ ...modalContentLarge, maxWidth: "780px", maxHeight: "90vh", overflowY: "auto", padding: "40px", position: "relative" } as any} onClick={(event) => event.stopPropagation()}>
-                        <div onClick={() => setViewProduct(null)} style={{ position: "absolute", top: "25px", right: "25px", cursor: "pointer", color: "#ff4d4d", lineHeight: 1, zIndex: 10, display: "inline-flex" }}>
-                            <CustomIcon name="close" size={24} color="#ff4d4d" />
-                        </div>
-
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "20px", marginBottom: "30px", paddingRight: "40px" }}>
-                            <div>
-                                <span style={{ fontSize: "12px", color: "#0abab5", fontWeight: "900", letterSpacing: "1px", textTransform: "uppercase", background: "rgba(10,186,181,0.1)", padding: "5px 12px", borderRadius: "8px", display: "inline-block", marginBottom: "12px" }}>
-                                    {getCategoryLabel(viewProduct)}
-                                </span>
-                                {viewProduct.subcategory && <div style={{ fontSize: "13px", color: "#8b8b8b", marginBottom: "14px", lineHeight: 1.5 }}>{viewProduct.subcategory}</div>}
-                                <h2 style={{ fontSize: "32px", color: "#fff", fontWeight: "900", margin: "0 0 14px 0" }}>{viewProduct.name}</h2>
-                                {viewProduct.isHit && <div style={{ color: "#ffd700", fontWeight: "bold", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px" }}><CustomIcon name="flame" size={16} color="#ffd700" /> ОБЯЗАТЕЛЬНО К ПРОДАЖЕ</div>}
-                            </div>
-                        </div>
-
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px", marginBottom: "28px" }}>
-                            <InfoCard label="Код" value={viewProduct.code || "—"} />
-                            <InfoCard label="Приоритет" value={viewProduct.priority || "—"} />
-                        </div>
-
-                        {viewProduct.groupPath && (
-                            <div style={{ marginBottom: "28px", background: "#111", padding: "20px 22px", borderRadius: "20px", border: "1px solid #222" }}>
-                                <h4 style={{ fontSize: "14px", color: "#888", textTransform: "uppercase", fontWeight: "bold", margin: "0 0 12px 0" }}>Группы из выгрузки</h4>
-                                <p style={{ fontSize: "14px", color: "#ddd", lineHeight: "1.6", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{viewProduct.groupPath}</p>
-                            </div>
-                        )}
-
-                        {viewProduct.desc && (
-                            <div>
-                                <h4 style={{ fontSize: "14px", color: "#888", textTransform: "uppercase", fontWeight: "bold", marginBottom: "15px" }}>Описание</h4>
-                                <p style={{ fontSize: "15px", color: "#ccc", lineHeight: "1.7", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{viewProduct.desc}</p>
-                            </div>
-                        )}
                     </div>
                 </div>
             )}
@@ -1228,7 +1342,8 @@ export default function Products({
                     .premium-cards-container { display: grid !important; grid-template-columns: 1fr !important; gap: 15px !important; }
                     .tasks-modal { padding: 30px 20px !important; border-radius: 25px !important; width: 95% !important; max-height: 90vh !important; }
                     .hits-header-row { align-items: flex-start !important; }
-                    .hit-scroll-actions { width: 100%; justify-content: flex-end; }
+                    .hits-header-controls { width: 100%; justify-content: space-between; }
+                    .hit-scroll-actions { width: auto; justify-content: flex-end; }
                     .hits-scroll-container { display: flex !important; flex-direction: row !important; overflow-x: auto !important; overflow-y: hidden !important; gap: 12px !important; padding: 4px 0 14px 0 !important; margin: 0 !important; scroll-padding-left: 0 !important; scroll-padding-right: 0 !important; scroll-snap-type: x mandatory !important; }
                     .hit-priority-switcher { margin-bottom: 14px !important; }
                     .hit-card { min-width: 100% !important; width: 100% !important; max-width: 100% !important; }
@@ -1311,27 +1426,17 @@ function SidebarSectionNode({
     return (
         <div>
             <button
-                className={`products-category-button hover-unified-app ${selected ? "is-selected" : ""}`}
+                className={`products-category-button hover-unified-app ${selected ? "is-selected" : ""} ${insideSelected ? "is-in-path" : ""}`}
                 onClick={() => setSelectedTreePath(selected ? [] : node.path)}
-                style={{
-                    width: "100%",
-                    textAlign: "left",
-                    background: selected ? "rgba(10,186,181,0.14)" : insideSelected ? "rgba(255,255,255,0.04)" : "#151515",
-                    border: `1px solid ${selected ? "rgba(10,186,181,0.45)" : insideSelected ? "rgba(255,255,255,0.08)" : "#262626"}`,
-                    color: selected ? "#fff" : "#d7d7d7",
-                    borderRadius: "14px",
-                    padding: "11px 13px",
-                    cursor: "pointer",
-                }}
             >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
-                    <div style={{ fontWeight: "900", fontSize: "13px", lineHeight: 1.3 }}>{node.label}</div>
-                    <div style={{ color: selected ? "#0abab5" : "#888", fontSize: "11px", fontWeight: "900", flexShrink: 0 }}>{node.count}</div>
+                <div className="products-category-button-content">
+                    <span>{node.label}</span>
+                    <strong>{node.count}</strong>
                 </div>
             </button>
 
             {node.children.length > 0 && insideSelected && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px", marginLeft: "10px", paddingLeft: "10px", borderLeft: "1px solid #202020" }}>
+                <div className="products-category-children">
                     {node.children.map((child) => (
                         <SidebarSectionNode key={child.key} node={child} selectedTreePath={selectedTreePath} setSelectedTreePath={setSelectedTreePath} />
                     ))}

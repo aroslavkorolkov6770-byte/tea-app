@@ -1,18 +1,8 @@
 "use client";
+
 import React from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
-import { 
-    modalOverlay, profileHeaderCardStyle, profileSectionTitle, 
-    progressSectionStyle, labelRow, barBg, barFill, badgeStyle, 
-    contactCardStyle, contactIconStyle 
-} from './adminStyles';
-
-const avatarFallbackText = {
-    color: '#0abab5',
-    fontSize: '32px',
-    fontWeight: '900',
-    letterSpacing: '2px'
-};
+import { modalOverlay } from './adminStyles';
 
 export default function UserProfileModal({
     selectedProfileUser, setSelectedProfileUser, userProfiles, usersStats,
@@ -23,117 +13,227 @@ export default function UserProfileModal({
     if (!selectedProfileUser) return null;
     if (selectedProfileUser.systemAccount || selectedProfileUser.ghostAccount) return null;
 
-    const pData = userProfiles[selectedProfileUser.id] || {};
-    const routeLen = usersStats[selectedProfileUser.id]?.route || 0;
-    const basicsLen = usersStats[selectedProfileUser.id]?.basics || 0;
+    const profileData = userProfiles[selectedProfileUser.id] || {};
+    const routeLength = usersStats[selectedProfileUser.id]?.route || 0;
+    const basicsLength = usersStats[selectedProfileUser.id]?.basics || 0;
     const profileAvatar = userAvatars[selectedProfileUser.id] || selectedProfileUser.avatar;
-    const tg = pData.tg || selectedProfileUser.tg || '';
-    const email = pData.email || selectedProfileUser.email || '';
-    const phone = pData.phone || selectedProfileUser.phone || '';
+    const telegram = profileData.tg || selectedProfileUser.tg || '';
+    const email = profileData.email || selectedProfileUser.email || '';
+    const phone = profileData.phone || selectedProfileUser.phone || '';
+    const routePercent = Math.min((routeLength / (totalRouteSteps || 1)) * 100, 100);
+    const testsPercent = Math.min((basicsLength / (totalBasicsModules || 1)) * 100, 100);
+    const employeeResults = testResults.filter((result: any) => result.userName === selectedProfileUser.name);
+    const attestationResults = employeeResults.filter((result: any) => result.testName?.toLowerCase().includes('аттестация'));
+    const passedTests = employeeResults.filter((result: any) => Number(result.score) >= 80).length;
+    const location = selectedProfileUser.location || selectedProfileUser.branch || selectedProfileUser.point || selectedProfileUser.department || 'Не указана';
+    const position = selectedProfileUser.position || selectedProfileUser.jobTitle || (selectedProfileUser.role === 'admin' ? 'Администратор пространства' : 'Сотрудник');
+    const learningStatus = routePercent >= 100 ? 'Завершено' : routePercent > 0 ? 'В обучении' : 'Не начато';
+    const lastLogin = profileData.lastLogin || selectedProfileUser.lastLogin || 'Нет данных';
 
-    const planPercent = Math.min((routeLen / (totalRouteSteps || 1)) * 100, 100);
-    const basicsPercent = Math.min((basicsLen / (totalBasicsModules || 1)) * 100, 100);
+    const closeProfile = () => {
+        setSelectedProfileUser(null);
+        setEditAuthMode(false);
+    };
 
     return (
-        <div style={modalOverlay as any} onClick={() => { setSelectedProfileUser(null); setEditAuthMode(false); }}>
-            <div className="custom-scroll" style={{ background: '#0d0f0d', padding: '40px 20px', borderRadius: '40px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #333' } as any} onClick={e => e.stopPropagation()}>
-                
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                    <div onClick={() => { setSelectedProfileUser(null); setEditAuthMode(false); }} style={{ cursor: 'pointer', fontSize: '24px', color: '#ff4d4d', fontWeight: 'bold' }}>X</div>
-                </div>
-
-                <section style={profileHeaderCardStyle as any}>
-                    <div style={{ width: '130px', height: '130px', borderRadius: '45px', backgroundColor: '#000', margin: '0 auto 25px', border: '2px solid #4CAF50', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 15px 35px rgba(76, 175, 80, 0.2)' }}>
-                        {profileAvatar ? <img src={profileAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" /> : <span style={avatarFallbackText as any}>TH</span>}
+        <div className="vates-profile-overlay" style={modalOverlay as any} onClick={closeProfile}>
+            <div className="vates-profile-modal custom-scroll" onClick={(event) => event.stopPropagation()}>
+                <header className="vates-profile-page-header">
+                    <div>
+                        <button type="button" className="vates-profile-back-button" onClick={closeProfile}>К списку</button>
+                        <h2>Профиль сотрудника</h2>
+                        <p>Контекст сотрудника, назначенный путь и текущее состояние обучения.</p>
                     </div>
-                    <h2 style={{ fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', color: '#fff' }}>{selectedProfileUser.name}</h2>
-                    <p style={{ color: '#0abab5', fontWeight: 'bold', fontSize: '13px', margin: 0, letterSpacing: '2px', textTransform: 'uppercase' }}>ЧАЙНЫЙ МАСТЕР (УЧЕНИК)</p>
-                </section>
+                    <button type="button" className="vates-icon-button" onClick={closeProfile} aria-label="Закрыть профиль" title="Закрыть">
+                        <CustomIcon name="close" size={20} color="currentColor" />
+                    </button>
+                </header>
 
-                <div style={{ background: 'rgba(255,77,77,0.05)', border: '1px solid rgba(255,77,77,0.2)', padding: '20px', borderRadius: '20px', marginBottom: '35px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,77,77,0.2)' }}>
-                        <span style={{color: '#ff7675', fontWeight: '900', fontSize: '13px', letterSpacing: '1px'}}>ДАННЫЕ АВТОРИЗАЦИИ</span>
-                        <button onClick={() => {
-                            if(editAuthMode) { handleSaveUserAuth(); } 
-                            else { setEditAuthLogin(selectedProfileUser.login); setEditAuthPass(''); setEditAuthMode(true); }
-                        }} style={{ background: editAuthMode ? '#ff7675' : 'transparent', color: editAuthMode ? '#000' : '#ff7675', border: '1px solid #ff7675', padding: '6px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '11px', fontWeight: '900', transition: '0.2s' }}>
-                            {editAuthMode ? 'СОХРАНИТЬ' : 'РЕДАКТИРОВАТЬ'}
+                <div className="vates-profile-top-grid">
+                    <section className="vates-profile-person-card">
+                        <div className="vates-profile-avatar">
+                            {profileAvatar ? (
+                                <img src={profileAvatar} alt={selectedProfileUser.name} />
+                            ) : (
+                                <span>{selectedProfileUser.name?.slice(0, 2).toUpperCase() || 'ВТ'}</span>
+                            )}
+                        </div>
+                        <div className="vates-profile-person-copy">
+                            <h3>{selectedProfileUser.name}</h3>
+                            <p>{position} · {location}</p>
+                            <div className="vates-profile-person-actions">
+                                <button
+                                    type="button"
+                                    className="vates-button secondary compact"
+                                    onClick={() => document.getElementById('vates-profile-learning-progress')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                                >
+                                    Открыть прогресс
+                                </button>
+                                <button
+                                    type="button"
+                                    className="vates-button primary compact"
+                                    onClick={() => {
+                                        setEditAuthLogin(selectedProfileUser.login);
+                                        setEditAuthPass('');
+                                        setEditAuthMode(true);
+                                    }}
+                                >
+                                    Редактировать доступ
+                                </button>
+                            </div>
+                            <div className="vates-profile-facts">
+                                <div><span>Роль</span><strong>{selectedProfileUser.role === 'admin' ? 'Администратор' : 'Сотрудник'}</strong></div>
+                                <div><span>Последний вход</span><strong>{lastLogin}</strong></div>
+                                <div><span>Статус обучения</span><strong><span className={`vates-status-pill ${routePercent >= 100 ? 'is-complete' : routePercent > 0 ? 'is-learning' : 'is-idle'}`}>{learningStatus}</span></strong></div>
+                                <div><span>Тесты</span><strong>{passedTests} из {employeeResults.length}</strong></div>
+                            </div>
+                            <div className="vates-profile-contact-line">
+                                <span>{email || 'E-mail не указан'}</span>
+                                <span>{phone || 'Телефон не указан'}</span>
+                                <span>{telegram || 'Telegram не указан'}</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="vates-profile-path-card">
+                        <div className="vates-card-heading">
+                            <div>
+                                <span className="vates-eyebrow">Назначенный путь</span>
+                                <h3>Базовая подготовка · v1.2</h3>
+                            </div>
+                            <span className="vates-status-pill is-complete">Опубликован</span>
+                        </div>
+                        <div className="vates-profile-progress-copy">
+                            <strong>{Math.round(routePercent)}%</strong>
+                            <span>{routeLength} из {totalRouteSteps || 0} шагов</span>
+                        </div>
+                        <div className="vates-progress-track"><span style={{ width: `${routePercent}%` }} /></div>
+                        <div className="vates-profile-path-details">
+                            <div><span>Начало</span><strong>Нет данных</strong></div>
+                            <div><span>Последний шаг</span><strong>{routeLength > 0 ? `${routeLength}-й шаг` : 'Не начат'}</strong></div>
+                        </div>
+                        <button
+                            type="button"
+                            className="vates-profile-path-link"
+                            onClick={() => document.getElementById('vates-profile-learning-progress')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                        >
+                            Открыть путь
                         </button>
-                    </div>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-                        <div style={{textAlign: 'center'}}>
-                            <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '8px'}}>ЛОГИН ДОСТУПА</div>
-                            {editAuthMode ? (
-                                <input value={editAuthLogin} onChange={e => setEditAuthLogin(e.target.value)} style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '120px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
-                            ) : (
-                                <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#fff', fontWeight: 'bold'}}>{selectedProfileUser.login}</div>
-                            )}
-                        </div>
-                        <div style={{textAlign: 'center'}}>
-                            <div style={{fontSize: '11px', color: '#ff7675', fontWeight: 'bold', marginBottom: '8px'}}>ПАРОЛЬ</div>
-                            {editAuthMode ? (
-                                <input value={editAuthPass} onChange={e => setEditAuthPass(e.target.value)} placeholder="Новый пароль" style={{ background: '#000', color: '#fff', border: '1px solid #ff7675', borderRadius: '8px', padding: '8px', width: '140px', textAlign: 'center', outline: 'none', fontSize: '15px', fontWeight: 'bold' }} />
-                            ) : (
-                                <div style={{fontFamily: 'monospace', fontSize: '16px', color: '#888', fontWeight: 'bold'}}>скрыт</div>
-                            )}
-                        </div>
-                    </div>
+                    </section>
                 </div>
 
-                <section style={progressSectionStyle as any}>
-                    <div style={{ marginBottom: '25px' }}>
-                        <div style={labelRow as any}><span style={{color:'#888'}}>ТЕОРИЯ</span><span style={{color:'#0abab5'}}>{routeLen}/{totalRouteSteps}</span></div>
-                        <div style={barBg as any}><div style={{ ...barFill, width: `${planPercent}%` } as any} /></div>
-                    </div>
-                    <div style={{ marginBottom: '10px' }}>
-                        <div style={labelRow as any}><span style={{color:'#888'}}>ТЕСТЫ</span><span style={{color:'#0abab5'}}>{basicsLen}/{totalBasicsModules}</span></div>
-                        <div style={barBg as any}><div style={{ ...barFill, width: `${basicsPercent}%` } as any} /></div>
-                    </div>
-                </section>
-
-                <h3 style={profileSectionTitle as any}>ЛИЧНЫЕ ДОСТИЖЕНИЯ</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '35px' }}>
-                    <div title="Старт" style={{ ...badgeStyle, opacity: routeLen >= 1 ? 1 : 0.1 } as any}><CustomIcon name="sprout" size={22} color="#0abab5" /></div>
-                    <div title="План" style={{ ...badgeStyle, opacity: routeLen >= 5 ? 1 : 0.1 } as any}><CustomIcon name="rocket" size={22} color="#0abab5" /></div>
-                    <div title="Теория" style={{ ...badgeStyle, opacity: basicsLen >= 5 ? 1 : 0.1 } as any}><CustomIcon name="book" size={22} color="#0abab5" /></div>
-                    <div title="Мастер" style={{ ...badgeStyle, opacity: basicsLen >= 10 ? 1 : 0.1 } as any}><CustomIcon name="lantern" size={22} color="#0abab5" /></div>
-                </div>
-
-                <h3 style={profileSectionTitle as any}>СВЯЗЬ</h3>
-                <section style={contactCardStyle as any}>
-                    <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                        <div style={contactIconStyle as any}><CustomIcon name="chat" size={22} color="#0abab5" /></div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>{tg || 'telegram не указан'}</div>
-                            <div style={{ fontSize: '14px', color: '#0abab5', fontWeight: 'bold', marginBottom: '2px' }}>{email || 'e-mail не указан'}</div>
-                            <div style={{ fontSize: '13px', color: '#555' }}>{phone || 'телефон не указан'}</div>
-                        </div>
-                    </div>
-                </section>
-
-                <h3 style={{...profileSectionTitle, marginTop: '35px'} as any}>История аттестаций</h3>
-                <div style={{ background: '#000', padding: '10px', borderRadius: '20px', border: '1px solid #222' }}>
-                    {testResults.filter((r: any) => r.userName === selectedProfileUser.name && r.testName?.toLowerCase().includes('аттестация')).length === 0 ? (
-                        <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px', fontWeight: 'bold' }}>Сотрудник еще не сдавал аттестации</div>
-                    ) : (
-                        testResults.filter((r: any) => r.userName === selectedProfileUser.name && r.testName?.toLowerCase().includes('аттестация')).map((res: any) => {
-                            const isPassed = res.score === 100;
-                            const scoreColor = isPassed ? '#0abab5' : '#ff4d4d';
-                            return (
-                                <div key={res.id} style={{ padding: '15px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap' }}>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: '900', color: '#fff', fontSize: '14px', marginBottom: '4px', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.4' }}>{res.testName}</div>
-                                        <div style={{ fontSize: '11px', color: '#888', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: '1.4' }}>{res.date} • Попытка: {res.attempts}</div>
-                                    </div>
-                                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                        <div style={{ fontWeight: '900', color: scoreColor, fontSize: '16px' }}>{res.score}%</div>
-                                        <span style={{ fontSize: '10px', fontWeight: '900', color: scoreColor }}>{isPassed ? 'ПРОЙДЕН' : 'ПРОФАЛ'}</span>
-                                    </div>
+                <div className="vates-profile-content-grid">
+                    <div className="vates-profile-main-column">
+                        <section className="vates-content-card" id="vates-profile-learning-progress">
+                            <div className="vates-card-heading with-action">
+                                <div>
+                                    <span className="vates-eyebrow">Учетная запись</span>
+                                    <h3>Данные авторизации</h3>
                                 </div>
-                            );
-                        })
-                    )}
+                                <button
+                                    type="button"
+                                    className={editAuthMode ? 'vates-button primary compact' : 'vates-button secondary compact'}
+                                    onClick={() => {
+                                        if (editAuthMode) {
+                                            handleSaveUserAuth();
+                                        } else {
+                                            setEditAuthLogin(selectedProfileUser.login);
+                                            setEditAuthPass('');
+                                            setEditAuthMode(true);
+                                        }
+                                    }}
+                                >
+                                    <CustomIcon name={editAuthMode ? 'check' : 'edit'} size={16} color="currentColor" />
+                                    {editAuthMode ? 'Сохранить' : 'Редактировать'}
+                                </button>
+                            </div>
+                            <div className="vates-auth-grid">
+                                <label>
+                                    <span>Логин доступа</span>
+                                    {editAuthMode ? (
+                                        <input value={editAuthLogin} onChange={(event) => setEditAuthLogin(event.target.value)} />
+                                    ) : (
+                                        <strong>{selectedProfileUser.login}</strong>
+                                    )}
+                                </label>
+                                <label>
+                                    <span>Новый пароль</span>
+                                    {editAuthMode ? (
+                                        <input type="password" value={editAuthPass} onChange={(event) => setEditAuthPass(event.target.value)} placeholder="Введите новый пароль" />
+                                    ) : (
+                                        <strong className="is-muted">Скрыт</strong>
+                                    )}
+                                </label>
+                            </div>
+                        </section>
+
+                        <section className="vates-content-card">
+                            <div className="vates-card-heading">
+                                <div>
+                                    <span className="vates-eyebrow">Последняя активность</span>
+                                    <h3>Результаты обучения</h3>
+                                </div>
+                            </div>
+                            {employeeResults.length === 0 ? (
+                                <div className="vates-empty-state">Действий по обучению пока нет.</div>
+                            ) : (
+                                <div className="vates-profile-results">
+                                    {employeeResults.map((result: any) => {
+                                        const isPassed = Number(result.score) >= 80;
+                                        return (
+                                            <article key={result.id} className="vates-profile-result-row">
+                                                <div>
+                                                    <strong>{result.testName}</strong>
+                                                    <span>{result.date} · Попытка {result.attempts}</span>
+                                                </div>
+                                                <span className={`vates-status-pill ${isPassed ? 'is-complete' : 'is-danger'}`}>
+                                                    {result.score}%
+                                                </span>
+                                            </article>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </section>
+                    </div>
+
+                    <aside className="vates-profile-side-column">
+                        <section className="vates-content-card">
+                            <div className="vates-card-heading">
+                                <div>
+                                    <span className="vates-eyebrow">Прогресс</span>
+                                    <h3>Обучение</h3>
+                                </div>
+                            </div>
+                            <div className="vates-profile-metric">
+                                <div><span>Учебный путь</span><strong>{routeLength}/{totalRouteSteps || 0}</strong></div>
+                                <div className="vates-progress-track"><span style={{ width: `${routePercent}%` }} /></div>
+                            </div>
+                            <div className="vates-profile-metric">
+                                <div><span>Тесты</span><strong>{basicsLength}/{totalBasicsModules || 0}</strong></div>
+                                <div className="vates-progress-track"><span style={{ width: `${testsPercent}%` }} /></div>
+                            </div>
+                            <div className="vates-profile-summary-grid">
+                                <div><strong>{passedTests}</strong><span>тестов сдано</span></div>
+                                <div><strong>{employeeResults.length}</strong><span>всего попыток</span></div>
+                            </div>
+                        </section>
+
+                        <section className="vates-content-card">
+                            <div className="vates-card-heading">
+                                <div>
+                                    <span className="vates-eyebrow">Достижения</span>
+                                    <h3>Этапы развития</h3>
+                                </div>
+                            </div>
+                            <div className="vates-achievements-grid">
+                                <div className={routeLength >= 1 ? 'is-earned' : ''} title="Старт"><CustomIcon name="sprout" size={22} color="currentColor" /></div>
+                                <div className={routeLength >= 5 ? 'is-earned' : ''} title="Учебный план"><CustomIcon name="rocket" size={22} color="currentColor" /></div>
+                                <div className={basicsLength >= 5 ? 'is-earned' : ''} title="Теория"><CustomIcon name="book" size={22} color="currentColor" /></div>
+                                <div className={basicsLength >= 10 ? 'is-earned' : ''} title="Мастер"><CustomIcon name="lantern" size={22} color="currentColor" /></div>
+                            </div>
+                        </section>
+                    </aside>
                 </div>
             </div>
         </div>

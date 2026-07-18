@@ -2,13 +2,14 @@
 
 import React from 'react';
 
-type CustomIconName =
+export type CustomIconName =
   | 'alert'
   | 'success'
   | 'blocked'
   | 'folder'
   | 'file'
   | 'attachment'
+  | 'arrow-left'
   | 'close'
   | 'edit'
   | 'flame'
@@ -25,7 +26,9 @@ type CustomIconName =
   | 'user'
   | 'sprout'
   | 'rocket'
+  | 'send'
   | 'book'
+  | 'material'
   | 'lantern'
   | 'chat'
   | 'gear'
@@ -111,6 +114,12 @@ export default function CustomIcon({
     attachment: (
       <svg {...common}>
         <path d="M8 12.5L13.8 6.7C15.1 5.4 17.2 5.4 18.5 6.7C19.8 8 19.8 10.1 18.5 11.4L10.7 19.2C8.8 21.1 5.8 21.1 3.9 19.2C2 17.3 2 14.3 3.9 12.4L11.4 4.9" {...strokeProps} />
+      </svg>
+    ),
+    'arrow-left': (
+      <svg {...common}>
+        <path d="M19 12H5" {...strokeProps} />
+        <path d="M11 6L5 12L11 18" {...strokeProps} />
       </svg>
     ),
     close: (
@@ -211,10 +220,23 @@ export default function CustomIcon({
         <path d="M13.5 6.5H13.51M8 16L6 18" {...strokeProps} />
       </svg>
     ),
+    send: (
+      <svg {...common}>
+        <path d="M3.5 4.5L21 12L3.5 19.5L6.25 12L3.5 4.5Z" fill="rgba(10,186,181,0.14)" {...strokeProps} />
+        <path d="M6.25 12H15.5" {...strokeProps} />
+      </svg>
+    ),
     book: (
       <svg {...common}>
         <path d="M4 5.5C4 4.7 4.7 4 5.5 4H11V20H5.5C4.7 20 4 19.3 4 18.5V5.5Z" fill="rgba(10,186,181,0.1)" {...strokeProps} />
         <path d="M20 5.5C20 4.7 19.3 4 18.5 4H13V20H18.5C19.3 20 20 19.3 20 18.5V5.5Z" fill="rgba(10,186,181,0.1)" {...strokeProps} />
+      </svg>
+    ),
+    material: (
+      <svg {...common}>
+        <rect x="5" y="3" width="14" height="18" rx="3" fill="rgba(10,186,181,0.1)" {...strokeProps} />
+        <path d="M9 3V21" {...strokeProps} />
+        <path d="M12 8H16M12 12H16M12 16H15" {...strokeProps} />
       </svg>
     ),
     lantern: (

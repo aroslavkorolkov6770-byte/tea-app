@@ -1,82 +1,184 @@
 "use client";
-import React from 'react';
-import { adminCard, sectionTitle, dateBox, calNavBtn, calendarGrid, calDayHead } from './adminStyles';
+
+import React, { useState } from 'react';
+import CustomIcon from '@/app/components/CustomIcon';
 
 const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
-const DAYS_OF_WEEK = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+const MONTH_NAMES_GENITIVE = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const WEEKDAY_NAMES = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+const CALENDAR_HEADINGS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+function CalendarArrow({ direction }: { direction: 'left' | 'right' }) {
+    const path = direction === 'left' ? 'M14.5 5L8 12L14.5 19' : 'M9.5 5L16 12L9.5 19';
+
+    return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d={path} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+}
 
 export default function CalendarWidget({
     eventTab, setEventTab, filteredEvents, currentDate, handlePrevMonth, handleNextMonth,
     daysInMonth, shiftStartDay, isToday, openNotePanel, notes
 }: any) {
+    const monthLabel = `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    const [selectedEvent, setSelectedEvent] = useState<any>(null);
+
+    const getEventDateLabel = (event: any) => {
+        const eventDate = event.dateObj as Date;
+        return `${eventDate.getDate()} ${MONTH_NAMES_GENITIVE[eventDate.getMonth()]} ${eventDate.getFullYear()}, ${WEEKDAY_NAMES[eventDate.getDay()]}`;
+    };
+
     return (
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: '30px', minWidth: 0 }}>
-            <div style={{ ...adminCard, padding: '20px' } as any}>
-                <h2 className="admin-section-title" style={{ ...sectionTitle, fontSize: '18px', margin: '0 0 15px 0' } as any}>Ближайшие события</h2>
-                
-                <div style={{ position: 'relative', display: 'flex', background: '#111', borderRadius: '25px', padding: '4px', marginBottom: '15px', border: '1px solid #222' }}>
-                    <div style={{ 
-                        position: 'absolute', top: '4px', bottom: '4px', left: '4px', width: 'calc(50% - 4px)', 
-                        background: eventTab === 'personal' ? '#0abab5' : '#ff4d4d', borderRadius: '20px', 
-                        transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)', transform: eventTab === 'personal' ? 'translateX(0)' : 'translateX(100%)'
-                    }} />
-                    <div onClick={() => setEventTab('personal')} style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '8px', cursor: 'pointer', color: eventTab === 'personal' ? '#000' : '#888', fontWeight: '900', fontSize: '12px', transition: '0.3s' }}>ЗАМЕТКИ</div>
-                    <div onClick={() => setEventTab('deadline')} style={{ position: 'relative', zIndex: 1, flex: 1, textAlign: 'center', padding: '8px', cursor: 'pointer', color: eventTab === 'deadline' ? '#000' : '#888', fontWeight: '900', fontSize: '12px', transition: '0.3s' }}>ДЕДЛАЙНЫ</div>
-                </div>
-
-                <div className="custom-scroll" style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '5px' }}>
-                    {filteredEvents.length === 0 ? (
-                        <div style={{ color: '#555', fontSize: '13px', textAlign: 'center', padding: '20px 0', fontWeight: 'bold' }}>Нет записей</div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {filteredEvents.slice(0, 10).map((event: any) => (
-                                <div key={event.key} style={{ display: 'flex', gap: '15px', alignItems: 'center', padding: '12px', background: '#0d0d0d', borderRadius: '15px', border: `1px solid ${eventTab === 'deadline' ? 'rgba(255,77,77,0.2)' : 'rgba(10,186,181,0.1)'}` }}>
-                                    <div style={{ ...dateBox, background: eventTab === 'deadline' ? '#ff4d4d' : '#0abab5' } as any}>
-                                        {event.d} <br/> <span style={{ fontSize: '10px', opacity: 0.8 }}>{DAYS_OF_WEEK[event.dateObj.getDay()]}</span>
-                                    </div>
-                                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                                        <div style={{ fontWeight: '800', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff' }}>{event.title}</div>
-                                        {eventTab === 'deadline' ? (
-                                            <div style={{ fontSize: '11px', color: '#ff4d4d', marginTop: '4px', fontWeight: 'bold' }}>Кому: {event.target}</div>
-                                        ) : (
-                                            event.desc && <div style={{ fontSize: '11px', color: '#888', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{event.desc}</div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div style={adminCard as any}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                    <span style={{ fontWeight: '900', fontSize: '18px' }}>{MONTH_NAMES[currentDate.getMonth()]} {currentDate.getFullYear()}</span>
-                    <div style={{ display: 'flex', gap: '15px' }}>
-                        <span onClick={handlePrevMonth} style={calNavBtn as any}>←</span>
-                        <span onClick={handleNextMonth} style={calNavBtn as any}>→</span>
+        <>
+            <aside className="vates-calendar-card" aria-labelledby="vates-calendar-title">
+                <header className="vates-calendar-header">
+                    <div className="vates-calendar-title-wrap">
+                        <span className="vates-eyebrow">Планирование</span>
+                        <h3 id="vates-calendar-title">Календарь команды</h3>
                     </div>
-                </div>
-                <div style={calendarGrid as any}>
-                    {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => <div key={d} style={calDayHead as any}>{d}</div>)}
-                    {Array.from({length: shiftStartDay}).map((_, i) => <div key={`empty-${i}`} />)}
-                    
-                    {Array.from({length: daysInMonth}).map((_, i) => {
-                        const dayNumber = i + 1;
+                    <div className="vates-calendar-navigation">
+                        <button type="button" onClick={handlePrevMonth} aria-label="Предыдущий месяц" title="Предыдущий месяц">
+                            <CalendarArrow direction="left" />
+                        </button>
+                        <strong>{monthLabel}</strong>
+                        <button type="button" onClick={handleNextMonth} aria-label="Следующий месяц" title="Следующий месяц">
+                            <CalendarArrow direction="right" />
+                        </button>
+                    </div>
+                </header>
+
+                <div className="vates-calendar-grid" aria-label={monthLabel}>
+                    {CALENDAR_HEADINGS.map(day => <div key={day} className="vates-calendar-weekday">{day}</div>)}
+                    {Array.from({ length: shiftStartDay }).map((_, index) => <div key={`empty-${index}`} aria-hidden="true" />)}
+
+                    {Array.from({ length: daysInMonth }).map((_, index) => {
+                        const dayNumber = index + 1;
                         const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${dayNumber}`;
-                        const noteTextStr = notes[dateKey];
-                        const hasNote = !!noteTextStr;
-                        const isDeadlineNote = hasNote && noteTextStr.startsWith('[Дедлайн:');
-                        const isTdy = isToday(dayNumber);
+                        const noteText = notes[dateKey];
+                        const hasNote = Boolean(noteText);
+                        const isDeadlineNote = hasNote && noteText.startsWith('[Дедлайн:');
+                        const isCurrentDay = isToday(dayNumber);
+
                         return (
-                            <div key={dayNumber} className={`cal-day ${isTdy ? 'today' : ''}`} onClick={() => openNotePanel(dayNumber)}>
+                            <button
+                                type="button"
+                                key={dayNumber}
+                                className={`cal-day ${isCurrentDay ? 'today' : ''} ${hasNote ? 'has-note' : ''}`}
+                                onClick={() => openNotePanel(dayNumber)}
+                                aria-label={`${dayNumber} ${MONTH_NAMES[currentDate.getMonth()]}`}
+                            >
                                 <span>{dayNumber}</span>
-                                {hasNote && <div className={`note-dot ${isDeadlineNote ? 'deadline-dot' : ''}`} />}
-                            </div>
-                        )
+                                {hasNote && <i className={`note-dot ${isDeadlineNote ? 'deadline-dot' : ''}`} aria-hidden="true" />}
+                            </button>
+                        );
                     })}
                 </div>
-            </div>
-        </aside>
+            </aside>
+
+            <section className="vates-calendar-events vates-events-panel" aria-labelledby="vates-events-title">
+                <div className="vates-events-heading">
+                    <div>
+                        <span className="vates-eyebrow">На контроле</span>
+                        <h4 id="vates-events-title">Ближайшие события</h4>
+                    </div>
+                    <div className="vates-events-tabs" role="tablist" aria-label="Тип событий">
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={eventTab === 'personal'}
+                            className={eventTab === 'personal' ? 'active' : ''}
+                            onClick={() => setEventTab('personal')}
+                        >
+                            Заметки
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={eventTab === 'deadline'}
+                            className={eventTab === 'deadline' ? 'active deadline' : ''}
+                            onClick={() => setEventTab('deadline')}
+                        >
+                            Дедлайны
+                        </button>
+                    </div>
+                </div>
+
+                <div className="vates-events-list custom-scroll" role="tabpanel">
+                    {filteredEvents.length === 0 ? (
+                        <div className="vates-events-empty">
+                            <strong>Событий пока нет</strong>
+                            <span>Выберите дату в календаре, чтобы добавить запись.</span>
+                        </div>
+                    ) : (
+                        filteredEvents.slice(0, 10).map((event: any) => (
+                            <button
+                                type="button"
+                                key={event.key}
+                                className={`vates-event-item ${event.isDeadline ? 'deadline' : ''}`}
+                                onClick={() => setSelectedEvent(event)}
+                                aria-label={`Открыть событие: ${event.title}. ${getEventDateLabel(event)}`}
+                                title="Открыть запись полностью"
+                            >
+                                <time className="vates-event-date" dateTime={event.dateObj.toISOString().slice(0, 10)}>
+                                    <strong>{event.d}</strong>
+                                    <span>{MONTH_NAMES_GENITIVE[event.dateObj.getMonth()]}</span>
+                                    <small>{event.dateObj.getFullYear()}</small>
+                                </time>
+                                <div className="vates-event-copy">
+                                    <strong>{event.title}</strong>
+                                    {event.isDeadline ? (
+                                        <span>Получатель: {event.target}</span>
+                                    ) : (
+                                        event.desc && <span>{event.desc}</span>
+                                    )}
+                                </div>
+                            </button>
+                        ))
+                    )}
+                </div>
+            </section>
+
+            {selectedEvent && (
+                <div className="vates-event-modal-backdrop" role="presentation" onClick={() => setSelectedEvent(null)}>
+                    <section
+                        className="vates-event-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="vates-event-modal-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <header className="vates-event-modal-header">
+                            <div>
+                                <span className="vates-eyebrow">{selectedEvent.isDeadline ? 'Дедлайн' : 'Заметка'}</span>
+                                <h3 id="vates-event-modal-title">{selectedEvent.title}</h3>
+                            </div>
+                            <button
+                                type="button"
+                                className="vates-icon-button vates-event-modal-close"
+                                onClick={() => setSelectedEvent(null)}
+                                aria-label="Закрыть запись"
+                                title="Закрыть"
+                            >
+                                <CustomIcon name="close" size={18} color="currentColor" accent="none" />
+                            </button>
+                        </header>
+
+                        <time className="vates-event-modal-date" dateTime={selectedEvent.dateObj.toISOString().slice(0, 10)}>
+                            {getEventDateLabel(selectedEvent)}
+                        </time>
+
+                        {selectedEvent.isDeadline && selectedEvent.target && (
+                            <p className="vates-event-modal-target">Получатель: {selectedEvent.target}</p>
+                        )}
+
+                        <p className="vates-event-modal-copy">
+                            {selectedEvent.desc || 'Дополнительное описание для этой записи не добавлено.'}
+                        </p>
+                    </section>
+                </div>
+            )}
+        </>
     );
 }

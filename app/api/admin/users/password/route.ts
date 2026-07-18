@@ -49,8 +49,8 @@ export async function PUT(request: Request) {
             return NextResponse.json({ error: 'Сотрудник не найден' }, { status: 404 });
         }
 
-        if (targetUser.role !== 'staff' || targetUser.systemAccount || targetUser.ghostAccount) {
-            return NextResponse.json({ error: 'Пароль этого аккаунта нельзя сбросить из карточки сотрудника' }, { status: 403 });
+        if (targetUser.systemAccount || targetUser.ghostAccount) {
+            return NextResponse.json({ error: 'Пароль служебного аккаунта нельзя сбросить из карточки сотрудника' }, { status: 403 });
         }
 
         const updatedUser = normalizeStoredPassword(targetUser, temporaryPassword);

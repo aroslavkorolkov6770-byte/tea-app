@@ -1,21 +1,21 @@
 {
-  "name": "Tea Hub",
-  "short_name": "Tea Hub",
-  "description": "Платформа для обучения чайных мастеров",
+  "name": "Ватэс",
+  "short_name": "Ватэс",
+  "description": "Платформа обучения и знаний команды",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d0f0d",
-  "theme_color": "#0abab5",
+  "background_color": "#f5f7fa",
+  "theme_color": "#2e7d78",
   "gcm_sender_id": "103953800507",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "192x192",
+      "src": "/vates-logo-transparent.png",
+      "sizes": "1680x498",
       "type": "image/png"
     },
     {
-      "src": "/favicon.ico",
-      "sizes": "512x512",
+      "src": "/vates-logo-transparent.png",
+      "sizes": "1680x498",
       "type": "image/png"
     }
   ]

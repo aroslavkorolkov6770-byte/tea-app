@@ -1,32 +1,31 @@
 "use client";
 import React from 'react';
+import VatesLogo from '@/app/components/VatesLogo';
 
 export default function Footer() {
   return (
     <>
-      <footer style={footerStyle as any}>
-         <div style={docsContainer}>
-             <span style={{ color: '#333' }}>|</span>
+      <footer style={footerStyle as any} className="vates-footer">
+         <VatesLogo className="vates-footer-logo" />
+         <div className="vates-footer-docs">
              <a href="/privacy?doc=privacy#privacy" className="doc-link" style={docLinkStyle}>Политика конфиденциальности</a>
-             <span style={{ color: '#333' }}>|</span>
              <a href="/privacy?doc=cookies#cookies" className="doc-link" style={docLinkStyle}>Соглашение с файлами cookie</a>
-             <span style={{ color: '#333' }}>|</span>
          </div>
 
          {/* --- БЛОК СЛУЖБЫ ПОДДЕРЖКИ --- */}
-         <div style={{ marginTop: '25px', color: '#888', fontSize: '13px', fontWeight: '500' }}>
+         <div className="vates-footer-support">
              Служба технической поддержки:{' '}
-             <span style={{ color: '#0abab5', fontWeight: 'bold' }}>teacoffee@yandex.ru</span>
+             <span>teacoffee@yandex.ru</span>
          </div>
 
          {/* СТРОГИЙ КОПИРАЙТ ПО ГОСТ Р 7.0.1—2003 */}
-         <p style={{ marginTop: '12px', marginBottom: 0, color: '#555', fontSize: '12px', fontWeight: '700' }}>ООО "Чайная Артель"</p>
-         <p style={{ marginTop: '15px', color: '#444', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>© Корольков Я.Д., 2026 | HUB СОТРУДНИКА</p>
+         <p className="vates-footer-company">ООО "Чайная Артель"</p>
+         <p className="vates-footer-copyright">© Корольков Я.Д., 2026 · Ватэс</p>
       </footer>
 
       <style jsx global>{`
-        .doc-link { transition: 0.2s; color: #888; text-decoration: none; }
-        .doc-link:hover { color: #0abab5 !important; }
+        .doc-link { transition: 0.2s; color: var(--app-text-muted); text-decoration: none; }
+        .doc-link:hover { color: var(--app-accent) !important; }
       `}</style>
     </>
   );
@@ -37,8 +36,6 @@ const footerStyle = {
   width: '100%', 
   textAlign: 'center', 
   padding: '60px 20px', 
-  background: 'linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%)', 
-  borderTop: '1px solid rgba(255,255,255,0.02)', 
   display: 'flex', 
   flexDirection: 'column', 
   alignItems: 'center',
@@ -46,5 +43,4 @@ const footerStyle = {
   zIndex: 10
 };
 
-const docsContainer = { display: 'flex', gap: '15px', flexWrap: 'wrap' as any, justifyContent: 'center', alignItems: 'center' };
 const docLinkStyle = { fontSize: '13px', padding: '5px 10px', fontWeight: '600', outline: 'none' };

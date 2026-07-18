@@ -5,13 +5,13 @@ import Footer from "./components/Footer";
 import ThemeProvider from "./components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "Master HUB",
-  description: "Система обучения сотрудников",
+  title: "Ватэс",
+  description: "Обучение и знания команды",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black",
-    title: "Tea Hub",
+    title: "Ватэс",
   },
   robots: {
     index: false,
@@ -33,13 +33,13 @@ export default function RootLayout({
             __html: `
               (function () {
                 try {
-                  var savedTheme = window.localStorage.getItem('tea_hub_theme_v1');
-                  var theme = savedTheme === 'light' ? 'light' : 'dark';
+                  var savedTheme = window.localStorage.getItem('vates_theme_v1');
+                  var theme = savedTheme === 'dark' ? 'dark' : 'light';
                   document.documentElement.dataset.theme = theme;
                   document.documentElement.style.colorScheme = theme;
                 } catch (error) {
-                  document.documentElement.dataset.theme = 'dark';
-                  document.documentElement.style.colorScheme = 'dark';
+                  document.documentElement.dataset.theme = 'light';
+                  document.documentElement.style.colorScheme = 'light';
                 }
               })();
             `,

@@ -15,10 +15,15 @@ export async function POST(request: Request) {
         const name = typeof body.name === 'string' ? body.name.trim() : '';
         const login = typeof body.login === 'string' ? body.login.trim() : '';
         const password = typeof body.password === 'string' ? body.password.trim() : '';
+        const location = typeof body.location === 'string' ? body.location.trim() : '';
         const role: UserRole = body.role === 'admin' ? 'admin' : 'staff';
 
         if (!name || !login || !password) {
             return NextResponse.json({ error: 'Заполните все поля' }, { status: 400 });
+        }
+
+        if (location.length > 120) {
+            return NextResponse.json({ error: 'Название точки не должно превышать 120 символов' }, { status: 400 });
         }
 
         const users = getStoredUsers();
@@ -33,6 +38,7 @@ export async function POST(request: Request) {
             passHash: hashPassword(password),
             role,
             name,
+            location: location || undefined,
             isRegistered: role === 'admin',
         };
 

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
 import { isClientAdminView } from '@/app/lib/authClient';
 import { saveDataToServer } from '@/app/lib/storageClient';
@@ -356,9 +356,9 @@ function AssortmentNode({
     }, [targetId, node]);
 
     return (
-        <div style={{ marginLeft: depth === 0 ? '0' : '20px', borderLeft: depth === 0 ? 'none' : '1px solid #333', paddingLeft: depth === 0 ? '0' : '15px', marginTop: depth === 0 ? '12px' : '8px', marginBottom: depth === 0 ? '12px' : '8px' }}>
+        <div className="assortment-node" data-depth={depth} style={{ marginLeft: depth === 0 ? '0' : '20px', borderLeft: depth === 0 ? 'none' : '1px solid #333', paddingLeft: depth === 0 ? '0' : '15px', marginTop: depth === 0 ? '12px' : '8px', marginBottom: depth === 0 ? '12px' : '8px' }}>
             <div
-                className="assortment-row hover-card-unified-app"
+                className={`assortment-row hover-card-unified-app${isOpen ? ' is-open' : ''}${isTarget ? ' is-target' : ''}`}
                 onClick={() => setIsOpen(!isOpen)}
                 style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: isOpen ? '#1a1a1a' : '#111', borderRadius: '10px', 
@@ -369,17 +369,21 @@ function AssortmentNode({
                     userSelect: 'none',
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', flex: 1, color: '#fff', minWidth: 0, paddingRight: '10px' }}>
-                    <span style={{ marginRight: '12px', color: '#0abab5', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.15s', fontSize: '12px', flexShrink: 0 }}>
-                        {hasChildren ? '▶' : '•'}
+                <div className="assortment-row-main" style={{ display: 'flex', alignItems: 'center', flex: 1, color: '#fff', minWidth: 0, paddingRight: '10px' }}>
+                    <span className={`assortment-row-toggle${hasChildren ? ' has-children' : ''}`} style={{ marginRight: '12px', color: '#0abab5', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: '0.15s', fontSize: '12px', flexShrink: 0 }}>
+                        {hasChildren ? (
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3.5L9 7L5 10.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        ) : (
+                            <span className="assortment-row-dot" />
+                        )}
                     </span>
                     {/* Фикс переноса текста заголовка */}
-                    <span style={{ fontWeight: depth === 0 ? 'bold' : 'normal', fontSize: depth === 0 ? '18px' : '16px', wordBreak: 'break-word', lineHeight: '1.3' }}>{node.title}</span>
+                    <span className="assortment-row-title" style={{ fontWeight: depth === 0 ? 'bold' : 'normal', fontSize: depth === 0 ? '18px' : '16px', wordBreak: 'break-word', lineHeight: '1.3' }}>{node.title}</span>
                 </div>
                 
                 {/* ПАНЕЛЬ АДМИНА ДЛЯ КАЖДОЙ СТРОКИ */}
                 {isAdmin && (
-                    <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <div className="assortment-row-actions" style={{ display: 'flex', gap: '6px', marginLeft: 'auto', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                         <button className="hover-unified-app" onClick={() => onMove(node.id, 'up')} title="Переместить выше" style={adminIconBtn as any}>
                             <MoveArrowIcon direction="up" />
                         </button>
@@ -398,15 +402,15 @@ function AssortmentNode({
             </div>
             
             {isOpen && (
-                <div style={{ marginTop: '8px', animation: 'fadeInUp 0.2s ease' }}>
+                <div className="assortment-node-content" style={{ marginTop: '8px', animation: 'fadeInUp 0.2s ease' }}>
                     {/* Фикс переноса текста и отображения старых описаний */}
                     {descText && (
-                        <div style={{ padding: '12px 18px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1a1a1a', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                        <div className="assortment-node-description" style={{ padding: '12px 18px', fontSize: '14px', color: '#aaa', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1a1a1a', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
                             {descText}
                         </div>
                     )}
                     {!descText && !hasChildren && (
-                        <div style={{ padding: '12px 18px', fontSize: '13px', color: '#6f6f6f', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px dashed #1f1f1f', wordBreak: 'break-word', lineHeight: '1.5' }}>
+                        <div className="assortment-node-description is-empty" style={{ padding: '12px 18px', fontSize: '13px', color: '#6f6f6f', background: '#0a0a0a', borderRadius: '8px', marginBottom: '8px', border: '1px dashed #1f1f1f', wordBreak: 'break-word', lineHeight: '1.5' }}>
                             {isAdmin ? 'Подраздел создан. Можно добавить описание или вложенный раздел.' : 'Подраздел пока не наполнен содержимым.'}
                         </div>
                     )}
@@ -436,6 +440,44 @@ function PlusIcon() {
     );
 }
 
+function countAssortmentNodes(nodes: any[]): number {
+    return nodes.reduce((total, node) => total + 1 + countAssortmentNodes(Array.isArray(node.children) ? node.children : []), 0);
+}
+
+const getAssortmentTitleOrder = (title: string) => {
+    const match = String(title || '').trim().match(/^(\d+(?:\.\d+)*)/u);
+    return match ? match[1].split('.').map((part) => Number.parseInt(part, 10)) : null;
+};
+
+const compareAssortmentTitles = (leftTitle: string, rightTitle: string) => {
+    const leftOrder = getAssortmentTitleOrder(leftTitle);
+    const rightOrder = getAssortmentTitleOrder(rightTitle);
+
+    if (leftOrder && rightOrder) {
+        const maxLength = Math.max(leftOrder.length, rightOrder.length);
+        for (let index = 0; index < maxLength; index += 1) {
+            const leftPart = leftOrder[index] ?? -1;
+            const rightPart = rightOrder[index] ?? -1;
+            if (leftPart !== rightPart) return leftPart - rightPart;
+        }
+    } else if (leftOrder) {
+        return -1;
+    } else if (rightOrder) {
+        return 1;
+    }
+
+    return String(leftTitle || '').localeCompare(String(rightTitle || ''), 'ru', { numeric: true });
+};
+
+const sortAssortmentTree = (nodes: any[]): any[] => {
+    return [...nodes]
+        .map((node) => ({
+            ...node,
+            ...(Array.isArray(node.children) ? { children: sortAssortmentTree(node.children) } : {}),
+        }))
+        .sort((left, right) => compareAssortmentTitles(left?.title, right?.title));
+};
+
 // --- ОСНОВНОЙ КОМПОНЕНТ ---
 export default function Assortment({ assortmentMatrix, assortmentId }: { assortmentMatrix: any[], assortmentId: string | null }) {
     const [localMatrix, setLocalMatrix] = useState<any[]>([]);
@@ -448,6 +490,8 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
     
     // Кастомное модальное окно для подтверждения удаления
     const [confirmDelete, setConfirmDelete] = useState<{isOpen: boolean, id: string | null}>({ isOpen: false, id: null });
+    const totalAssortmentNodes = countAssortmentNodes(localMatrix);
+    const orderedMatrix = useMemo(() => sortAssortmentTree(localMatrix), [localMatrix]);
 
     useEffect(() => {
         setIsAdmin(isClientAdminView());
@@ -575,29 +619,49 @@ export default function Assortment({ assortmentMatrix, assortmentId }: { assortm
     };
 
     return (
-        <section style={{ animation: 'fadeInUp 0.5s ease', maxWidth: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '15px' }}>
-                <h2 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>Каталог товаров (Ассортимент)</h2>
+        <section className="vates-assortment-screen" style={{ animation: 'fadeInUp 0.5s ease', maxWidth: '100%' }}>
+            <div className="vates-page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '15px' }}>
+                <div>
+                    <span className="vates-eyebrow">Структура каталога</span>
+                    <h1>Ассортимент</h1>
+                    <p>Иерархия товарных групп и описание каждого раздела.</p>
+                </div>
                 {isAdmin && (
-                    <button className="hover-unified-app" onClick={() => handleAddNode(null)} style={adminActionBtn as any}>+ ДОБАВИТЬ ГЛАВНЫЙ РАЗДЕЛ</button>
+                    <button className="hover-unified-app vates-button primary" onClick={() => handleAddNode(null)} style={adminActionBtn as any}>Добавить главный раздел</button>
                 )}
             </div>
-            
-            <div style={{ marginTop: '10px' }}>
-                {localMatrix.map((rootNode: any) => (
-                    <AssortmentNode 
-                        key={rootNode.id} 
-                        node={rootNode} 
-                        depth={0} 
-                        targetId={assortmentId} 
-                        isAdmin={isAdmin}
-                        onAdd={handleAddNode}
-                        onEdit={handleEditNode}
-                        onDelete={handleDeleteNode}
-                        onMove={handleMoveNode}
-                    />
-                ))}
+            <div className="vates-info-banner">
+                <CustomIcon name="idea" size={22} color="currentColor" />
+                <div><strong>Единая матрица ассортимента</strong><span>Разделы связаны с товарным каталогом. Импорт товаров продолжает дополнять дерево автоматически.</span></div>
             </div>
+
+            <section className="vates-assortment-tree-shell">
+                <header className="vates-assortment-tree-heading">
+                    <div>
+                        <span className="vates-eyebrow">Навигация по каталогу</span>
+                        <h2>Дерево категорий</h2>
+                    </div>
+                    <div className="vates-assortment-stats" aria-label="Статистика структуры ассортимента">
+                        <span><strong>{orderedMatrix.length}</strong> главных разделов</span>
+                        <span><strong>{totalAssortmentNodes}</strong> категорий</span>
+                    </div>
+                </header>
+                <div className="vates-assortment-tree">
+                    {orderedMatrix.map((rootNode: any) => (
+                        <AssortmentNode
+                            key={rootNode.id}
+                            node={rootNode}
+                            depth={0}
+                            targetId={assortmentId}
+                            isAdmin={isAdmin}
+                            onAdd={handleAddNode}
+                            onEdit={handleEditNode}
+                            onDelete={handleDeleteNode}
+                            onMove={handleMoveNode}
+                        />
+                    ))}
+                </div>
+            </section>
 
             {/* МОДАЛЬНОЕ ОКНО РЕДАКТОРА */}
             {modalConfig.isOpen && (

@@ -5,16 +5,18 @@ import CustomIcon from '@/app/components/CustomIcon';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 
 import UserManagement from './components/UserManagement';
-import StatisticsPanel from './components/StatisticsPanel';
 import InteractionCenter from './components/InteractionCenter';
 import CalendarWidget from './components/CalendarWidget';
 import UserProfileModal from './components/UserProfileModal';
 import TestEditorModal from './components/TestEditorModal';
 import TestResultsModal from './components/TestResultsModal';
+import VatesAdminOverview from './components/VatesAdminOverview';
 
 import { noteOverlayStyle, noteSidebarStyle, noteTextarea, noteDeleteBtn, adminSendBtn, flexSpace, sectionTitle, adminIn, saveBtn, modalOverlay, modalContentSmall } from './components/adminStyles';
 
 const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+const NOTE_TITLE_MAX_LENGTH = 120;
+const NOTE_BODY_MAX_LENGTH = 2000;
 const ADMIN_CACHE_KEYS = {
   NOTES: 'th_admin_notes_v1',
   USERS: 'th_admin_users_v1',
@@ -72,7 +74,7 @@ const buildDeadlineTaskText = (
 
 export default function AdminDashboard() {
   const [isMounted, setIsMounted] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeAdminSection, setActiveAdminSection] = useState<'overview' | 'employees'>('overview');
   const [isProcessing, setIsProcessing] = useState(false);
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
   const [isSystemAdmin, setIsSystemAdmin] = useState(false);
@@ -91,6 +93,7 @@ export default function AdminDashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [noteTitle, setNoteTitle] = useState("");
   const [noteText, setNoteText] = useState("");
   const [noteType, setNoteType] = useState<'personal' | 'deadline'>('personal');
   const [deadlineTarget, setDeadlineTarget] = useState<string>('Все');
@@ -168,8 +171,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setIsMounted(true);
-    const handleToggle = () => setIsSidebarOpen(prev => !prev);
-    window.addEventListener('sidebarToggle', handleToggle);
 
     if (typeof window !== 'undefined') {
         if (!('Notification' in window)) setPushStatus('unsupported');
@@ -271,7 +272,16 @@ export default function AdminDashboard() {
     };
 
     loadAllData();
-    return () => window.removeEventListener('sidebarToggle', handleToggle);
+  }, []);
+
+  useEffect(() => {
+      const syncAdminSection = () => {
+          setActiveAdminSection(window.location.hash === '#employees' ? 'employees' : 'overview');
+      };
+
+      syncAdminSection();
+      window.addEventListener('hashchange', syncAdminSection);
+      return () => window.removeEventListener('hashchange', syncAdminSection);
   }, []);
 
   const handleUpdateTestTypes = (newTypes: any[]) => {
@@ -426,8 +436,11 @@ export default function AdminDashboard() {
   
   const openNotePanel = (day: number) => { 
       const key = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`; 
+      const savedNote = notes[key] || "";
+      const [savedTitle, ...savedDetails] = savedNote.split('\n');
       setSelectedDateKey(key); 
-      setNoteText(notes[key] || ""); 
+      setNoteTitle(savedTitle);
+      setNoteText(savedDetails.join('\n'));
       setNoteType('personal'); 
       setDeadlineTarget('Все'); 
       setDeadlineMaterialType('test');
@@ -437,6 +450,7 @@ export default function AdminDashboard() {
   
   const closeNotePanel = () => { 
       setSelectedDateKey(null); 
+      setNoteTitle("");
       setNoteText(""); 
       setSelectedDeadlineMaterial(null);
       setDeadlineSearchQuery('');
@@ -446,7 +460,13 @@ export default function AdminDashboard() {
   const saveNote = async () => {
       if (!selectedDateKey) return;
       const deadlineTaskText = buildDeadlineTaskText(noteText, selectedDeadlineMaterial, deadlineMaterialType, deadlineSearchQuery);
-      if (noteType === 'personal' && !noteText.trim()) { const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); return; }
+      const personalNoteTitle = noteTitle.trim();
+      const personalNoteBody = noteText.trim();
+      if (noteType === 'personal' && !personalNoteTitle && !personalNoteBody) { const newNotes = { ...notes }; delete newNotes[selectedDateKey]; setNotes(newNotes); saveDataToServer('admin_cal_notes_v1', newNotes); closeNotePanel(); return; }
+      if (noteType === 'personal' && !personalNoteTitle) {
+          setErrorModal({ show: true, text: 'Укажите заголовок заметки.' });
+          return;
+      }
       if (noteType === 'deadline' && !deadlineTaskText) {
           setErrorModal({ show: true, text: 'Введите текст задачи или выберите материал для дедлайна.' });
           return;
@@ -459,7 +479,9 @@ export default function AdminDashboard() {
       let shouldClosePanel = false;
       try {
           const newNotes = { ...notes };
-          let adminNoteText = noteText.trim();
+          let adminNoteText = noteType === 'personal'
+              ? [personalNoteTitle, personalNoteBody].filter(Boolean).join('\n')
+              : noteText.trim();
           
           if (noteType === 'deadline') {
               let finalLinkedMaterial = selectedDeadlineMaterial;
@@ -669,67 +691,69 @@ export default function AdminDashboard() {
       return !normalizedQuery || `${option.title} ${option.section}`.toLocaleLowerCase('ru').includes(normalizedQuery);
   });
 
-  if (!isMounted) return <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', display: 'flex' }}><Navigation /><div style={{ width: '260px', flexShrink: 0 }} /></div>;
+  if (!isMounted) return <div className="vates-app-page vates-app-loading"><Navigation /><div className="desktop-sidebar-spacer" aria-hidden="true" /></div>;
 
   return (
-    <div style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s' }}>
+    <div className="vates-app-page vates-admin-page" style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s' }}>
       <Navigation />
-      <div className="desktop-sidebar-spacer" style={{ width: isSidebarOpen ? '260px' : '0', transition: '0.3s', flexShrink: 0 }} />
+      <div className="desktop-sidebar-spacer" aria-hidden="true" />
 
       <main className="admin-main" style={{ flex: 1, padding: '110px 40px 40px 40px', transition: '0.3s', boxSizing: 'border-box', maxWidth: '100%' }}>
           <div style={{ animation: 'fadeInUp 0.4s ease' }}>
+            {activeAdminSection === 'overview' ? (
+                <>
+                    <VatesAdminOverview
+                        users={users}
+                        usersStats={usersStats}
+                        totalRouteSteps={totalRouteSteps}
+                        totalBasicsModules={totalBasicsModules}
+                        testResults={testResults}
+                        urgentFiles={urgentFiles}
+                        onOpenEmployees={() => { window.location.hash = 'employees'; }}
+                        onOpenTestResults={() => setShowTestModal(true)}
+                        onOpenMaterials={() => window.location.assign('/tasks?tab=docs')}
+                    />
 
-            {pushStatus === 'default' && (
-                <div style={{ background: '#111', border: '1px solid #0abab5', borderRadius: '18px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-                    <div>
-                        <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#0abab5', fontWeight: '900' }}>Включите Web-Push</h3>
-                        <p style={{ margin: 0, color: '#aaa', fontSize: '13px' }}>Разрешите получение пушей на этот компьютер.</p>
-                    </div>
-                    <button className="hover-unified-app" onClick={subscribeToPush} style={{ background: '#0abab5', color: '#000', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '13px' }}>РАЗРЕШИТЬ</button>
-                </div>
+                    <section className="vates-workspace-operations" aria-labelledby="vates-operations-title">
+                        <div className="vates-operations-heading">
+                            <div>
+                                <span className="vates-eyebrow">Оперативная работа</span>
+                                <h2 id="vates-operations-title">Команда и расписание</h2>
+                            </div>
+                            <button type="button" className="vates-button secondary" onClick={() => setShowTestModal(true)}>
+                                Результаты тестов · {testResults.length}
+                            </button>
+                        </div>
+
+                        <div className="vates-workspace-tools-grid">
+                            <InteractionCenter
+                                users={users} interactionTab={interactionTab} setInteractionTab={setInteractionTab}
+                                selectedStaff={selectedStaff} setSelectedStaff={setSelectedStaff} notifText={notifText}
+                                setNotifText={setNotifText} testType={testType} setTestType={setTestType}
+                                handleSendNotification={handleSendNotification} handleOpenTestEditor={handleOpenTestEditor}
+                                handleQuickSendTest={handleQuickSendTest} isProcessing={isProcessing}
+                                testTypesList={testTypesList} handleUpdateTestTypes={handleUpdateTestTypes}
+                                allowSelfSystemTarget={isSystemAdmin} selfSystemTargetId={currentAdminId}
+                            />
+
+                            <CalendarWidget
+                                eventTab={eventTab} setEventTab={setEventTab} filteredEvents={filteredEvents}
+                                currentDate={currentDate} handlePrevMonth={handlePrevMonth} handleNextMonth={handleNextMonth}
+                                daysInMonth={daysInMonth} shiftStartDay={shiftStartDay} isToday={isToday}
+                                openNotePanel={openNotePanel} notes={notes}
+                            />
+                        </div>
+                    </section>
+                </>
+            ) : (
+                <section id="employees" className="vates-employees-workspace">
+                    <UserManagement
+                        users={users} setUsers={setUsers} userAvatars={userAvatars}
+                        usersStats={usersStats} totalRouteSteps={totalRouteSteps} totalBasicsModules={totalBasicsModules}
+                        setShowSuccessModal={setShowSuccessModal} setErrorModal={setErrorModal} setSelectedProfileUser={setSelectedProfileUser}
+                    />
+                </section>
             )}
-            
-            <div className="admin-layout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px', marginBottom: '30px', marginTop: '40px' }}>
-              <section style={{ minWidth: 0 }}>
-                
-                <UserManagement 
-                    users={users} setUsers={setUsers} userAvatars={userAvatars}
-                    setShowSuccessModal={setShowSuccessModal} setErrorModal={setErrorModal} setSelectedProfileUser={setSelectedProfileUser}
-                />
-
-                <div className="admin-flex-space" style={{ ...flexSpace, marginTop: '40px' } as any}>
-                  <h2 className="admin-section-title hover-unified-app" style={{ ...sectionTitle, cursor: 'pointer', color: '#0abab5', textDecoration: 'none', background: 'rgba(10,186,181,0.08)', border: '1px solid rgba(10,186,181,0.22)', padding: '10px 16px', borderRadius: '14px' } as any} onClick={() => setShowTestModal(true)}>
-                    Результаты тестирования
-                  </h2>
-                  <span style={{ fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Всего записей: {testResults.length}</span>
-                </div>
-
-                <InteractionCenter 
-                    users={users} interactionTab={interactionTab} setInteractionTab={setInteractionTab}
-                    selectedStaff={selectedStaff} setSelectedStaff={setSelectedStaff} notifText={notifText}
-                    setNotifText={setNotifText} testType={testType} setTestType={setTestType}
-                    handleSendNotification={handleSendNotification} handleOpenTestEditor={handleOpenTestEditor}
-                    handleQuickSendTest={handleQuickSendTest} isProcessing={isProcessing}
-                    testTypesList={testTypesList} handleUpdateTestTypes={handleUpdateTestTypes}
-                    allowSelfSystemTarget={isSystemAdmin} selfSystemTargetId={currentAdminId}
-                />
-
-              </section>
-
-              <CalendarWidget 
-                  eventTab={eventTab} setEventTab={setEventTab} filteredEvents={filteredEvents}
-                  currentDate={currentDate} handlePrevMonth={handlePrevMonth} handleNextMonth={handleNextMonth}
-                  daysInMonth={daysInMonth} shiftStartDay={shiftStartDay} isToday={isToday}
-                  openNotePanel={openNotePanel} notes={notes}
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-               <StatisticsPanel 
-                   users={users} usersStats={usersStats} totalRouteSteps={totalRouteSteps} 
-                   totalBasicsModules={totalBasicsModules} userAvatars={userAvatars} setSelectedProfileUser={setSelectedProfileUser}
-               />
-            </div>
           </div>
       </main>
 
@@ -858,7 +882,47 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            <textarea autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={noteType === 'deadline' ? "Текст задачи..." : "Текст заметки..."} style={{...noteTextarea, height: noteType === 'deadline' ? '135px' : '200px'} as any} />
+            {noteType === 'personal' ? (
+                <div style={{ display: 'grid', gap: '14px' }}>
+                    <label htmlFor="admin-note-title" style={{ display: 'grid', gap: '7px' }}>
+                        <span style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', color: '#aaa', fontSize: '12px', fontWeight: '800' }}>
+                            <span>Заголовок заметки</span>
+                            <span aria-live="polite">{noteTitle.length} / {NOTE_TITLE_MAX_LENGTH}</span>
+                        </span>
+                        <input
+                            id="admin-note-title"
+                            autoFocus
+                            value={noteTitle}
+                            maxLength={NOTE_TITLE_MAX_LENGTH}
+                            onChange={(event) => setNoteTitle(event.target.value)}
+                            placeholder="Коротко: что важно сделать"
+                            style={{ ...noteTextarea, minHeight: '54px', padding: '15px 16px', borderRadius: '14px' } as any}
+                        />
+                    </label>
+                    <label htmlFor="admin-note-body" style={{ display: 'grid', gap: '7px' }}>
+                        <span style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', color: '#aaa', fontSize: '12px', fontWeight: '800' }}>
+                            <span>Подробности</span>
+                            <span aria-live="polite">{noteText.length} / {NOTE_BODY_MAX_LENGTH}</span>
+                        </span>
+                        <textarea
+                            id="admin-note-body"
+                            value={noteText}
+                            maxLength={NOTE_BODY_MAX_LENGTH}
+                            onChange={(event) => setNoteText(event.target.value)}
+                            placeholder="Опишите заметку подробнее..."
+                            style={{ ...noteTextarea, height: '154px' } as any}
+                        />
+                    </label>
+                </div>
+            ) : (
+                <textarea
+                    autoFocus
+                    value={noteText}
+                    onChange={(event) => setNoteText(event.target.value)}
+                    placeholder="Текст задачи..."
+                    style={{ ...noteTextarea, height: '135px' } as any}
+                />
+            )}
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
                 <button className="hover-unified-app" onClick={saveNote} disabled={isProcessing} style={{...adminSendBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'} as any}>{isProcessing ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}</button>
                 {notes[selectedDateKey] && <button className="hover-unified-app" onClick={deleteNote} disabled={isProcessing} style={{...noteDeleteBtn, flex: 1, minWidth: '100px', cursor: isProcessing ? 'not-allowed' : 'pointer'} as any}>УДАЛИТЬ</button>}
@@ -907,7 +971,7 @@ export default function AdminDashboard() {
         .keep-scroll::-webkit-scrollbar-thumb { background: #333 !important; border-radius: 10px !important; }
         .keep-scroll { -ms-overflow-style: auto !important; scrollbar-width: thin !important; scrollbar-color: #333 transparent !important; }
 
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             .desktop-sidebar-spacer { display: none !important; width: 0 !important; }
             .admin-main { padding: 90px 15px 50px 15px !important; }
             .admin-layout-grid { grid-template-columns: 1fr !important; gap: 20px !important; margin-top: 20px !important; }
