@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
 import SectionCollapseButton from '@/app/components/SectionCollapseButton';
 import useCollapsedSections from '@/app/hooks/useCollapsedSections';
@@ -85,6 +85,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     const [isCreatingNewUploadSection, setIsCreatingNewUploadSection] = useState(false);
     const [newUploadSectionName, setNewUploadSectionName] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [documentSearchQuery, setDocumentSearchQuery] = useState('');
+    const [documentSectionFilter, setDocumentSectionFilter] = useState('all');
+    const deferredDocumentSearchQuery = useDeferredValue(documentSearchQuery);
 
     const [successModal, setSuccessModal] = useState({ show: false, title: '', text: '' });
     const [errorModal, setErrorModal] = useState({ show: false, text: '' });
@@ -749,7 +752,17 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         return groups;
     };
 
-    const docGroups = groupItems(allDocs);
+    const normalizedDocumentSearch = deferredDocumentSearchQuery.trim().toLocaleLowerCase('ru-RU');
+    const filteredDocuments = allDocs.filter((file: any) => {
+        const sectionName = file.section?.trim() || 'Основной раздел';
+        const matchesSection = documentSectionFilter === 'all' || sectionName === documentSectionFilter;
+        if (!matchesSection) return false;
+        if (!normalizedDocumentSearch) return true;
+
+        return [file.name, sectionName, file.date, file.size]
+            .some((value) => String(value || '').toLocaleLowerCase('ru-RU').includes(normalizedDocumentSearch));
+    });
+    const docGroups = groupItems(filteredDocuments);
 
     const renderLinkedPreviewContent = () => {
         if (!linkedPreview) {
@@ -795,7 +808,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         return <iframe title={`Предпросмотр ${linkedPreview.file.name}`} src={linkedPreview.objectUrl} />;
     };
 
-    const visibleDocumentsCount = Object.values(docGroups).reduce((total: number, items: any) => total + items.length, 0);
+    const visibleDocumentsCount = filteredDocuments.filter((file: any) => !file.isDocPlaceholder).length;
 
     return (
         <section className="vates-documents-screen" style={{ animation: 'fadeInUp 0.6s ease', maxWidth: '100%' }}>
@@ -803,14 +816,24 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 <div>
                     <span className="vates-eyebrow">База знаний</span>
                     <h1>Документы</h1>
-                    <p>Документы компании, инструкции и файлы для обучения сотрудников.</p>
+                    <p>Загружайте, систематизируйте и открывайте документы компании.</p>
                 </div>
-                <span className="vates-page-counter">{visibleDocumentsCount} документов</span>
             </header>
 
-            {/* БЛОК ЗАГРУЗКИ */}
             {isAdmin && (
-                <div className="vates-documents-upload-shell" style={{ marginBottom: '40px' }}>
+                <section className="vates-material-studio vates-document-studio">
+                    <header className="vates-material-studio-heading">
+                        <span className="vates-material-studio-icon">
+                            <CustomIcon name="file" size={27} color="currentColor" accent="none" />
+                        </span>
+                        <div>
+                            <span className="vates-eyebrow">Студия документов</span>
+                            <h2>Добавьте файлы в базу знаний</h2>
+                            <p>Загрузите документы и сразу распределите их по понятным разделам.</p>
+                        </div>
+                    </header>
+
+                    <div className="vates-documents-upload-shell">
                     {(!selectedFiles || selectedFiles.length === 0) ? (
                         <div 
                             className="documents-upload-zone"
@@ -880,30 +903,64 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                             </div>
                         </div>
                     )}
-                </div>
+                    </div>
+
+                    <footer className="vates-material-studio-footer">
+                        <div>
+                            <span className="vates-material-studio-footer-icon"><CustomIcon name="folder" size={19} color="currentColor" accent="none" /></span>
+                            <div>
+                                <strong>Организуйте библиотеку</strong>
+                                <span>Разделы помогают быстро находить нужные документы.</span>
+                            </div>
+                        </div>
+                        <div className="vates-material-studio-footer-actions">
+                            <button type="button" className="vates-button secondary compact" onClick={() => setPromptSection({isOpen: true, name: ''})}>
+                                Добавить раздел
+                            </button>
+                        </div>
+                    </footer>
+                </section>
             )}
 
-            <div className="vates-documents-library-heading" style={flexSpace as any}>
+            <section className="vates-material-catalog-toolbar vates-documents-catalog-toolbar" aria-label="Поиск и фильтрация документов">
+                <label className="vates-material-search-field">
+                    <span className="vates-material-search-icon"><CustomIcon name="eye" size={18} color="currentColor" accent="none" /></span>
+                    <input
+                        type="search"
+                        value={documentSearchQuery}
+                        onChange={(event) => setDocumentSearchQuery(event.target.value)}
+                        placeholder="Найти документ или раздел"
+                        aria-label="Поиск документов"
+                    />
+                </label>
+                <select value={documentSectionFilter} onChange={(event) => setDocumentSectionFilter(event.target.value)} aria-label="Раздел документов">
+                    <option value="all">Все разделы</option>
+                    {existingDocSections.map((sectionName) => (
+                        <option key={String(sectionName)} value={String(sectionName)}>{String(sectionName)}</option>
+                    ))}
+                </select>
+                <span className="vates-material-result-count">Найдено: <strong>{visibleDocumentsCount}</strong></span>
+            </section>
+
+            <div className="vates-material-section-heading vates-documents-library-heading">
                <div>
-                   <span className="vates-eyebrow">Библиотека</span>
-                   <h2 style={{ fontSize: '28px', fontWeight: '900', color: '#fff', margin: 0 }}>Нормативные документы</h2>
+                   <span className="vates-eyebrow">Библиотека документов</span>
+                   <h2 className="tasks-title">Документы компании</h2>
                </div>
-               {isAdmin && (
-                   <button type="button" className="vates-button primary vates-documents-create-section-button" onClick={() => setPromptSection({isOpen: true, name: ''})}>
-                       <CustomIcon name="folder" size={18} color="currentColor" accent="none" />
-                       Новый раздел
-                   </button>
-               )}
             </div>
             
-            <div className="vates-documents-library" style={{ marginBottom: '60px' }}>
+            <div className="vates-material-groups vates-documents-library" style={{ marginBottom: '60px' }}>
                {Object.keys(docGroups).length === 0 ? (
-                   <div className="documents-empty-state" style={{ color: '#666', fontSize: '15px', background: '#111', padding: '40px', borderRadius: '30px', border: '1px dashed #333', textAlign: 'center', lineHeight: '1.5' }}>
-                       {isAdmin ? 'В этом разделе пока нет документов.\nНажмите «Новый раздел», чтобы создать первую папку.' : 'Нет доступных нормативных документов.'}
+                   <div className="vates-material-empty-state documents-empty-state">
+                       {documentSearchQuery || documentSectionFilter !== 'all'
+                           ? 'По этому запросу документов не найдено.'
+                           : isAdmin
+                               ? 'Документов пока нет. Добавьте первый файл через студию документов.'
+                               : 'Нет доступных документов.'}
                    </div>
                ) : (
                    Object.entries(docGroups).map(([secName, items]: any) => (
-                       <div key={secName} className="vates-document-section" style={{ marginBottom: '40px' }}>
+                       <section key={secName} className="vates-material-group vates-document-section">
                            <div className="section-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '10px', marginBottom: isSectionCollapsed(secName) ? 0 : '20px' }}>
                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', color: '#0abab5', fontWeight: '900', margin: 0, textTransform: 'uppercase' }}>
                                    <CustomIcon name="folder" size={22} color="#0abab5" />
@@ -927,62 +984,62 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                )}
                            </div>
                            
-                           {!isSectionCollapsed(secName) && <div className="premium-cards-container section-collapsible-content">
+                           {!isSectionCollapsed(secName) && <div className="premium-cards-container section-collapsible-content vates-document-card-grid">
                                {items.length === 0 ? (
-                                   <div className="vates-document-section-empty" style={{ color: '#555', fontSize: '13px', fontStyle: 'italic', padding: '10px 5px' }}>
-                                       В этом разделе пока нет документов...
+                                   <div className="vates-material-section-empty vates-document-section-empty">
+                                       <span className="vates-material-section-empty-icon"><CustomIcon name="folder" size={19} color="currentColor" accent="none" /></span>
+                                       <div>
+                                           <strong>Раздел пока пуст</strong>
+                                           <span>Добавьте документ, когда файл будет готов.</span>
+                                       </div>
                                    </div>
                                ) : (
                                    items.map((file: any) => (
-                                       <div key={file.id} id={`document-card-${file.id}`} className="premium-card linked-document-card-target vates-document-row">
-                                          
-                                          {isAdmin && (
-                                              <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px', zIndex: 10 }}>
-                                                  <div onClick={(e) => { e.stopPropagation(); setMovingItem(file.id); }} className="card-icon-btn move-btn" title="Переместить">
-                                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                          <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                          <path d="M3 8L12 14L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      </svg>
-                                                  </div>
-                                                  <div onClick={(e) => { e.stopPropagation(); setCopyingItem(file.id); }} className="card-icon-btn copy-btn" title="Добавить в другой раздел">
-                                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                          <rect x="9" y="9" width="11" height="11" rx="2" stroke="#0abab5" strokeWidth="2"/>
-                                                          <path d="M6 15H5C3.89543 15 3 14.1046 3 13V5C3 3.89543 3.89543 3 5 3H13C14.1046 3 15 3.89543 15 5V6" stroke="#0abab5" strokeWidth="2" strokeLinecap="round"/>
-                                                      </svg>
-                                                  </div>
-                                                  <div onClick={(e) => { e.stopPropagation(); setConfirmDelete({isOpen: true, type: 'file', targetId: file.id, name: file.name}); }} className="card-icon-btn del-btn" title="Удалить">
-                                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                          <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      </svg>
-                                                  </div>
-                                              </div>
-                                          )}
-                                          
-                                          {/* Обертка с отступом, чтобы текст не лез под иконки */}
-                                          <div className="vates-document-row-copy" style={{ paddingRight: isAdmin ? '85px' : '0', marginBottom: '15px' }}>
-                                              <div className="vates-document-row-date" style={{fontSize:'11px', color:'#0abab5', fontWeight:'800', marginBottom: '8px', opacity: 0.8}}>{file.date || 'Документ'}</div>
-                                              
-                                              <h4 className="vates-document-row-title" style={{fontSize:'16px', margin:'0', fontWeight:'bold', wordBreak: 'break-word', color: '#fff', lineHeight: '1.3', display: 'flex', alignItems: 'flex-start', gap: '10px'}}>
-                                                  {/* Новый премиальный векторный значок документа */}
-                                                  <CustomIcon name="file" size={22} color="#0abab5" />
-                                                  <span>{file.name}</span>
-                                              </h4>
-                                          </div>
-                                          
-                                          {/* Фикс скачущего текста: блок кнопок и веса прижат к низу карточки */}
-                                          <div className="vates-document-row-footer" style={{ marginTop: 'auto' }}>
-                                              <div className="vates-document-row-size" style={{ color: '#555', fontSize: '12px', marginBottom: '15px', fontWeight: 'bold' }}>Размер: {file.size}</div>
-                                              <div className="vates-document-row-buttons" style={{ display: 'flex', gap: '10px' }}>
-                                                  <button onClick={() => handleOpenPreview(file)} className="doc-action-btn">ОТКРЫТЬ</button>
-                                                  <button onClick={() => handleDownloadFile(file)} className="doc-action-btn"><CustomIcon name="download" size={14} color="#0abab5" /> СКАЧАТЬ</button>
-                                              </div>
-                                          </div>
-                                          
-                                       </div>
+                                       <article key={file.id} id={`document-card-${file.id}`} className="premium-card linked-document-card-target vates-document-card">
+                                           <header className="vates-material-card-header">
+                                               <div className="vates-material-card-type">
+                                                   <span className="vates-material-card-type-icon"><CustomIcon name="file" size={19} color="currentColor" accent="none" /></span>
+                                                   <div>
+                                                       <span>Документ</span>
+                                                       <strong>{file.date || 'В библиотеке'}</strong>
+                                                   </div>
+                                               </div>
+
+                                               {isAdmin && (
+                                                   <div className="vates-material-card-actions" onClick={(event) => event.stopPropagation()}>
+                                                       <button type="button" onClick={() => setMovingItem(file.id)} className="card-icon-btn move-btn" title="Переместить" aria-label={`Переместить документ «${file.name}»`}>
+                                                           <CustomIcon name="folder" size={17} color="currentColor" accent="none" />
+                                                       </button>
+                                                       <button type="button" onClick={() => setCopyingItem(file.id)} className="card-icon-btn copy-btn" title="Добавить в другой раздел" aria-label={`Добавить документ «${file.name}» в другой раздел`}>
+                                                           <CustomIcon name="attachment" size={17} color="currentColor" accent="none" />
+                                                       </button>
+                                                       <button type="button" onClick={() => setConfirmDelete({isOpen: true, type: 'file', targetId: file.id, name: file.name})} className="card-icon-btn del-btn" title="Удалить" aria-label={`Удалить документ «${file.name}»`}>
+                                                           <CustomIcon name="close" size={17} color="currentColor" accent="none" />
+                                                       </button>
+                                                   </div>
+                                               )}
+                                           </header>
+
+                                           <div className="vates-document-card-copy">
+                                               <span>{secName}</span>
+                                               <h4>{file.name}</h4>
+                                               <p>Документ доступен для просмотра и скачивания из базы знаний.</p>
+                                           </div>
+
+                                           <div className="vates-document-card-meta">
+                                               <span>{file.size || 'Размер не указан'}</span>
+                                               <span>{file.name?.includes('.') ? file.name.split('.').pop()?.toUpperCase() : 'ФАЙЛ'}</span>
+                                           </div>
+
+                                           <footer className="vates-document-card-footer">
+                                               <button type="button" onClick={() => handleOpenPreview(file)} className="vates-button secondary compact">Открыть</button>
+                                               <button type="button" onClick={() => handleDownloadFile(file)} className="vates-button primary compact"><CustomIcon name="download" size={15} color="currentColor" accent="none" /> Скачать</button>
+                                           </footer>
+                                       </article>
                                    ))
                                )}
                            </div>}
-                       </div>
+                       </section>
                    ))
                )}
             </div>
@@ -1229,7 +1286,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 }
 
 // --- СТИЛИ ---
-const flexSpace = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '35px', flexWrap: 'wrap', gap: '20px' };
 const adminActionBtn = { background: 'rgba(10,186,181,0.1)', color: '#0abab5', border: '1px solid rgba(10,186,181,0.3)', padding: '10px 18px', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', fontSize: '12px' };
 const modalOverlay = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(10px)', padding: '20px', boxSizing: 'border-box' };
 const modalContentSmall = { background: '#111', padding: '40px 30px', borderRadius: '30px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' };

@@ -14,8 +14,10 @@ export default function Footer() {
 
          {/* --- БЛОК СЛУЖБЫ ПОДДЕРЖКИ --- */}
          <div className="vates-footer-support">
-             Служба технической поддержки:{' '}
-             <span>teacoffee@yandex.ru</span>
+             <span className="vates-footer-support-label">Служба технической поддержки:</span>
+             <a className="vates-footer-support-email" href="mailto:teacoffee@yandex.ru">
+                 teacoffee@yandex.ru
+             </a>
          </div>
 
          {/* СТРОГИЙ КОПИРАЙТ ПО ГОСТ Р 7.0.1—2003 */}

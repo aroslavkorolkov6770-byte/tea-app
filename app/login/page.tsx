@@ -234,10 +234,15 @@ export default function LoginPage() {
 
       <div className="login-box" style={{ background: '#0a0a0a', padding: '50px 40px', borderRadius: '35px', width: '100%', maxWidth: '390px', border: '1px solid #222', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', animation: 'scaleIn 0.4s ease', boxSizing: 'border-box' }}>
         
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <VatesLogo className="login-header-logo" priority />
-            <p className="login-header-subtitle" style={{ margin: '5px 0 0 0', color: '#666', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 'bold' }}>
-                {isLoginMode ? 'Вход в платформу' : 'Активация аккаунта'}
+        <div className="login-card-heading">
+            <span className="login-card-eyebrow">
+                {isLoginMode ? 'Личный кабинет' : 'Первый вход'}
+            </span>
+            <h1>{isLoginMode ? 'Вход в Ватэс' : 'Активация аккаунта'}</h1>
+            <p>
+                {isLoginMode
+                    ? 'Введите данные, чтобы продолжить обучение.'
+                    : 'Проверьте выданные данные и заполните профиль.'}
             </p>
         </div>
 
@@ -312,7 +317,7 @@ export default function LoginPage() {
             <button className="hover-unified-auth" onClick={handleRegister} style={modalLoginBtn as any}>ЗАРЕГИСТРИРОВАТЬСЯ</button>
         )}
         
-        <div style={{ textAlign: 'center', marginTop: '25px' }}>
+        <div className="login-mode-switch" style={{ textAlign: 'center', marginTop: '25px' }}>
             <span className="login-mode-copy" style={{ color: '#666', fontSize: '13px' }}>
                 {isLoginMode ? 'Первый вход? ' : 'Уже активировали аккаунт? '}
             </span>

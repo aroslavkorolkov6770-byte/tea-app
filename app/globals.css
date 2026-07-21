@@ -2322,10 +2322,9 @@ body {
   color: var(--app-text) !important;
 }
 
-.login-header-logo {
-  width: min(250px, 78%);
-  height: auto;
-  margin: 0 auto 18px;
+.login-page--login-mode .login-box {
+  width: min(calc(100% - 64px), 430px) !important;
+  padding: 34px 36px !important;
 }
 
 .modal-brand-logo {
@@ -2334,9 +2333,61 @@ body {
   margin: 0 auto 20px;
 }
 
-.login-header-subtitle {
-  color: var(--app-text-muted) !important;
-  letter-spacing: 0.08em !important;
+.login-card-heading {
+  margin: 0 0 24px;
+  text-align: left;
+}
+
+.login-card-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--app-accent-dark);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.login-card-eyebrow::before {
+  width: 22px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--app-accent);
+  content: "";
+}
+
+.login-card-heading h1 {
+  margin: 9px 0 7px;
+  color: var(--app-text);
+  font-family: "Avenir Next", "SF Pro Display", "Segoe UI Variable Display", sans-serif;
+  font-size: clamp(25px, 2.2vw, 29px);
+  font-weight: 760;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.login-card-heading p {
+  max-width: 310px;
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.login-page--login-mode .login-input {
+  margin-bottom: 13px !important;
+}
+
+.login-page--login-mode .login-box > button {
+  min-height: 50px;
+  margin-top: 5px !important;
+  padding: 13px 16px !important;
+}
+
+.login-page--login-mode .login-mode-switch {
+  margin-top: 20px !important;
 }
 
 .login-input,
@@ -4537,7 +4588,11 @@ html[data-theme="light"] .vates-app-page [style*="background:#111"] {
 }
 
 .vates-footer {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
   padding: 42px 20px !important;
+  overflow-x: clip;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--app-surface-soft) 35%, transparent), var(--app-surface)) !important;
   border-top: 1px solid var(--app-border) !important;
@@ -4561,23 +4616,58 @@ body:has(.vates-launch-screen) .vates-footer {
 }
 
 .vates-footer-docs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, auto));
+  align-items: stretch;
   justify-content: center;
   gap: 8px 20px;
+  max-width: 100%;
+}
+
+.vates-footer-docs .doc-link {
+  display: flex;
+  min-width: 0;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-wrap: balance;
 }
 
 .vates-footer-support {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 3px 5px;
   margin-top: 25px;
   color: var(--app-text-muted);
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
 }
 
-.vates-footer-support span {
+.vates-footer-support-label,
+.vates-footer-support-email {
+  min-width: 0;
+}
+
+.vates-footer-support-email {
   color: var(--app-accent-dark);
   font-weight: 750;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.vates-footer-support-email:hover {
+  color: var(--app-accent);
+  text-decoration: underline;
 }
 
 .vates-footer-company {
@@ -4585,14 +4675,20 @@ body:has(.vates-launch-screen) .vates-footer {
   color: var(--app-text-muted);
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.5;
+  text-wrap: balance;
 }
 
 .vates-footer-copyright {
+  max-width: 100%;
   margin: 15px 0 0;
   color: var(--app-text-soft);
   font-size: 11px;
   font-weight: 750;
-  letter-spacing: 2px;
+  letter-spacing: clamp(1px, 0.35vw, 2px);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
   text-transform: uppercase;
 }
 
@@ -5078,6 +5174,20 @@ html[data-theme="dark"] .vates-app-page .quick-prompt {
     position: relative;
     z-index: 2;
     border-radius: 20px !important;
+  }
+
+  .login-card-heading {
+    margin-bottom: 21px;
+    text-align: center;
+  }
+
+  .login-card-eyebrow {
+    justify-content: center;
+  }
+
+  .login-card-heading p {
+    margin-right: auto;
+    margin-left: auto;
   }
 
   .vates-cookie-banner {
@@ -10868,9 +10978,43 @@ body:has(.vates-own-profile-overlay) {
 }
 
 @media (max-width: 480px) {
+  .vates-footer {
+    padding-right: 16px !important;
+    padding-left: 16px !important;
+  }
+
   .vates-footer-docs {
+    width: min(100%, 360px);
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: 1fr;
+    gap: 4px;
+  }
+
+  .vates-footer-docs .doc-link {
+    min-height: 42px;
+    padding: 7px 6px !important;
+  }
+
+  .vates-footer-support {
+    width: min(100%, 360px);
     flex-direction: column;
     gap: 2px;
+    margin-top: 20px;
+  }
+
+  .vates-footer-support-label,
+  .vates-footer-support-email {
+    width: 100%;
+    line-height: inherit;
+  }
+
+  .vates-footer-company {
+    margin-top: 14px;
+  }
+
+  .vates-footer-copyright {
+    margin-top: 12px;
+    font-size: 10px;
   }
 
   .vates-test-results-header p {
@@ -12250,5 +12394,302 @@ body:has(.vates-own-profile-overlay) {
 
   .vates-app-page .ai-send-btn > span {
     display: none;
+  }
+}
+
+/* Documents use the same studio and catalog language as learning materials. */
+.vates-document-studio .vates-documents-upload-shell {
+  min-width: 0;
+}
+
+.vates-document-studio .documents-upload-zone {
+  min-height: 176px !important;
+  padding: 26px 20px !important;
+  border: 1px dashed color-mix(in srgb, var(--vates-accent) 45%, var(--vates-border)) !important;
+  border-radius: 20px !important;
+  background: color-mix(in srgb, var(--vates-surface) 92%, transparent) !important;
+}
+
+.vates-document-studio .documents-upload-zone:hover,
+.vates-document-studio .documents-upload-zone:focus-within {
+  border-color: var(--vates-accent) !important;
+  background: var(--vates-accent-soft) !important;
+}
+
+.vates-document-studio .documents-upload-zone > span:first-child {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+}
+
+.vates-document-studio .documents-upload-zone h3 {
+  margin-bottom: 5px !important;
+  font-size: 19px !important;
+}
+
+.vates-document-studio .documents-upload-zone p {
+  max-width: 560px !important;
+  font-size: 13px !important;
+}
+
+.vates-document-studio .documents-upload-zone .hover-unified-app {
+  min-height: 40px;
+  margin-top: 3px !important;
+  padding: 9px 18px !important;
+}
+
+.vates-document-studio .documents-upload-panel {
+  padding: 22px !important;
+  border-radius: 20px !important;
+  background: color-mix(in srgb, var(--vates-surface) 94%, transparent) !important;
+  box-shadow: 0 12px 28px rgba(26, 52, 48, 0.05);
+}
+
+.vates-document-studio .documents-upload-panel > div:first-child {
+  border-color: var(--vates-border) !important;
+}
+
+.vates-document-studio .documents-upload-file-list {
+  border-color: var(--vates-border) !important;
+  border-radius: 14px !important;
+  background: var(--vates-canvas) !important;
+}
+
+.vates-documents-catalog-toolbar {
+  margin-bottom: 32px;
+}
+
+.vates-documents-library-heading {
+  align-items: flex-start !important;
+  margin-bottom: 16px !important;
+}
+
+.vates-documents-library-heading h2 {
+  margin-top: 5px !important;
+  color: var(--vates-ink) !important;
+  font-size: clamp(24px, 3vw, 30px) !important;
+}
+
+.vates-documents-library {
+  gap: 16px;
+}
+
+.vates-documents-library .vates-document-section {
+  overflow: visible;
+  margin: 0 !important;
+  padding: 18px !important;
+  border: 1px solid var(--vates-border) !important;
+  border-radius: 15px !important;
+  background: var(--vates-surface) !important;
+  box-shadow: 0 8px 24px rgba(23, 32, 51, 0.035);
+}
+
+.vates-documents-library .vates-document-section .section-header-row {
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0 0 13px !important;
+  border-color: var(--vates-border) !important;
+  background: transparent !important;
+}
+
+.vates-documents-library .vates-document-section .section-header-row h3 {
+  color: var(--vates-ink) !important;
+  font-size: 16px !important;
+  letter-spacing: -0.01em;
+}
+
+.vates-documents-library .vates-document-section-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px !important;
+}
+
+.vates-documents-library .vates-document-section-actions > span {
+  min-height: 30px;
+  padding: 7px 9px;
+  border: 1px solid var(--vates-border);
+  border-radius: 8px;
+  background: var(--vates-canvas);
+  letter-spacing: normal;
+}
+
+.vates-documents-library .vates-document-card-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  padding: 0 !important;
+}
+
+.vates-document-card {
+  position: relative;
+  min-width: 0;
+  height: 258px;
+  min-height: 258px;
+  max-height: 258px;
+  padding: 14px;
+  overflow: hidden;
+  border: 1px solid var(--vates-border) !important;
+  border-top: 4px solid color-mix(in srgb, var(--vates-accent) 72%, var(--vates-border)) !important;
+  border-radius: 14px !important;
+  background: var(--vates-surface) !important;
+  box-shadow: 0 10px 24px rgba(23, 32, 51, 0.04) !important;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.vates-document-card:hover {
+  border-color: color-mix(in srgb, var(--vates-accent) 54%, var(--vates-border)) !important;
+  box-shadow: 0 16px 32px rgba(23, 68, 64, 0.09) !important;
+  transform: translateY(-2px);
+}
+
+.vates-document-card .vates-material-card-type-icon {
+  color: var(--vates-accent);
+  background: var(--vates-accent-soft);
+  border-color: color-mix(in srgb, var(--vates-accent) 20%, var(--vates-border));
+}
+
+.vates-document-card-copy {
+  min-width: 0;
+  margin-top: 14px;
+}
+
+.vates-document-card-copy > span {
+  display: block;
+  margin-bottom: 6px;
+  overflow: hidden;
+  color: var(--vates-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.vates-document-card-copy h4 {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--vates-ink) !important;
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.vates-document-card-copy p {
+  display: -webkit-box;
+  margin: 8px 0 0;
+  overflow: hidden;
+  color: var(--vates-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.vates-document-card-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: auto;
+  padding: 7px 10px;
+  border: 1px solid var(--vates-border);
+  border-radius: 999px;
+  background: var(--vates-canvas);
+  color: var(--vates-muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.vates-document-card-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vates-document-card-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--vates-border);
+}
+
+.vates-document-card-footer .vates-button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+
+.vates-documents-library .vates-document-section-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+@media (max-width: 1120px) {
+  .vates-documents-library .vates-document-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .vates-document-studio .documents-upload-zone {
+    min-height: 164px !important;
+    padding: 22px 16px !important;
+  }
+
+  .vates-document-studio .upload-settings-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .vates-documents-library .vates-document-section {
+    padding: 14px !important;
+  }
+
+  .vates-documents-library .vates-document-section .section-header-row {
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .vates-documents-library .vates-document-card-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .vates-document-card {
+    height: 250px;
+    min-height: 250px;
+    max-height: 250px;
+  }
+}
+
+@media (max-width: 520px) {
+  .vates-documents-library .vates-document-section .section-header-row {
+    flex-direction: column;
+  }
+
+  .vates-documents-library .vates-document-section-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .vates-document-card-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .vates-document-card {
+    height: 292px;
+    min-height: 292px;
+    max-height: 292px;
   }
 }
