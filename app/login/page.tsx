@@ -7,6 +7,9 @@ import ThemeToggle from '@/app/components/ThemeToggle';
 import VatesLogo from '@/app/components/VatesLogo';
 import { applyClientAuthState, getClientLandingPath, type ClientSessionUser } from '@/app/lib/authClient';
 
+const LOGIN_VIEWPORT_CLASS = 'vates-login-viewport';
+const REGISTRATION_VIEWPORT_CLASS = 'vates-registration-viewport';
+
 export default function LoginPage() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
@@ -75,14 +78,22 @@ export default function LoginPage() {
   }, [router]);
 
   useEffect(() => {
-    const viewportClass = 'vates-login-viewport';
+    const viewportElements = [document.documentElement, document.body];
 
-    document.documentElement.classList.toggle(viewportClass, isLoginMode);
-    document.body.classList.toggle(viewportClass, isLoginMode);
+    viewportElements.forEach((element) => {
+      element.classList.toggle(LOGIN_VIEWPORT_CLASS, isLoginMode);
+      element.classList.toggle(REGISTRATION_VIEWPORT_CLASS, !isLoginMode);
+    });
+
+    if (!isLoginMode) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
 
     return () => {
-      document.documentElement.classList.remove(viewportClass);
-      document.body.classList.remove(viewportClass);
+      viewportElements.forEach((element) => {
+        element.classList.remove(LOGIN_VIEWPORT_CLASS);
+        element.classList.remove(REGISTRATION_VIEWPORT_CLASS);
+      });
     };
   }, [isLoginMode]);
 

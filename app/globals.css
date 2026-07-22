@@ -13113,3 +13113,67 @@ body.vates-login-viewport .vates-footer-copyright {
     min-height: 27px;
   }
 }
+
+/* Registration is intentionally a regular scrollable document, unlike compact sign-in. */
+html.vates-registration-viewport,
+body.vates-registration-viewport {
+  width: 100%;
+  height: auto !important;
+  min-height: 100%;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto !important;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.vates-registration-viewport {
+  display: block !important;
+}
+
+body.vates-registration-viewport .login-page--registration-mode {
+  width: 100%;
+  height: auto !important;
+  min-height: 100dvh !important;
+  overflow: visible !important;
+}
+
+body.vates-registration-viewport .login-page--registration-mode .vates-auth-story {
+  box-sizing: border-box;
+}
+
+body.vates-registration-viewport .login-page--registration-mode .login-box {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+body.vates-registration-viewport .vates-footer {
+  display: flex !important;
+}
+
+@media (max-width: 768px) {
+  body.vates-registration-viewport .login-page--registration-mode .vates-auth-story {
+    min-height: 430px;
+    padding: 58px 20px 72px;
+  }
+
+  body.vates-registration-viewport .login-page--registration-mode .vates-auth-logo {
+    width: min(60vw, 220px);
+    margin-top: 18px;
+  }
+
+  body.vates-registration-viewport .login-page--registration-mode .vates-auth-message h1 {
+    margin: 10px 0 14px;
+    font-size: clamp(32px, 9.2vw, 42px);
+    line-height: 1.06;
+  }
+
+  body.vates-registration-viewport .login-page--registration-mode .vates-auth-message p {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  body.vates-registration-viewport .login-page--registration-mode .login-box {
+    margin-bottom: 24px !important;
+  }
+}
