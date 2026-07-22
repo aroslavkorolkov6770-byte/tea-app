@@ -74,6 +74,18 @@ export default function LoginPage() {
     syncSession();
   }, [router]);
 
+  useEffect(() => {
+    const viewportClass = 'vates-login-viewport';
+
+    document.documentElement.classList.toggle(viewportClass, isLoginMode);
+    document.body.classList.toggle(viewportClass, isLoginMode);
+
+    return () => {
+      document.documentElement.classList.remove(viewportClass);
+      document.body.classList.remove(viewportClass);
+    };
+  }, [isLoginMode]);
+
   const handleCaptchaClick = () => {
       if (isCaptchaVerified || isCaptchaLoading) return;
       setIsCaptchaLoading(true);
@@ -209,7 +221,7 @@ export default function LoginPage() {
   if (!isMounted) return null;
 
   return (
-    <div className={`login-page ${isLoginMode ? 'login-page--login-mode' : 'login-page--registration-mode'}`} style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box', overflowX: 'hidden', maxWidth: '100vw' }}>
+    <div className={`login-page ${isLoginMode ? 'login-page--login-mode' : 'login-page--registration-mode'}`} style={{ minHeight: isLoginMode ? '0' : '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box', overflowX: 'hidden', maxWidth: '100vw' }}>
       
       <div className="login-background-photo" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url("https://u.9111s.ru/uploads/202402/17/a0254a12ef37da5aaf5c5646a30baab8.webp")', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: -2, backgroundColor: '#000' }} />
       <div className="login-background-shade" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: -1 }} />

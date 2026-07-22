@@ -35,12 +35,17 @@ const buildDocxPreviewHtml = (objectUrl: string) => `
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
-        html, body { margin: 0; min-height: 100%; background: #141716; color: #fff; font-family: Arial, sans-serif; }
-        #document-container { min-height: 100vh; }
+        html, body { width: 100%; margin: 0; min-height: 100%; overflow-x: hidden; background: #141716; color: #fff; font-family: Arial, sans-serif; }
+        #document-container { width: 100%; min-height: 100vh; overflow-x: hidden; }
         #loading { padding: 70px 20px; color: #0abab5; text-align: center; font-weight: 700; }
-        .docx-wrapper { background: transparent !important; padding: 24px 12px !important; }
-        .docx-wrapper > section.docx { margin: 0 auto 24px !important; box-shadow: 0 12px 40px rgba(0,0,0,.45) !important; }
-        @media (max-width: 700px) { .docx-wrapper { padding: 10px 0 !important; } }
+        .docx-wrapper { width: 100%; max-width: 100%; box-sizing: border-box; background: transparent !important; padding: 24px 12px !important; }
+        .docx-wrapper > section.docx { max-width: 100% !important; margin: 0 auto 24px !important; box-sizing: border-box !important; box-shadow: 0 12px 40px rgba(0,0,0,.45) !important; }
+        .docx-wrapper img, .docx-wrapper svg, .docx-wrapper table { max-width: 100% !important; }
+        @media (max-width: 700px) {
+            .docx-wrapper { display: block !important; padding: 0 !important; }
+            .docx-wrapper > section.docx { width: 100% !important; min-width: 0 !important; min-height: 0 !important; margin: 0 !important; padding: 28px 20px !important; border-radius: 0 !important; box-shadow: none !important; overflow-wrap: anywhere; }
+            .docx-wrapper table { width: 100% !important; table-layout: fixed; }
+        }
     </style>
     <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
@@ -121,6 +126,27 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             onCloseLinkedDocument();
         }
     };
+
+    useEffect(() => {
+        if (!linkedPreview) {
+            return;
+        }
+
+        const previousBodyOverflow = document.body.style.overflow;
+        const handlePreviewKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                closeLinkedPreview();
+            }
+        };
+
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', handlePreviewKeyDown);
+
+        return () => {
+            document.body.style.overflow = previousBodyOverflow;
+            window.removeEventListener('keydown', handlePreviewKeyDown);
+        };
+    }, [linkedPreview]);
 
     const loadFileData = async (file: any): Promise<string> => {
         if (typeof file.data === 'string' && file.data) {
@@ -453,17 +479,34 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Предпросмотр: ${file.name}</title>
                     <style>
-                        body { margin: 0; padding: 0; background: #0d0f0d; height: 100vh; display: flex; flex-direction: column; ${isDocx ? 'overflow: auto;' : 'overflow: hidden;'} }
-                        iframe, object, embed { width: 100%; height: 100%; border: none; flex: 1; background: #fff; }
-                        .unsupported { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #fff; font-family: 'Inter', sans-serif; text-align: center; padding: 20px; }
+                        * { box-sizing: border-box; }
+                        html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+                        body { padding: 0; background: #0d0f0d; height: 100vh; height: 100dvh; display: flex; flex-direction: column; color: #fff; font-family: Arial, sans-serif; }
+                        .preview-toolbar { position: relative; z-index: 20; min-height: 64px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: max(10px, env(safe-area-inset-top)) 14px 10px; border-bottom: 1px solid #29312e; background: #111513; box-shadow: 0 8px 24px rgba(0,0,0,.24); }
+                        .preview-toolbar-copy { min-width: 0; display: grid; gap: 3px; }
+                        .preview-toolbar-copy strong { overflow: hidden; color: #f4f7f6; font-size: 15px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+                        .preview-toolbar-copy span { color: #65c8c2; font-size: 11px; font-weight: 800; }
+                        .preview-close { min-height: 42px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 13px; border: 1px solid rgba(101,200,194,.36); border-radius: 11px; background: #1b2421; color: #f4f7f6; font: 800 12px/1 Arial, sans-serif; cursor: pointer; }
+                        .preview-close svg { width: 17px; height: 17px; }
+                        .preview-content { min-width: 0; min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; overflow: ${isDocx ? 'auto' : 'hidden'}; -webkit-overflow-scrolling: touch; }
+                        iframe, object, embed { width: 100%; min-width: 0; min-height: 0; height: auto; border: none; flex: 1 1 auto; background: #fff; }
+                        .unsupported { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; min-height: 0; color: #fff; font-family: Arial, sans-serif; text-align: center; padding: 20px; }
                         .btn { background: #0abab5; color: #000; padding: 15px 35px; border-radius: 14px; text-decoration: none; font-weight: 900; margin-top: 30px; font-size: 16px; transition: 0.2s; cursor: pointer; border: none; display: inline-block; }
                         .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(10,186,181,0.3); }
                         
                         /* Стили специально для чистого отображения DOCX */
-                        #docx-container { width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
-                        .docx-wrapper { background: transparent !important; padding: 50px 20px !important; }
-                        .docx-wrapper > section.docx { box-shadow: 0 20px 60px rgba(0,0,0,0.8) !important; border-radius: 10px !important; margin-bottom: 30px !important; border: none !important; }
+                        #docx-container { width: 100%; min-height: 100%; display: flex; flex-direction: column; overflow-x: hidden; }
+                        .docx-wrapper { width: 100%; max-width: 100%; box-sizing: border-box; background: transparent !important; padding: 50px 20px !important; }
+                        .docx-wrapper > section.docx { max-width: 100% !important; box-sizing: border-box !important; box-shadow: 0 20px 60px rgba(0,0,0,0.8) !important; border-radius: 10px !important; margin-bottom: 30px !important; border: none !important; }
+                        .docx-wrapper img, .docx-wrapper svg, .docx-wrapper table { max-width: 100% !important; }
                         .docx-loading { margin-top: 150px; font-size: 20px; color: #0abab5; font-family: sans-serif; font-weight: bold; text-align: center; width: 100%; }
+                        @media (max-width: 700px) {
+                            .preview-toolbar { min-height: 58px; }
+                            .preview-toolbar-copy strong { font-size: 13px; }
+                            .docx-wrapper { display: block !important; padding: 0 !important; }
+                            .docx-wrapper > section.docx { width: 100% !important; min-width: 0 !important; min-height: 0 !important; margin: 0 !important; padding: 28px 20px !important; border-radius: 0 !important; box-shadow: none !important; overflow-wrap: anywhere; }
+                            .docx-wrapper table { width: 100% !important; table-layout: fixed; }
+                        }
                     </style>
                     ${isDocx ? `
                     <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
@@ -471,6 +514,19 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     ` : ''}
                 </head>
                 <body>
+                    <header class="preview-toolbar">
+                        <div class="preview-toolbar-copy">
+                            <strong>${file.name}</strong>
+                            <span>Предпросмотр документа</span>
+                        </div>
+                        <button type="button" class="preview-close" onclick="window.close(); window.setTimeout(function () { if (!window.closed) { window.location.href = '/tasks?tab=docs'; } }, 100);" aria-label="Закрыть документ">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>Закрыть</span>
+                        </button>
+                    </header>
+                    <main class="preview-content">
                     ${isDocx ? `
                         <div id="docx-container">
                             <div id="loading" class="docx-loading">Обработка документа...</div>
@@ -530,6 +586,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                     ` : `
                         <iframe src="${objectUrl}"></iframe>
                     `}
+                    </main>
                 </body>
                 </html>
             `);
@@ -541,7 +598,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
     const handleOpenPreview = async (file: any) => {
         const previewKind = getDocumentPreviewKind(file.name || '');
-        if (!['text', 'office', 'unknown'].includes(previewKind)) {
+        if (!['docx', 'text', 'office', 'unknown'].includes(previewKind)) {
             await handleLegacyPreview(file);
             return;
         }
@@ -1054,6 +1111,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                             </div>
                             <button type="button" className="linked-document-preview-close" onClick={closeLinkedPreview} aria-label="Закрыть документ" title="Закрыть">
                                 <CustomIcon name="close" size={20} color="#ff4d4d" />
+                                <span>Закрыть</span>
                             </button>
                         </div>
                         <div className="linked-document-preview-body">
