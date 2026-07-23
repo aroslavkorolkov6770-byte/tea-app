@@ -4988,7 +4988,7 @@ html[data-theme="dark"] .vates-app-page .quick-prompt {
   }
 
   .vates-bottom-nav.is-staff {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .vates-bottom-nav-item {
@@ -8598,7 +8598,10 @@ html[data-theme="light"] .vates-products-screen .admin-action-icon.is-active-war
   margin-bottom: 20px;
 }
 
-.vates-staff-kpis > div {
+.vates-staff-kpi {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -8607,10 +8610,24 @@ html[data-theme="light"] .vates-products-screen .admin-action-icon.is-active-war
   border: 1px solid var(--vates-border);
   border-radius: 12px;
   background: var(--vates-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+}
+
+.vates-staff-kpi:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--vates-accent) 42%, transparent);
+  outline-offset: 2px;
 }
 
 .vates-staff-kpis span { color: var(--vates-muted); font-size: 13px; }
 .vates-staff-kpis strong { color: var(--vates-ink); font-size: 20px; }
+
+.vates-material-catalog-section[id] {
+  scroll-margin-top: 86px;
+}
 
 .vates-staff-dashboard .tasks-chart-card,
 .vates-staff-dashboard .tasks-stat-card {

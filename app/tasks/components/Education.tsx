@@ -311,6 +311,22 @@ export default function Education({
         window.scrollTo({ top: 0, behavior: 'auto' });
     }, [selectedRouteStep?.id, selectedTest?.id, aiGeneratorKind, showRouteForm, showTestForm, activeTestSession?.id, isMaterialSubpageOpen]);
 
+    useEffect(() => {
+        const sectionId = window.location.hash.slice(1);
+        if (sectionId !== 'topics' && sectionId !== 'tests') {
+            return;
+        }
+
+        let frameId = 0;
+        frameId = window.requestAnimationFrame(() => {
+            document.getElementById(sectionId)?.scrollIntoView({ block: 'start', behavior: 'auto' });
+        });
+
+        return () => {
+            window.cancelAnimationFrame(frameId);
+        };
+    }, []);
+
     const updateRouteState = (newData: any[]) => {
         const normalizedData = normalizeOrderedCollection(newData);
         setDynamicRoute(normalizedData);
@@ -1144,7 +1160,7 @@ export default function Education({
             </div>}
 
             {/* --- БЛОК 1: ТЕОРИЯ --- */}
-            {(!isAdmin || materialTypeFilter !== 'test') && <section className="vates-material-catalog-section">
+            {(!isAdmin || materialTypeFilter !== 'test') && <section id="topics" className="vates-material-catalog-section">
             <div className="vates-material-section-heading">
                <div>
                    <span className="vates-eyebrow">{isAdmin ? 'База тем' : 'Ваше обучение'}</span>
@@ -1269,7 +1285,7 @@ export default function Education({
             </section>}
 
             {/* --- БЛОК 2: ТЕСТЫ --- */}
-            {(!isAdmin || materialTypeFilter !== 'topic') && <section className="vates-material-catalog-section is-tests">
+            {(!isAdmin || materialTypeFilter !== 'topic') && <section id="tests" className="vates-material-catalog-section is-tests">
             <div className="vates-material-section-heading">
                 <div>
                     <span className="vates-eyebrow">Проверка знаний</span>

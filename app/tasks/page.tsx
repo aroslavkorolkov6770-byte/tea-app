@@ -474,6 +474,9 @@ function ShiftContent() {
   const lineEndY = 100 - dotY;
   const pathArea = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY} L ${endX} ${startY} Z`;
   const pathLine = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY}`;
+  const openEducationSection = (sectionId: 'topics' | 'tests') => {
+      router.push(`/tasks?tab=edu#${sectionId}`, { scroll: false });
+  };
 
   return (
     <div className="vates-app-page vates-tasks-page" style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s', overflowX: 'hidden' }}>
@@ -516,9 +519,21 @@ function ShiftContent() {
                 </section>
 
                 <div className="vates-staff-kpis">
-                    <div><CustomIcon name="book" size={22} color="var(--vates-accent)" /><span>Темы</span><strong>{completedRoute.length}/{dynamicRoute.length}</strong></div>
-                    <div><CustomIcon name="cap" size={22} color="var(--vates-accent)" /><span>Тесты</span><strong>{completedTests.length}/{dynamicTests.length}</strong></div>
-                    <div><CustomIcon name="alert" size={22} color="var(--app-warning)" /><span>Документы</span><strong>{urgentFiles.length}</strong></div>
+                    <button type="button" className="vates-staff-kpi" onClick={() => openEducationSection('topics')} aria-label="Перейти к темам">
+                        <CustomIcon name="book" size={22} color="var(--vates-accent)" />
+                        <span>Темы</span>
+                        <strong>{completedRoute.length}/{dynamicRoute.length}</strong>
+                    </button>
+                    <button type="button" className="vates-staff-kpi" onClick={() => openEducationSection('tests')} aria-label="Перейти к тестам">
+                        <CustomIcon name="cap" size={22} color="var(--vates-accent)" />
+                        <span>Тесты</span>
+                        <strong>{completedTests.length}/{dynamicTests.length}</strong>
+                    </button>
+                    <button type="button" className="vates-staff-kpi" onClick={() => router.push('/tasks?tab=docs')} aria-label="Перейти к документам">
+                        <CustomIcon name="file" size={22} color="var(--vates-accent)" />
+                        <span>Документы</span>
+                        <strong>{urgentFiles.length}</strong>
+                    </button>
                 </div>
                 
                 <section className="tasks-chart-card" style={wideChartCard}>

@@ -523,7 +523,7 @@ export default function Navigation() {
   const sideItems = userRole === 'admin' ? adminSideItems : staffSideItems;
   const bottomSideItems = userRole === 'admin'
     ? [adminSideItems[0], adminSideItems[1], adminSideItems[2], adminSideItems[3], adminSideItems[4]]
-    : [staffSideItems[0], staffSideItems[5], staffSideItems[1]];
+    : [staffSideItems[0], staffSideItems[2], staffSideItems[5], staffSideItems[1]];
 
   const isCurrentNavItem = (itemId: string) => {
     if (itemId === '/admin#employees') {
