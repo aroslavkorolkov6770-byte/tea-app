@@ -9,10 +9,9 @@ import { clearClientAuthState, isClientAdminView } from '@/app/lib/authClient';
 
 // --- ИМПОРТ НАШИХ МОДУЛЕЙ ---
 import Education from './components/Education';
-import Assortment from './components/Assortment';
 import AIAssistant from './components/AIAssistant';
 import Documents from './components/Documents';
-import Products from './components/Products'; // ДОБАВЛЕН ИМПОРТ НОВОГО РАЗДЕЛА ПРОДУКТОВ
+import Products from './components/Products';
 import LearningPaths from './components/LearningPaths';
 
 // --- КЛЮЧИ ПАМЯТИ ---
@@ -28,7 +27,6 @@ const CLIENT_CACHE_KEYS = {
     URGENT_FILES: 'th_cache_urgent_files_v1',
     DYNAMIC_ROUTE: 'th_cache_dynamic_route_v2',
     DYNAMIC_TESTS: 'th_cache_dynamic_tests_v1',
-    ASSORTMENT: 'th_cache_assortment_matrix_v2',
 };
 
 function ShiftContent() {
@@ -53,7 +51,6 @@ function ShiftContent() {
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   const [passedTests, setPassedTests] = useState<string[]>([]);
   const [dismissedTasks, setDismissedTasks] = useState<string[]>([]);
-  const [assortmentMatrix, setAssortmentMatrix] = useState<any[]>([]);
 
   // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ МОДАЛКАМИ ИЗ ПОИСКА ---
   const [selectedRouteStep, setSelectedRouteStep] = useState<any>(null);
@@ -90,7 +87,6 @@ function ShiftContent() {
           const cachedUrgentFiles = localStorage.getItem(CLIENT_CACHE_KEYS.URGENT_FILES);
           const cachedDynamicRoute = localStorage.getItem(CLIENT_CACHE_KEYS.DYNAMIC_ROUTE);
           const cachedDynamicTests = localStorage.getItem(CLIENT_CACHE_KEYS.DYNAMIC_TESTS);
-          const cachedAssortment = localStorage.getItem(CLIENT_CACHE_KEYS.ASSORTMENT);
           const cachedCompletedRoute = localStorage.getItem(`th_prog_route_${currentUserId}`);
           const cachedCompletedTests = localStorage.getItem(`th_prog_tests_${currentUserId}`);
           const cachedPassedTests = localStorage.getItem(`th_cache_passed_tests_${currentUserId}`);
@@ -109,11 +105,6 @@ function ShiftContent() {
           if (cachedDynamicTests) {
               const parsed = JSON.parse(cachedDynamicTests);
               if (Array.isArray(parsed) && parsed.length > 0) setDynamicTests(parsed);
-          }
-
-          if (cachedAssortment) {
-              const parsed = JSON.parse(cachedAssortment);
-              if (Array.isArray(parsed)) setAssortmentMatrix(parsed);
           }
 
           if (cachedCompletedRoute) {
@@ -152,7 +143,6 @@ function ShiftContent() {
               STORAGE_KEYS.DYNAMIC_TESTS,
               STORAGE_KEYS.DYNAMIC_ROUTE,
               `th_passed_tests_${currentUserId}`,
-              'tea_hub_assortment_matrix_v2',
               `dismissed_tasks_${currentUserId}`,
           ]);
 
@@ -162,7 +152,6 @@ function ShiftContent() {
           const sTestsData = storageData[STORAGE_KEYS.DYNAMIC_TESTS];
           const sRouteData = storageData[STORAGE_KEYS.DYNAMIC_ROUTE];
           const pTestsRes = storageData[`th_passed_tests_${currentUserId}`];
-          const sAssortment = storageData['tea_hub_assortment_matrix_v2'];
           const sDismissed = storageData[`dismissed_tasks_${currentUserId}`];
 
           if (requestId !== latestLoadRequestRef.current) {
@@ -203,11 +192,6 @@ function ShiftContent() {
           if (Array.isArray(sRouteData)) {
               setDynamicRoute(sRouteData);
               localStorage.setItem(CLIENT_CACHE_KEYS.DYNAMIC_ROUTE, JSON.stringify(sRouteData));
-          }
-
-          if (Array.isArray(sAssortment)) {
-              setAssortmentMatrix(sAssortment);
-              localStorage.setItem(CLIENT_CACHE_KEYS.ASSORTMENT, JSON.stringify(sAssortment));
           }
 
       } catch (e) {
@@ -340,7 +324,13 @@ function ShiftContent() {
         await loadAllData(currentId, true);
 
         const urlTab = searchParams.get('tab');
-        if (urlTab && !isDisposed) setActiveTab(urlTab);
+        if (urlTab && !isDisposed) {
+            const normalizedTab = urlTab === 'assortment' ? 'products' : urlTab;
+            setActiveTab(normalizedTab);
+            if (urlTab === 'assortment') {
+                router.replace('/tasks?tab=products');
+            }
+        }
     };
 
     bootPage();
@@ -386,10 +376,14 @@ function ShiftContent() {
 
   useEffect(() => {
       const urlTab = searchParams.get('tab');
-      if (urlTab && urlTab !== activeTab) {
-          setActiveTab(urlTab);
+      const normalizedTab = urlTab === 'assortment' ? 'products' : urlTab;
+      if (normalizedTab && normalizedTab !== activeTab) {
+          setActiveTab(normalizedTab);
       }
-  }, [activeTab, searchParams]);
+      if (urlTab === 'assortment') {
+          router.replace('/tasks?tab=products');
+      }
+  }, [activeTab, router, searchParams]);
 
   const lastHandledParams = React.useRef("");
   useEffect(() => {
@@ -397,7 +391,7 @@ function ShiftContent() {
       const currentParams = searchParams.toString();
       
       if (lastHandledParams.current === currentParams) return; 
-      if (dynamicRoute.length === 0 && dynamicTests.length === 0 && assortmentMatrix.length === 0) return; 
+      if (dynamicRoute.length === 0 && dynamicTests.length === 0) return;
 
       let handled = false;
       
@@ -424,11 +418,8 @@ function ShiftContent() {
           }
       }
 
-      const aId = searchParams.get('assortmentId');
-      if (aId && assortmentMatrix.length > 0) handled = true;
-      
       if (handled) lastHandledParams.current = currentParams;
-  }, [searchParams, dynamicRoute, dynamicTests, assortmentMatrix, completedTests, isMounted]);
+  }, [searchParams, dynamicRoute, dynamicTests, completedTests, isMounted]);
 
   const closeRouteModal = () => {
       setSelectedRouteStep(null);
@@ -452,30 +443,46 @@ function ShiftContent() {
 
   if (!isMounted || !isSessionValidated) return null;
 
-  const routePercent = Math.round((completedRoute.length / (Math.max(dynamicRoute.length, 1))) * 100);
-  const testsPercent = Math.round((completedTests.length / (Math.max(dynamicTests.length, 1))) * 100);
-  const totalHubPercent = Math.round((routePercent + testsPercent) / 2);
+  const visibleRouteSteps = dynamicRoute.filter((step) => !step?.isPlaceholder);
+  const visibleTests = dynamicTests.filter((test) => !test?.isPlaceholder);
+  const completedRouteIds = new Set(completedRoute);
+  const completedTestIds = new Set(completedTests);
+  const completedRouteCount = visibleRouteSteps.filter((step) => completedRouteIds.has(step.id)).length;
+  const completedTestCount = visibleTests.filter((test) => completedTestIds.has(test.id)).length;
+  const routePercent = visibleRouteSteps.length > 0
+      ? Math.min(100, Math.round((completedRouteCount / visibleRouteSteps.length) * 100))
+      : 0;
+  const nextRouteStep = visibleRouteSteps.find((step) => !completedRouteIds.has(step.id)) || null;
+  const nextMilestone = [25, 50, 75, 100].find((value) => value > routePercent) || 100;
+  const milestoneTargetCount = visibleRouteSteps.length > 0
+      ? Math.ceil((nextMilestone / 100) * visibleRouteSteps.length)
+      : 0;
+  const blocksToMilestone = Math.max(0, milestoneTargetCount - completedRouteCount);
+  const dashboardRouteSteps = visibleRouteSteps.slice(0, 6);
+  const chartSampleCount = Math.min(completedRouteCount, 8);
+  const chartPoints = Array.from({ length: chartSampleCount + 1 }, (_, index) => {
+      const completedAtPoint = chartSampleCount === 0
+          ? 0
+          : Math.round((completedRouteCount * index) / chartSampleCount);
+      const percentAtPoint = visibleRouteSteps.length > 0
+          ? Math.round((completedAtPoint / visibleRouteSteps.length) * 100)
+          : 0;
+      const x = 42 + (748 * (chartSampleCount === 0 ? 0 : index / chartSampleCount));
+      const y = 159 - (135 * percentAtPoint / 100);
 
-  const statusSteps = [
-      { min: 0, label: 'НОВИЧОК', hint: 'Первый этап адаптации' },
-      { min: 15, label: 'ОСВАИВАЕТСЯ', hint: 'Погружение в базу знаний' },
-      { min: 35, label: 'УВЕРЕННЫЙ СТАРТ', hint: 'Хорошая рабочая база' },
-      { min: 55, label: 'В РАБОЧЕМ РИТМЕ', hint: 'Стабильное продвижение' },
-      { min: 75, label: 'СИЛЬНЫЙ СОТРУДНИК', hint: 'Высокий уровень освоения' },
-      { min: 90, label: 'МАСТЕР HUB', hint: 'Почти полный контроль материалов' }
-  ];
-  const currentStatus = [...statusSteps].reverse().find(step => totalHubPercent >= step.min) || statusSteps[0];
-  const pct = totalHubPercent;
-  const startX = 0;
-  const startY = 100;
-  const endX = pct;
-  const cpX = pct * 0.5;
-  const dotY = Math.max(pct, 2);
-  const lineEndY = 100 - dotY;
-  const pathArea = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY} L ${endX} ${startY} Z`;
-  const pathLine = `M ${startX} ${startY} Q ${cpX} ${startY}, ${endX} ${lineEndY}`;
+      return { completedAtPoint, x, y };
+  });
+  const chartPolyline = chartPoints.map((point) => `${point.x},${point.y}`).join(' ');
   const openEducationSection = (sectionId: 'topics' | 'tests') => {
       router.push(`/tasks?tab=edu#${sectionId}`, { scroll: false });
+  };
+  const openNextRouteStep = () => {
+      if (nextRouteStep?.id) {
+          router.push(`/tasks?tab=edu&routeId=${encodeURIComponent(nextRouteStep.id)}`, { scroll: false });
+          return;
+      }
+
+      openEducationSection('topics');
   };
 
   return (
@@ -507,14 +514,86 @@ function ShiftContent() {
                     </div>
                 </header>
 
-                <section className="vates-staff-progress-hero">
-                    <div>
-                        <span className="vates-eyebrow">Общий прогресс</span>
-                        <h2>{currentStatus.label}</h2>
-                        <p>Продолжайте обучение, чтобы последовательно открыть следующие темы и тесты.</p>
+                <section className="vates-staff-progress-overview" aria-labelledby="staff-progress-title">
+                    <div className="vates-staff-progress-summary">
+                        <div className="vates-staff-progress-main">
+                            <span className="vates-eyebrow">Прогресс обязательного обучения</span>
+                            <div className="vates-staff-progress-value-row">
+                                <h2 id="staff-progress-title">{routePercent}%</h2>
+                                <span className="vates-staff-progress-state">
+                                    <span aria-hidden="true" />
+                                    {routePercent >= 100 ? 'Завершено' : routePercent > 0 ? 'В процессе' : 'Не начато'}
+                                </span>
+                            </div>
+                            <p className="vates-staff-progress-count">
+                                <strong>{completedRouteCount} из {visibleRouteSteps.length}</strong> обязательных тем завершено
+                            </p>
+                            <p className="vates-staff-progress-explainer">
+                                Показатель отражает только назначенный учебный путь. Результаты тестов учитываются отдельно.
+                            </p>
+                        </div>
+
+                        <div className="vates-staff-milestone">
+                            <span>Ближайший рубеж</span>
+                            <strong>{nextMilestone}%</strong>
+                            <small>
+                                {blocksToMilestone > 0
+                                    ? `ещё ${blocksToMilestone} ${blocksToMilestone === 1 ? 'тема' : blocksToMilestone < 5 ? 'темы' : 'тем'}`
+                                    : 'рубеж достигнут'}
+                            </small>
+                        </div>
                     </div>
-                    <div className="vates-staff-progress-ring" style={{ '--staff-progress': `${totalHubPercent * 3.6}deg` } as React.CSSProperties}>
-                        <span>{totalHubPercent}%</span>
+
+                    <div className="vates-staff-chart-heading">
+                        <div>
+                            <strong>Динамика обучения</strong>
+                            <span>Фактический прогресс по завершённым темам</span>
+                        </div>
+                        <span>С начала пути</span>
+                    </div>
+
+                    <div className="vates-staff-learning-chart" role="img" aria-label={`Завершено ${completedRouteCount} из ${visibleRouteSteps.length} обязательных тем`}>
+                        <svg viewBox="0 0 820 190" preserveAspectRatio="none" aria-hidden="true">
+                            {[0, 25, 50, 75, 100].map((value) => {
+                                const y = 159 - (135 * value / 100);
+                                return (
+                                    <React.Fragment key={value}>
+                                        <line className="vates-staff-chart-grid" x1="42" y1={y} x2="790" y2={y} />
+                                        <text className="vates-staff-chart-label" x="0" y={y + 4}>{value}%</text>
+                                    </React.Fragment>
+                                );
+                            })}
+                            <line
+                                className="vates-staff-chart-milestone"
+                                x1="42"
+                                y1={159 - (135 * nextMilestone / 100)}
+                                x2="790"
+                                y2={159 - (135 * nextMilestone / 100)}
+                            />
+                            <polyline className="vates-staff-chart-line" points={chartPolyline || '42,159'} />
+                            {chartPoints.map((point, index) => (
+                                <circle
+                                    key={`${point.completedAtPoint}-${index}`}
+                                    className={`vates-staff-chart-point ${index === chartPoints.length - 1 ? 'current' : ''}`}
+                                    cx={point.x}
+                                    cy={point.y}
+                                    r={index === chartPoints.length - 1 ? 7 : 5}
+                                />
+                            ))}
+                            <text className="vates-staff-chart-axis" x="42" y="185">Старт</text>
+                            <text className="vates-staff-chart-axis" x="790" y="185" textAnchor="end">Сейчас</text>
+                        </svg>
+                    </div>
+
+                    <div className="vates-staff-progress-action">
+                        <div>
+                            <span>Следующее действие</span>
+                            <strong>{nextRouteStep?.title || 'Обязательный путь завершён'}</strong>
+                        </div>
+                        <button type="button" className="vates-button primary" onClick={openNextRouteStep}>
+                            {nextRouteStep ? 'Продолжить обучение' : 'Открыть материалы'}
+                            <span aria-hidden="true">→</span>
+                        </button>
                     </div>
                 </section>
 
@@ -522,12 +601,12 @@ function ShiftContent() {
                     <button type="button" className="vates-staff-kpi" onClick={() => openEducationSection('topics')} aria-label="Перейти к темам">
                         <CustomIcon name="book" size={22} color="var(--vates-accent)" />
                         <span>Темы</span>
-                        <strong>{completedRoute.length}/{dynamicRoute.length}</strong>
+                        <strong>{completedRouteCount}/{visibleRouteSteps.length}</strong>
                     </button>
                     <button type="button" className="vates-staff-kpi" onClick={() => openEducationSection('tests')} aria-label="Перейти к тестам">
                         <CustomIcon name="cap" size={22} color="var(--vates-accent)" />
                         <span>Тесты</span>
-                        <strong>{completedTests.length}/{dynamicTests.length}</strong>
+                        <strong>{completedTestCount}/{visibleTests.length}</strong>
                     </button>
                     <button type="button" className="vates-staff-kpi" onClick={() => router.push('/tasks?tab=docs')} aria-label="Перейти к документам">
                         <CustomIcon name="file" size={22} color="var(--vates-accent)" />
@@ -535,67 +614,92 @@ function ShiftContent() {
                         <strong>{urgentFiles.length}</strong>
                     </button>
                 </div>
-                
-                <section className="tasks-chart-card" style={wideChartCard}>
-                    <div className="tasks-flex-space" style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'20px', flexWrap: 'wrap', gap:'20px'}}>
-                        <div>
-                            <div style={{fontSize:'11px', fontWeight:'900', color:'#0abab5', letterSpacing:'2px', marginBottom:'8px', textTransform:'uppercase'}}>ОБЩАЯ ДИНАМИКА РАЗВИТИЯ</div>
-                            <div className="tasks-big-val" style={{fontSize:'48px', fontWeight:'900', color:'#fff', display:'flex', alignItems:'baseline', gap:'12px'}}>
-                                {totalHubPercent}%
+
+                <div className="vates-staff-action-grid">
+                    <section className="vates-staff-next-panel">
+                        <div className="vates-staff-panel-heading">
+                            <div>
+                                <span className="vates-eyebrow">Сейчас</span>
+                                <h2>Следующий шаг</h2>
+                            </div>
+                            <span className="vates-staff-time-chip">{nextRouteStep?.time || '5 мин'}</span>
+                        </div>
+                        <div className="vates-staff-next-body">
+                            <span className="vates-staff-step-number">
+                                {String(Math.min(completedRouteCount + 1, Math.max(visibleRouteSteps.length, 1))).padStart(2, '0')}
+                            </span>
+                            <div>
+                                <span className="vates-staff-step-type">
+                                    Тема · шаг {Math.min(completedRouteCount + 1, Math.max(visibleRouteSteps.length, 1))} из {visibleRouteSteps.length}
+                                </span>
+                                <h3>{nextRouteStep?.title || 'Все обязательные темы завершены'}</h3>
+                                <p>
+                                    {nextRouteStep
+                                        ? 'Продолжите назначенный путь с ближайшего незавершённого материала.'
+                                        : 'Можно вернуться к материалам или перейти к проверке знаний.'}
+                                </p>
+                                <button type="button" className="vates-button primary" onClick={openNextRouteStep}>
+                                    {nextRouteStep ? 'Открыть материал' : 'Открыть материалы'}
+                                </button>
                             </div>
                         </div>
-                        <div style={rankBadge}>{currentStatus.label}</div>
-                    </div>
+                    </section>
 
-                    <div className="tasks-chart-container" style={{ position: 'relative', width: '100%', height: '130px', marginTop: '30px', marginBottom: '30px' }}>
-                        {[0, 25, 50, 75, 100].map(v => (
-                            <div key={`h-${v}`} style={{ position: 'absolute', bottom: `${v}%`, left: 0, width: '100%', borderBottom: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
-                        ))}
-                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(v => (
-                            <div key={`v-${v}`} style={{ position: 'absolute', bottom: 0, left: `${v}%`, height: '100%', borderLeft: '1px solid rgba(255,255,255,0.03)', zIndex: 1 }} />
-                        ))}
-
-                        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, overflow: 'visible' }}>
-                            <defs>
-                                <linearGradient id="flatGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#0abab5" stopOpacity="0.15" />
-                                    <stop offset="100%" stopColor="#0abab5" stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            <path d={pathArea} fill="url(#flatGrad)" style={{ transition: '1s ease' }} />
-                            <path d={pathLine} fill="none" stroke="#0abab5" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ transition: '1s ease' }} />
-                        </svg>
-
-                        <div style={{ 
-                            position: 'absolute', left: `${endX}%`, bottom: `${dotY}%`, 
-                            transform: 'translate(-50%, 50%)', width: '10px', height: '10px', 
-                            borderRadius: '50%', background: '#0abab5', border: '2px solid #111', 
-                            zIndex: 3, transition: '1s ease' 
-                        }} />
-
-                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(p => (
-                            <div key={`lbl-${p}`} style={{ position: 'absolute', left: `${p}%`, bottom: '-25px', transform: 'translateX(-50%)', fontSize: '10px', color: '#666', fontWeight: 'bold' }}>{p}%</div>
-                        ))}
-                    </div>
-                </section>
-
-                <div className="tasks-dashboard-grid" style={dashboardGrid}>
-                      <div className="tasks-stat-card" style={statCardMain}>
-                         <div style={cardHeaderLabel}>ТЕОРИЯ</div>
-                         <div className="tasks-big-val" style={bigStatVal}>{completedRoute.length} <span style={{fontSize:'20px', opacity:0.4}}>/ {dynamicRoute.length}</span></div>
-                         <p style={cardSubText}>тем пройдено</p>
-                          <div style={segmentedBar}>
-                              {dynamicRoute.map((step, i) => (
-                                  <div key={i} style={segment(completedRoute.includes(step.id))} />
-                              ))}
-                         </div>
-                         {dynamicRoute.length === 0 && (
-                             <div style={{ ...pBarBg, marginTop: '18px' }}>
-                                 <div style={pBarFill(0)} />
-                             </div>
-                         )}
-                      </div>
+                    <section className="vates-staff-tests-panel">
+                        <div className="vates-staff-panel-heading">
+                            <div>
+                                <span className="vates-eyebrow">Проверка знаний</span>
+                                <h2>Тесты</h2>
+                            </div>
+                            <strong className="vates-staff-tests-score">{completedTestCount}<span>/{visibleTests.length}</span></strong>
+                        </div>
+                        <div className="vates-staff-tests-body">
+                            <span className="vates-staff-tests-icon"><CustomIcon name="cap" size={22} color="currentColor" accent="none" /></span>
+                            <h3>{completedTestCount > 0 ? 'Результаты сохраняются отдельно' : 'Проверок пока не было'}</h3>
+                            <p>Откройте список тестов, чтобы увидеть доступные проверки и результаты.</p>
+                            <button type="button" className="vates-button secondary" onClick={() => openEducationSection('tests')}>
+                                Перейти к тестам
+                            </button>
+                        </div>
+                    </section>
                 </div>
+
+                <section className="vates-staff-path-panel">
+                    <div className="vates-staff-panel-heading">
+                        <div>
+                            <span className="vates-eyebrow">Назначенная программа</span>
+                            <h2>Ход обучения</h2>
+                            <p>Обязательные темы открываются последовательно.</p>
+                        </div>
+                        <button type="button" className="vates-staff-text-button" onClick={() => openEducationSection('topics')}>
+                            Открыть программу <span aria-hidden="true">→</span>
+                        </button>
+                    </div>
+
+                    {dashboardRouteSteps.length > 0 ? (
+                        <ol className="vates-staff-path-list">
+                            {dashboardRouteSteps.map((step, index) => {
+                                const isComplete = completedRouteIds.has(step.id);
+                                const isCurrent = nextRouteStep?.id === step.id;
+
+                                return (
+                                    <li key={step.id} className={`${isComplete ? 'is-complete' : ''} ${isCurrent ? 'is-current' : ''}`}>
+                                        <span className="vates-staff-path-marker">
+                                            {isComplete ? <CustomIcon name="check" size={15} color="currentColor" accent="none" /> : index + 1}
+                                        </span>
+                                        <div>
+                                            <strong>{step.title || `Тема ${index + 1}`}</strong>
+                                            <span>{isComplete ? 'Тема изучена' : isCurrent ? 'Текущий шаг' : 'Следующий этап программы'}</span>
+                                        </div>
+                                        <span className="vates-staff-path-state">{isComplete ? 'Готово' : isCurrent ? 'Сейчас' : 'Далее'}</span>
+                                    </li>
+                                );
+                            })}
+                        </ol>
+                    ) : (
+                        <div className="vates-staff-path-empty">Учебный путь пока не назначен.</div>
+                    )}
+                </section>
             </div>
         )}
 
@@ -639,21 +743,11 @@ function ShiftContent() {
             />
         )}
 
-        {/* --- ВКЛАДКА 3: АССОРТИМЕНТ --- */}
-        {activeTab === 'assortment' && (
-            <Assortment 
-                assortmentMatrix={assortmentMatrix} 
-                assortmentId={searchParams.get('assortmentId')} 
-            />
-        )}
-
-        {/* НОВОЕ: ВКЛАДКА 3.1: ПРОДУКТЫ */}
+        {/* --- ВКЛАДКА 3: ТОВАРЫ --- */}
         {activeTab === 'products' && (
             <Products 
                 isAdmin={isAdmin} 
                 userId={userId}
-                assortmentMatrix={assortmentMatrix}
-                setAssortmentMatrix={setAssortmentMatrix}
             />
         )}
 
@@ -692,20 +786,6 @@ function ShiftContent() {
     </div>
   );
 }
-
-// --- СТИЛИ БЛОКОВ И КАРТОЧЕК ДЛЯ ДАШБОРДА ---
-const wideChartCard: React.CSSProperties = { background: '#161816', padding: '30px', borderRadius: '30px', border: '1px solid #222', marginBottom: '30px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' };
-const rankBadge: React.CSSProperties = { background: 'rgba(10,186,181,0.08)', color: '#0abab5', padding: '12px 25px', borderRadius: '15px', fontWeight: '900', fontSize: '13px', border: '1px solid rgba(10,186,181,0.2)' };
-const dashboardGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px', width: '100%' };
-const statCardMain: React.CSSProperties = { background: '#161816', padding: '35px', borderRadius: '35px', border: '1px solid #222', boxSizing: 'border-box' };
-const cardHeaderLabel: React.CSSProperties = { fontSize: '11px', fontWeight: '900', opacity: 0.4, letterSpacing: '1.5px', marginBottom: '15px' };
-const bigStatVal: React.CSSProperties = { fontSize: '48px', fontWeight: '900', color: '#fff' };
-const cardSubText: React.CSSProperties = { fontSize: '14px', opacity: 0.5, marginBottom: '25px' };
-
-const segmentedBar: React.CSSProperties = { display: 'flex', gap: '8px', height: '8px', marginTop: '10px', width: '100%' };
-const segment = (active: boolean): React.CSSProperties => ({ flex: 1, background: active ? '#0abab5' : '#222', borderRadius: '4px', transition: '0.3s' });
-const pBarBg: React.CSSProperties = { height: '8px', background: '#222', borderRadius: '4px', marginTop: '15px', marginBottom: '10px' };
-const pBarFill = (w: number): React.CSSProperties => ({ width: `${w}%`, height: '100%', background: '#0abab5', borderRadius: '4px', transition: '1s' });
 
 export default function ShiftPage() {
     return <Suspense><ShiftContent /></Suspense>;

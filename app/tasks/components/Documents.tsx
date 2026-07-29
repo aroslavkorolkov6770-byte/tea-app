@@ -1047,7 +1047,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                        <span className="vates-material-section-empty-icon"><CustomIcon name="folder" size={19} color="currentColor" accent="none" /></span>
                                        <div>
                                            <strong>Раздел пока пуст</strong>
-                                           <span>Добавьте документ, когда файл будет готов.</span>
+                                           {isAdmin && <span>Добавьте документ, когда файл будет готов.</span>}
                                        </div>
                                    </div>
                                ) : (

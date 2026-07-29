@@ -31,6 +31,7 @@ export type CustomIconName =
   | 'material'
   | 'lantern'
   | 'chat'
+  | 'menu'
   | 'gear'
   | 'day'
   | 'check'
@@ -249,6 +250,11 @@ export default function CustomIcon({
     chat: (
       <svg {...common}>
         <path d="M4 5.5C4 4.7 4.7 4 5.5 4H18.5C19.3 4 20 4.7 20 5.5V14.5C20 15.3 19.3 16 18.5 16H10L5.5 20V16H5.5C4.7 16 4 15.3 4 14.5V5.5Z" fill="rgba(10,186,181,0.1)" {...strokeProps} />
+      </svg>
+    ),
+    menu: (
+      <svg {...common}>
+        <path d="M5 7H19M5 12H19M5 17H19" {...strokeProps} />
       </svg>
     ),
     gear: (

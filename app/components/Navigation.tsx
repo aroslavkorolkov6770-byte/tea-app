@@ -37,6 +37,7 @@ export default function Navigation() {
   const [currentHash, setCurrentHash] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -54,7 +55,6 @@ export default function Navigation() {
 
   const [searchDbRoutes, setSearchDbRoutes] = useState<any[]>([]);
   const [searchDbTests, setSearchDbTests] = useState<any[]>([]);
-  const [searchDbAssortment, setSearchDbAssortment] = useState<any[]>([]);
   const [searchDbProducts, setSearchDbProducts] = useState<any[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -181,7 +181,6 @@ export default function Navigation() {
                 'tea_hub_notifications_v1',
                 'tea_hub_dynamic_route_v2',
                 'tea_hub_dynamic_tests_v1',
-                'tea_hub_assortment_matrix_v2',
                 ...(hasCachedProducts ? [] : ['tea_hub_products_v1']),
             ];
             const storageData = await fetchStorageBatch(storageKeys).catch(() => ({} as Record<string, any>));
@@ -197,9 +196,6 @@ export default function Navigation() {
 
             const testsData = storageData['tea_hub_dynamic_tests_v1'];
             if (Array.isArray(testsData)) setSearchDbTests(testsData);
-
-            const assortmentData = storageData['tea_hub_assortment_matrix_v2'];
-            if (Array.isArray(assortmentData)) setSearchDbAssortment(assortmentData);
 
             const productsData = storageData['tea_hub_products_v1'];
             if (Array.isArray(productsData)) {
@@ -458,17 +454,6 @@ export default function Navigation() {
       }
     });
 
-    const searchAssortment = (nodes: any[]) => {
-        nodes.forEach(node => {
-            const aText = [node.title, node.desc, node.content].filter(Boolean).join(" ").toLowerCase();
-            if (aText.includes(q)) {
-                results.push({ id: `a_${node.id}`, title: node.title, subtitle: `Ассортимент`, link: `/tasks?tab=assortment&assortmentId=${node.id}` });
-            }
-            if (node.children) searchAssortment(node.children);
-        });
-    };
-    searchAssortment(searchDbAssortment);
-
     searchDbProducts.forEach((product: any) => {
       const pText = [
         product.name,
@@ -506,24 +491,23 @@ export default function Navigation() {
     { id: '/tasks?tab=paths', label: 'Учебные пути', icon: 'book' },
     { id: '/tasks?tab=edu', label: 'Материалы', icon: 'cap' },
     { id: '/tasks?tab=docs', label: 'Документы', icon: 'file' },
-    { id: '/tasks?tab=assortment', label: 'Ассортимент', icon: 'sprout' },
     { id: '/tasks?tab=products', label: 'Товары', icon: 'brew' },
     { id: '/tasks?tab=standards', label: 'AI-ассистент', icon: 'brain' },
   ];
 
   const staffSideItems: Array<{ id: string; label: string; icon: CustomIconName }> = [
-    { id: '/tasks?tab=edu', label: 'Материалы', icon: 'cap' },
     { id: '/tasks?tab=welcome', label: 'Мой прогресс', icon: 'rocket' },
+    { id: '/tasks?tab=edu', label: 'Материалы', icon: 'book' },
+    { id: '/tasks?tab=edu#tests', label: 'Тесты', icon: 'cap' },
     { id: '/tasks?tab=docs', label: 'Документы', icon: 'file' },
-    { id: '/tasks?tab=assortment', label: 'Ассортимент', icon: 'sprout' },
-    { id: '/tasks?tab=products', label: 'Товары', icon: 'brew' },
     { id: '/tasks?tab=standards', label: 'AI-ассистент', icon: 'brain' },
+    { id: '/tasks?tab=products', label: 'Товары', icon: 'brew' },
   ];
 
   const sideItems = userRole === 'admin' ? adminSideItems : staffSideItems;
   const bottomSideItems = userRole === 'admin'
     ? [adminSideItems[0], adminSideItems[1], adminSideItems[2], adminSideItems[3], adminSideItems[4]]
-    : [staffSideItems[0], staffSideItems[2], staffSideItems[5], staffSideItems[1]];
+    : [staffSideItems[0], staffSideItems[1], staffSideItems[3]];
 
   const isCurrentNavItem = (itemId: string) => {
     if (itemId === '/admin#employees') {
@@ -538,7 +522,28 @@ export default function Navigation() {
       return itemId === pathname;
     }
 
-    return `${pathname}${window.location.search}` === itemId;
+    const [itemWithoutHash, itemHash = ''] = itemId.split('#');
+    const [itemPath, itemSearch = ''] = itemWithoutHash.split('?');
+
+    if (pathname !== itemPath) {
+      return false;
+    }
+
+    const itemTab = new URLSearchParams(itemSearch).get('tab');
+    const currentTab = new URLSearchParams(window.location.search).get('tab');
+    if (itemTab && itemTab !== currentTab) {
+      return false;
+    }
+
+    if (itemHash) {
+      return currentHash === `#${itemHash}`;
+    }
+
+    if (itemId === '/tasks?tab=edu') {
+      return currentHash !== '#tests';
+    }
+
+    return true;
   };
 
   return (
@@ -690,12 +695,44 @@ export default function Navigation() {
              </div>
            </header>
 
+           {userRole === 'staff' && isMobileNavOpen && (
+             <>
+               <button
+                 type="button"
+                 className="vates-mobile-nav-overlay"
+                 aria-label="Закрыть список разделов"
+                 onClick={() => setIsMobileNavOpen(false)}
+               />
+               <section id="vates-mobile-nav-sheet" className="vates-mobile-nav-sheet" aria-label="Все разделы сотрудника">
+                 <div className="vates-mobile-nav-sheet-heading">
+                   <strong>Разделы</strong>
+                   <button type="button" onClick={() => setIsMobileNavOpen(false)} aria-label="Закрыть список разделов">
+                     <CustomIcon name="close" size={18} color="currentColor" accent="none" />
+                   </button>
+                 </div>
+                 <div className="vates-mobile-nav-sheet-grid">
+                   {staffSideItems.map((item) => (
+                     <Link
+                       key={`mobile-sheet-${item.id}`}
+                       href={item.id}
+                       className={`vates-mobile-nav-sheet-item ${isCurrentNavItem(item.id) ? 'active' : ''}`}
+                       onClick={() => setIsMobileNavOpen(false)}
+                     >
+                       <CustomIcon name={item.icon} size={20} color="currentColor" accent="none" />
+                       <span>{item.label}</span>
+                     </Link>
+                   ))}
+                 </div>
+               </section>
+             </>
+           )}
+
            <nav className={`vates-bottom-nav ${userRole === 'admin' ? 'is-admin' : 'is-staff'}`} aria-label="Мобильная навигация">
              {bottomSideItems.map((item) => {
                const isActive = isCurrentNavItem(item.id);
                const linkContent = (
                  <>
-                   <CustomIcon name={item.icon} size={19} color="currentColor" />
+                   <CustomIcon name={item.icon} size={19} color="currentColor" accent="none" />
                    <span>{item.label}</span>
                  </>
                );
@@ -718,6 +755,19 @@ export default function Navigation() {
                  </Link>
                );
              })}
+
+             {userRole === 'staff' && (
+               <button
+                 type="button"
+                 className={`vates-bottom-nav-item vates-bottom-nav-more ${isMobileNavOpen ? 'active' : ''}`}
+                 aria-expanded={isMobileNavOpen}
+                 aria-controls="vates-mobile-nav-sheet"
+                 onClick={() => setIsMobileNavOpen((currentValue) => !currentValue)}
+               >
+                 <CustomIcon name="menu" size={19} color="currentColor" accent="none" />
+                 <span>Ещё</span>
+               </button>
+             )}
            </nav>
 
            {isNotifOpen && (

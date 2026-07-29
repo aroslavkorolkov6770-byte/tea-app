@@ -948,8 +948,9 @@ export default function Education({
 
     const visibleRouteSteps = dynamicRoute.filter((item: any) => !item.isPlaceholder && item.id !== 'DELETE_ME');
     const visibleTests = dynamicTests.filter((item: any) => !item.isPlaceholder && item.id !== 'DELETE_ME');
-    const completedLearningItems = completedRoute.length + completedTests.length;
-    const totalLearningItems = visibleRouteSteps.length + visibleTests.length;
+    const completedRouteIds = new Set(completedRoute);
+    const completedLearningItems = visibleRouteSteps.filter((item: any) => completedRouteIds.has(item.id)).length;
+    const totalLearningItems = visibleRouteSteps.length;
     const learningProgress = totalLearningItems > 0
         ? Math.min(100, Math.round((completedLearningItems / totalLearningItems) * 100))
         : 0;

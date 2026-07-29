@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { isClientAdminView } from '@/app/lib/authClient';
 import { fetchStorageBatch } from '@/app/lib/storageClient';
@@ -21,7 +22,7 @@ interface ChatSession {
 
 type SiteSearchRecord = {
     id: string;
-    type: 'route' | 'test' | 'assortment' | 'product' | 'document';
+    type: 'route' | 'test' | 'product' | 'document';
     title: string;
     section: string;
     text: string;
@@ -32,36 +33,6 @@ const SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
 const SITE_CONTEXT_CACHE_TTL_MS = 1000 * 60;
 
 const normalizeSearchValue = (value: unknown) => String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
-
-const buildAssortmentRecords = (nodes: any[], bucket: SiteSearchRecord[] = [], parentTrail: string[] = []) => {
-    nodes.forEach((node: any) => {
-        if (!node) {
-            return;
-        }
-
-        const title = String(node.title || '').trim();
-        const desc = String(node.desc || '').trim();
-        const content = String(node.content || '').trim();
-        const trail = [...parentTrail, title].filter(Boolean);
-
-        if (title || desc || content) {
-            bucket.push({
-                id: String(node.id || `assortment_${bucket.length}`),
-                type: 'assortment',
-                title: title || 'Раздел ассортимента',
-                section: trail.slice(0, -1).join(' -> ') || 'Ассортимент',
-                text: [title, desc, content].filter(Boolean).join(' | '),
-                hint: node.id ? `/tasks?tab=assortment&assortmentId=${node.id}` : '/tasks?tab=assortment',
-            });
-        }
-
-        if (Array.isArray(node.children) && node.children.length > 0) {
-            buildAssortmentRecords(node.children, bucket, trail);
-        }
-    });
-
-    return bucket;
-};
 
 const buildSiteKnowledgeIndex = (siteData: Record<string, any>) => {
     const records: SiteSearchRecord[] = [];
@@ -111,9 +82,6 @@ const buildSiteKnowledgeIndex = (siteData: Record<string, any>) => {
             hint: test.id ? `/tasks?tab=edu&testId=${test.id}` : '/tasks?tab=edu',
         });
     });
-
-    const assortment = Array.isArray(siteData.tea_hub_assortment_matrix_v2) ? siteData.tea_hub_assortment_matrix_v2 : [];
-    buildAssortmentRecords(assortment, records);
 
     const products = Array.isArray(siteData.tea_hub_products_v1) ? siteData.tea_hub_products_v1 : [];
     products.forEach((product: any) => {
@@ -214,7 +182,6 @@ const buildSiteContextPrompt = (records: SiteSearchRecord[], query: string) => {
     const overview = [
         `Обучение: ${countsByType.route || 0}`,
         `Тесты: ${countsByType.test || 0}`,
-        `Ассортимент: ${countsByType.assortment || 0}`,
         `Продукты: ${countsByType.product || 0}`,
         `Документы: ${countsByType.document || 0}`,
     ].join(', ');
@@ -235,6 +202,7 @@ const buildSiteContextPrompt = (records: SiteSearchRecord[], query: string) => {
 };
 
 export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAdmin?: boolean }) {
+    const router = useRouter();
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
@@ -369,7 +337,6 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         const storageData = await fetchStorageBatch([
             'tea_hub_dynamic_route_v2',
             'tea_hub_dynamic_tests_v1',
-            'tea_hub_assortment_matrix_v2',
             'tea_hub_products_v1',
             'tea_hub_urgent_files_v1',
         ]);
@@ -804,6 +771,15 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
 
                 <div className="ai-chat-area">
                     <header className="ai-chat-toolbar">
+                        <button
+                            type="button"
+                            className="ai-mobile-back-button"
+                            onClick={() => router.push('/tasks?tab=welcome')}
+                            aria-label="Вернуться к разделам"
+                        >
+                            <CustomIcon name="arrow-left" size={18} color="currentColor" accent="none" />
+                        </button>
+
                         <button type="button" onClick={() => setIsMobileHistoryOpen(true)} className="ai-history-btn">
                             <CustomIcon name="chat" size={16} color="currentColor" accent="none" />
                             История

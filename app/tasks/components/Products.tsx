@@ -58,142 +58,6 @@ const getMetaItems = (product: CatalogProduct) =>
         product.priority ? { label: "Приоритет", value: product.priority } : null,
     ].filter(Boolean) as Array<{ label: string; value: string }>;
 
-const normalizeAssortmentLabel = (value: string) =>
-    String(value || "")
-        .replace(/^\d+(?:\.\d+)*\.?\s*/u, "")
-        .replace(/\([^)]*\)/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toUpperCase();
-
-const labelsMatchLoosely = (left: string, right: string) => {
-    const normalizedLeft = normalizeAssortmentLabel(left);
-    const normalizedRight = normalizeAssortmentLabel(right);
-
-    if (!normalizedLeft || !normalizedRight) {
-        return false;
-    }
-
-    return normalizedLeft === normalizedRight || normalizedLeft.includes(normalizedRight) || normalizedRight.includes(normalizedLeft);
-};
-
-const buildAssortmentCategoryOrderMap = (assortmentMatrix: any[]) => {
-    const orderMap = new Map<string, number>();
-    const safeMatrix = Array.isArray(assortmentMatrix) ? assortmentMatrix : [];
-
-    const walkNodes = (nodes: any[], depthWeight: number) => {
-        const orderedNodes = [...nodes].sort((left, right) =>
-            compareOrderedLabels(String(left?.title || ""), String(right?.title || "")),
-        );
-
-        orderedNodes.forEach((node: any, index: number) => {
-            const title = typeof node?.title === "string" ? node.title : "";
-            const normalizedTitle = normalizeAssortmentLabel(title);
-            if (normalizedTitle && !orderMap.has(normalizedTitle)) {
-                orderMap.set(normalizedTitle, depthWeight + index + 1);
-            }
-
-            if (Array.isArray(node?.children) && node.children.length > 0) {
-                walkNodes(node.children, (depthWeight + index + 1) * 1000);
-            }
-        });
-    };
-
-    walkNodes(safeMatrix, 0);
-
-    return orderMap;
-};
-
-const splitProductRawPath = (groupPath: string) =>
-    String(groupPath || "")
-        .split("/")
-        .map((segment) => segment.trim())
-        .filter(Boolean)
-        .slice(1);
-
-const splitNumberedSegment = (segment: string) => {
-    const match = segment.match(/^(\d+)\s*(.*)$/u);
-    if (!match) {
-        return { number: "", label: segment.trim() };
-    }
-
-    return {
-        number: String(Number.parseInt(match[1], 10)),
-        label: match[2].trim() || segment.trim(),
-    };
-};
-
-const formatAssortmentTitleFromProductPath = (rawSegment: string, parentPrefix = "") => {
-    const parsed = splitNumberedSegment(rawSegment);
-    const prefix = parsed.number ? (parentPrefix ? `${parentPrefix}.${parsed.number}` : parsed.number) : parentPrefix;
-    return prefix ? `${prefix}. ${parsed.label}` : parsed.label;
-};
-
-const createAssortmentNodeFromProductPath = (rawSegments: string[], depth = 0, parentPrefix = ""): any | null => {
-    const rawSegment = rawSegments[depth];
-    if (!rawSegment) {
-        return null;
-    }
-
-    const parsed = splitNumberedSegment(rawSegment);
-    const nextPrefix = parsed.number ? (parentPrefix ? `${parentPrefix}.${parsed.number}` : parsed.number) : parentPrefix;
-    const childNode = createAssortmentNodeFromProductPath(rawSegments, depth + 1, nextPrefix);
-    const idSeed = `${rawSegments.slice(0, depth + 1).join("_")}_${depth}`
-        .toLowerCase()
-        .replace(/[^a-zа-я0-9]+/giu, "_")
-        .replace(/^_+|_+$/g, "");
-
-    return {
-        id: `auto_${idSeed || Date.now()}`,
-        title: formatAssortmentTitleFromProductPath(rawSegment, parentPrefix),
-        desc: "Раздел автоматически добавлен из товарной выгрузки.",
-        ...(childNode ? { children: [childNode] } : {}),
-    };
-};
-
-const mergeProductPathIntoAssortment = (nodes: any[], rawSegments: string[], depth = 0, parentPrefix = ""): any[] => {
-    const rawSegment = rawSegments[depth];
-    if (!rawSegment) {
-        return nodes;
-    }
-
-    const parsed = splitNumberedSegment(rawSegment);
-    const currentLabel = parsed.label;
-    const nextPrefix = parsed.number ? (parentPrefix ? `${parentPrefix}.${parsed.number}` : parsed.number) : parentPrefix;
-    const existingIndex = nodes.findIndex((node) => labelsMatchLoosely(String(node?.title || ""), currentLabel));
-
-    if (existingIndex === -1) {
-        const newNode = createAssortmentNodeFromProductPath(rawSegments, depth, parentPrefix);
-        return newNode ? [...nodes, newNode] : nodes;
-    }
-
-    return nodes.map((node, index) => {
-        if (index !== existingIndex) {
-            return node;
-        }
-
-        const nextChildren = mergeProductPathIntoAssortment(Array.isArray(node.children) ? node.children : [], rawSegments, depth + 1, nextPrefix);
-
-        return {
-            ...node,
-            ...(nextChildren.length > 0 ? { children: nextChildren } : {}),
-        };
-    });
-};
-
-const syncAssortmentMatrixWithProducts = (assortmentMatrix: any[], products: CatalogProduct[]) => {
-    let nextMatrix = Array.isArray(assortmentMatrix) ? [...assortmentMatrix] : [];
-
-    products.forEach((product) => {
-        const rawSegments = splitProductRawPath(product.groupPath);
-        if (rawSegments.length > 0) {
-            nextMatrix = mergeProductPathIntoAssortment(nextMatrix, rawSegments);
-        }
-    });
-
-    return nextMatrix;
-};
-
 type ProductTreeNode = {
     label: string;
     key: string;
@@ -316,7 +180,7 @@ const sortTreeNodes = (nodes: ProductTreeNode[]): ProductTreeNode[] =>
         .map((node) => ({ ...node, children: sortTreeNodes(node.children) }))
         .sort((left, right) => compareOrderedLabels(left.label, right.label, left.sortIndex, right.sortIndex));
 
-const buildProductTree = (products: PreparedCatalogProduct[], assortmentCategoryOrderMap: Map<string, number>) => {
+const buildProductTree = (products: PreparedCatalogProduct[]) => {
     let tree: ProductTreeNode[] = [];
 
     products.forEach((product) => {
@@ -325,17 +189,6 @@ const buildProductTree = (products: PreparedCatalogProduct[], assortmentCategory
             tree = insertTreeNode(tree, path, product.rawPathSegments);
         }
     });
-
-    const applyAssortmentOrder = (nodes: ProductTreeNode[]): ProductTreeNode[] => nodes.map((node) => {
-        const matchedEntry = [...assortmentCategoryOrderMap.entries()].find(([categoryLabel]) => labelsMatchLoosely(node.label, categoryLabel));
-        return {
-            ...node,
-            sortIndex: matchedEntry ? matchedEntry[1] : node.sortIndex,
-            children: applyAssortmentOrder(node.children),
-        };
-    });
-
-    tree = applyAssortmentOrder(tree);
 
     return sortTreeNodes(tree);
 };
@@ -351,13 +204,9 @@ const matchesSelectedPath = (product: PreparedCatalogProduct, selectedPath: stri
 
 export default function Products({
     isAdmin,
-    assortmentMatrix,
-    setAssortmentMatrix,
 }: {
     isAdmin: boolean;
     userId: string;
-    assortmentMatrix?: any[];
-    setAssortmentMatrix?: React.Dispatch<React.SetStateAction<any[]>>;
 }) {
     const searchParams = useSearchParams();
     const [products, setProducts] = useState<CatalogProduct[]>([]);
@@ -587,16 +436,6 @@ export default function Products({
             const importResult = importProductsFromRows(rows, products);
             await persistProducts(importResult.products);
 
-            if (setAssortmentMatrix) {
-                const nextAssortmentMatrix = syncAssortmentMatrixWithProducts(assortmentMatrix || [], importResult.products);
-                setAssortmentMatrix(nextAssortmentMatrix);
-                if (typeof window !== "undefined") {
-                    window.localStorage.setItem("th_cache_assortment_matrix_v2", JSON.stringify(nextAssortmentMatrix));
-                    window.localStorage.removeItem(AI_SITE_CONTEXT_CACHE_KEY);
-                }
-                await saveDataToServer("tea_hub_assortment_matrix_v2", nextAssortmentMatrix);
-            }
-
             setSuccessModal({
                 show: true,
                 title: "Импорт завершён",
@@ -651,9 +490,7 @@ export default function Products({
 
     const baseFiltered = useMemo(() => preparedProducts.filter((product) => isAdmin || !product.isHidden), [isAdmin, preparedProducts]);
 
-    const assortmentCategoryOrderMap = useMemo(() => buildAssortmentCategoryOrderMap(assortmentMatrix || []), [assortmentMatrix]);
-
-    const categoryTree = useMemo(() => buildProductTree(baseFiltered, assortmentCategoryOrderMap), [assortmentCategoryOrderMap, baseFiltered]);
+    const categoryTree = useMemo(() => buildProductTree(baseFiltered), [baseFiltered]);
 
     const searchedProducts = useMemo(() => {
         const search = deferredSearchQuery.trim().toLowerCase();
