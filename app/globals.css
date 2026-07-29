@@ -13350,6 +13350,7 @@ body.vates-registration-viewport .login-page--registration-mode .login-box {
 }
 
 .vates-staff-learning-chart {
+  position: relative;
   height: 184px;
   margin-top: 6px;
 }
@@ -13372,11 +13373,41 @@ body.vates-registration-viewport .login-page--registration-mode .login-box {
   stroke-dasharray: 5 6;
 }
 
-.vates-staff-chart-label,
-.vates-staff-chart-axis {
-  fill: var(--vates-muted);
+.vates-staff-chart-y-labels {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 36px;
+  pointer-events: none;
+}
+
+.vates-staff-chart-y-labels span {
+  position: absolute;
+  left: 0;
+  color: var(--vates-muted);
   font-size: 10px;
   font-weight: 700;
+  line-height: 1;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.vates-staff-chart-x-labels {
+  position: absolute;
+  right: 3.66%;
+  bottom: 0;
+  left: 5.12%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.vates-staff-chart-x-labels span {
+  color: var(--vates-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .vates-staff-chart-line {

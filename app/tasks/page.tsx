@@ -478,6 +478,8 @@ function ShiftContent() {
   };
   const openNextRouteStep = () => {
       if (nextRouteStep?.id) {
+          setSelectedRouteStep(nextRouteStep);
+          setActiveTab('edu');
           router.push(`/tasks?tab=edu&routeId=${encodeURIComponent(nextRouteStep.id)}`, { scroll: false });
           return;
       }
@@ -552,17 +554,14 @@ function ShiftContent() {
                         <span>С начала пути</span>
                     </div>
 
-                    <div className="vates-staff-learning-chart" role="img" aria-label={`Завершено ${completedRouteCount} из ${visibleRouteSteps.length} обязательных тем`}>
-                        <svg viewBox="0 0 820 190" preserveAspectRatio="none" aria-hidden="true">
-                            {[0, 25, 50, 75, 100].map((value) => {
-                                const y = 159 - (135 * value / 100);
-                                return (
-                                    <React.Fragment key={value}>
-                                        <line className="vates-staff-chart-grid" x1="42" y1={y} x2="790" y2={y} />
-                                        <text className="vates-staff-chart-label" x="0" y={y + 4}>{value}%</text>
-                                    </React.Fragment>
-                                );
-                            })}
+                     <div className="vates-staff-learning-chart" role="img" aria-label={`Завершено ${completedRouteCount} из ${visibleRouteSteps.length} обязательных тем`}>
+                         <svg viewBox="0 0 820 190" preserveAspectRatio="none" aria-hidden="true">
+                             {[0, 25, 50, 75, 100].map((value) => {
+                                 const y = 159 - (135 * value / 100);
+                                 return (
+                                     <line key={value} className="vates-staff-chart-grid" x1="42" y1={y} x2="790" y2={y} />
+                                 );
+                             })}
                             <line
                                 className="vates-staff-chart-milestone"
                                 x1="42"
@@ -577,13 +576,21 @@ function ShiftContent() {
                                     className={`vates-staff-chart-point ${index === chartPoints.length - 1 ? 'current' : ''}`}
                                     cx={point.x}
                                     cy={point.y}
-                                    r={index === chartPoints.length - 1 ? 7 : 5}
-                                />
-                            ))}
-                            <text className="vates-staff-chart-axis" x="42" y="185">Старт</text>
-                            <text className="vates-staff-chart-axis" x="790" y="185" textAnchor="end">Сейчас</text>
-                        </svg>
-                    </div>
+                                     r={index === chartPoints.length - 1 ? 7 : 5}
+                                 />
+                             ))}
+                         </svg>
+                         <div className="vates-staff-chart-y-labels" aria-hidden="true">
+                             {[100, 75, 50, 25, 0].map((value) => {
+                                 const y = 159 - (135 * value / 100);
+                                 return <span key={value} style={{ top: `${(y / 190) * 100}%` }}>{value}%</span>;
+                             })}
+                         </div>
+                         <div className="vates-staff-chart-x-labels" aria-hidden="true">
+                             <span>Старт</span>
+                             <span>Сейчас</span>
+                         </div>
+                     </div>
 
                     <div className="vates-staff-progress-action">
                         <div>
