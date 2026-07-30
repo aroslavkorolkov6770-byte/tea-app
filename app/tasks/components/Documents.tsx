@@ -10,6 +10,7 @@ import {
     type DocumentPreviewKind,
 } from '@/app/lib/documentPreview';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
+import { getVisibleWorkspaceUsers } from '@/app/lib/userVisibility';
 
 // --- КЛЮЧИ ПАМЯТИ ---
 const STORAGE_KEYS = {
@@ -18,6 +19,12 @@ const STORAGE_KEYS = {
 const AI_SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
 const base64ToBlobUrl = dataUrlToBlobUrl;
 const getPreviewKind = getDocumentPreviewKind;
+const escapePreviewHtml = (value: unknown) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 
 type LinkedDocumentPreview = {
     file: any;
@@ -27,50 +34,6 @@ type LinkedDocumentPreview = {
     loading: boolean;
     error: string;
 };
-
-const buildDocxPreviewHtml = (objectUrl: string) => `
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-        html, body { width: 100%; margin: 0; min-height: 100%; overflow-x: hidden; background: #141716; color: #fff; font-family: Arial, sans-serif; }
-        #document-container { width: 100%; min-height: 100vh; overflow-x: hidden; }
-        #loading { padding: 70px 20px; color: #0abab5; text-align: center; font-weight: 700; }
-        .docx-wrapper { width: 100%; max-width: 100%; box-sizing: border-box; background: transparent !important; padding: 24px 12px !important; }
-        .docx-wrapper > section.docx { max-width: 100% !important; margin: 0 auto 24px !important; box-sizing: border-box !important; box-shadow: 0 12px 40px rgba(0,0,0,.45) !important; }
-        .docx-wrapper img, .docx-wrapper svg, .docx-wrapper table { max-width: 100% !important; }
-        @media (max-width: 700px) {
-            .docx-wrapper { display: block !important; padding: 0 !important; }
-            .docx-wrapper > section.docx { width: 100% !important; min-width: 0 !important; min-height: 0 !important; margin: 0 !important; padding: 28px 20px !important; border-radius: 0 !important; box-shadow: none !important; overflow-wrap: anywhere; }
-            .docx-wrapper table { width: 100% !important; table-layout: fixed; }
-        }
-    </style>
-    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
-    <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
-</head>
-<body>
-    <div id="document-container"><div id="loading">Подготовка документа...</div></div>
-    <script>
-        const documentUrl = ${JSON.stringify(objectUrl)};
-        fetch(documentUrl)
-            .then((response) => {
-                if (!response.ok) throw new Error('Не удалось получить документ');
-                return response.blob();
-            })
-            .then((blob) => {
-                const container = document.getElementById('document-container');
-                const loading = document.getElementById('loading');
-                return window.docx.renderAsync(blob, container).then(() => loading.remove());
-            })
-            .catch((error) => {
-                document.getElementById('loading').textContent = 'Не удалось открыть документ.';
-                console.error(error);
-            });
-    </script>
-</body>
-</html>`;
 
 export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles, linkedDocumentId, onCloseLinkedDocument }: any) {
     const { isSectionCollapsed, toggleSection } = useCollapsedSections('tea_hub_document_collapsed_sections_v1');
@@ -188,9 +151,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
     const prepareDocumentPreview = async (file: any): Promise<LinkedDocumentPreview> => {
         const detectedKind = getDocumentPreviewKind(file.name || '');
-        if (detectedKind === 'office') {
+        if (detectedKind === 'office' || detectedKind === 'docx') {
             const extractedText = await loadExtractedText(file);
-            return { file, objectUrl: '', text: extractedText, kind: detectedKind, loading: false, error: '' };
+            return { file, objectUrl: '', text: extractedText, kind: 'office', loading: false, error: '' };
         }
 
         const fileData = await loadFileData(file);
@@ -322,9 +285,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             if (!Array.isArray(users)) return false;
 
             let emailsToSend: string[] = [];
+            const visibleUsers = getVisibleWorkspaceUsers(users);
             const targetUsers = targetUserId === 'Все'
-                ? users.filter((u: any) => u.role === 'staff')
-                : users.filter((u: any) => u.id === targetUserId);
+                ? visibleUsers.filter((u: any) => u.role === 'staff')
+                : visibleUsers.filter((u: any) => u.id === targetUserId);
 
             const missingProfileKeys = targetUsers
                 .filter((u: any) => !u.email)
@@ -449,6 +413,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             alert("Пожалуйста, разрешите всплывающие окна в браузере для предпросмотра документов.");
             return;
         }
+        newWindow.opener = null;
 
         newWindow.document.write('<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#111;color:#0abab5;font-weight:bold;font-size:20px;">Подготовка документа...</div>');
 
@@ -466,9 +431,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
 
             const objectUrl = base64ToBlobUrl(fileBase64);
             const previewKind = getPreviewKind(file.name || '');
-            const isDocx = previewKind === 'docx';
             const isUnsupported = previewKind === 'unsupported';
-            const fileExt = file.name.split('.').pop()?.toUpperCase() || 'ФАЙЛ';
+            const safeFileName = escapePreviewHtml(file.name || 'Документ');
+            const safeObjectUrl = escapePreviewHtml(objectUrl);
+            const fileExt = escapePreviewHtml(file.name.split('.').pop()?.toUpperCase() || 'ФАЙЛ');
 
             newWindow.document.open();
             newWindow.document.write(`
@@ -477,7 +443,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Предпросмотр: ${file.name}</title>
+                    <title>Предпросмотр: ${safeFileName}</title>
                     <style>
                         * { box-sizing: border-box; }
                         html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
@@ -488,35 +454,21 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         .preview-toolbar-copy span { color: #65c8c2; font-size: 11px; font-weight: 800; }
                         .preview-close { min-height: 42px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 13px; border: 1px solid rgba(101,200,194,.36); border-radius: 11px; background: #1b2421; color: #f4f7f6; font: 800 12px/1 Arial, sans-serif; cursor: pointer; }
                         .preview-close svg { width: 17px; height: 17px; }
-                        .preview-content { min-width: 0; min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; overflow: ${isDocx ? 'auto' : 'hidden'}; -webkit-overflow-scrolling: touch; }
+                        .preview-content { min-width: 0; min-height: 0; flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; -webkit-overflow-scrolling: touch; }
                         iframe, object, embed { width: 100%; min-width: 0; min-height: 0; height: auto; border: none; flex: 1 1 auto; background: #fff; }
                         .unsupported { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; min-height: 0; color: #fff; font-family: Arial, sans-serif; text-align: center; padding: 20px; }
                         .btn { background: #0abab5; color: #000; padding: 15px 35px; border-radius: 14px; text-decoration: none; font-weight: 900; margin-top: 30px; font-size: 16px; transition: 0.2s; cursor: pointer; border: none; display: inline-block; }
                         .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(10,186,181,0.3); }
-                        
-                        /* Стили специально для чистого отображения DOCX */
-                        #docx-container { width: 100%; min-height: 100%; display: flex; flex-direction: column; overflow-x: hidden; }
-                        .docx-wrapper { width: 100%; max-width: 100%; box-sizing: border-box; background: transparent !important; padding: 50px 20px !important; }
-                        .docx-wrapper > section.docx { max-width: 100% !important; box-sizing: border-box !important; box-shadow: 0 20px 60px rgba(0,0,0,0.8) !important; border-radius: 10px !important; margin-bottom: 30px !important; border: none !important; }
-                        .docx-wrapper img, .docx-wrapper svg, .docx-wrapper table { max-width: 100% !important; }
-                        .docx-loading { margin-top: 150px; font-size: 20px; color: #0abab5; font-family: sans-serif; font-weight: bold; text-align: center; width: 100%; }
                         @media (max-width: 700px) {
                             .preview-toolbar { min-height: 58px; }
                             .preview-toolbar-copy strong { font-size: 13px; }
-                            .docx-wrapper { display: block !important; padding: 0 !important; }
-                            .docx-wrapper > section.docx { width: 100% !important; min-width: 0 !important; min-height: 0 !important; margin: 0 !important; padding: 28px 20px !important; border-radius: 0 !important; box-shadow: none !important; overflow-wrap: anywhere; }
-                            .docx-wrapper table { width: 100% !important; table-layout: fixed; }
                         }
                     </style>
-                    ${isDocx ? `
-                    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
-                    <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
-                    ` : ''}
                 </head>
                 <body>
                     <header class="preview-toolbar">
                         <div class="preview-toolbar-copy">
-                            <strong>${file.name}</strong>
+                            <strong>${safeFileName}</strong>
                             <span>Предпросмотр документа</span>
                         </div>
                         <button type="button" class="preview-close" onclick="window.close(); window.setTimeout(function () { if (!window.closed) { window.location.href = '/tasks?tab=docs'; } }, 100);" aria-label="Закрыть документ">
@@ -527,38 +479,16 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         </button>
                     </header>
                     <main class="preview-content">
-                    ${isDocx ? `
-                        <div id="docx-container">
-                            <div id="loading" class="docx-loading">Обработка документа...</div>
-                        </div>
-                        <script>
-                            fetch("${objectUrl}")
-                                .then(res => res.blob())
-                                .then(blob => {
-                                    const container = document.getElementById("docx-container");
-                                    const loading = document.getElementById("loading");
-                                    docx.renderAsync(blob, container)
-                                        .then(() => { loading.style.display = 'none'; })
-                                        .catch(err => {
-                                            loading.innerHTML = '<span style="color:#ff4d4d"> Ошибка при чтении документа.</span><br/><br/><a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ </a>';
-                                            console.error(err);
-                                        });
-                                })
-                                .catch(err => {
-                                    document.getElementById("loading").innerText = ' Ошибка при получении файла.';
-                                    console.error(err);
-                                });
-                        </script>
-                    ` : previewKind === 'text' ? `
-                        <iframe src="${objectUrl}" style="background:#fff;"></iframe>
+                    ${previewKind === 'text' ? `
+                        <iframe src="${safeObjectUrl}" sandbox="" referrerpolicy="no-referrer" style="background:#fff;"></iframe>
                     ` : previewKind === 'image' ? `
                         <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px;box-sizing:border-box;background:#0d0f0d;">
-                            <img src="${objectUrl}" alt="${file.name}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,0.45);" />
+                            <img src="${safeObjectUrl}" alt="${safeFileName}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,0.45);" />
                         </div>
                     ` : previewKind === 'video' ? `
                         <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px;box-sizing:border-box;background:#0d0f0d;">
                             <video controls style="width:100%;max-width:1100px;max-height:100%;border-radius:18px;background:#000;">
-                                <source src="${objectUrl}" />
+                                <source src="${safeObjectUrl}" />
                             </video>
                         </div>
                     ` : previewKind === 'audio' ? `
@@ -566,9 +496,9 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                             <h2 style="margin:0 0 15px 0;font-size:26px;">Аудиофайл ${fileExt}</h2>
                             <p style="color:#aaa; margin: 0 0 25px 0; max-width:500px; line-height:1.6; font-size:15px;">Аудио можно прослушать прямо здесь или скачать на устройство.</p>
                             <audio controls style="width:min(100%, 720px); margin-bottom:24px;">
-                                <source src="${objectUrl}" />
+                                <source src="${safeObjectUrl}" />
                             </audio>
-                            <a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ</a>
+                            <a href="${safeObjectUrl}" download="${safeFileName}" class="btn">СКАЧАТЬ ФАЙЛ</a>
                         </div>
                     ` : isUnsupported ? `
                         <div class="unsupported">
@@ -581,10 +511,10 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                 К сожалению, этот формат пока нельзя открыть прямо во вкладке.
                                 <br/><br/>Но вы можете безопасно скачать этот файл на своё устройство и открыть его в соответствующей программе.
                             </p>
-                            <a href="${objectUrl}" download="${file.name}" class="btn">СКАЧАТЬ ФАЙЛ </a>
+                            <a href="${safeObjectUrl}" download="${safeFileName}" class="btn">СКАЧАТЬ ФАЙЛ </a>
                         </div>
                     ` : `
-                        <iframe src="${objectUrl}"></iframe>
+                        <iframe src="${safeObjectUrl}" sandbox="" referrerpolicy="no-referrer"></iframe>
                     `}
                     </main>
                 </body>
@@ -613,6 +543,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             alert('Пожалуйста, разрешите всплывающие окна в браузере для предпросмотра документов.');
             return;
         }
+        newWindow.opener = null;
 
         const writeWindowShell = () => {
             newWindow.document.open();
@@ -834,10 +765,6 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             return <div className="linked-document-preview-message" style={{ color: '#ff4d4d' }}>{linkedPreview.error}</div>;
         }
 
-        if (linkedPreview.kind === 'docx') {
-            return <iframe title={`Предпросмотр ${linkedPreview.file.name}`} srcDoc={buildDocxPreviewHtml(linkedPreview.objectUrl)} />;
-        }
-
         if (linkedPreview.kind === 'image') {
             return <img src={linkedPreview.objectUrl} alt={linkedPreview.file.name} />;
         }
@@ -862,7 +789,14 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             );
         }
 
-        return <iframe title={`Предпросмотр ${linkedPreview.file.name}`} src={linkedPreview.objectUrl} />;
+        return (
+            <iframe
+                title={`Предпросмотр ${linkedPreview.file.name}`}
+                src={linkedPreview.objectUrl}
+                sandbox=""
+                referrerPolicy="no-referrer"
+            />
+        );
     };
 
     const visibleDocumentsCount = filteredDocuments.filter((file: any) => !file.isDocPlaceholder).length;

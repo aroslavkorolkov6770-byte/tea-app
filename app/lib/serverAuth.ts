@@ -1,15 +1,23 @@
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { readDataValue, writeDataValue } from '@/app/lib/storage/dataStore';
+import { readJsonFile, writeJsonFile } from '@/app/lib/storage/jsonFileStore';
+import { isSystemWorkspaceAccount } from '@/app/lib/userVisibility';
+
+export { readJsonFile, writeJsonFile };
 
 export const AUTH_COOKIE_NAME = 'tea_hub_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const USERS_KEY = 'tea_hub_users_v1';
-const HASH_PREFIX = 'scrypt';
-const dataDir = path.join(process.cwd(), 'data');
-const jsonFileCache = new Map<string, { parsed: unknown; modifiedAtMs: number }>();
+const HASH_PREFIX = 'scrypt2';
+const LEGACY_HASH_PREFIX = 'scrypt';
+const SCRYPT_OPTIONS = {
+    N: 32_768,
+    r: 8,
+    p: 1,
+    maxmem: 64 * 1024 * 1024,
+};
 
 export type UserRole = 'admin' | 'staff';
 
@@ -18,6 +26,7 @@ export interface StoredUser {
     login: string;
     pass?: string;
     passHash?: string;
+    authVersion?: number;
     role: UserRole;
     name: string;
     location?: string;
@@ -39,6 +48,7 @@ export interface SessionUser {
     login: string;
     role: UserRole;
     name: string;
+    authVersion: number;
     systemAccount?: boolean;
     ghostAccount?: boolean;
     profileDisabled?: boolean;
@@ -52,29 +62,27 @@ interface SessionPayload extends SessionUser {
     exp: number;
 }
 
-const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_-]/g, '_');
+const getAuthSecret = () => {
+    const configuredSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
-const ensureDataDir = () => {
-    if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
+    if (configuredSecret && configuredSecret.length >= 32) {
+        return configuredSecret;
     }
-};
 
-const getFilePath = (key: string) => path.join(dataDir, `${sanitizeKey(key)}.json`);
-const getTempFilePath = (key: string) => path.join(dataDir, `${sanitizeKey(key)}.tmp`);
-const getBackupFilePath = (key: string) => path.join(dataDir, `${sanitizeKey(key)}.bak`);
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('AUTH_SECRET должен быть задан на сервере и содержать не менее 32 символов');
+    }
 
-const getAuthSecret = () => process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'tea-hub-local-secret-change-me';
-
-let baseUsers: StoredUser[] = [];
-
-export const shouldKeepLegacyPassword = (user: Pick<StoredUser, 'login'>, nextPassword?: string) => {
-    const passwordToCheck = nextPassword ?? '';
-    return user.login === '11' && passwordToCheck === '11';
+    return 'tea-hub-development-secret-not-for-production';
 };
 
 const normalizeStoredUser = (user: StoredUser): StoredUser => {
-    const normalizedUser: StoredUser = { ...user };
+    const normalizedUser: StoredUser = {
+        ...user,
+        authVersion: Number.isInteger(user.authVersion) && Number(user.authVersion) >= 0
+            ? Number(user.authVersion)
+            : 0,
+    };
 
     if (typeof normalizedUser.isRegistered !== 'boolean' && typeof normalizedUser.registered === 'boolean') {
         normalizedUser.isRegistered = normalizedUser.registered;
@@ -84,108 +92,73 @@ const normalizeStoredUser = (user: StoredUser): StoredUser => {
         normalizedUser.name = normalizedUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник';
     }
 
+    if (!normalizedUser.passHash && typeof normalizedUser.pass === 'string' && normalizedUser.pass) {
+        normalizedUser.passHash = hashPassword(normalizedUser.pass);
+    }
+
+    delete normalizedUser.pass;
     return normalizedUser;
 };
 
-export const readJsonFile = <T = any>(key: string, fallback: T): T => {
-    ensureDataDir();
-    const filePath = getFilePath(key);
-    const backupFilePath = getBackupFilePath(key);
-
-    if (!fs.existsSync(filePath)) {
-        if (!fs.existsSync(backupFilePath)) {
-            return fallback;
-        }
+const getBootstrapUsers = (): StoredUser[] => {
+    if (process.env.NODE_ENV !== 'production') {
+        return [
+            {
+                id: 'u_admin',
+                login: '11',
+                passHash: hashPassword('11'),
+                authVersion: 0,
+                role: 'admin',
+                name: 'Главный Мастер',
+                isRegistered: true,
+            },
+            {
+                id: 'u_staff',
+                login: '1',
+                passHash: hashPassword('1'),
+                authVersion: 0,
+                role: 'staff',
+                name: 'Ярик',
+                isRegistered: true,
+            },
+        ];
     }
 
-    try {
-        const activeFilePath = fs.existsSync(filePath) ? filePath : backupFilePath;
-        const stats = fs.statSync(activeFilePath);
-        const cachedEntry = jsonFileCache.get(filePath);
+    const login = process.env.BOOTSTRAP_ADMIN_LOGIN?.trim();
+    const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
 
-        if (cachedEntry && cachedEntry.modifiedAtMs === stats.mtimeMs) {
-            return structuredClone(cachedEntry.parsed) as T;
-        }
-
-        const parsedData = JSON.parse(fs.readFileSync(activeFilePath, 'utf8')) as T;
-        jsonFileCache.set(filePath, {
-            parsed: parsedData,
-            modifiedAtMs: stats.mtimeMs,
-        });
-
-        return structuredClone(parsedData) as T;
-    } catch (error) {
-        console.error(`Ошибка чтения файла ${filePath}:`, error);
-
-        if (fs.existsSync(backupFilePath)) {
-            try {
-                const backupStats = fs.statSync(backupFilePath);
-                const backupData = JSON.parse(fs.readFileSync(backupFilePath, 'utf8')) as T;
-                jsonFileCache.set(filePath, {
-                    parsed: backupData,
-                    modifiedAtMs: backupStats.mtimeMs,
-                });
-                return structuredClone(backupData) as T;
-            } catch (backupError) {
-                console.error(`Ошибка чтения резервной копии ${backupFilePath}:`, backupError);
-            }
-        }
-
-        return fallback;
+    if (!login || !password || password.length < 8) {
+        return [];
     }
+
+    return [
+        {
+            id: 'u_admin',
+            login,
+            passHash: hashPassword(password),
+            authVersion: 0,
+            role: 'admin',
+            name: 'Главный Мастер',
+            isRegistered: true,
+        },
+    ];
 };
 
-export const writeJsonFile = (key: string, data: unknown) => {
-    ensureDataDir();
-    const filePath = getFilePath(key);
-    const tempFilePath = getTempFilePath(key);
-    const backupFilePath = getBackupFilePath(key);
-    const payload = JSON.stringify(data, null, 2);
-
-    if (data === null) {
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-        if (fs.existsSync(backupFilePath)) {
-            fs.unlinkSync(backupFilePath);
-        }
-        jsonFileCache.delete(filePath);
-        return;
-    }
-
-    fs.writeFileSync(tempFilePath, payload, 'utf8');
-
-    if (fs.existsSync(filePath)) {
-        fs.copyFileSync(filePath, backupFilePath);
-    }
-
-    fs.renameSync(tempFilePath, filePath);
-    fs.copyFileSync(filePath, backupFilePath);
-
-    try {
-        const stats = fs.statSync(filePath);
-        jsonFileCache.set(filePath, {
-            parsed: data,
-            modifiedAtMs: stats.mtimeMs,
-        });
-    } catch (error) {
-        console.error(`Ошибка обновления кеша файла ${filePath}:`, error);
-        jsonFileCache.delete(filePath);
-    }
-};
-
-export const ensureBaseUsers = () => {
-    const currentUsers = readJsonFile<StoredUser[]>(USERS_KEY, []);
+export const ensureBaseUsers = async () => {
+    const currentUsers = await readDataValue<StoredUser[]>(USERS_KEY, []);
 
     if (!Array.isArray(currentUsers) || currentUsers.length === 0) {
-        writeJsonFile(USERS_KEY, baseUsers);
-        return baseUsers;
+        const bootstrapUsers = getBootstrapUsers();
+        if (bootstrapUsers.length > 0) {
+            await writeDataValue(USERS_KEY, bootstrapUsers);
+        }
+        return bootstrapUsers;
     }
 
     const normalizedUsers = currentUsers.map(normalizeStoredUser);
 
-    if (!normalizedUsers.some((user) => user.id === 'u_admin')) {
-        normalizedUsers.unshift(baseUsers[0]);
+    if (JSON.stringify(normalizedUsers) !== JSON.stringify(currentUsers)) {
+        await writeDataValue(USERS_KEY, normalizedUsers);
     }
 
     return normalizedUsers;
@@ -195,44 +168,41 @@ export const getStoredUsers = () => {
     return ensureBaseUsers();
 };
 
-export const saveStoredUsers = (users: StoredUser[]) => {
-    writeJsonFile(USERS_KEY, users);
+export const saveStoredUsers = async (users: StoredUser[]) => {
+    await writeDataValue(USERS_KEY, users);
+};
+
+export const isHiddenSystemUser = (user: StoredUser | null | undefined) => {
+    return isSystemWorkspaceAccount(user);
 };
 
 export const hashPassword = (password: string) => {
     const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+    const hash = crypto.scryptSync(password, salt, 64, SCRYPT_OPTIONS).toString('hex');
     return `${HASH_PREFIX}$${salt}$${hash}`;
 };
-
-baseUsers = [
-    {
-        id: 'u_admin',
-        login: '11',
-        pass: '11',
-        role: 'admin',
-        name: 'Главный Мастер',
-        isRegistered: true,
-    },
-    {
-        id: 'u_staff',
-        login: '1',
-        pass: '1',
-        role: 'staff',
-        name: 'Ярик',
-        isRegistered: true,
-    },
-];
 
 const verifyPasswordHash = (password: string, storedHash: string) => {
     const [prefix, salt, originalHash] = storedHash.split('$');
 
-    if (prefix !== HASH_PREFIX || !salt || !originalHash) {
+    if (
+        (prefix !== HASH_PREFIX && prefix !== LEGACY_HASH_PREFIX)
+        || !salt
+        || !originalHash
+    ) {
         return false;
     }
 
-    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(originalHash, 'hex'));
+    const hashBuffer = prefix === HASH_PREFIX
+        ? crypto.scryptSync(password, salt, 64, SCRYPT_OPTIONS)
+        : crypto.scryptSync(password, salt, 64);
+    const originalHashBuffer = Buffer.from(originalHash, 'hex');
+
+    if (hashBuffer.length !== originalHashBuffer.length) {
+        return false;
+    }
+
+    return crypto.timingSafeEqual(hashBuffer, originalHashBuffer);
 };
 
 export const verifyPassword = (user: StoredUser, password: string) => {
@@ -240,24 +210,21 @@ export const verifyPassword = (user: StoredUser, password: string) => {
         return verifyPasswordHash(password, user.passHash);
     }
 
-    if (typeof user.pass === 'string') {
-        return user.pass === password;
-    }
-
     return false;
+};
+
+export const passwordHashNeedsUpgrade = (user: StoredUser) => {
+    return !user.passHash?.startsWith(`${HASH_PREFIX}$`);
 };
 
 export const normalizeStoredPassword = (user: StoredUser, nextPassword: string) => {
     const normalizedUser: StoredUser = {
         ...user,
         passHash: hashPassword(nextPassword),
+        authVersion: (user.authVersion || 0) + 1,
     };
 
-    if (shouldKeepLegacyPassword(user, nextPassword)) {
-        normalizedUser.pass = nextPassword;
-    } else {
-        delete normalizedUser.pass;
-    }
+    delete normalizedUser.pass;
 
     return normalizedUser;
 };
@@ -267,6 +234,7 @@ export const toSessionUser = (user: StoredUser): SessionUser => ({
     login: user.login,
     role: user.role,
     name: user.name || (user.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+    authVersion: user.authVersion || 0,
     systemAccount: Boolean(user.systemAccount),
     ghostAccount: Boolean(user.ghostAccount),
     profileDisabled: Boolean(user.profileDisabled),
@@ -311,21 +279,40 @@ export const createSessionToken = (sessionUser: SessionUser) => {
 };
 
 export const verifySessionToken = (token: string | undefined) => {
-    if (!token || !token.includes('.')) {
+    if (!token) {
         return null;
     }
 
-    const [encodedPayload, signature] = token.split('.');
-    const expectedSignature = signValue(encodedPayload);
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 2) {
+        return null;
+    }
 
-    if (signature !== expectedSignature) {
+    const [encodedPayload, signature] = tokenParts;
+    const expectedSignature = signValue(encodedPayload);
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+    const expectedSignatureBuffer = Buffer.from(expectedSignature, 'utf8');
+
+    if (
+        signatureBuffer.length !== expectedSignatureBuffer.length ||
+        !crypto.timingSafeEqual(signatureBuffer, expectedSignatureBuffer)
+    ) {
         return null;
     }
 
     try {
         const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as SessionPayload;
 
-        if (!payload.exp || payload.exp < Date.now()) {
+        if (
+            !Number.isFinite(payload.exp) ||
+            payload.exp < Date.now() ||
+            typeof payload.id !== 'string' ||
+            typeof payload.login !== 'string' ||
+            typeof payload.name !== 'string' ||
+            (payload.role !== 'admin' && payload.role !== 'staff') ||
+            !Number.isInteger(payload.authVersion) ||
+            payload.authVersion < 0
+        ) {
             return null;
         }
 
@@ -345,19 +332,19 @@ export const getSessionFromCookies = async () => {
         return null;
     }
 
-    return {
-        id: payload.id,
-        login: payload.login,
-        role: payload.role,
-        name: payload.name,
-        systemAccount: Boolean(payload.systemAccount),
-        ghostAccount: Boolean(payload.ghostAccount),
-        profileDisabled: Boolean(payload.profileDisabled),
-        profileOwnerOnly: Boolean(payload.profileOwnerOnly),
-        hideFromStats: Boolean(payload.hideFromStats),
-        canSwitchMode: Boolean(payload.canSwitchMode),
-        accountLabel: payload.accountLabel || '',
-    } satisfies SessionUser;
+    const users = await getStoredUsers();
+    const storedUser = users.find((user) => user.id === payload.id);
+
+    if (
+        !storedUser ||
+        storedUser.login !== payload.login ||
+        storedUser.role !== payload.role ||
+        (storedUser.authVersion || 0) !== payload.authVersion
+    ) {
+        return null;
+    }
+
+    return toSessionUser(storedUser);
 };
 
 export const getCurrentStoredUser = async () => {
@@ -367,7 +354,7 @@ export const getCurrentStoredUser = async () => {
         return null;
     }
 
-    const users = getStoredUsers();
+    const users = await getStoredUsers();
     const currentUser = users.find((user) => user.id === session.id);
 
     if (!currentUser) {

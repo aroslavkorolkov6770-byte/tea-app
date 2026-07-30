@@ -1,6 +1,7 @@
 "use client";
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import readExcelFile from "read-excel-file/browser";
 import CustomIcon from "../../components/CustomIcon";
 import { saveDataToServer } from "@/app/lib/storageClient";
 import {
@@ -73,25 +74,6 @@ type PreparedCatalogProduct = CatalogProduct & {
     rawPathSegments: string[];
 };
 
-declare global {
-    interface Window {
-        XLSX?: {
-            read: (data: ArrayBuffer, options: { type: string; dense: boolean }) => {
-                SheetNames: string[];
-                Sheets: Record<string, unknown>;
-            };
-            utils: {
-                sheet_to_json: <T>(sheet: unknown, options: {
-                    header: number;
-                    raw: boolean;
-                    defval: string;
-                    blankrows: boolean;
-                }) => T[];
-            };
-        };
-    }
-}
-
 const getProductPathSegments = (product: CatalogProduct) => {
     const parsedGroup = parseGroupPath(product.groupPath);
     return [parsedGroup.category, ...parsedGroup.subcategory.split(" / ")].map((segment) => segment.trim()).filter(Boolean);
@@ -111,37 +93,60 @@ const prepareProduct = (product: CatalogProduct): PreparedCatalogProduct => ({
     rawPathSegments: getProductRawPathSegments(product),
 });
 
-const loadBrowserXlsx = async () => {
-    if (typeof window === "undefined") {
-        throw new Error("XLSX недоступен вне браузера.");
-    }
+const parseDelimitedText = (source: string) => {
+    const firstLine = source.split(/\r?\n/u).find((line) => line.trim()) || "";
+    const delimiterCandidates = ["\t", ";", ","];
+    const delimiter = delimiterCandidates.reduce((best, candidate) => {
+        return firstLine.split(candidate).length > firstLine.split(best).length ? candidate : best;
+    }, ",");
 
-    if (window.XLSX) {
-        return window.XLSX;
-    }
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let cell = "";
+    let insideQuotes = false;
 
-    await new Promise<void>((resolve, reject) => {
-        const existingScript = document.querySelector<HTMLScriptElement>('script[data-xlsx-loader="true"]');
-        if (existingScript) {
-            existingScript.addEventListener("load", () => resolve(), { once: true });
-            existingScript.addEventListener("error", () => reject(new Error("Не удалось загрузить XLSX.")), { once: true });
-            return;
+    for (let index = 0; index < source.length; index += 1) {
+        const character = source[index];
+        const nextCharacter = source[index + 1];
+
+        if (character === '"') {
+            if (insideQuotes && nextCharacter === '"') {
+                cell += '"';
+                index += 1;
+            } else {
+                insideQuotes = !insideQuotes;
+            }
+            continue;
         }
 
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
-        script.async = true;
-        script.dataset.xlsxLoader = "true";
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error("Не удалось загрузить XLSX."));
-        document.head.appendChild(script);
-    });
+        if (!insideQuotes && character === delimiter) {
+            row.push(cell.trim());
+            cell = "";
+            continue;
+        }
 
-    if (!window.XLSX) {
-        throw new Error("XLSX не инициализировался после загрузки.");
+        if (!insideQuotes && (character === "\n" || character === "\r")) {
+            if (character === "\r" && nextCharacter === "\n") {
+                index += 1;
+            }
+            row.push(cell.trim());
+            if (row.some(Boolean)) {
+                rows.push(row);
+            }
+            row = [];
+            cell = "";
+            continue;
+        }
+
+        cell += character;
     }
 
-    return window.XLSX;
+    row.push(cell.trim());
+    if (row.some(Boolean)) {
+        rows.push(row);
+    }
+
+    return rows;
 };
 
 const insertTreeNode = (nodes: ProductTreeNode[], path: string[], rawPath: string[], depth = 0): ProductTreeNode[] => {
@@ -416,22 +421,15 @@ export default function Products({
         }
 
         try {
-            const XLSX = await loadBrowserXlsx();
-            const buffer = await file.arrayBuffer();
-            const workbook = XLSX.read(buffer, { type: "array", dense: true });
-            const firstSheetName = workbook.SheetNames[0];
+            const fileName = file.name.toLocaleLowerCase("ru-RU");
+            const rows = fileName.endsWith(".csv")
+                ? parseDelimitedText(await file.text())
+                : (await readExcelFile(file))[0]?.data.map((row) => row.map((cell) => String(cell ?? "").trim())) || [];
 
-            if (!firstSheetName) {
-                setErrorModal({ show: true, text: "Не удалось найти лист в файле." });
+            if (rows.length === 0) {
+                setErrorModal({ show: true, text: "Не удалось найти строки с товарами в файле." });
                 return;
             }
-
-            const rows = XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(workbook.Sheets[firstSheetName], {
-                header: 1,
-                raw: false,
-                defval: "",
-                blankrows: false,
-            }).map((row) => row.map((cell) => (cell ?? "").toString().trim()));
 
             const importResult = importProductsFromRows(rows, products);
             await persistProducts(importResult.products);
@@ -445,7 +443,7 @@ export default function Products({
             console.error("Ошибка импорта файла товаров", error);
             setErrorModal({
                 show: true,
-                text: "Не удалось обработать файл. Используйте Excel-файл .xls/.xlsx или CSV с колонками из выгрузки.",
+                text: "Не удалось обработать файл. Используйте .xlsx, .xlsm или CSV с колонками из выгрузки.",
             });
         } finally {
             event.target.value = "";
@@ -684,7 +682,7 @@ export default function Products({
                         <button className="hover-unified-app vates-button secondary" onClick={exportToCSV}>
                             <CustomIcon name="download" size={16} color="currentColor" /> Экспорт CSV
                         </button>
-                        <input type="file" accept=".csv,.xls,.xlsx" id="products-upload" style={{ display: "none" }} onChange={handleImportFile} />
+                        <input type="file" accept=".csv,.xlsx,.xlsm" id="products-upload" style={{ display: "none" }} onChange={handleImportFile} />
                         <button className="hover-unified-app vates-button secondary" onClick={() => document.getElementById("products-upload")?.click()}>
                             <CustomIcon name="upload" size={16} color="currentColor" /> Импорт файла
                         </button>

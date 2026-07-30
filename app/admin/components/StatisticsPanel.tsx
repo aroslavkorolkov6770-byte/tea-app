@@ -1,11 +1,13 @@
 "use client";
 import React from 'react';
+import { getVisibleWorkspaceUsers } from '@/app/lib/userVisibility';
 import { flexSpace, sectionTitle, adminCard, profileBtnStyle, barStyle } from './adminStyles';
 
 export default function StatisticsPanel({
     users, usersStats, totalRouteSteps, totalBasicsModules, userAvatars, setSelectedProfileUser
 }: any) {
-    const staffUsers = users.filter((u: any) => u.role === 'staff' && !u.hideFromStats && !u.profileDisabled);
+    const staffUsers = getVisibleWorkspaceUsers(Array.isArray(users) ? users : [])
+        .filter((u: any) => u.role === 'staff' && !u.hideFromStats && !u.profileDisabled);
 
     return (
         <section style={{...adminCard, padding: '35px'} as any}>

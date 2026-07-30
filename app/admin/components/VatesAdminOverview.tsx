@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
+import { getVisibleWorkspaceUsers } from '@/app/lib/userVisibility';
 
 type VatesAdminOverviewProps = {
     users: any[];
@@ -30,7 +31,8 @@ export default function VatesAdminOverview({
 }: VatesAdminOverviewProps) {
     const [period, setPeriod] = useState<7 | 30 | 90>(30);
     const [progressAnimationVersion, setProgressAnimationVersion] = useState(0);
-    const staffUsers = users.filter(user => user?.role === 'staff' && !user?.hideFromStats && !user?.profileDisabled);
+    const staffUsers = getVisibleWorkspaceUsers(Array.isArray(users) ? users : [])
+        .filter(user => user?.role === 'staff' && !user?.hideFromStats && !user?.profileDisabled);
 
     const progressRows = staffUsers.map(user => {
         const route = Number(usersStats[user.id]?.route || 0);

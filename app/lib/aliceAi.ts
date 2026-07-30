@@ -22,7 +22,7 @@ export class AliceAiRequestError extends Error {
 }
 
 export async function requestAliceAi(input: AliceInputMessage[]): Promise<unknown> {
-    const apiKey = process.env.AI_API_KEY || process.env.NEXT_PUBLIC_AI_API_KEY;
+    const apiKey = process.env.AI_API_KEY;
     const yandexFolderId = process.env.AI_FOLDER_ID || process.env.YANDEX_FOLDER_ID || DEFAULT_YANDEX_FOLDER_ID;
     const yandexModel = process.env.AI_MODEL_NAME || process.env.YANDEX_MODEL_NAME || DEFAULT_YANDEX_MODEL;
 
@@ -41,6 +41,7 @@ export async function requestAliceAi(input: AliceInputMessage[]): Promise<unknow
             input,
             service_tier: 'default',
         }),
+        signal: AbortSignal.timeout(45_000),
     });
 
     const rawResponseText = await response.text();

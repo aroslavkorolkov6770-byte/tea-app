@@ -2,10 +2,12 @@
 import React from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
 import { modalOverlay } from './adminStyles';
+import { getVisibleWorkspaceUsers } from '@/app/lib/userVisibility';
 
 export default function TestResultsModal({
     setShowTestModal, selectedTestUser, setSelectedTestUser, users, testResults
 }: any) {
+    const visibleUsers = getVisibleWorkspaceUsers(Array.isArray(users) ? users : []);
     const filteredResults = testResults.filter(
         (result: any) => selectedTestUser === 'Все' || result.userName === selectedTestUser
     );
@@ -48,7 +50,7 @@ export default function TestResultsModal({
                             onChange={(event) => setSelectedTestUser(event.target.value)}
                         >
                             <option value="Все">Все сотрудники</option>
-                            {users.filter((user: any) => user.role === 'staff').map((user: any) => (
+                            {visibleUsers.filter((user: any) => user.role === 'staff').map((user: any) => (
                                 <option key={user.id} value={user.name}>{user.name} ({user.login})</option>
                             ))}
                         </select>

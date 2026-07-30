@@ -35,10 +35,14 @@ export const applyClientAuthState = (user: ClientSessionUser) => {
     const hasConsent = localStorage.getItem('cookieConsent') === 'true';
     const storage = hasConsent ? localStorage : sessionStorage;
     const secondaryStorage = hasConsent ? sessionStorage : localStorage;
-    const nextViewMode: ClientViewMode = user.canSwitchMode ? ((storage.getItem('system_view_mode') as ClientViewMode) || 'admin') : user.role;
+    const storedViewMode = storage.getItem('system_view_mode') || secondaryStorage.getItem('system_view_mode');
+    const nextViewMode: ClientViewMode = user.canSwitchMode && storedViewMode === 'staff'
+        ? 'staff'
+        : user.role;
 
     storage.setItem('isLoggedIn', 'true');
-    storage.setItem('userRole', user.role);
+    storage.setItem('userRole', nextViewMode);
+    storage.setItem('actual_user_role', user.role);
     storage.setItem('current_user_id', user.id);
     storage.setItem('current_user_name', user.name);
     storage.setItem('login', user.login);
@@ -51,6 +55,7 @@ export const applyClientAuthState = (user: ClientSessionUser) => {
 
     secondaryStorage.removeItem('isLoggedIn');
     secondaryStorage.removeItem('userRole');
+    secondaryStorage.removeItem('actual_user_role');
     secondaryStorage.removeItem('current_user_id');
     secondaryStorage.removeItem('current_user_name');
     secondaryStorage.removeItem('login');
@@ -62,7 +67,7 @@ export const applyClientAuthState = (user: ClientSessionUser) => {
     secondaryStorage.removeItem('system_view_mode');
 
     setCookie('isLoggedIn', 'true', hasConsent ? 7 : null);
-    setCookie('userRole', user.role, hasConsent ? 7 : null);
+    setCookie('userRole', nextViewMode, hasConsent ? 7 : null);
     setCookie('current_user_id', user.id, hasConsent ? 7 : null);
     setCookie('current_user_name', user.name, hasConsent ? 7 : null);
 };
@@ -76,12 +81,14 @@ const readBrowserFlag = (key: string) => {
 };
 
 export const getClientViewMode = (user?: Partial<ClientSessionUser> | null): ClientViewMode => {
-    if (user?.canSwitchMode) {
+    const canSwitchMode = user?.canSwitchMode ?? readBrowserFlag('can_switch_mode') === 'true';
+
+    if (canSwitchMode) {
         const storedMode = readBrowserFlag('system_view_mode');
         return storedMode === 'staff' ? 'staff' : 'admin';
     }
 
-    const role = user?.role || readBrowserFlag('userRole');
+    const role = user?.role || readBrowserFlag('actual_user_role') || readBrowserFlag('userRole');
     return role === 'admin' ? 'admin' : 'staff';
 };
 
@@ -96,6 +103,9 @@ export const setClientViewMode = (mode: ClientViewMode) => {
 
     localStorage.setItem('system_view_mode', mode);
     sessionStorage.setItem('system_view_mode', mode);
+    localStorage.setItem('userRole', mode);
+    sessionStorage.setItem('userRole', mode);
+    setCookie('userRole', mode, localStorage.getItem('cookieConsent') === 'true' ? 7 : null);
     window.dispatchEvent(new CustomEvent('teaHubViewModeChanged', { detail: { mode } }));
     window.dispatchEvent(new Event('storage'));
 };
@@ -108,6 +118,7 @@ export const clearClientAuthState = () => {
     const keysToRemove = [
         'isLoggedIn',
         'userRole',
+        'actual_user_role',
         'current_user_id',
         'current_user_name',
         'login',

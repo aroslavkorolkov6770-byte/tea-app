@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { adminIn, modalOverlay, modalContentSmall, saveBtn } from './adminStyles';
 import CustomIcon from '@/app/components/CustomIcon';
 import { saveDataToServer } from '@/app/lib/storageClient';
+import { getVisibleWorkspaceUsers } from '@/app/lib/userVisibility';
 
 export default function UserManagement({
     users, setUsers, userAvatars, usersStats, totalRouteSteps, totalBasicsModules,
@@ -18,6 +19,7 @@ export default function UserManagement({
     const [passwordResetModal, setPasswordResetModal] = useState({ show: false, userId: '', userName: '' });
     const [temporaryPassword, setTemporaryPassword] = useState('');
     const [isResettingPassword, setIsResettingPassword] = useState(false);
+    const visibleUsers = getVisibleWorkspaceUsers(Array.isArray(users) ? users : []);
 
     const getUserProgress = (user: any) => {
         const route = Number(usersStats?.[user.id]?.route || 0);
@@ -35,10 +37,10 @@ export default function UserManagement({
         return String(user?.position || user?.jobTitle || (user?.role === 'admin' ? 'Администратор пространства' : 'Сотрудник'));
     };
 
-    const locationOptions: string[] = Array.from(new Set<string>(users.map((user: any) => getUserLocation(user))));
+    const locationOptions: string[] = Array.from(new Set<string>(visibleUsers.map((user: any) => getUserLocation(user))));
     const assignableLocationOptions = locationOptions.filter((location) => location !== 'Не указана').sort((left, right) => left.localeCompare(right, 'ru'));
 
-    const filteredUsers = users.filter((u: any) => {
+    const filteredUsers = visibleUsers.filter((u: any) => {
         const normalizedQuery = userSearchQuery.toLocaleLowerCase('ru').trim();
         const matchesQuery = !normalizedQuery
             || String(u.name || '').toLocaleLowerCase('ru').includes(normalizedQuery)
@@ -54,8 +56,8 @@ export default function UserManagement({
         return matchesQuery && matchesLocation && matchesRole && matchesStatus;
     });
 
-    const completedCount = users.filter((user: any) => getUserProgress(user) >= 100).length;
-    const learningCount = users.filter((user: any) => {
+    const completedCount = visibleUsers.filter((user: any) => getUserProgress(user) >= 100).length;
+    const learningCount = visibleUsers.filter((user: any) => {
         const progress = getUserProgress(user);
         return progress > 0 && progress < 100;
     }).length;
@@ -226,7 +228,7 @@ export default function UserManagement({
                 </div>
 
                 <div className="vates-employee-tabs" role="tablist" aria-label="Статус обучения сотрудников">
-                    <button type="button" className={userStatusFilter === 'all' ? 'active' : ''} onClick={() => setUserStatusFilter('all')}>Все <span>{users.length}</span></button>
+                    <button type="button" className={userStatusFilter === 'all' ? 'active' : ''} onClick={() => setUserStatusFilter('all')}>Все <span>{visibleUsers.length}</span></button>
                     <button type="button" className={userStatusFilter === 'learning' ? 'active' : ''} onClick={() => setUserStatusFilter('learning')}>В обучении <span>{learningCount}</span></button>
                     <button type="button" className={userStatusFilter === 'completed' ? 'active' : ''} onClick={() => setUserStatusFilter('completed')}>Завершили <span>{completedCount}</span></button>
                 </div>

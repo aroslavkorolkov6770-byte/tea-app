@@ -4,7 +4,14 @@ import {
     extractTextFromDocument,
     MAX_DOCUMENT_SIZE_BYTES,
 } from '@/app/lib/documentTextExtractor';
-import { getSessionFromCookies } from '@/app/lib/serverAuth';
+import { requireAdminSession } from '@/app/lib/serverAuth';
+import {
+    assertContentLength,
+    assertRateLimit,
+    assertTrustedMutationRequest,
+    getClientIdentifier,
+    securityErrorResponse,
+} from '@/app/lib/serverSecurity';
 
 export const runtime = 'nodejs';
 
@@ -201,15 +208,15 @@ function buildPrompt(options: {
 
 export async function POST(request: Request) {
     try {
-        const session = await getSessionFromCookies();
-        if (!session) {
-            return NextResponse.json({ error: 'Требуется вход в систему' }, { status: 401 });
-        }
+        assertTrustedMutationRequest(request);
+        assertContentLength(request, 30 * 1024 * 1024);
 
-        if (session.role !== 'admin') {
+        const session = await requireAdminSession();
+        if (!session) {
             return NextResponse.json({ error: 'Создавать AI-черновики может только администратор' }, { status: 403 });
         }
 
+        assertRateLimit('ai-content-draft', getClientIdentifier(request, session.id), 12, 15 * 60 * 1000);
         const formData = await request.formData();
         const kindValue = getStringField(formData, 'kind');
         if (kindValue !== 'topic' && kindValue !== 'test') {
@@ -232,6 +239,10 @@ export async function POST(request: Request) {
 
         if (files.some((file) => file.size > MAX_DOCUMENT_SIZE_BYTES)) {
             return NextResponse.json({ error: 'Размер одного файла не должен превышать 10 МБ' }, { status: 400 });
+        }
+
+        if (files.some((file) => file.name.length > 240)) {
+            return NextResponse.json({ error: 'Имя файла не должно превышать 240 символов' }, { status: 400 });
         }
 
         const warnings: string[] = [];
@@ -297,21 +308,21 @@ export async function POST(request: Request) {
             sourceFiles,
         });
     } catch (error) {
+        const securityResponse = securityErrorResponse(error);
+        if (securityResponse) {
+            return securityResponse;
+        }
+
         console.error('Ошибка генерации учебного черновика:', error);
 
         if (error instanceof AliceAiRequestError) {
+            const status = error.status === 429 ? 429 : 502;
             return NextResponse.json(
-                { error: error.message, details: error.details, source: 'yandex' },
-                { status: error.status },
+                { error: error.status === 429 ? 'Лимит AI-сервиса временно исчерпан' : 'AI-сервис временно недоступен' },
+                { status },
             );
         }
 
-        return NextResponse.json(
-            {
-                error: error instanceof Error ? error.message : 'Не удалось создать AI-черновик',
-                source: 'server',
-            },
-            { status: 500 },
-        );
+        return NextResponse.json({ error: 'Не удалось создать корректный AI-черновик' }, { status: 502 });
     }
 }

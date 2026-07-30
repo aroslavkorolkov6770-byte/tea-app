@@ -1,4 +1,13 @@
 import { NextResponse } from 'next/server';
+import { AliceAiRequestError, requestAliceAi } from '@/app/lib/aliceAi';
+import { requireSession } from '@/app/lib/serverAuth';
+import {
+    assertRateLimit,
+    assertTrustedMutationRequest,
+    getClientIdentifier,
+    readJsonBody,
+    securityErrorResponse,
+} from '@/app/lib/serverSecurity';
 
 type IncomingMessage = {
     role?: string;
@@ -6,18 +15,15 @@ type IncomingMessage = {
 };
 
 type YandexInputMessage = {
-    role: 'user' | 'assistant' | 'system';
+    role: 'user' | 'assistant';
     content: Array<{
         type: 'input_text' | 'output_text';
         text: string;
     }>;
 };
 
-const DEFAULT_YANDEX_FOLDER_ID = 'b1g1k18evi08k4r17n9h';
-const DEFAULT_YANDEX_MODEL = 'yandexgpt-lite';
-
-const normalizeRole = (role: string | undefined): 'user' | 'assistant' | 'system' => {
-    if (role === 'assistant' || role === 'system') {
+const normalizeRole = (role: string | undefined): 'user' | 'assistant' => {
+    if (role === 'assistant') {
         return role;
     }
 
@@ -76,12 +82,15 @@ const mapMessagesToYandexInput = (messages: IncomingMessage[]): YandexInputMessa
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
-        const messages = Array.isArray(body?.messages) ? body.messages : [];
+        assertTrustedMutationRequest(request);
+        const session = await requireSession();
+        if (!session) {
+            return NextResponse.json({ error: 'Требуется вход в систему' }, { status: 401 });
+        }
 
-        const apiKey = process.env.AI_API_KEY || process.env.NEXT_PUBLIC_AI_API_KEY;
-        const yandexFolderId = process.env.AI_FOLDER_ID || process.env.YANDEX_FOLDER_ID || DEFAULT_YANDEX_FOLDER_ID;
-        const yandexModel = process.env.AI_MODEL_NAME || process.env.YANDEX_MODEL_NAME || DEFAULT_YANDEX_MODEL;
+        assertRateLimit('ai-chat', getClientIdentifier(request, session.id), 30, 5 * 60 * 1000);
+        const body = await readJsonBody<{ messages?: unknown }>(request, 64 * 1024);
+        const messages = Array.isArray(body.messages) ? body.messages.slice(-30) as IncomingMessage[] : [];
 
         const yandexInput = mapMessagesToYandexInput(messages);
 
@@ -89,53 +98,32 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Сообщения для ИИ не переданы' }, { status: 400 });
         }
 
-        if (!apiKey) {
-            return NextResponse.json({ error: 'AI API ключ не настроен на сервере' }, { status: 500 });
+        const totalCharacters = yandexInput.reduce((sum, message) => {
+            return sum + message.content.reduce((messageSum, item) => messageSum + item.text.length, 0);
+        }, 0);
+
+        if (totalCharacters > 50_000 || yandexInput.some((message) => message.content[0].text.length > 12_000)) {
+            return NextResponse.json({ error: 'Диалог превышает допустимый объем' }, { status: 413 });
         }
 
-        const modelPath = `gpt://${yandexFolderId}/${yandexModel}`;
-
-        const response = await fetch('https://ai.api.cloud.yandex.net/v1/responses', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Api-Key ${apiKey}`,
-            },
-            body: JSON.stringify({
-                model: modelPath,
-                input: yandexInput,
-                service_tier: 'default',
-            }),
-        });
-
-        const rawResponseText = await response.text();
-
-        if (!response.ok) {
-            console.error('Ошибка от API Яндекса:', rawResponseText);
-
-            return NextResponse.json(
-                {
-                    error: `Ошибка Яндекса ${response.status}`,
-                    details: rawResponseText,
-                    source: 'yandex',
-                },
-                { status: response.status },
-            );
-        }
-
-        const data = rawResponseText ? JSON.parse(rawResponseText) : {};
-
+        const data = await requestAliceAi(yandexInput);
         return NextResponse.json(data);
     } catch (error) {
-        console.error('Внутренняя ошибка сервера:', error);
+        const securityResponse = securityErrorResponse(error);
+        if (securityResponse) {
+            return securityResponse;
+        }
 
-        return NextResponse.json(
-            {
-                error: 'Внутренняя ошибка сервера',
-                details: error instanceof Error ? error.message : 'Неизвестная ошибка',
-                source: 'server',
-            },
-            { status: 500 },
-        );
+        if (error instanceof AliceAiRequestError) {
+            console.error('Ошибка AI-провайдера:', error.status, error.details);
+            const status = error.status === 429 ? 429 : 502;
+            const message = error.status === 429
+                ? 'Лимит AI-сервиса временно исчерпан'
+                : 'AI-сервис временно недоступен';
+            return NextResponse.json({ error: message }, { status });
+        }
+
+        console.error('Внутренняя ошибка AI-чата:', error);
+        return NextResponse.json({ error: 'Не удалось получить ответ AI-ассистента' }, { status: 500 });
     }
 }

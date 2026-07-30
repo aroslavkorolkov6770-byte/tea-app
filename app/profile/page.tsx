@@ -3,7 +3,13 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { useRouter } from 'next/navigation';
-import { applyClientAuthState, clearClientAuthState, getClientLandingPath, type ClientSessionUser } from '@/app/lib/authClient';
+import {
+    applyClientAuthState,
+    clearClientAuthState,
+    getClientLandingPath,
+    getClientViewMode,
+    type ClientSessionUser,
+} from '@/app/lib/authClient';
 
 // --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
 const saveDataToServer = (key: string, data: any) => {
@@ -91,9 +97,11 @@ function ProfileContent() {
                     return;
                 }
 
-                const role = sessionUser.role || 'staff';
+                const role = getClientViewMode(normalizedUser);
                 const currentId = sessionUser.id || 'guest';
-                const currentName = sessionUser.name || (role === 'admin' ? 'Главный Мастер' : 'Сотрудник');
+                const currentName = role === 'staff' && normalizedUser.canSwitchMode
+                    ? 'Сотрудник'
+                    : sessionUser.name || (role === 'admin' ? 'Главный Мастер' : 'Сотрудник');
 
                 setUserRole(role);
                 setUserId(currentId);

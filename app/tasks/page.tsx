@@ -5,7 +5,12 @@ import CustomIcon from '@/app/components/CustomIcon';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
 import { DEFAULT_TRAINING_TESTS } from '@/app/tasks/data/defaultTrainingTests';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { clearClientAuthState, isClientAdminView } from '@/app/lib/authClient';
+import {
+    applyClientAuthState,
+    clearClientAuthState,
+    isClientAdminView,
+    type ClientSessionUser,
+} from '@/app/lib/authClient';
 
 // --- ИМПОРТ НАШИХ МОДУЛЕЙ ---
 import Education from './components/Education';
@@ -294,9 +299,30 @@ function ShiftContent() {
                 return null;
             }
 
-            const currentId = localStorage.getItem('current_user_id') || 'guest';
+            const sessionData = await sessionResponse.json().catch(() => null);
+            const sessionUser = sessionData?.user;
+            if (!sessionData?.authenticated || !sessionUser) {
+                return null;
+            }
+
+            const normalizedUser = {
+                id: sessionUser.id,
+                login: sessionUser.login,
+                role: sessionUser.role,
+                name: sessionUser.name || (sessionUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+                systemAccount: Boolean(sessionUser.systemAccount),
+                ghostAccount: Boolean(sessionUser.ghostAccount),
+                profileDisabled: Boolean(sessionUser.profileDisabled),
+                profileOwnerOnly: Boolean(sessionUser.profileOwnerOnly),
+                hideFromStats: Boolean(sessionUser.hideFromStats),
+                canSwitchMode: Boolean(sessionUser.canSwitchMode),
+                accountLabel: sessionUser.accountLabel || '',
+            } satisfies ClientSessionUser;
+            applyClientAuthState(normalizedUser);
+
+            const currentId = normalizedUser.id;
             if (!isDisposed) {
-                setIsAdmin(isClientAdminView());
+                setIsAdmin(isClientAdminView(normalizedUser));
                 setUserId(currentId);
                 setIsSessionValidated(true);
             }

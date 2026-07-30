@@ -42,9 +42,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .next-dev.*.log
+/tmp/mysql-export-*/
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel

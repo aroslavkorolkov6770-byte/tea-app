@@ -224,13 +224,14 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         const determineUser = () => {
             const storedUserId = localStorage.getItem('current_user_id') || localStorage.getItem('login') || localStorage.getItem('userId');
             const isSystemAccount = localStorage.getItem('is_system_account') === 'true';
+            const isAdminView = isAdmin === true || isClientAdminView();
 
-            if (isSystemAccount) {
+            if (isSystemAccount && isAdminView) {
                 const normalizedSystemId = String(userId || storedUserId || 'system').replace(/[^a-zA-Z0-9_-]/g, '_');
                 return `system_admin_${normalizedSystemId}`;
             }
 
-            if (isAdmin === true || isClientAdminView() || userId === 'admin') {
+            if (isAdminView || userId === 'admin') {
                 return 'admin_master'; 
             }
 

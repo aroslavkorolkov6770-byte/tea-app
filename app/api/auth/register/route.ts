@@ -8,8 +8,15 @@ import {
     toPublicUser,
     toSessionUser,
     verifyPassword,
-    writeJsonFile,
 } from '@/app/lib/serverAuth';
+import { writeDataValue } from '@/app/lib/storage/dataStore';
+import {
+    assertRateLimit,
+    assertTrustedMutationRequest,
+    getClientIdentifier,
+    readJsonBody,
+    securityErrorResponse,
+} from '@/app/lib/serverSecurity';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,10 +66,13 @@ const hasWorkingMailDomain = async (email: string) => {
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        assertTrustedMutationRequest(request);
+        assertRateLimit('auth-register', getClientIdentifier(request), 8, 60 * 60 * 1000);
+
+        const body = await readJsonBody<Record<string, unknown>>(request, 16 * 1024);
 
         const login = typeof body.login === 'string' ? body.login.trim() : '';
-        const password = typeof body.password === 'string' ? body.password.trim() : '';
+        const password = typeof body.password === 'string' ? body.password : '';
         const name = typeof body.name === 'string' ? body.name.trim() : '';
         const email = typeof body.email === 'string' ? body.email.trim() : '';
         const tg = typeof body.tg === 'string' ? body.tg.trim() : '';
@@ -75,6 +85,17 @@ export async function POST(request: Request) {
 
         if (!login || !password || !name || !email || !tg || !phone) {
             return NextResponse.json({ error: 'Нужно заполнить все поля' }, { status: 400 });
+        }
+
+        if (
+            login.length > 120 ||
+            password.length > 128 ||
+            name.length > 120 ||
+            email.length > 254 ||
+            tg.length > 120 ||
+            phone.length > 40
+        ) {
+            return NextResponse.json({ error: 'Одно из полей превышает допустимую длину' }, { status: 400 });
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -91,7 +112,7 @@ export async function POST(request: Request) {
         }
 
         const normalizedPhone = normalizePhoneNumber(phone);
-        const users = getStoredUsers();
+        const users = await getStoredUsers();
         const foundUserIndex = users.findIndex((user) => user.login === login && verifyPassword(user, password));
 
         if (foundUserIndex === -1) {
@@ -113,9 +134,9 @@ export async function POST(request: Request) {
 
         const updatedUsers = [...users];
         updatedUsers[foundUserIndex] = updatedUser;
-        saveStoredUsers(updatedUsers);
+        await saveStoredUsers(updatedUsers);
 
-        writeJsonFile(`profile_data_${updatedUser.id}`, {
+        await writeDataValue(`profile_data_${updatedUser.id}`, {
             avatar: '',
             tg,
             phone: normalizedPhone,
@@ -132,6 +153,11 @@ export async function POST(request: Request) {
         applySessionCookie(response, toSessionUser(updatedUser));
         return response;
     } catch (error) {
+        const securityResponse = securityErrorResponse(error);
+        if (securityResponse) {
+            return securityResponse;
+        }
+
         console.error('Ошибка регистрации:', error);
         return NextResponse.json({ error: 'Ошибка сервера при регистрации' }, { status: 500 });
     }

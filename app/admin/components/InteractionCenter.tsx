@@ -2,17 +2,19 @@
 
 import React, { useState } from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
+import { getVisibleWorkspaceUsers } from '@/app/lib/userVisibility';
 import { adminIn, modalOverlay, modalContentSmall } from './adminStyles';
 
 export default function InteractionCenter({
     users, interactionTab, setInteractionTab, selectedStaff, setSelectedStaff,
     notifText, setNotifText, testType, setTestType, handleSendNotification,
     handleOpenTestEditor, handleQuickSendTest, isProcessing,
-    testTypesList, handleUpdateTestTypes, allowSelfSystemTarget, selfSystemTargetId
+    testTypesList, handleUpdateTestTypes
 }: any) {
     const [isManagingTypes, setIsManagingTypes] = useState(false);
     const [newTypeName, setNewTypeName] = useState('');
-    const staffUsers = users.filter((user: any) => user.role === 'staff');
+    const staffUsers = getVisibleWorkspaceUsers(Array.isArray(users) ? users : [])
+        .filter((user: any) => user.role === 'staff');
     const recipientHint = selectedStaff === 'Все'
         ? `Сообщение получат ${staffUsers.length} ${staffUsers.length === 1 ? 'сотрудник' : 'сотрудника'}`
         : 'Сообщение получит выбранный сотрудник';
@@ -56,7 +58,6 @@ export default function InteractionCenter({
                     <small>Можно отправить всей команде или одному сотруднику.</small>
                     <select value={selectedStaff} onChange={(event) => setSelectedStaff(event.target.value)}>
                         <option value="Все">Всем сотрудникам</option>
-                        {allowSelfSystemTarget && <option value={selfSystemTargetId}>Себе (системный администратор)</option>}
                         {staffUsers.map((user: any) => (
                             <option key={user.id} value={user.id}>{user.name} ({user.login})</option>
                         ))}

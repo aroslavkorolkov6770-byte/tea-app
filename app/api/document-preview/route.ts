@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server';
 import { dataUrlToBytes, getDataUrlMimeType } from '@/app/lib/documentPreview';
 import { extractTextFromDocument } from '@/app/lib/documentTextExtractor';
-import { getSessionFromCookies, readJsonFile } from '@/app/lib/serverAuth';
+import { getSessionFromCookies } from '@/app/lib/serverAuth';
+import { readDataValue } from '@/app/lib/storage/dataStore';
+import {
+    assertRateLimit,
+    assertTrustedMutationRequest,
+    getClientIdentifier,
+    readJsonBody,
+    securityErrorResponse,
+} from '@/app/lib/serverSecurity';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -20,14 +28,16 @@ const isSafeFileId = (value: string) => /^[a-zA-Z0-9_-]+$/.test(value);
 
 export async function POST(request: Request) {
     try {
+        assertTrustedMutationRequest(request);
         const session = await getSessionFromCookies();
         if (!session) {
             return NextResponse.json({ error: 'Требуется вход в систему' }, { status: 401 });
         }
 
-        const body = await request.json() as PreviewRequest;
+        assertRateLimit('document-preview', getClientIdentifier(request, session.id), 40, 5 * 60 * 1000);
+        const body = await readJsonBody<PreviewRequest>(request, 55 * 1024 * 1024);
         const fileName = String(body.fileName || '').trim();
-        if (!fileName) {
+        if (!fileName || fileName.length > 240) {
             return NextResponse.json({ error: 'Не указано имя файла' }, { status: 400 });
         }
 
@@ -37,7 +47,7 @@ export async function POST(request: Request) {
             if (!isSafeFileId(fileId)) {
                 return NextResponse.json({ error: 'Некорректный идентификатор файла' }, { status: 400 });
             }
-            dataUrl = readJsonFile<string>(`file_data_${fileId}`, '');
+            dataUrl = await readDataValue<string>(`file_data_${fileId}`, '');
         }
 
         if (!dataUrl || !dataUrl.startsWith('data:')) {
@@ -57,10 +67,12 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ text });
     } catch (error) {
+        const securityResponse = securityErrorResponse(error);
+        if (securityResponse) {
+            return securityResponse;
+        }
+
         console.error('Ошибка подготовки предпросмотра документа:', error);
-        return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Не удалось подготовить документ' },
-            { status: 422 },
-        );
+        return NextResponse.json({ error: 'Не удалось безопасно подготовить документ' }, { status: 422 });
     }
 }

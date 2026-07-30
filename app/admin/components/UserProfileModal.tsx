@@ -2,6 +2,7 @@
 
 import React from 'react';
 import CustomIcon from '@/app/components/CustomIcon';
+import { isSystemWorkspaceAccount } from '@/app/lib/userVisibility';
 import { modalOverlay } from './adminStyles';
 
 export default function UserProfileModal({
@@ -11,7 +12,7 @@ export default function UserProfileModal({
     editAuthPass, setEditAuthPass, handleSaveUserAuth
 }: any) {
     if (!selectedProfileUser) return null;
-    if (selectedProfileUser.systemAccount || selectedProfileUser.ghostAccount) return null;
+    if (isSystemWorkspaceAccount(selectedProfileUser)) return null;
 
     const profileData = userProfiles[selectedProfileUser.id] || {};
     const routeLength = usersStats[selectedProfileUser.id]?.route || 0;

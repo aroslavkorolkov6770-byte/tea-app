@@ -3,6 +3,13 @@ import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
+import { useRouter } from 'next/navigation';
+import {
+  applyClientAuthState,
+  getClientViewMode,
+  type ClientSessionUser,
+} from '@/app/lib/authClient';
+import { getVisibleWorkspaceUsers, isSystemWorkspaceAccount } from '@/app/lib/userVisibility';
 
 import UserManagement from './components/UserManagement';
 import InteractionCenter from './components/InteractionCenter';
@@ -72,14 +79,27 @@ const buildDeadlineTaskText = (
   return `Пройти тест «${materialTitle}»`;
 };
 
+const filterHiddenSystemResults = (results: any[], sourceUsers: any[]) => {
+  const hiddenUsers = sourceUsers.filter((user) => isSystemWorkspaceAccount(user));
+  const hiddenIds = new Set(hiddenUsers.map((user) => user.id));
+  const hiddenNames = new Set(hiddenUsers.map((user) => user.name).filter(Boolean));
+
+  return results.filter((result) => {
+    const userId = String(result?.userId || '');
+    const userName = String(result?.userName || '');
+    return userId
+      ? !hiddenIds.has(userId)
+      : !(userName && hiddenNames.has(userName));
+  });
+};
+
 export default function AdminDashboard() {
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
+  const [isAccessValidated, setIsAccessValidated] = useState(false);
   const [activeAdminSection, setActiveAdminSection] = useState<'overview' | 'employees'>('overview');
   const [isProcessing, setIsProcessing] = useState(false);
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
-  const [isSystemAdmin, setIsSystemAdmin] = useState(false);
-  const [currentAdminId, setCurrentAdminId] = useState('u_admin');
-
   const [users, setUsers] = useState<any[]>([]);
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
@@ -142,8 +162,15 @@ export default function AdminDashboard() {
           const cachedStats = localStorage.getItem(ADMIN_CACHE_KEYS.USER_STATS);
 
           if (cachedNotes) setNotes(JSON.parse(cachedNotes));
-          if (cachedUsers) setUsers(JSON.parse(cachedUsers));
-          if (cachedResults) setTestResults(JSON.parse(cachedResults));
+          const parsedCachedUsers = cachedUsers ? JSON.parse(cachedUsers) : [];
+          const cachedUserList = Array.isArray(parsedCachedUsers) ? parsedCachedUsers : [];
+          if (cachedUsers) setUsers(getVisibleWorkspaceUsers(cachedUserList));
+          if (cachedResults) {
+              const parsedCachedResults = JSON.parse(cachedResults);
+              setTestResults(Array.isArray(parsedCachedResults)
+                ? filterHiddenSystemResults(parsedCachedResults, cachedUserList)
+                : []);
+          }
           if (cachedUrgentFiles) setUrgentFiles(JSON.parse(cachedUrgentFiles));
 
           if (cachedTests) {
@@ -170,13 +197,63 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    let isDisposed = false;
+
+    const validateAdminAccess = async () => {
+      try {
+        const response = await fetch('/api/auth/session', { cache: 'no-store' });
+        const sessionData = response.ok ? await response.json().catch(() => null) : null;
+        const sessionUser = sessionData?.user;
+
+        if (!sessionData?.authenticated || !sessionUser) {
+          router.replace('/login');
+          return;
+        }
+
+        const normalizedUser = {
+          id: sessionUser.id,
+          login: sessionUser.login,
+          role: sessionUser.role,
+          name: sessionUser.name || (sessionUser.role === 'admin' ? 'Главный Мастер' : 'Сотрудник'),
+          systemAccount: Boolean(sessionUser.systemAccount),
+          ghostAccount: Boolean(sessionUser.ghostAccount),
+          profileDisabled: Boolean(sessionUser.profileDisabled),
+          profileOwnerOnly: Boolean(sessionUser.profileOwnerOnly),
+          hideFromStats: Boolean(sessionUser.hideFromStats),
+          canSwitchMode: Boolean(sessionUser.canSwitchMode),
+          accountLabel: sessionUser.accountLabel || '',
+        } satisfies ClientSessionUser;
+        applyClientAuthState(normalizedUser);
+
+        if (normalizedUser.role !== 'admin' || getClientViewMode(normalizedUser) !== 'admin') {
+          router.replace('/tasks?tab=welcome');
+          return;
+        }
+
+        if (!isDisposed) {
+          setIsAccessValidated(true);
+        }
+      } catch (error) {
+        console.error('Не удалось проверить административный доступ:', error);
+        if (!isDisposed) {
+          router.replace('/login');
+        }
+      }
+    };
+
+    void validateAdminAccess();
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [router]);
+
+  useEffect(() => {
     setIsMounted(true);
 
     if (typeof window !== 'undefined') {
         if (!('Notification' in window)) setPushStatus('unsupported');
         else setPushStatus(Notification.permission as any);
-        setCurrentAdminId(localStorage.getItem('current_user_id') || 'u_admin');
-        setIsSystemAdmin(localStorage.getItem('is_system_account') === 'true');
         hydrateAdminCache();
     }
 
@@ -200,12 +277,16 @@ export default function AdminDashboard() {
 
             let usersData = storageData['tea_hub_users_v1'];
             if (!Array.isArray(usersData)) usersData = [];
-            setUsers(usersData);
-            localStorage.setItem(ADMIN_CACHE_KEYS.USERS, JSON.stringify(usersData));
+            const visibleUsersData = getVisibleWorkspaceUsers(usersData as any[]);
+            setUsers(visibleUsersData);
+            localStorage.setItem(ADMIN_CACHE_KEYS.USERS, JSON.stringify(visibleUsersData));
 
             const testData = storageData['tea_hub_test_results_v1'];
-            setTestResults(Array.isArray(testData) ? testData : []);
-            localStorage.setItem(ADMIN_CACHE_KEYS.TEST_RESULTS, JSON.stringify(Array.isArray(testData) ? testData : []));
+            const visibleTestData = Array.isArray(testData)
+              ? filterHiddenSystemResults(testData, usersData)
+              : [];
+            setTestResults(visibleTestData);
+            localStorage.setItem(ADMIN_CACHE_KEYS.TEST_RESULTS, JSON.stringify(visibleTestData));
 
             const filesData = storageData['tea_hub_urgent_files_v1'];
             if (Array.isArray(filesData)) {
@@ -237,12 +318,12 @@ export default function AdminDashboard() {
             const stats: Record<string, {route: number, basics: number}> = {};
             const avatarsFound: Record<string, string> = {};
             const profilesFound: Record<string, any> = {};
-            const profileKeys = usersData.filter((u: any) => !u.systemAccount).map((u: any) => `profile_data_${u.id}`);
-            const staffUsers = usersData.filter((u: any) => u.role === 'staff' && !u.hideFromStats && !u.profileDisabled);
+            const profileKeys = visibleUsersData.map((u: any) => `profile_data_${u.id}`);
+            const staffUsers = visibleUsersData.filter((u: any) => u.role === 'staff' && !u.hideFromStats && !u.profileDisabled);
             const progressKeys = staffUsers.flatMap((u: any) => [`prog_route_${u.id}`, `prog_tests_${u.id}`]);
             const relatedData = await fetchStorageBatch([...profileKeys, ...progressKeys]);
 
-            for (const u of usersData) {
+            for (const u of visibleUsersData) {
                 if (u.avatar) avatarsFound[u.id] = u.avatar;
 
                 const profData = relatedData[`profile_data_${u.id}`];
@@ -394,7 +475,7 @@ export default function AdminDashboard() {
   };
 
   const handleSaveUserAuth = async () => {
-      if (selectedProfileUser?.systemAccount && currentAdminId !== selectedProfileUser.id) {
+      if (isSystemWorkspaceAccount(selectedProfileUser)) {
           return setErrorModal({ show: true, text: 'Профиль системного администратора изолирован от других администраторов.' });
       }
       if (!editAuthLogin.trim() || !editAuthPass.trim()) return setErrorModal({ show: true, text: "Логин и пароль не могут быть пустыми!" });
@@ -691,7 +772,7 @@ export default function AdminDashboard() {
       return !normalizedQuery || `${option.title} ${option.section}`.toLocaleLowerCase('ru').includes(normalizedQuery);
   });
 
-  if (!isMounted) return <div className="vates-app-page vates-app-loading"><Navigation /><div className="desktop-sidebar-spacer" aria-hidden="true" /></div>;
+  if (!isMounted || !isAccessValidated) return <div className="vates-app-page vates-app-loading"><Navigation /><div className="desktop-sidebar-spacer" aria-hidden="true" /></div>;
 
   return (
     <div className="vates-app-page vates-admin-page" style={{ backgroundColor: '#0d0f0d', minHeight: '100vh', color: '#fff', display: 'flex', transition: '0.3s' }}>
@@ -731,10 +812,9 @@ export default function AdminDashboard() {
                                 selectedStaff={selectedStaff} setSelectedStaff={setSelectedStaff} notifText={notifText}
                                 setNotifText={setNotifText} testType={testType} setTestType={setTestType}
                                 handleSendNotification={handleSendNotification} handleOpenTestEditor={handleOpenTestEditor}
-                                handleQuickSendTest={handleQuickSendTest} isProcessing={isProcessing}
-                                testTypesList={testTypesList} handleUpdateTestTypes={handleUpdateTestTypes}
-                                allowSelfSystemTarget={isSystemAdmin} selfSystemTargetId={currentAdminId}
-                            />
+                                 handleQuickSendTest={handleQuickSendTest} isProcessing={isProcessing}
+                                 testTypesList={testTypesList} handleUpdateTestTypes={handleUpdateTestTypes}
+                             />
 
                             <CalendarWidget
                                 eventTab={eventTab} setEventTab={setEventTab} filteredEvents={filteredEvents}
@@ -801,7 +881,6 @@ export default function AdminDashboard() {
                     <div style={{ fontSize: '12px', color: '#888', fontWeight: 'bold', marginBottom: '8px' }}>Кому назначить:</div>
                     <select style={{ ...adminIn, marginBottom: 0, padding: '12px', cursor: 'pointer' } as any} value={deadlineTarget} onChange={e => setDeadlineTarget(e.target.value)}>
                         <option value="Все">Всем сотрудникам</option>
-                        {isSystemAdmin && <option value={currentAdminId}>Себе (системный администратор)</option>}
                         {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.id}>{u.name} ({u.login})</option>)}
                     </select>
                     

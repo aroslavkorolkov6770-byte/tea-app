@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { fetchStorageBatch } from '@/app/lib/storageClient';
+import { getVisibleWorkspaceUsers } from '@/app/lib/userVisibility';
 
 type LearningItem = {
     id: string;
@@ -51,6 +52,7 @@ type PublicUser = {
     role?: 'admin' | 'staff';
     systemAccount?: boolean;
     ghostAccount?: boolean;
+    canSwitchMode?: boolean;
 };
 
 const ASSIGNMENTS_SESSION_KEY = 'vates_learning_path_assignments_v1';
@@ -168,9 +170,8 @@ export default function LearningPaths({
             try {
                 const data = await fetchStorageBatch(['tea_hub_users_v1']);
                 const storedUsers = Array.isArray(data.tea_hub_users_v1) ? data.tea_hub_users_v1 : [];
-                const assignableUsers = storedUsers.filter((user: PublicUser) => (
-                    user.role === 'staff' && !user.systemAccount && !user.ghostAccount
-                ));
+                const assignableUsers = getVisibleWorkspaceUsers(storedUsers as PublicUser[])
+                    .filter((user: PublicUser) => user.role === 'staff');
 
                 if (!isDisposed) {
                     setEmployees(assignableUsers);

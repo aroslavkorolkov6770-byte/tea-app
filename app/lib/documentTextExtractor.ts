@@ -2,7 +2,7 @@ import path from 'node:path';
 import JSZip from 'jszip';
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
-import * as XLSX from 'xlsx';
+import readExcelFile from 'read-excel-file/node';
 import { decodeTextBytes } from '@/app/lib/documentPreview';
 
 export const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
@@ -69,7 +69,8 @@ const PLAIN_TEXT_EXTENSIONS = new Set([
     '.cmd',
 ]);
 
-const SPREADSHEET_EXTENSIONS = new Set(['.xls', '.xlsx', '.xlsm', '.xlsb', '.ods']);
+const SPREADSHEET_EXTENSIONS = new Set(['.xlsx', '.xlsm', '.ods']);
+const UNSUPPORTED_LEGACY_SPREADSHEET_EXTENSIONS = new Set(['.xls', '.xlsb']);
 
 type DocumentExtractionOptions = {
     maxSizeBytes?: number;
@@ -146,12 +147,19 @@ async function extractOpenDocumentText(buffer: Buffer): Promise<string> {
     return contentXml ? extractTextFromXml(contentXml) : '';
 }
 
-function extractSpreadsheetText(buffer: Buffer): string {
-    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
-    return workbook.SheetNames.map((sheetName) => {
-        const worksheet = workbook.Sheets[sheetName];
-        const csv = XLSX.utils.sheet_to_csv(worksheet, { blankrows: false });
-        return `Лист: ${sheetName}\n${csv}`;
+async function extractSpreadsheetText(buffer: Buffer): Promise<string> {
+    const sheets = await readExcelFile(buffer);
+    return sheets.map(({ sheet, data }) => {
+        const rows = data
+            .map((row) => row.map((cell) => {
+                if (cell instanceof Date) {
+                    return cell.toLocaleDateString('ru-RU');
+                }
+                return String(cell ?? '').trim();
+            }).join('\t'))
+            .filter((row) => row.trim());
+
+        return `Лист: ${sheet}\n${rows.join('\n')}`;
     }).join('\n\n');
 }
 
@@ -197,8 +205,12 @@ export async function extractTextFromDocument(file: File, options: DocumentExtra
         } finally {
             await parser.destroy();
         }
+    } else if (extension === '.ods') {
+        extractedText = await extractOpenDocumentText(buffer);
     } else if (SPREADSHEET_EXTENSIONS.has(extension)) {
-        extractedText = extractSpreadsheetText(buffer);
+        extractedText = await extractSpreadsheetText(buffer);
+    } else if (UNSUPPORTED_LEGACY_SPREADSHEET_EXTENSIONS.has(extension)) {
+        throw new Error(`Формат ${extension} устарел. Сохраните таблицу как .xlsx и загрузите повторно`);
     } else if (extension === '.pptx') {
         extractedText = await extractPresentationText(buffer);
     } else if (extension === '.odt' || extension === '.odp') {

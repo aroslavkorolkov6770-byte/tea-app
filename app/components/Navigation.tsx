@@ -379,7 +379,7 @@ export default function Navigation() {
   };
 
   const handleViewModeChange = (mode: 'admin' | 'staff') => {
-    if (!sessionUser?.canSwitchMode) {
+    if (!sessionUser?.canSwitchMode || mode === currentViewMode) {
       return;
     }
 
@@ -387,7 +387,8 @@ export default function Navigation() {
     setCurrentViewMode(mode);
     setUserRole(mode);
     setIsProfileOpen(false);
-    router.push(mode === 'admin' ? '/admin' : '/tasks?tab=welcome');
+    router.replace(mode === 'admin' ? '/admin' : '/tasks?tab=welcome');
+    router.refresh();
   };
 
   const removeNotification = async (id: number) => {
@@ -677,7 +678,11 @@ export default function Navigation() {
                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                        <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="currentColor"/>
                    </svg>
-                    <span className="vates-profile-name">{sessionUser?.name || 'Профиль'}</span>
+                     <span className="vates-profile-name">
+                       {sessionUser?.canSwitchMode && currentViewMode === 'staff'
+                         ? 'Режим сотрудника'
+                         : sessionUser?.name || 'Профиль'}
+                     </span>
                     {isProfileOpen && (
                      <div style={profileDropdown}>
                         {(!sessionUser?.profileDisabled || sessionUser?.profileOwnerOnly) && (

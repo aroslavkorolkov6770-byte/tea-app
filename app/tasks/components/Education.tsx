@@ -84,36 +84,41 @@ const getRussianCountLabel = (value: number, one: string, few: string, many: str
     return many;
 };
 
-const normalizeEmbeddedPlayerMarkup = (markup: string) => {
-    if (!markup) {
+const getSafeEmbeddedPlayerUrl = (markup: string) => {
+    const source = String(markup || '').trim();
+    if (!source) {
         return '';
     }
 
-    return markup
-        .replace(/\s(width|height)=("|')[^"']*("|')/gi, '')
-        .replace(/\sstyle=("|')([^"']*)("|')/gi, (_match, quoteStart, styleContent, quoteEnd) => {
-            const cleanedStyle = String(styleContent)
-                .replace(/(?:^|;)\s*width\s*:\s*[^;]+;?/gi, '')
-                .replace(/(?:^|;)\s*height\s*:\s*[^;]+;?/gi, '')
-                .replace(/(?:^|;)\s*max-width\s*:\s*[^;]+;?/gi, '')
-                .replace(/(?:^|;)\s*min-height\s*:\s*[^;]+;?/gi, '')
-                .trim()
-                .replace(/^;|;$/g, '');
+    const sourceMatch = source.match(/<(?:iframe|embed)\b[^>]*\bsrc\s*=\s*(["'])(.*?)\1/i);
+    const candidate = (sourceMatch?.[2] || source).trim();
 
-            const responsiveStyle = `${cleanedStyle ? `${cleanedStyle}; ` : ''}width: 100% !important; height: 100% !important; max-width: 100% !important;`;
-            return ` style=${quoteStart}${responsiveStyle}${quoteEnd}`;
-        })
-        .replace(/<(iframe|embed|object)\b/gi, '<$1 class="embedded-player-frame"');
+    try {
+        const parsedUrl = new URL(candidate);
+        return parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:' ? parsedUrl.toString() : '';
+    } catch {
+        return '';
+    }
 };
 
 const MemoizedVideoPlayer = React.memo(({ iframeStr, descText }: { iframeStr: string, descText: string }) => {
-    const normalizedIframeMarkup = normalizeEmbeddedPlayerMarkup(iframeStr);
+    const safePlayerUrl = getSafeEmbeddedPlayerUrl(iframeStr);
 
     return (
         <div className="video-player-card" style={{ background: '#0d0d0d', padding: '20px', borderRadius: '25px', border: '1px solid #222', marginBottom: '35px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-            {normalizedIframeMarkup ? (
+            {safePlayerUrl ? (
                 <div className="video-wrapper">
-                    <div className="video-embed-shell" dangerouslySetInnerHTML={{ __html: normalizedIframeMarkup }} />
+                    <div className="video-embed-shell">
+                        <iframe
+                            className="embedded-player-frame"
+                            src={safePlayerUrl}
+                            title="Учебное видео"
+                            loading="lazy"
+                            allow="fullscreen; picture-in-picture"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            sandbox="allow-scripts allow-same-origin allow-presentation"
+                        />
+                    </div>
                 </div>
             ) : (
                 <div style={{ padding: '40px', textAlign: 'center', color: '#555', fontStyle: 'italic', background: '#111', borderRadius: '15px' }}>Видео не прикреплено</div>
@@ -445,8 +450,8 @@ export default function Education({
 
             const previousAttempts = results.filter((r: any) => r.testId === testTarget.id && r.userName === currentUserName).length;
             const newResult = {
-                id: Date.now(), testId: testTarget.id, userName: currentUserName,
-                testName: testTarget.title || testTarget.name, score: 0, attempts: previousAttempts + 1, date: formattedTime
+                id: Date.now(), testId: testTarget.id, userId, userName: currentUserName,
+                testName: testTarget.title || testTarget.name, score: 0, attempts: previousAttempts + 1, date: formattedTime, isTimeout: true
             };
             saveDataToServer('tea_hub_test_results_v1', [newResult, ...results]);
         } catch (e) { console.error("Ошибка при тайм-ауте", e) }
@@ -891,7 +896,7 @@ export default function Education({
             if (!Array.isArray(results)) results = [];
 
             const previousAttempts = results.filter((r: any) => r.testId === activeTestSession.id && r.userName === currentUserName).length;
-            const newResult = { id: Date.now(), testId: activeTestSession.id, userName: currentUserName, testName: activeTestSession.title, score: score, attempts: previousAttempts + 1, date: formattedTime };
+            const newResult = { id: Date.now(), testId: activeTestSession.id, userId, userName: currentUserName, testName: activeTestSession.title, score: score, attempts: previousAttempts + 1, date: formattedTime, answers };
             saveDataToServer('tea_hub_test_results_v1', [newResult, ...results]);
 
             if (isPassed && !completedTests.includes(activeTestSession.id)) {
@@ -931,7 +936,7 @@ export default function Education({
             if (!Array.isArray(results)) results = [];
 
             const previousAttempts = results.filter((r: any) => r.testId === activeUrgentTest.id && r.userName === currentUserName).length;
-            const newResult = { id: Date.now(), testId: activeUrgentTest.id, userName: currentUserName, testName: activeUrgentTest.name, score: score, attempts: previousAttempts + 1, date: formattedTime };
+            const newResult = { id: Date.now(), testId: activeUrgentTest.id, userId, userName: currentUserName, testName: activeUrgentTest.name, score: score, attempts: previousAttempts + 1, date: formattedTime, answers };
             saveDataToServer('tea_hub_test_results_v1', [newResult, ...results]);
 
             if (isPassed) {
