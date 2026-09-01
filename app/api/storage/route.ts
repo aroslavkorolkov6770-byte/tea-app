@@ -394,12 +394,14 @@ const readKeyForSession = async (key: string, session: Awaited<ReturnType<typeof
         return filterHiddenSystemResults(toRecordArray(data));
     }
 
-    if (!session || session.role === 'admin') {
-        return data;
+    if (key === 'tea_hub_notifications_v1') {
+        return session
+            ? getNotificationsForUser(toRecordArray(data), session.id)
+            : [];
     }
 
-    if (key === 'tea_hub_notifications_v1') {
-        return getNotificationsForUser(toRecordArray(data), session.id);
+    if (!session || session.role === 'admin') {
+        return data;
     }
 
     if (key === 'tea_hub_push_subs_v1') {

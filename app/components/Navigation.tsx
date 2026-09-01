@@ -176,7 +176,9 @@ export default function Navigation() {
                 }
             }
 
-            const currentUserId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id') || 'guest';
+            // Для фильтрации уведомлений используем подтвержденный ID сессии,
+            // а не устаревшее значение из браузерного хранилища после смены аккаунта.
+            const currentUserId = typeof sessionUser?.id === 'string' ? sessionUser.id : 'guest';
             const storageKeys = [
                 'tea_hub_notifications_v1',
                 'tea_hub_dynamic_route_v2',
