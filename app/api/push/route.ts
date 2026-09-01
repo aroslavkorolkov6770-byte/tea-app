@@ -19,7 +19,11 @@ const configureWebPush = () => {
     }
 
     // Настраиваем VAPID ключи только при реальной отправке, чтобы сборка не падала без .env.
-    webpush.setVapidDetails('mailto:admin@tea-hub.ru', publicKey, privateKey);
+    webpush.setVapidDetails(
+        process.env.VAPID_SUBJECT || 'mailto:tea-hub@mail.ru',
+        publicKey,
+        privateKey,
+    );
     return true;
 };
 

@@ -325,3 +325,15 @@ npm audit --omit=dev
   `localStorage`.
 - Перед выкладкой требуется стандартная резервная копия `data/`, затем сборка,
   перезапуск PM2 и проверка `/login`.
+
+## Web Push и e-mail 1 сентября 2026 года
+
+- VAPID-ключи создаются и хранятся только на сервере; `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+  должен присутствовать до `npm run build`, а `VAPID_PRIVATE_KEY` остается
+  серверным секретом.
+- Для отправки почты используются `smtp.mail.ru`, порт `465`, TLS и адрес
+  `tea-hub@mail.ru`. Пароль задается только в `.env.production.local` и не
+  публикуется.
+- После изменения env выполнить резервную копию `data/`, сборку, `pm2 restart
+  tea-hub --update-env`, `pm2 save`, затем проверить подписку Push и отправку
+  тестового e-mail.

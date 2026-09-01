@@ -46,10 +46,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Почтовый сервис не настроен' }, { status: 503 });
         }
 
+        const smtpPort = Number.parseInt(process.env.SMTP_PORT || '465', 10);
+        const smtpSecure = process.env.SMTP_SECURE !== 'false';
+
+        if (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65_535) {
+            return NextResponse.json({ error: 'Неверно настроен SMTP-порт' }, { status: 503 });
+        }
+
         const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.yandex.ru',
-            port: 465,
-            secure: true,
+            host: process.env.SMTP_HOST || 'smtp.mail.ru',
+            port: smtpPort,
+            secure: smtpSecure,
             auth: {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS,
