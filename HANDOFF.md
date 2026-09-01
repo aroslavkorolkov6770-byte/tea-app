@@ -600,6 +600,7 @@ git push
 
 - Создан `public/vates-icon.png`: квадратная иконка только со знаком книги,
   без надписи «Ватэс».
-- `public/manifest.json`, Apple metadata и `apple-touch-icon` используют эту
-  иконку; широкая картинка логотипа сохранена для интерфейса сайта.
+- `public/manifest.json`, Apple metadata и `apple-touch-icon` используют
+  стандартные размеры `180x180`, `192x192` и `512x512`; широкая картинка
+  логотипа сохранена для интерфейса сайта.
 - Проверены JSON manifest, TypeScript, целевой ESLint и `git diff --check`.

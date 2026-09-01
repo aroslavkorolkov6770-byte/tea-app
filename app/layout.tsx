@@ -14,8 +14,11 @@ export const metadata: Metadata = {
     title: "Ватэс",
   },
   icons: {
-    icon: [{ url: "/vates-icon.png", sizes: "512x512", type: "image/png" }],
-    apple: [{ url: "/vates-icon.png", sizes: "512x512", type: "image/png" }],
+    icon: [
+      { url: "/vates-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/vates-icon.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/vates-icon-180.png", sizes: "180x180", type: "image/png" }],
   },
   robots: {
     index: false,
@@ -50,7 +53,7 @@ export default function RootLayout({
           }}
         />
         <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/vates-icon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/vates-icon-180.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         {/* ФИКС ДЛЯ МОБИЛОК: предотвращает зум и сдвиги экрана */}

@@ -9,8 +9,8 @@
   "gcm_sender_id": "103953800507",
   "icons": [
     {
-      "src": "/vates-icon.png",
-      "sizes": "512x512",
+      "src": "/vates-icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
@@ -19,6 +19,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/vates-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
