@@ -13,6 +13,10 @@ export const metadata: Metadata = {
     statusBarStyle: "black",
     title: "Ватэс",
   },
+  icons: {
+    icon: [{ url: "/vates-icon.png", sizes: "512x512", type: "image/png" }],
+    apple: [{ url: "/vates-icon.png", sizes: "512x512", type: "image/png" }],
+  },
   robots: {
     index: false,
     follow: false,
@@ -46,6 +50,7 @@ export default function RootLayout({
           }}
         />
         <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/vates-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         {/* ФИКС ДЛЯ МОБИЛОК: предотвращает зум и сдвиги экрана */}

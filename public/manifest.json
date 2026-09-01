@@ -9,14 +9,16 @@
   "gcm_sender_id": "103953800507",
   "icons": [
     {
-      "src": "/vates-logo-transparent.png",
-      "sizes": "1680x498",
-      "type": "image/png"
+      "src": "/vates-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/vates-logo-transparent.png",
-      "sizes": "1680x498",
-      "type": "image/png"
+      "src": "/vates-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
