@@ -354,5 +354,9 @@ npm audit --omit=dev
   тестовое сообщение из панели администратора. Пароль не добавлять в GitHub,
   Markdown или клиентский `.env`.
 - Новый endpoint регистрации устройства: `POST /api/push/subscribe`.
-- Локальная проверка этой доработки прошла; commit, push и production deploy
-  после нее не выполнялись.
+- Локальная проверка этой доработки прошла; коммит `1312343` отправлен в
+  `origin/main` и развернут на production.
+- Перед обновлением создан архив
+  `/var/backups/tea-hub/notifications/data-before-notifications.tar.gz`.
+- Linux-сборка прошла, PM2 перезапущен с `--update-env` и сохранен, `/login` и
+  `/sw.js` отвечают успешно.
