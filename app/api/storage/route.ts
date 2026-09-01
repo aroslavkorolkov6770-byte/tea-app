@@ -184,30 +184,59 @@ const mergePushSubscriptionsForUser = (
     userId: string,
 ) => {
     const safeSubscriptions = nextSubscriptions.slice(0, 10);
-    const filteredExisting = existingSubscriptions.filter((item) => item.userId !== userId);
+    const filteredExisting = existingSubscriptions
+        .filter((item) => item.userId !== userId)
+        .map((item) => {
+            const subscription = isRecord(item.sub) ? item.sub : item;
+            const keys = isRecord(subscription.keys) ? subscription.keys : null;
+            if (
+                typeof subscription.endpoint !== 'string'
+                || !keys
+                || typeof keys.auth !== 'string'
+                || typeof keys.p256dh !== 'string'
+            ) {
+                return item;
+            }
+
+            return {
+                userId: typeof item.userId === 'string' ? item.userId : '',
+                sub: {
+                    endpoint: subscription.endpoint,
+                    expirationTime: typeof subscription.expirationTime === 'number' ? subscription.expirationTime : null,
+                    keys: {
+                        auth: keys.auth,
+                        p256dh: keys.p256dh,
+                    },
+                },
+            };
+        });
 
     const normalizedNext = safeSubscriptions
         .filter((item) => {
-            const keys = isRecord(item.keys) ? item.keys : null;
+            const subscription = isRecord(item.sub) ? item.sub : item;
+            const keys = isRecord(subscription.keys) ? subscription.keys : null;
             return (
-                typeof item.endpoint === 'string' &&
-                item.endpoint.startsWith('https://') &&
-                item.endpoint.length <= 2_048 &&
+                typeof subscription.endpoint === 'string' &&
+                subscription.endpoint.startsWith('https://') &&
+                subscription.endpoint.length <= 2_048 &&
                 typeof keys?.auth === 'string' &&
                 typeof keys?.p256dh === 'string'
             );
         })
         .map((item) => {
-            const keys = isRecord(item.keys) ? item.keys : {};
+            const subscription = isRecord(item.sub) ? item.sub : item;
+            const keys = isRecord(subscription.keys) ? subscription.keys : {};
             return {
-            endpoint: String(item.endpoint),
-            expirationTime: typeof item.expirationTime === 'number' ? item.expirationTime : null,
-            keys: {
-                auth: String(keys.auth).slice(0, 512),
-                p256dh: String(keys.p256dh).slice(0, 512),
-            },
-            userId,
-        };
+                userId,
+                sub: {
+                    endpoint: String(subscription.endpoint),
+                    expirationTime: typeof subscription.expirationTime === 'number' ? subscription.expirationTime : null,
+                    keys: {
+                        auth: String(keys.auth).slice(0, 512),
+                        p256dh: String(keys.p256dh).slice(0, 512),
+                    },
+                },
+            };
         });
 
     return [...filteredExisting, ...normalizedNext];

@@ -10,6 +10,24 @@ import {
     securityErrorResponse,
 } from '@/app/lib/serverSecurity';
 
+const getSmtpErrorMessage = (error: unknown) => {
+    const details = error && typeof error === 'object'
+        ? error as { code?: unknown; responseCode?: unknown }
+        : {};
+    const code = String(details.code || '');
+    const responseCode = Number(details.responseCode || 0);
+
+    if (code === 'EAUTH' || responseCode === 535) {
+        return 'Почтовый сервер отклонил авторизацию. Проверьте SMTP_USER и пароль внешнего приложения Mail.ru.';
+    }
+
+    if (code === 'ETIMEDOUT' || code === 'ECONNECTION' || code === 'ESOCKET') {
+        return 'Почтовый сервер недоступен. Проверьте SMTP_HOST, SMTP_PORT и сетевой доступ сервера.';
+    }
+
+    return 'Не удалось отправить письмо. Проверьте настройки SMTP на сервере.';
+};
+
 export async function POST(req: Request) {
     try {
         assertTrustedMutationRequest(req);
@@ -102,6 +120,6 @@ export async function POST(req: Request) {
         }
 
         console.error('Ошибка отправки email:', error);
-        return NextResponse.json({ error: 'Не удалось отправить письмо' }, { status: 500 });
+        return NextResponse.json({ error: getSmtpErrorMessage(error) }, { status: 502 });
     }
 }

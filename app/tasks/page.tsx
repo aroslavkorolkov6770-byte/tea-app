@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
+import { getPushBindingStorageKey, registerWebPushForUser } from '@/app/lib/pushClient';
 import { DEFAULT_TRAINING_TESTS } from '@/app/tasks/data/defaultTrainingTests';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -205,70 +206,18 @@ function ShiftContent() {
   };
 
   const subscribeToPush = async () => {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-          alert("Браузер не поддерживает Web Push уведомления.");
-          return;
-      }
-      const currentId = localStorage.getItem('current_user_id') || 'guest';
-      if (currentId === 'guest' || !currentId) {
-          alert(" Перед включением уведомлений нужно войти в свой аккаунт на этом устройстве! Пожалуйста, сначала авторизуйтесь под логином сотрудника и попробуйте снова.");
-          return;
-      }
-      try {
-          const permission = await Notification.requestPermission();
-          setPushStatus(permission);
-          if (permission === 'granted') {
-              const swUrl = `/sw.js?v=${Date.now()}`;
-              const registration = await navigator.serviceWorker.register(swUrl);
-              let subscription = await registration.pushManager.getSubscription();
-
-              if (!subscription) {
-                  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-                  if (!vapidPublicKey) {
-                      console.warn("VAPID ключ не найден в .env");
-                      return;
-                  }
-                  const urlBase64ToUint8Array = (base64String: string) => {
-                      const cleanKey = base64String.replace(/["']/g, '').trim();
-                      const padding = '='.repeat((4 - cleanKey.length % 4) % 4);
-                      const base64 = (cleanKey + padding).replace(/-/g, '+').replace(/_/g, '/');
-                      const rawData = window.atob(base64);
-                      const outputArray = new Uint8Array(rawData.length);
-                      for (let i = 0; i < rawData.length; ++i) {
-                          outputArray[i] = rawData.charCodeAt(i);
-                      }
-                      return outputArray;
-                  };
-                  subscription = await registration.pushManager.subscribe({
-                      userVisibleOnly: true,
-                      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-                  });
-              }
-
-              const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
-              let subs = await res.json().catch(() => []);
-              if (!Array.isArray(subs)) subs = [];
-
-              let filteredSubs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
-              filteredSubs.push({ userId: currentId, sub: subscription });
-              
-              await fetch('/api/storage', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ key: 'tea_hub_push_subs_v1', data: filteredSubs })
-              }).catch(err => console.error(err));
-              
-              localStorage.setItem('tea_hub_push_bound', 'true');
-              setIsPushBound(true);
-
-              alert(` Устройство успешно зарегистрировано и привязано к вашему аккаунту!`);
-          } else {
-              alert(" Вы заблокировали уведомления в браузере.");
+      const result = await registerWebPushForUser(userId);
+      if (!result.success) {
+          if (typeof window !== 'undefined' && 'Notification' in window) {
+              setPushStatus(Notification.permission as 'default' | 'granted' | 'denied');
           }
-      } catch (error) {
-          console.error('Ошибка подписки на Push:', error);
-          alert("Ошибка привязки устройства: " + error);
+          alert(result.message);
+          return;
       }
+
+      setPushStatus('granted');
+      setIsPushBound(true);
+      alert(result.message);
   };
 
   useEffect(() => {
@@ -330,7 +279,7 @@ function ShiftContent() {
             if (typeof window !== 'undefined' && !isDisposed) {
                 if (!('Notification' in window)) setPushStatus('unsupported');
                 else setPushStatus(Notification.permission as any);
-                setIsPushBound(localStorage.getItem('tea_hub_push_bound') === 'true');
+                setIsPushBound(localStorage.getItem(getPushBindingStorageKey(currentId)) === 'true');
             }
 
             return currentId;

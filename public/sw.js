@@ -1,34 +1,57 @@
-// Версия 3.0 (Специально для iOS)
+// Service Worker обрабатывает Push отдельно от открытой вкладки приложения.
+self.addEventListener('install', function (event) {
+    event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', function (event) {
+    event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('push', function (event) {
-    let data = { title: 'Ватэс', body: 'Новое уведомление' };
+    let data = { title: 'Ватэс', body: 'Новое уведомление', url: '/' };
 
     if (event.data) {
         try {
-            data = event.data.json();
-        } catch (e) {
-            console.error('Ошибка JSON', e);
+            const parsedData = event.data.json();
+            data = {
+                title: typeof parsedData.title === 'string' ? parsedData.title : data.title,
+                body: typeof parsedData.body === 'string' ? parsedData.body : data.body,
+                url: typeof parsedData.url === 'string' && parsedData.url.startsWith('/')
+                    ? parsedData.url
+                    : data.url,
+            };
+        } catch (error) {
+            console.error('Ошибка разбора Push-уведомления:', error);
         }
     }
 
-    const options = {
-        body: data.body || 'Откройте приложение, чтобы посмотреть',
-        // ВАЖНО: Мы убрали icon и vibrate, так как они вызывают краш на iOS
-        data: {
-            url: data.url || '/'
-        }
-    };
-
-    // Обязательно заворачиваем в waitUntil, иначе iOS убьет пуш
     event.waitUntil(
-        self.registration.showNotification(data.title || 'Ватэс', options)
+        self.registration.showNotification(data.title, {
+            body: data.body || 'Откройте приложение, чтобы посмотреть',
+            data: { url: data.url },
+        }),
     );
 });
 
 self.addEventListener('notificationclick', function (event) {
     event.notification.close();
-    if (event.notification.data && event.notification.data.url) {
-        event.waitUntil(clients.openWindow(event.notification.data.url));
-    } else {
-        event.waitUntil(clients.openWindow('/'));
-    }
+
+    const requestedUrl = event.notification.data && typeof event.notification.data.url === 'string'
+        ? event.notification.data.url
+        : '/';
+    const targetUrl = requestedUrl.startsWith('/') ? requestedUrl : '/';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+            for (const client of clientList) {
+                if ('focus' in client && 'navigate' in client) {
+                    return client.navigate(targetUrl).then(function (navigatedClient) {
+                        return navigatedClient ? navigatedClient.focus() : undefined;
+                    });
+                }
+            }
+
+            return clients.openWindow(targetUrl);
+        }),
+    );
 });

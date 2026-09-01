@@ -2,6 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import CustomIcon from '@/app/components/CustomIcon';
+import { registerWebPushForUser } from '@/app/lib/pushClient';
 import { useRouter } from 'next/navigation';
 import {
     applyClientAuthState,
@@ -10,15 +11,6 @@ import {
     getClientViewMode,
     type ClientSessionUser,
 } from '@/app/lib/authClient';
-
-// --- ХЕЛПЕР ДЛЯ ЗАПИСИ ДАННЫХ НА СЕРВЕР ---
-const saveDataToServer = (key: string, data: any) => {
-    fetch('/api/storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, data })
-    }).catch(err => console.error("Ошибка сохранения на server:", err));
-};
 
 function ProfileContent() {
     const router = useRouter();
@@ -159,71 +151,15 @@ function ProfileContent() {
     }, []);
 
     const handleSubscribeToPush = async () => {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            alert("Ваш браузер не поддерживает Web Push уведомления. Попробуйте Google Chrome.");
-            return;
-        }
-        
-        if (userId === 'guest' || !userId) {
-            alert("Перед включением уведомлений нужно войти в аккаунт!");
+        const result = await registerWebPushForUser(userId);
+        if (!result.success) {
+            alert(result.message);
             return;
         }
 
-        try {
-            const permission = await Notification.requestPermission();
-            if (permission !== 'granted') {
-                alert(" Вы заблокировали уведомления в браузере. Разрешите их в настройках сайта.");
-                return;
-            }
-
-            const swUrl = `/sw.js?v=${Date.now()}`;
-            const registration = await navigator.serviceWorker.register(swUrl);
-            let subscription = await registration.pushManager.getSubscription();
-
-            if (subscription) {
-                await subscription.unsubscribe();
-            }
-
-            const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-            if (!vapidPublicKey) {
-                alert(" Ошибка: VAPID ключ не найден в .env");
-                return;
-            }
-
-            const urlBase64ToUint8Array = (base64String: string) => {
-                const cleanKey = base64String.replace(/["']/g, '').trim();
-                const padding = '='.repeat((4 - cleanKey.length % 4) % 4);
-                const base64 = (cleanKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
-                const rawData = window.atob(base64);
-                const outputArray = new Uint8Array(rawData.length);
-                for (let i = 0; i < rawData.length; ++i) {
-                    outputArray[i] = rawData.charCodeAt(i);
-                }
-                return outputArray;
-            };
-
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-            });
-
-            const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
-            let subs = await res.json().catch(() => []);
-            if (!Array.isArray(subs)) subs = [];
-
-            subs = subs.filter((s: any) => s.sub.endpoint !== subscription?.endpoint);
-            
-            subs.push({ userId: userId, sub: subscription });
-            await saveDataToServer('tea_hub_push_subs_v1', subs);
-            
-            setPushBtnText('ПЕРЕПРИВЯЗАТЬ УСТРОЙСТВО');
-            setPushBtnColor('#4CAF50');
-            alert("Устройство успешно привязано к вашему аккаунту!");
-
-        } catch (error: any) {
-            console.error('Ошибка подписки на Push:', error);
-            alert("Критическая ошибка: " + error.message);
-        }
+        setPushBtnText('ПЕРЕПРИВЯЗАТЬ УСТРОЙСТВО');
+        setPushBtnColor('#4CAF50');
+        alert(result.message);
     };
 
     const handleOpenEdit = () => {

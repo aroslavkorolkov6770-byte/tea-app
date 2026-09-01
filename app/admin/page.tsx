@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Navigation from '@/app/components/Navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { fetchStorageBatch, saveDataToServer } from '@/app/lib/storageClient';
+import { registerWebPushForUser } from '@/app/lib/pushClient';
 import { useRouter } from 'next/navigation';
 import {
   applyClientAuthState,
@@ -47,6 +48,11 @@ type DeadlineMaterialReference = {
 
 type DeadlineMaterialOption = DeadlineMaterialReference & {
   section: string;
+};
+
+type NotificationDeliveryResult = {
+  success: boolean;
+  message: string;
 };
 
 const DEADLINE_MATERIAL_LABELS: Record<DeadlineMaterialType, string> = {
@@ -100,6 +106,7 @@ export default function AdminDashboard() {
   const [activeAdminSection, setActiveAdminSection] = useState<'overview' | 'employees'>('overview');
   const [isProcessing, setIsProcessing] = useState(false);
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted');
+  const [sessionUserId, setSessionUserId] = useState('');
   const [users, setUsers] = useState<any[]>([]);
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
@@ -231,6 +238,7 @@ export default function AdminDashboard() {
         }
 
         if (!isDisposed) {
+          setSessionUserId(normalizedUser.id);
           setIsAccessValidated(true);
         }
       } catch (error) {
@@ -391,60 +399,20 @@ export default function AdminDashboard() {
   }, [testType]);
 
   const subscribeToPush = async () => {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-          return setErrorModal({ show: true, text: "Браузер не поддерживает Web Push уведомления." });
-      }
-      
-      const currentId = localStorage.getItem('current_user_id') || 'guest';
-      if (currentId === 'guest' || !currentId) {
-          return setErrorModal({ show: true, text: "Перед включением уведомлений нужно войти в аккаунт!" });
-      }
-      
-      try {
-          const permission = await Notification.requestPermission();
-          setPushStatus(permission);
-          
-          if (permission === 'granted') {
-              const swUrl = `/sw.js?v=${Date.now()}`;
-              const registration = await navigator.serviceWorker.register(swUrl);
-              let subscription = await registration.pushManager.getSubscription();
-              
-              if (!subscription) {
-                  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-                  if (!vapidPublicKey) {
-                      return setErrorModal({ show: true, text: "Ошибка: VAPID ключ не найден в конфигурации!" });
-                  }
-                  const urlBase64ToUint8Array = (base64String: string) => {
-                      const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-                      const rawData = window.atob(base64);
-                      const outputArray = new Uint8Array(rawData.length);
-                      for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-                      return outputArray;
-                  };
-                  subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) });
-              }
-              
-              const res = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`);
-              let subs = await res.json().catch(() => []);
-              if (!Array.isArray(subs)) subs = [];
-              
-              if (!subs.find((s: any) => s.sub.endpoint === subscription?.endpoint)) {
-                  subs.push({ userId: currentId, sub: subscription });
-                  saveDataToServer('tea_hub_push_subs_v1', subs);
-                  setShowSuccessModal({ show: true, title: 'ПОДПИСКА ОФОРМЛЕНА', text: "Устройство успешно привязано к вашему аккаунту и готово получать уведомления." });
-              } else {
-                  setShowSuccessModal({ show: true, title: 'УЖЕ ПОДПИСАНЫ', text: "Это устройство уже успешно зарегистрировано в системе." });
-              }
-          } else {
-              setErrorModal({ show: true, text: "Вы заблокировали уведомления в браузере. Разрешите их в настройках сайта." });
+      const result = await registerWebPushForUser(sessionUserId);
+      if (!result.success) {
+          if (typeof window !== 'undefined' && 'Notification' in window) {
+              setPushStatus(Notification.permission as 'default' | 'granted' | 'denied');
           }
-      } catch (error: any) { 
-          setErrorModal({ show: true, text: `Ошибка подписки: ${error?.message || error}` }); 
+          setErrorModal({ show: true, text: result.message });
+          return;
       }
+
+      setPushStatus('granted');
+      setShowSuccessModal({ show: true, title: 'ПОДПИСКА ОФОРМЛЕНА', text: result.message });
   };
 
-  const sendEmailNotification = async (targetUserId: string, subject: string, text: string) => {
+  const sendEmailNotification = async (targetUserId: string, subject: string, text: string): Promise<NotificationDeliveryResult> => {
       try {
           let emailsToSend: string[] = [];
           if (targetUserId === 'Все') {
@@ -456,22 +424,47 @@ export default function AdminDashboard() {
               const email = userProfiles[targetUserId]?.email || users.find(u => u.id === targetUserId)?.email;
               if (email) emailsToSend.push(email);
           }
-          if (emailsToSend.length === 0) return false;
+          if (emailsToSend.length === 0) {
+              return { success: false, message: 'у получателя не указан адрес электронной почты' };
+          }
+
           const res = await fetch('/api/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: emailsToSend.join(', '), subject, text }) });
-          return res.ok;
-      } catch (e) { return false; }
+          const result = await res.json().catch(() => ({}));
+          if (!res.ok) {
+              return { success: false, message: result?.error || `сервер вернул ошибку ${res.status}` };
+          }
+
+          return { success: true, message: `отправлено на ${emailsToSend.length} адрес(а)` };
+      } catch (error) {
+          console.error('Ошибка отправки email из админки:', error);
+          return { success: false, message: 'не удалось связаться с почтовым сервисом' };
+      }
   };
 
-  const sendPushNotification = async (targetUserId: string, payload: { title: string, body: string, url?: string }) => {
+  const sendPushNotification = async (targetUserId: string, payload: { title: string, body: string, url?: string }): Promise<NotificationDeliveryResult> => {
       try {
           const subsRes = await fetch(`/api/storage?t=${Date.now()}&key=tea_hub_push_subs_v1`, { cache: 'no-store' });
           const subs = await subsRes.json().catch(() => []);
-          if (!Array.isArray(subs) || subs.length === 0) return false;
+          if (!Array.isArray(subs) || subs.length === 0) {
+              return { success: false, message: 'нет подключенных устройств' };
+          }
+
           const targetSubs = targetUserId === 'Все' ? subs : subs.filter((s: any) => s.userId === targetUserId);
-          if (targetSubs.length === 0) return false;
-          const apiRes = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptions: targetSubs.map((s: any) => s.sub), payload }) });
-          return apiRes.ok;
-      } catch (e) { return false; }
+          if (targetSubs.length === 0) {
+              return { success: false, message: 'у получателя нет подключенных устройств' };
+          }
+
+          const apiRes = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptions: targetSubs.map((s: any) => s.sub || s), payload }) });
+          const result = await apiRes.json().catch(() => ({}));
+          if (!apiRes.ok) {
+              return { success: false, message: result?.error || `сервер вернул ошибку ${apiRes.status}` };
+          }
+
+          return { success: true, message: `доставлено на ${result?.sent || targetSubs.length} устройство(а)` };
+      } catch (error) {
+          console.error('Ошибка отправки Push из админки:', error);
+          return { success: false, message: 'не удалось связаться с Push-сервисом' };
+      }
   };
 
   const handleSaveUserAuth = async () => {
@@ -684,11 +677,18 @@ export default function AdminDashboard() {
           const arr = await res.json().catch(() => []);
           const newNotif = { id: Date.now(), title: selectedStaff === 'Все' ? 'Общее уведомление' : 'Личное сообщение', text: notifText.trim(), time: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }), target: selectedStaff };
           await saveDataToServer('tea_hub_notifications_v1', [newNotif, ...(Array.isArray(arr) ? arr : [])]);
-          setShowSuccessModal({ show: true, title: 'СООБЩЕНИЕ ОТПРАВЛЕНО', text: 'Уведомление поставлено в отправку.' });
-          Promise.allSettled([
+          const [pushResult, emailResult] = await Promise.all([
               sendPushNotification(selectedStaff, { title: newNotif.title, body: newNotif.text, url: '/tasks?tab=welcome' }),
               sendEmailNotification(selectedStaff, newNotif.title, newNotif.text),
-          ]).catch((error) => console.error('Ошибка фоновой отправки уведомления', error));
+          ]);
+
+          const pushStatusText = pushResult.success ? `Push: ${pushResult.message}` : `Push не отправлен: ${pushResult.message}`;
+          const emailStatusText = emailResult.success ? `Почта: ${emailResult.message}` : `Почта не отправлена: ${emailResult.message}`;
+          setShowSuccessModal({
+              show: true,
+              title: 'СООБЩЕНИЕ СОХРАНЕНО',
+              text: `Внутри сайта: отправлено. ${pushStatusText}. ${emailStatusText}.`,
+          });
           setNotifText("");
       } finally { setIsProcessing(false); }
   };

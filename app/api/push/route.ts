@@ -32,7 +32,8 @@ const normalizePushSubscription = (value: unknown): PushSubscription | null => {
         return null;
     }
 
-    const candidate = value as {
+    const wrapper = value as { sub?: unknown };
+    const candidate = (wrapper.sub && typeof wrapper.sub === 'object' ? wrapper.sub : value) as {
         endpoint?: unknown;
         expirationTime?: unknown;
         keys?: {
@@ -126,17 +127,29 @@ export async function POST(req: Request) {
                     TTL: 60,
                     timeout: 10_000,
                 });
+                return { sent: true, expired: false };
             } catch (error: unknown) {
                 const statusCode = error && typeof error === 'object' && 'statusCode' in error
-                    ? String((error as { statusCode?: unknown }).statusCode ?? '')
-                    : '';
+                    ? Number((error as { statusCode?: unknown }).statusCode ?? 0)
+                    : 0;
                 console.error(`Ошибка доставки Push. Код ответа: ${statusCode || 'не указан'}`);
+                return { sent: false, expired: statusCode === 404 || statusCode === 410 };
             }
         });
 
-        await Promise.all(sendPromises);
+        const results = await Promise.all(sendPromises);
+        const sent = results.filter((result) => result.sent).length;
+        const failed = results.length - sent;
+        const expired = results.filter((result) => result.expired).length;
 
-        return NextResponse.json({ success: true });
+        if (sent === 0) {
+            return NextResponse.json(
+                { error: 'Ни одно устройство не приняло Push-уведомление', sent, failed, expired },
+                { status: 502 },
+            );
+        }
+
+        return NextResponse.json({ success: true, sent, failed, expired });
         
     } catch (error: unknown) {
         const securityResponse = securityErrorResponse(error);

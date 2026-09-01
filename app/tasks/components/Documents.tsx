@@ -273,7 +273,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
             if (!Array.isArray(subs) || subs.length === 0) return false;
             const targetSubs = targetUserId === 'Все' ? subs : subs.filter((s: any) => s.userId === targetUserId);
             if (targetSubs.length === 0) return false;
-            const apiRes = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptions: targetSubs.map((s: any) => s.sub), payload }) });
+            const apiRes = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptions: targetSubs.map((s: any) => s.sub || s), payload }) });
             return apiRes.ok;
         } catch (e) { return false; }
     };
