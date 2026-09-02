@@ -375,3 +375,10 @@ npm audit --omit=dev
   старые сообщения сокращаются автоматически.
 - После изменения выполнить стандартные `npm run build` и `pm2 restart
   tea-hub --update-env`; пользовательские JSON-файлы не изменять.
+
+## AI_FOLDER_ID
+
+- `AI_API_KEY` должен использоваться вместе с `AI_FOLDER_ID` папки Yandex Cloud,
+  в которой этому ключу выдана роль AI-доступа.
+- Не использовать старый ID папки из кода. После изменения переменной выполнить
+  `npm run build`, затем `pm2 restart tea-hub --update-env` и `pm2 save`.

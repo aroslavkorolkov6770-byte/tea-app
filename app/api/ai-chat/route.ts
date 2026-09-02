@@ -152,7 +152,30 @@ export async function POST(request: Request) {
         }
 
         if (error instanceof AliceAiRequestError) {
+            const details = error.details.toLowerCase();
             console.error('Ошибка AI-провайдера:', error.status, error.details);
+
+            if (details.includes('ai_folder_id is missing')) {
+                return NextResponse.json(
+                    { error: 'AI не настроен: укажите AI_FOLDER_ID на сервере' },
+                    { status: 503 },
+                );
+            }
+
+            if (error.status === 401) {
+                return NextResponse.json(
+                    { error: 'AI-ключ не принят Yandex Cloud: проверьте ключ на сервере' },
+                    { status: 502 },
+                );
+            }
+
+            if (error.status === 403 || details.includes('permission') || details.includes('exec denied')) {
+                return NextResponse.json(
+                    { error: 'У AI-ключа нет прав на выбранную папку Yandex Cloud' },
+                    { status: 502 },
+                );
+            }
+
             const status = error.status === 429 ? 429 : 502;
             const message = error.status === 429
                 ? 'Лимит AI-сервиса временно исчерпан'

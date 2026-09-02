@@ -6,7 +6,6 @@ export type AliceInputMessage = {
     }>;
 };
 
-const DEFAULT_YANDEX_FOLDER_ID = 'b1g1k18evi08k4r17n9h';
 const DEFAULT_YANDEX_MODEL = 'yandexgpt-lite';
 
 export class AliceAiRequestError extends Error {
@@ -22,12 +21,28 @@ export class AliceAiRequestError extends Error {
 }
 
 export async function requestAliceAi(input: AliceInputMessage[]): Promise<unknown> {
-    const apiKey = process.env.AI_API_KEY;
-    const yandexFolderId = process.env.AI_FOLDER_ID || process.env.YANDEX_FOLDER_ID || DEFAULT_YANDEX_FOLDER_ID;
-    const yandexModel = process.env.AI_MODEL_NAME || process.env.YANDEX_MODEL_NAME || DEFAULT_YANDEX_MODEL;
+    const apiKey = process.env.AI_API_KEY?.trim();
+    const yandexFolderId = (
+        process.env.AI_FOLDER_ID
+        || process.env.YANDEX_FOLDER_ID
+        || process.env.YANDEX_CLOUD_FOLDER_ID
+    )?.trim();
+    const yandexModel = (
+        process.env.AI_MODEL_NAME
+        || process.env.YANDEX_MODEL_NAME
+        || DEFAULT_YANDEX_MODEL
+    ).trim();
 
     if (!apiKey) {
         throw new AliceAiRequestError('AI API ключ не настроен на сервере', 500, 'AI API key is missing');
+    }
+
+    if (!yandexFolderId) {
+        throw new AliceAiRequestError(
+            'AI не настроен: не указан идентификатор папки Yandex Cloud',
+            500,
+            'AI_FOLDER_ID is missing. Set AI_FOLDER_ID to the folder where the AI access role is granted.',
+        );
     }
 
     const response = await fetch('https://ai.api.cloud.yandex.net/v1/responses', {
@@ -47,7 +62,11 @@ export async function requestAliceAi(input: AliceInputMessage[]): Promise<unknow
     const rawResponseText = await response.text();
 
     if (!response.ok) {
-        throw new AliceAiRequestError(`Ошибка Яндекса ${response.status}`, response.status, rawResponseText);
+        throw new AliceAiRequestError(
+            `Ошибка Яндекса ${response.status}`,
+            response.status,
+            rawResponseText.slice(0, 2000),
+        );
     }
 
     if (!rawResponseText) {
