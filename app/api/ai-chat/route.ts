@@ -155,9 +155,9 @@ export async function POST(request: Request) {
             const details = error.details.toLowerCase();
             console.error('Ошибка AI-провайдера:', error.status, error.details);
 
-            if (details.includes('ai_folder_id is missing')) {
+            if (details.includes('ai_project_id is missing')) {
                 return NextResponse.json(
-                    { error: 'AI не настроен: укажите AI_FOLDER_ID на сервере' },
+                    { error: 'AI не настроен: укажите AI_PROJECT_ID на сервере' },
                     { status: 503 },
                 );
             }
@@ -171,7 +171,7 @@ export async function POST(request: Request) {
 
             if (error.status === 403 || details.includes('permission') || details.includes('exec denied')) {
                 return NextResponse.json(
-                    { error: 'У AI-ключа нет прав на выбранную папку Yandex Cloud' },
+                    { error: 'У AI-ключа нет прав на проект, prompt или базу знаний Yandex Cloud' },
                     { status: 502 },
                 );
             }

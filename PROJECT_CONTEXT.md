@@ -553,3 +553,12 @@ pm2 restart tea-hub
   ни одно устройство не приняло уведомление. E-mail API возвращает понятную
   причину SMTP-ошибки, но для реальной отправки по-прежнему нужен пароль
   внешнего приложения почты на сервере.
+
+## Актуальная интеграция AI Studio
+
+- Серверный AI-клиент использует OpenAI-совместимый Responses API Yandex Cloud
+  через пакет `openai`.
+- Запросы используют `OpenAI-Project`, reusable prompt, `file_search` по
+  vector store и ограниченный `web_search` по домену `tea-hub.ru`.
+- Настройки ресурсов задаются через `AI_PROJECT_ID`, `AI_PROMPT_ID` и
+  `AI_VECTOR_STORE_ID`; секрет `AI_API_KEY` остается только на сервере.

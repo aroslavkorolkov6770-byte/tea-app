@@ -376,9 +376,10 @@ npm audit --omit=dev
 - После изменения выполнить стандартные `npm run build` и `pm2 restart
   tea-hub --update-env`; пользовательские JSON-файлы не изменять.
 
-## AI_FOLDER_ID
+## Конфигурация AI Studio
 
-- `AI_API_KEY` должен использоваться вместе с `AI_FOLDER_ID` папки Yandex Cloud,
-  в которой этому ключу выдана роль AI-доступа.
-- Не использовать старый ID папки из кода. После изменения переменной выполнить
-  `npm run build`, затем `pm2 restart tea-hub --update-env` и `pm2 save`.
+- `AI_API_KEY` используется вместе с `AI_PROJECT_ID`, `AI_PROMPT_ID` и
+  `AI_VECTOR_STORE_ID` для OpenAI-совместимого Responses API.
+- Ключ должен иметь доступ к проекту, prompt и vector store. После изменения
+  переменных выполнить `npm run build`, затем `pm2 restart tea-hub --update-env`
+  и `pm2 save`.

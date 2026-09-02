@@ -613,12 +613,14 @@ git push
   перед передачей запроса провайдеру.
 - TypeScript, целевой ESLint и `git diff --check` проходят.
 
-## Подключение AI к папке Yandex Cloud 2 сентября 2026 года
+## Подключение AI Studio 2 сентября 2026 года
 
-- Production-логи показали `403 Permission EXEC denied`: `AI_API_KEY` задан,
-  но `AI_FOLDER_ID` отсутствует и раньше подставлялась чужая папка.
-- Убрана старая подстановка; теперь сервер требует явный `AI_FOLDER_ID` или
-  принимает совместимые переменные `YANDEX_FOLDER_ID` и
-  `YANDEX_CLOUD_FOLDER_ID`.
-- Для работы нужно выдать ключу роль AI-доступа в этой папке и перезапустить
-  PM2 с `--update-env`.
+- Production-логи показали `403 Permission EXEC denied` при старой схеме
+  `model=gpt://...`; она не совпадала с конфигурацией AI Studio пользователя.
+- `app/lib/aliceAi.ts` теперь использует пакет `openai`, base URL
+  `https://ai.api.cloud.yandex.net/v1`, заголовок `OpenAI-Project`, reusable
+  prompt, `file_search` и `web_search`.
+- Идентификаторы можно задать через `AI_PROJECT_ID`, `AI_PROMPT_ID` и
+  `AI_VECTOR_STORE_ID`; ключ остается только в серверном окружении.
+- Для работы ключу нужен доступ к этим ресурсам Yandex Cloud, после изменения
+  env требуется пересборка и перезапуск PM2 с `--update-env`.
