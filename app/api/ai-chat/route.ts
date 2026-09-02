@@ -22,6 +22,23 @@ type YandexInputMessage = {
     }>;
 };
 
+const MAX_HISTORY_MESSAGES = 12;
+const MAX_MESSAGE_CHARACTERS = 12_000;
+const MAX_TOTAL_CHARACTERS = 36_000;
+
+const limitText = (text: string, maxCharacters: number): string => {
+    if (text.length <= maxCharacters) {
+        return text;
+    }
+
+    // Сохраняем начало контекста и конец сообщения, где обычно находится
+    // актуальный вопрос пользователя.
+    const headLength = Math.floor(maxCharacters * 0.65);
+    const tailLength = maxCharacters - headLength;
+
+    return `${text.slice(0, headLength)}\n\n[Контекст сокращен]\n\n${text.slice(-tailLength)}`;
+};
+
 const normalizeRole = (role: string | undefined): 'user' | 'assistant' => {
     if (role === 'assistant') {
         return role;
@@ -61,7 +78,7 @@ const mapMessagesToYandexInput = (messages: IncomingMessage[]): YandexInputMessa
     return messages
         .map((message) => {
             const normalizedRole = normalizeRole(message.role);
-            const text = normalizeContentText(message.content);
+            const text = limitText(normalizeContentText(message.content), MAX_MESSAGE_CHARACTERS);
 
             if (!text) {
                 return null;
@@ -80,6 +97,32 @@ const mapMessagesToYandexInput = (messages: IncomingMessage[]): YandexInputMessa
         .filter((message): message is YandexInputMessage => Boolean(message));
 };
 
+const countCharacters = (messages: YandexInputMessage[]): number => messages.reduce((sum, message) => {
+    return sum + message.content.reduce((messageSum, item) => messageSum + item.text.length, 0);
+}, 0);
+
+const compactInputForProvider = (messages: YandexInputMessage[]): YandexInputMessage[] => {
+    const compacted = messages.slice(-MAX_HISTORY_MESSAGES);
+
+    // Сначала убираем самые старые сообщения, сохраняя весь последний вопрос
+    // и ближайшую часть диалога для связности ответа.
+    while (compacted.length > 1 && countCharacters(compacted) > MAX_TOTAL_CHARACTERS) {
+        compacted.shift();
+    }
+
+    if (countCharacters(compacted) <= MAX_TOTAL_CHARACTERS) {
+        return compacted;
+    }
+
+    const lastMessage = compacted[compacted.length - 1];
+    const lastItem = lastMessage?.content[0];
+    if (lastItem) {
+        lastItem.text = limitText(lastItem.text, MAX_TOTAL_CHARACTERS);
+    }
+
+    return compacted;
+};
+
 export async function POST(request: Request) {
     try {
         assertTrustedMutationRequest(request);
@@ -90,20 +133,14 @@ export async function POST(request: Request) {
 
         assertRateLimit('ai-chat', getClientIdentifier(request, session.id), 30, 5 * 60 * 1000);
         const body = await readJsonBody<{ messages?: unknown }>(request, 64 * 1024);
-        const messages = Array.isArray(body.messages) ? body.messages.slice(-30) as IncomingMessage[] : [];
+        const messages = Array.isArray(body.messages)
+            ? body.messages.slice(-MAX_HISTORY_MESSAGES) as IncomingMessage[]
+            : [];
 
-        const yandexInput = mapMessagesToYandexInput(messages);
+        const yandexInput = compactInputForProvider(mapMessagesToYandexInput(messages));
 
         if (yandexInput.length === 0) {
             return NextResponse.json({ error: 'Сообщения для ИИ не переданы' }, { status: 400 });
-        }
-
-        const totalCharacters = yandexInput.reduce((sum, message) => {
-            return sum + message.content.reduce((messageSum, item) => messageSum + item.text.length, 0);
-        }, 0);
-
-        if (totalCharacters > 50_000 || yandexInput.some((message) => message.content[0].text.length > 12_000)) {
-            return NextResponse.json({ error: 'Диалог превышает допустимый объем' }, { status: 413 });
         }
 
         const data = await requestAliceAi(yandexInput);

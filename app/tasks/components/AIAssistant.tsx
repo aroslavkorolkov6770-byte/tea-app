@@ -31,6 +31,23 @@ type SiteSearchRecord = {
 
 const SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
 const SITE_CONTEXT_CACHE_TTL_MS = 1000 * 60;
+const MAX_AI_SITE_CONTEXT_CHARACTERS = 18_000;
+const MAX_AI_HISTORY_MESSAGES = 10;
+const MAX_AI_HISTORY_MESSAGE_CHARACTERS = 3_500;
+const MAX_AI_CURRENT_MESSAGE_CHARACTERS = 20_000;
+
+const limitAiText = (value: string, maxCharacters: number): string => {
+    if (value.length <= maxCharacters) {
+        return value;
+    }
+
+    // Оставляем конец текста, потому что там находится текущий вопрос
+    // пользователя и самые свежие найденные совпадения.
+    const headLength = Math.floor(maxCharacters * 0.65);
+    const tailLength = maxCharacters - headLength;
+
+    return `${value.slice(0, headLength)}\n\n[Контекст сокращен]\n\n${value.slice(-tailLength)}`;
+};
 
 const normalizeSearchValue = (value: unknown) => String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -561,15 +578,26 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 console.warn('Не удалось загрузить глобальный контекст сайта для ИИ', contextError);
             }
 
+            siteContext = limitAiText(siteContext, MAX_AI_SITE_CONTEXT_CHARACTERS);
+
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === currentActiveId);
-            
-            const apiMessages = currentSession ? currentSession.messages.map((m, index) => {
-                let finalContent = m.content;
-                if (index === currentSession.messages.length - 1 && m.role === 'user') {
-                    finalContent = `${siteContext}ВОПРОС ПОЛЬЗОВАТЕЛЯ:\n${m.content}`;
-                }
+
+            const recentMessages = currentSession?.messages.slice(-MAX_AI_HISTORY_MESSAGES) || [];
+            const apiMessages = recentMessages.map((m, index) => {
+                const isCurrentQuestion = index === recentMessages.length - 1 && m.role === 'user';
+                const finalContent = isCurrentQuestion
+                    ? limitAiText(`${siteContext}ВОПРОС ПОЛЬЗОВАТЕЛЯ:\n${m.content}`, MAX_AI_CURRENT_MESSAGE_CHARACTERS)
+                    : limitAiText(m.content, MAX_AI_HISTORY_MESSAGE_CHARACTERS);
+
                 return { role: m.role === 'ai' ? 'assistant' : 'user', content: finalContent };
-            }) : [];
+            });
+
+            if (apiMessages.length > 0) {
+                const lastMessage = apiMessages[apiMessages.length - 1];
+                if (lastMessage.role !== 'user') {
+                    lastMessage.content = limitAiText(siteContext, MAX_AI_CURRENT_MESSAGE_CHARACTERS);
+                }
+            }
 
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
