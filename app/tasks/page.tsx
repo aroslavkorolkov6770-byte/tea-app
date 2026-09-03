@@ -297,15 +297,6 @@ function ShiftContent() {
 
         hydrateCachedData(currentId);
         await loadAllData(currentId, true);
-
-        const urlTab = searchParams.get('tab');
-        if (urlTab && !isDisposed) {
-            const normalizedTab = urlTab === 'assortment' ? 'products' : urlTab;
-            setActiveTab(normalizedTab);
-            if (urlTab === 'assortment') {
-                router.replace('/tasks?tab=products');
-            }
-        }
     };
 
     bootPage();
