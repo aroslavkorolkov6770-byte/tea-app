@@ -12699,7 +12699,7 @@ body:has(.vates-own-profile-overlay) {
 
 .vates-document-card-footer {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 10px;
   padding-top: 10px;
@@ -12766,13 +12766,17 @@ body:has(.vates-own-profile-overlay) {
   }
 
   .vates-document-card-footer {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vates-document-card-footer .vates-document-ask-ai {
+    grid-column: 1 / -1;
   }
 
   .vates-document-card {
-    height: 292px;
-    min-height: 292px;
-    max-height: 292px;
+    height: 330px;
+    min-height: 330px;
+    max-height: 330px;
   }
 }
 

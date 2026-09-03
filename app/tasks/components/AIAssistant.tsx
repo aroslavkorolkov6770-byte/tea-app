@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { isClientAdminView } from '@/app/lib/authClient';
 
@@ -22,6 +22,7 @@ interface ChatSession {
 const MAX_AI_HISTORY_MESSAGES = 10;
 const MAX_AI_HISTORY_MESSAGE_CHARACTERS = 3_500;
 const MAX_AI_CURRENT_MESSAGE_CHARACTERS = 12_000;
+const MARKDOWN_STAR_CHARACTERS = /[*＊﹡∗⁎⁕✱✲✳]/gu;
 
 const limitAiText = (value: string, maxCharacters: number): string => {
     if (value.length <= maxCharacters) {
@@ -56,11 +57,12 @@ const normalizeAiHref = (value: string): string | null => {
 
 const cleanAiMessageText = (value: string): string => value
     .replace(/\r\n?/gu, '\n')
-    .replace(/\\([*_`~])/gu, '$1')
+    .replace(/\\([*_`~#>])/gu, '$1')
     .replace(/^\s{0,3}#{1,6}\s*/gmu, '')
     .replace(/^\s{0,3}>\s?/gmu, '')
-    .replace(/[*`~]/gu, '')
-    .replace(/(^|\n)\s*[-+]\s+/gmu, '$1• ')
+    .replace(MARKDOWN_STAR_CHARACTERS, '')
+    .replace(/[`~]/gu, '')
+    .replace(/(^|\n)\s*[-+]\s+/gmu, '$1')
     .replace(/\n{3,}/gu, '\n\n')
     .trim();
 
@@ -183,6 +185,7 @@ const extractAiResponseText = (data: Record<string, unknown>): string => {
 
 export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAdmin?: boolean }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
@@ -190,11 +193,13 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
     const [historyQuery, setHistoryQuery] = useState("");
+    const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
     
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const handledDocumentRequestRef = useRef('');
 
     // =========================================================================
     // ОПРЕДЕЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (АДМИН - 100% ПРИОРИТЕТ)
@@ -262,6 +267,8 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                     } catch {}
                 }
             }
+
+            setIsHistoryLoaded(true);
         };
 
         loadHistory();
@@ -396,7 +403,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         return `${count} сообщений`;
     };
 
-    const handleSendMessage = async (text: string) => {
+    const handleSendMessage = async (text: string, options: { documentId?: string } = {}) => {
         if (!text.trim() || !currentUserId || isTyping) return;
 
         let currentActiveId = activeSessionId;
@@ -454,7 +461,10 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: apiMessages })
+                body: JSON.stringify({
+                    messages: apiMessages,
+                    ...(options.documentId ? { documentId: options.documentId } : {}),
+                })
             });
 
             const data = await response.json() as Record<string, unknown>;
@@ -513,6 +523,31 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             setIsTyping(false); 
         }
     };
+
+    const sendDocumentQuestion = useEffectEvent((question: string, documentId: string) => {
+        void handleSendMessage(question, { documentId });
+    });
+
+    useEffect(() => {
+        const documentId = searchParams.get('askDocumentId')?.trim() || '';
+        if (!documentId || !currentUserId || !isHistoryLoaded || isTyping) {
+            return;
+        }
+
+        const documentTitle = searchParams.get('askDocumentTitle')?.trim() || 'выбранный документ';
+        const documentSection = searchParams.get('askDocumentSection')?.trim() || 'Основной раздел';
+        const requestKey = `${currentUserId}:${documentId}`;
+        if (handledDocumentRequestRef.current === requestKey) {
+            return;
+        }
+
+        handledDocumentRequestRef.current = requestKey;
+        router.replace('/tasks?tab=standards', { scroll: false });
+        sendDocumentQuestion(
+            `Кратко расскажи, о чем документ «${documentTitle}», и выдели главное. Используй только этот документ. ID документа: ${documentId}. Раздел: «${documentSection}».`,
+            documentId,
+        );
+    }, [currentUserId, isHistoryLoaded, isTyping, router, searchParams]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {

@@ -12,6 +12,7 @@ const DEFAULT_AI_PROJECT_ID = 'b1gggcekj6heiblum23f';
 const DEFAULT_AI_PROMPT_ID = 'fvth3ukik96j74cfqu17';
 const DEFAULT_AI_VECTOR_STORE_ID = 'fvt76sm8vtdbo4m77tk5';
 const AI_API_BASE_URL = 'https://ai.api.cloud.yandex.net/v1';
+const AI_KNOWLEDGE_MANAGED_BY = 'tea_hub_current';
 
 type AliceAiRequestOptions = {
     useKnowledgeTools?: boolean;
@@ -80,6 +81,30 @@ export async function requestAliceAi(
 
     try {
         const client = createAliceAiClient(config);
+        const fileSearchTool = {
+            type: 'file_search' as const,
+            vector_store_ids: [config.vectorStoreId],
+            max_num_results: 15,
+            filters: {
+                type: 'eq' as const,
+                key: 'managed_by',
+                value: AI_KNOWLEDGE_MANAGED_BY,
+            },
+        };
+        const webSearchTool = {
+            type: 'web_search' as const,
+            filters: {
+                allowed_domains: ['tea-hub.ru'],
+            },
+            search_context_size: 'medium' as const,
+            user_location: {
+                type: 'approximate' as const,
+                region: '225',
+            },
+        };
+        const knowledgeTools = process.env.AI_ENABLE_WEB_SEARCH?.trim().toLowerCase() === 'true'
+            ? [fileSearchTool, webSearchTool]
+            : [fileSearchTool];
 
         const response = await client.responses.create({
             prompt: {
@@ -88,24 +113,7 @@ export async function requestAliceAi(
             input: stringifyInput(input),
             ...(useKnowledgeTools
                 ? {
-                    tools: [
-                        {
-                            type: 'file_search' as const,
-                            vector_store_ids: [config.vectorStoreId],
-                            max_num_results: 15,
-                        },
-                        {
-                            type: 'web_search' as const,
-                            filters: {
-                                allowed_domains: ['tea-hub.ru'],
-                            },
-                            search_context_size: 'medium' as const,
-                            user_location: {
-                                type: 'approximate' as const,
-                                region: '225',
-                            },
-                        },
-                    ],
+                    tools: knowledgeTools,
                 }
                 : {}),
         });

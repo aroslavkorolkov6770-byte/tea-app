@@ -1,5 +1,6 @@
 "use client";
 import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import SectionCollapseButton from '@/app/components/SectionCollapseButton';
 import useCollapsedSections from '@/app/hooks/useCollapsedSections';
@@ -35,7 +36,14 @@ type LinkedDocumentPreview = {
     error: string;
 };
 
+type AiDocumentRequest = {
+    id?: unknown;
+    name?: unknown;
+    section?: unknown;
+};
+
 export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles, linkedDocumentId, onCloseLinkedDocument }: any) {
+    const router = useRouter();
     const { isSectionCollapsed, toggleSection } = useCollapsedSections('tea_hub_document_collapsed_sections_v1');
     // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ ПАПКАМИ ---
     const [promptSection, setPromptSection] = useState<{isOpen: boolean, name: string}>({ isOpen: false, name: '' });
@@ -399,6 +407,19 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         } catch (e) {
             alert("Ошибка при скачивании файла.");
         }
+    };
+
+    const handleAskAiAboutDocument = (file: AiDocumentRequest) => {
+        const documentSection = typeof file.section === 'string' && file.section.trim()
+            ? file.section.trim()
+            : 'Основной раздел';
+        const params = new URLSearchParams({
+            tab: 'standards',
+            askDocumentId: String(file.id || ''),
+            askDocumentTitle: String(file.name || 'Документ'),
+            askDocumentSection: documentSection,
+        });
+        router.push(`/tasks?${params.toString()}`);
     };
 
     // Интеллектуальный предпросмотр
@@ -1025,6 +1046,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                            <footer className="vates-document-card-footer">
                                                <button type="button" onClick={() => handleOpenPreview(file)} className="vates-button secondary compact">Открыть</button>
                                                <button type="button" onClick={() => handleDownloadFile(file)} className="vates-button primary compact"><CustomIcon name="download" size={15} color="currentColor" accent="none" /> Скачать</button>
+                                               <button type="button" onClick={() => handleAskAiAboutDocument(file)} className="vates-button secondary compact vates-document-ask-ai"><CustomIcon name="brain" size={15} color="currentColor" accent="none" /> Спросить AI</button>
                                            </footer>
                                        </article>
                                    ))
@@ -1054,6 +1076,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         <div className="linked-document-preview-actions">
                             <button type="button" onClick={() => handleOpenPreview(linkedPreview.file)}>ОТКРЫТЬ ОТДЕЛЬНО</button>
                             <button type="button" onClick={() => handleDownloadFile(linkedPreview.file)}>СКАЧАТЬ</button>
+                            <button type="button" onClick={() => handleAskAiAboutDocument(linkedPreview.file)}>СПРОСИТЬ AI</button>
                         </div>
                     </div>
                 </div>

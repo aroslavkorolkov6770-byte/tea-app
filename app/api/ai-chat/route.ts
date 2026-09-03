@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { AliceAiRequestError, type AliceInputMessage, requestAliceAi } from '@/app/lib/aliceAi';
-import { buildLiveLmsContext, synchronizeAiKnowledge } from '@/app/lib/aiKnowledge';
+import { AliceAiRequestError, extractAliceText, type AliceInputMessage, requestAliceAi } from '@/app/lib/aliceAi';
+import { buildLiveLmsContext, buildSelectedDocumentContext, synchronizeAiKnowledge } from '@/app/lib/aiKnowledge';
 import { requireSession } from '@/app/lib/serverAuth';
 import {
     assertRateLimit,
@@ -27,6 +27,7 @@ const MAX_HISTORY_MESSAGES = 12;
 const MAX_MESSAGE_CHARACTERS = 12_000;
 const MAX_TOTAL_CHARACTERS = 25_000;
 const USER_QUESTION_MARKER = 'ВОПРОС ПОЛЬЗОВАТЕЛЯ:';
+const MARKDOWN_STAR_CHARACTERS = /[*＊﹡∗⁎⁕✱✲✳]/gu;
 
 let initialKnowledgeSyncPromise: Promise<unknown> | null = null;
 
@@ -166,6 +167,19 @@ const compactInputForProvider = (messages: YandexInputMessage[]): YandexInputMes
     return compacted;
 };
 
+const sanitizeAiPlainText = (value: string): string => value
+    .replace(/\r\n?/gu, '\n')
+    .replace(/!\[([^\]]*)\]\([^)]+\)/gu, '$1')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/gu, '$1 $2')
+    .replace(/\\([*_`~#>])/gu, '$1')
+    .replace(/^\s{0,3}#{1,6}\s*/gmu, '')
+    .replace(/^\s{0,3}>\s?/gmu, '')
+    .replace(MARKDOWN_STAR_CHARACTERS, '')
+    .replace(/[`~]/gu, '')
+    .replace(/(^|\n)\s*[-+]\s+/gmu, '$1')
+    .replace(/\n{3,}/gu, '\n\n')
+    .trim();
+
 export async function POST(request: Request) {
     try {
         assertTrustedMutationRequest(request);
@@ -175,7 +189,7 @@ export async function POST(request: Request) {
         }
 
         assertRateLimit('ai-chat', getClientIdentifier(request, session.id), 30, 5 * 60 * 1000);
-        const body = await readJsonBody<{ messages?: unknown }>(request, 64 * 1024);
+        const body = await readJsonBody<{ messages?: unknown; documentId?: unknown }>(request, 64 * 1024);
         const messages = Array.isArray(body.messages)
             ? body.messages.slice(-MAX_HISTORY_MESSAGES) as IncomingMessage[]
             : [];
@@ -185,9 +199,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Сообщения для ИИ не переданы' }, { status: 400 });
         }
 
-        const [liveLmsContext] = await Promise.all([
+        const selectedDocumentId = typeof body.documentId === 'string'
+            ? body.documentId.trim().slice(0, 200)
+            : '';
+        const [liveLmsContext, , selectedDocumentContext] = await Promise.all([
             buildLiveLmsContext(currentQuestion),
             ensureInitialKnowledgeSync(),
+            selectedDocumentId ? buildSelectedDocumentContext(selectedDocumentId) : Promise.resolve(''),
         ]);
         const compactedMessages = compactInputForProvider(
             mapMessagesToYandexInput(replaceCurrentQuestion(messages, currentQuestion)),
@@ -195,7 +213,12 @@ export async function POST(request: Request) {
         const yandexInput: AliceInputMessage[] = [
             {
                 role: 'system',
-                content: [{ type: 'input_text', text: liveLmsContext }],
+                content: [{
+                    type: 'input_text',
+                    text: selectedDocumentContext
+                        ? `${liveLmsContext}\n\n${selectedDocumentContext}`
+                        : liveLmsContext,
+                }],
             },
             ...compactedMessages,
         ];
@@ -205,7 +228,12 @@ export async function POST(request: Request) {
         }
 
         const data = await requestAliceAi(yandexInput);
-        return NextResponse.json(data);
+        const plainText = sanitizeAiPlainText(extractAliceText(data));
+        if (!plainText) {
+            return NextResponse.json({ error: 'AI не вернул текст ответа' }, { status: 502 });
+        }
+
+        return NextResponse.json({ output_text: plainText });
     } catch (error) {
         const securityResponse = securityErrorResponse(error);
         if (securityResponse) {
