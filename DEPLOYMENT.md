@@ -443,3 +443,37 @@ npm audit --omit=dev
   Nginx-конфигурация валидна, HTTPS-маршрут `/login` отвечает `200`.
 - В собранных клиентских файлах подтверждены `askDocumentRequest` и обработка
   отсутствующего ID документа. Серверная папка `data/` восстановлена после pull.
+
+## Установка OCR на production
+
+OCR работает локально на сервере и не отправляет изображения во внешний
+сервис распознавания. Перед первым запуском установить системные зависимости:
+
+```bash
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng poppler-utils
+```
+
+Проверка установки:
+
+```bash
+tesseract --list-langs
+pdfinfo -v
+pdftoppm -v
+```
+
+В списке языков Tesseract должны присутствовать `rus` и `eng`. Необязательные
+настройки production `.env.production.local`:
+
+```text
+OCR_ENABLED=true
+OCR_LANGUAGES=rus+eng
+OCR_MAX_PDF_PAGES=60
+OCR_COMMAND_TIMEOUT_MS=120000
+```
+
+После изменения OCR-настроек выполнить `npm run build`, затем `pm2 restart
+tea-hub --update-env`. Первое открытие AI-чата или сохранение документа запускает
+фоновую переиндексацию; последующие обращения используют кэш распознанного
+текста. Папку `data/` при обновлении не заменять и не очищать.

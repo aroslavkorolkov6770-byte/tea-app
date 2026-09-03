@@ -11,8 +11,10 @@ import { extractTextFromDocument } from '@/app/lib/documentTextExtractor';
 import { readDataValue, readDataValues, writeDataValue } from '@/app/lib/storage/dataStore';
 
 const AI_KNOWLEDGE_STATE_KEY = 'tea_hub_ai_knowledge_sync_v1';
+const AI_DOCUMENT_TEXT_CACHE_KEY = 'tea_hub_ai_document_text_v1';
 const AI_KNOWLEDGE_MANAGED_BY = 'tea_hub_current';
-const AI_KNOWLEDGE_SCHEMA_VERSION = '2026-09-03-strict-v2';
+const AI_KNOWLEDGE_SCHEMA_VERSION = '2026-09-03-ocr-v1';
+const AI_DOCUMENT_EXTRACTION_VERSION = '2026-09-03-ocr-v1';
 const KNOWLEDGE_SOURCE_KEYS = [
     'tea_hub_dynamic_route_v2',
     'tea_hub_dynamic_tests_v1',
@@ -22,6 +24,7 @@ const KNOWLEDGE_SOURCE_KEYS = [
 const MAX_RUNTIME_CONTEXT_CHARACTERS = 9_000;
 const MAX_RUNTIME_ENTRY_CHARACTERS = 1_500;
 const MAX_SELECTED_DOCUMENT_CHARACTERS = 18_000;
+const MAX_INDEXED_DOCUMENT_CHARACTERS = 250_000;
 const LIVE_CONTEXT_CACHE_TTL_MS = 15_000;
 const VECTOR_FILE_POLL_INTERVAL_MS = 2_000;
 const VECTOR_FILE_POLL_TIMEOUT_MS = 120_000;
@@ -42,6 +45,13 @@ type DocumentEntry = KnowledgeEntry & {
     sourceType: 'document';
     dataUrl: string;
 };
+
+type CachedDocumentText = {
+    checksum: string;
+    text: string;
+};
+
+type DocumentTextCache = Record<string, CachedDocumentText>;
 
 type LiveKnowledgeCache = {
     entries: KnowledgeEntry[];
@@ -370,12 +380,64 @@ const createChecksum = (parts: Array<string | Uint8Array>): string => {
     return hash.digest('hex');
 };
 
+const readDocumentTextCache = async (): Promise<DocumentTextCache> => {
+    const stored = await readDataValue<unknown>(AI_DOCUMENT_TEXT_CACHE_KEY, {});
+    if (!isRecord(stored)) {
+        return {};
+    }
+
+    return Object.fromEntries(Object.entries(stored).flatMap(([documentId, value]) => {
+        if (!isRecord(value)) {
+            return [];
+        }
+
+        const checksum = getString(value, 'checksum');
+        const text = getString(value, 'text');
+        return checksum && text ? [[documentId, { checksum, text } satisfies CachedDocumentText]] : [];
+    }));
+};
+
+const extractDocumentText = async (
+    document: DocumentEntry,
+    cache: DocumentTextCache,
+): Promise<{ text: string; checksum: string; fromCache: boolean }> => {
+    const bytes = dataUrlToBytes(document.dataUrl);
+    const checksum = createChecksum([AI_DOCUMENT_EXTRACTION_VERSION, bytes]);
+    const cachedDocument = cache[document.id];
+    if (cachedDocument?.checksum === checksum && cachedDocument.text) {
+        return { text: cachedDocument.text, checksum, fromCache: true };
+    }
+
+    const file = new File([Uint8Array.from(bytes).buffer], document.title, {
+        type: getDataUrlMimeType(document.dataUrl) || 'application/octet-stream',
+    });
+    const text = await extractTextFromDocument(file, {
+        maxCharacters: MAX_INDEXED_DOCUMENT_CHARACTERS,
+    });
+    return { text, checksum, fromCache: false };
+};
+
+const writeDocumentTextCacheIfChanged = async (
+    previousCache: DocumentTextCache,
+    nextCache: DocumentTextCache,
+): Promise<void> => {
+    if (JSON.stringify(previousCache) === JSON.stringify(nextCache)) {
+        return;
+    }
+
+    try {
+        await writeDataValue(AI_DOCUMENT_TEXT_CACHE_KEY, nextCache);
+    } catch (error) {
+        console.error('Не удалось сохранить кэш распознанного текста документов:', describeError(error));
+    }
+};
+
 const sanitizeAttribute = (value: string): string => value.trim().slice(0, 500);
 
-const getRemoteFileName = (document: DocumentEntry): string => {
+const getRemoteFileName = (document: DocumentEntry, asExtractedText: boolean): string => {
     const extension = path.extname(document.title).toLowerCase().replace(/[^a-z0-9.]/g, '').slice(0, 12);
     const safeId = document.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
-    return `lms-document-${safeId}${extension || '.txt'}`;
+    return `lms-document-${safeId}${asExtractedText ? '.txt' : extension || '.bin'}`;
 };
 
 const getKnowledgeTypeLabel = (sourceType: KnowledgeEntry['sourceType']): string => {
@@ -430,6 +492,8 @@ const buildDesiredSources = async (): Promise<DesiredKnowledgeSource[]> => {
     const storageData = await readDataValues([...KNOWLEDGE_SOURCE_KEYS]);
     const entries = buildKnowledgeEntries(storageData);
     const documents = await buildDocumentEntries(storageData);
+    const previousDocumentTextCache = await readDocumentTextCache();
+    const nextDocumentTextCache: DocumentTextCache = {};
     const catalogText = buildCatalogText(entries, documents);
     const catalogBytes = new TextEncoder().encode(catalogText);
     const catalogSource: DesiredKnowledgeSource = {
@@ -445,15 +509,48 @@ const buildDesiredSources = async (): Promise<DesiredKnowledgeSource[]> => {
             title: 'Темы, тесты и каталог документов LMS Ватэс',
         },
     };
-    const documentSources = documents.map((document) => {
+    const documentSources: DesiredKnowledgeSource[] = [];
+
+    for (const document of documents) {
         const bytes = dataUrlToBytes(document.dataUrl);
         const metadata = `${AI_KNOWLEDGE_SCHEMA_VERSION}\n${document.id}\n${document.title}\n${document.section}\n${document.number}`;
-        return {
+        let indexedBytes = bytes;
+        let indexedMimeType = getDataUrlMimeType(document.dataUrl) || 'application/octet-stream';
+        let asExtractedText = false;
+
+        try {
+            const extracted = await extractDocumentText(document, previousDocumentTextCache);
+            nextDocumentTextCache[document.id] = {
+                checksum: extracted.checksum,
+                text: extracted.text,
+            };
+            const indexedText = [
+                'АКТУАЛЬНЫЙ ДОКУМЕНТ LMS ВАТЭС',
+                `РАЗДЕЛ: ${document.section}`,
+                `НОМЕР В РАЗДЕЛЕ: ${document.number}`,
+                `НАЗВАНИЕ: ${document.title}`,
+                `ID: ${document.id}`,
+                `Ссылка: ${document.hint}`,
+                'СОДЕРЖАНИЕ:',
+                extracted.text,
+            ].join('\n');
+            indexedBytes = new TextEncoder().encode(indexedText);
+            indexedMimeType = 'text/plain; charset=utf-8';
+            asExtractedText = true;
+        } catch (error) {
+            console.warn(`Не удалось извлечь текст документа ${document.id}; загружается исходный файл:`, describeError(error));
+            const cachedDocument = previousDocumentTextCache[document.id];
+            if (cachedDocument) {
+                nextDocumentTextCache[document.id] = cachedDocument;
+            }
+        }
+
+        documentSources.push({
             sourceKey: `document:${document.id}`,
-            checksum: createChecksum([metadata, bytes]),
-            fileName: getRemoteFileName(document),
-            mimeType: getDataUrlMimeType(document.dataUrl) || 'application/octet-stream',
-            bytes,
+            checksum: createChecksum([metadata, indexedBytes]),
+            fileName: getRemoteFileName(document, asExtractedText),
+            mimeType: indexedMimeType,
+            bytes: indexedBytes,
             attributes: {
                 managed_by: AI_KNOWLEDGE_MANAGED_BY,
                 knowledge_version: AI_KNOWLEDGE_SCHEMA_VERSION,
@@ -463,8 +560,10 @@ const buildDesiredSources = async (): Promise<DesiredKnowledgeSource[]> => {
                 section: sanitizeAttribute(document.section),
                 number: document.number,
             },
-        } satisfies DesiredKnowledgeSource;
-    });
+        });
+    }
+
+    await writeDocumentTextCacheIfChanged(previousDocumentTextCache, nextDocumentTextCache);
 
     return [catalogSource, ...documentSources];
 };
@@ -814,15 +913,30 @@ export async function buildSelectedDocumentContext(documentId: string): Promise<
         return '';
     }
 
-    const bytes = dataUrlToBytes(dataUrl);
-    const file = new File([Uint8Array.from(bytes).buffer], title, {
-        type: getDataUrlMimeType(dataUrl) || 'application/octet-stream',
-    });
     let text = '';
     try {
-        text = await extractTextFromDocument(file, {
-            maxCharacters: MAX_SELECTED_DOCUMENT_CHARACTERS,
-        });
+        const document: DocumentEntry = {
+            sourceType: 'document',
+            id: normalizedId,
+            title,
+            section,
+            number,
+            dataUrl,
+            text: '',
+            hint: getNavigationPath('document', normalizedId),
+        };
+        const previousDocumentTextCache = await readDocumentTextCache();
+        const extracted = await extractDocumentText(document, previousDocumentTextCache);
+        text = limitText(extracted.text, MAX_SELECTED_DOCUMENT_CHARACTERS);
+        if (!extracted.fromCache) {
+            await writeDocumentTextCacheIfChanged(previousDocumentTextCache, {
+                ...previousDocumentTextCache,
+                [normalizedId]: {
+                    checksum: extracted.checksum,
+                    text: extracted.text,
+                },
+            });
+        }
     } catch (error) {
         console.warn(`Не удалось извлечь текст выбранного документа ${normalizedId}:`, describeError(error));
     }

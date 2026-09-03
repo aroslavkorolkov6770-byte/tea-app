@@ -4,6 +4,7 @@ import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 import readExcelFile from 'read-excel-file/node';
 import { decodeTextBytes } from '@/app/lib/documentPreview';
+import { extractTextWithOcr, isOcrImage } from '@/app/lib/documentOcr';
 
 export const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_EXTRACTED_CHARACTERS_PER_FILE = 30_000;
@@ -75,7 +76,10 @@ const UNSUPPORTED_LEGACY_SPREADSHEET_EXTENSIONS = new Set(['.xls', '.xlsb']);
 type DocumentExtractionOptions = {
     maxSizeBytes?: number;
     maxCharacters?: number;
+    enableOcr?: boolean;
 };
+
+const MIN_USEFUL_PDF_TEXT_CHARACTERS = 120;
 
 function normalizeExtractedText(value: string, maxCharacters: number): string {
     return value
@@ -190,6 +194,7 @@ export async function extractTextFromDocument(file: File, options: DocumentExtra
 
     const extension = path.extname(file.name).toLowerCase();
     const buffer = Buffer.from(await file.arrayBuffer());
+    const enableOcr = options.enableOcr !== false;
     let extractedText = '';
 
     if (PLAIN_TEXT_EXTENSIONS.has(extension) || file.type.startsWith('text/')) {
@@ -205,6 +210,32 @@ export async function extractTextFromDocument(file: File, options: DocumentExtra
         } finally {
             await parser.destroy();
         }
+        const nativeTextLength = extractedText.replace(/\s/g, '').length;
+        if (enableOcr && nativeTextLength < MIN_USEFUL_PDF_TEXT_CHARACTERS) {
+            try {
+                const ocrText = await extractTextWithOcr(buffer, {
+                    fileName: file.name,
+                    mimeType: file.type,
+                    maxCharacters,
+                });
+                if (ocrText) {
+                    extractedText = ocrText;
+                }
+            } catch (error) {
+                if (!extractedText.trim()) {
+                    throw error;
+                }
+            }
+        }
+    } else if (isOcrImage(file.name, file.type)) {
+        if (!enableOcr) {
+            throw new Error(`Для изображения ${file.name} требуется OCR-распознавание`);
+        }
+        extractedText = await extractTextWithOcr(buffer, {
+            fileName: file.name,
+            mimeType: file.type,
+            maxCharacters,
+        });
     } else if (extension === '.ods') {
         extractedText = await extractOpenDocumentText(buffer);
     } else if (SPREADSHEET_EXTENSIONS.has(extension)) {

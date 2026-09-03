@@ -202,9 +202,9 @@ export async function POST(request: Request) {
         const selectedDocumentId = typeof body.documentId === 'string'
             ? body.documentId.trim().slice(0, 200)
             : '';
-        const [liveLmsContext, , selectedDocumentContext] = await Promise.all([
+        void ensureInitialKnowledgeSync();
+        const [liveLmsContext, selectedDocumentContext] = await Promise.all([
             buildLiveLmsContext(currentQuestion),
-            ensureInitialKnowledgeSync(),
             selectedDocumentId ? buildSelectedDocumentContext(selectedDocumentId) : Promise.resolve(''),
         ]);
         const compactedMessages = compactInputForProvider(
