@@ -12713,6 +12713,71 @@ body:has(.vates-own-profile-overlay) {
   font-size: 11px;
 }
 
+/* Сохраняет общий вид кнопки, но визуально выделяет действие запроса по документу. */
+.vates-document-ask-ai {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  font-weight: 800;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  animation: vates-document-ai-breathe 3.4s ease-in-out infinite;
+}
+
+.vates-document-ask-ai::after {
+  position: absolute;
+  inset: 0 auto 0 -75%;
+  width: 42%;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent, color-mix(in srgb, var(--vates-accent) 18%, transparent), transparent);
+  transform: skewX(-18deg);
+  animation: vates-document-ai-shimmer 4.8s ease-in-out infinite;
+}
+
+.vates-document-ask-ai:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--vates-accent) 18%, transparent);
+}
+
+.vates-document-ask-ai:active {
+  transform: translateY(0);
+}
+
+.vates-document-ask-ai svg,
+.vates-document-ask-ai span {
+  position: relative;
+  z-index: 1;
+}
+
+.vates-document-ask-ai svg {
+  transition: transform 180ms ease;
+}
+
+@keyframes vates-document-ai-breathe {
+  0%, 100% {
+    box-shadow: 0 0 0 color-mix(in srgb, var(--vates-accent) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--vates-accent) 9%, transparent);
+  }
+}
+
+@keyframes vates-document-ai-shimmer {
+  0%, 45% {
+    left: -75%;
+  }
+  75%, 100% {
+    left: 140%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vates-document-ask-ai,
+  .vates-document-ask-ai::after {
+    animation: none;
+  }
+}
+
 .vates-documents-library .vates-document-section-empty {
   grid-column: 1 / -1;
   margin: 0;

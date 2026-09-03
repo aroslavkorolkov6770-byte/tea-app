@@ -17,6 +17,7 @@ interface ChatSession {
     messages: Message[];
     updatedAt: number;
     isPinned?: boolean; 
+    documentId?: string;
 }
 
 const MAX_AI_HISTORY_MESSAGES = 10;
@@ -403,10 +404,13 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         return `${count} сообщений`;
     };
 
-    const handleSendMessage = async (text: string, options: { documentId?: string } = {}) => {
+    const handleSendMessage = async (
+        text: string,
+        options: { documentId?: string; newSession?: boolean } = {},
+    ) => {
         if (!text.trim() || !currentUserId || isTyping) return;
 
-        let currentActiveId = activeSessionId;
+        let currentActiveId = options.newSession ? null : activeSessionId;
         let currentSessions = [...sessions];
 
         if (!currentActiveId || currentSessions.length === 0) {
@@ -414,7 +418,8 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 id: `chat_${Date.now()}`,
                 title: text.slice(0, 25) + "...",
                 messages: [],
-                updatedAt: Date.now()
+                updatedAt: Date.now(),
+                ...(options.documentId ? { documentId: options.documentId } : {}),
             };
             currentSessions = [newSession, ...currentSessions];
             currentActiveId = newSession.id;
@@ -431,7 +436,13 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         const updatedSessions = currentSessions.map((s: ChatSession) => {
             if (s.id === currentActiveId) {
                 const newTitle = s.messages.length === 0 ? text.slice(0, 25) + "..." : s.title;
-                return { ...s, title: newTitle, messages: [...s.messages, userMsg], updatedAt: Date.now() };
+                return {
+                    ...s,
+                    title: newTitle,
+                    messages: [...s.messages, userMsg],
+                    updatedAt: Date.now(),
+                    ...(options.documentId ? { documentId: options.documentId } : {}),
+                };
             }
             return s;
         }); 
@@ -445,6 +456,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
 
         try {
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === currentActiveId);
+            const activeDocumentId = options.documentId || currentSession?.documentId;
 
             const recentMessages = currentSession?.messages.slice(-MAX_AI_HISTORY_MESSAGES) || [];
             const apiMessages = recentMessages.map((message, index) => {
@@ -463,7 +475,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: apiMessages,
-                    ...(options.documentId ? { documentId: options.documentId } : {}),
+                    ...(activeDocumentId ? { documentId: activeDocumentId } : {}),
                 })
             });
 
@@ -525,7 +537,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
     };
 
     const sendDocumentQuestion = useEffectEvent((question: string, documentId: string) => {
-        void handleSendMessage(question, { documentId });
+        void handleSendMessage(question, { documentId, newSession: true });
     });
 
     useEffect(() => {

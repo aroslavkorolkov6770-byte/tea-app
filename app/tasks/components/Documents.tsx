@@ -1046,7 +1046,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                                            <footer className="vates-document-card-footer">
                                                <button type="button" onClick={() => handleOpenPreview(file)} className="vates-button secondary compact">Открыть</button>
                                                <button type="button" onClick={() => handleDownloadFile(file)} className="vates-button primary compact"><CustomIcon name="download" size={15} color="currentColor" accent="none" /> Скачать</button>
-                                               <button type="button" onClick={() => handleAskAiAboutDocument(file)} className="vates-button secondary compact vates-document-ask-ai"><CustomIcon name="brain" size={15} color="currentColor" accent="none" /> Спросить AI</button>
+                                               <button type="button" onClick={() => handleAskAiAboutDocument(file)} className="vates-button secondary compact vates-document-ask-ai"><CustomIcon name="brain" size={15} color="currentColor" accent="none" /><span>Спросить AI</span></button>
                                            </footer>
                                        </article>
                                    ))
@@ -1076,7 +1076,7 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
                         <div className="linked-document-preview-actions">
                             <button type="button" onClick={() => handleOpenPreview(linkedPreview.file)}>ОТКРЫТЬ ОТДЕЛЬНО</button>
                             <button type="button" onClick={() => handleDownloadFile(linkedPreview.file)}>СКАЧАТЬ</button>
-                            <button type="button" onClick={() => handleAskAiAboutDocument(linkedPreview.file)}>СПРОСИТЬ AI</button>
+                            <button type="button" className="vates-document-ask-ai" onClick={() => handleAskAiAboutDocument(linkedPreview.file)}><span>СПРОСИТЬ AI</span></button>
                         </div>
                     </div>
                 </div>
