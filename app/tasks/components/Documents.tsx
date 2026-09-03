@@ -1,6 +1,5 @@
 "use client";
 import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import SectionCollapseButton from '@/app/components/SectionCollapseButton';
 import useCollapsedSections from '@/app/hooks/useCollapsedSections';
@@ -43,7 +42,6 @@ type AiDocumentRequest = {
 };
 
 export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles, linkedDocumentId, onCloseLinkedDocument }: any) {
-    const router = useRouter();
     const { isSectionCollapsed, toggleSection } = useCollapsedSections('tea_hub_document_collapsed_sections_v1');
     // --- СОСТОЯНИЯ ДЛЯ УПРАВЛЕНИЯ ПАПКАМИ ---
     const [promptSection, setPromptSection] = useState<{isOpen: boolean, name: string}>({ isOpen: false, name: '' });
@@ -410,16 +408,24 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     };
 
     const handleAskAiAboutDocument = (file: AiDocumentRequest) => {
+        const documentId = String(file.id || '').trim();
+        if (!documentId) {
+            setErrorModal({ show: true, text: 'Не удалось определить документ для AI-чата.' });
+            return;
+        }
+
         const documentSection = typeof file.section === 'string' && file.section.trim()
             ? file.section.trim()
             : 'Основной раздел';
         const params = new URLSearchParams({
             tab: 'standards',
-            askDocumentId: String(file.id || ''),
+            askDocumentId: documentId,
             askDocumentTitle: String(file.name || 'Документ'),
             askDocumentSection: documentSection,
+            askDocumentRequest: String(Date.now()),
         });
-        router.push(`/tasks?${params.toString()}`);
+
+        window.location.assign(`/tasks?${params.toString()}`);
     };
 
     // Интеллектуальный предпросмотр

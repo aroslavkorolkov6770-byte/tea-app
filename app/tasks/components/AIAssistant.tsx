@@ -548,7 +548,8 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
 
         const documentTitle = searchParams.get('askDocumentTitle')?.trim() || 'выбранный документ';
         const documentSection = searchParams.get('askDocumentSection')?.trim() || 'Основной раздел';
-        const requestKey = `${currentUserId}:${documentId}`;
+        const documentRequest = searchParams.get('askDocumentRequest')?.trim() || documentId;
+        const requestKey = `${currentUserId}:${documentId}:${documentRequest}`;
         if (handledDocumentRequestRef.current === requestKey) {
             return;
         }
