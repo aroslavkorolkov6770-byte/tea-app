@@ -13,6 +13,7 @@ import {
     readJsonBody,
     securityErrorResponse,
 } from '@/app/lib/serverSecurity';
+import { isAiKnowledgeSourceKey, scheduleAiKnowledgeSync } from '@/app/lib/aiKnowledge';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -655,6 +656,9 @@ export async function POST(request: Request) {
             if (chunkIndex === totalChunks - 1) {
                 await writeKeyForSession(rawKey, mergedChunk, session);
                 await writeDataValue(tempKey, null);
+                if (isAiKnowledgeSourceKey(rawKey)) {
+                    scheduleAiKnowledgeSync();
+                }
                 return NextResponse.json({ success: true, chunked: true, completed: true });
             }
 
@@ -663,6 +667,9 @@ export async function POST(request: Request) {
         }
 
         await writeKeyForSession(rawKey, data, session);
+        if (isAiKnowledgeSourceKey(rawKey)) {
+            scheduleAiKnowledgeSync();
+        }
         return NextResponse.json({ success: true });
     } catch (error) {
         const securityResponse = securityErrorResponse(error);

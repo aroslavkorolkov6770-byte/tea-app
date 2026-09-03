@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { AliceAiRequestError, requestAliceAi } from '@/app/lib/aliceAi';
+import { AliceAiRequestError, type AliceInputMessage, requestAliceAi } from '@/app/lib/aliceAi';
+import { buildLiveLmsContext, synchronizeAiKnowledge } from '@/app/lib/aiKnowledge';
 import { requireSession } from '@/app/lib/serverAuth';
 import {
     assertRateLimit,
@@ -24,7 +25,10 @@ type YandexInputMessage = {
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_MESSAGE_CHARACTERS = 12_000;
-const MAX_TOTAL_CHARACTERS = 36_000;
+const MAX_TOTAL_CHARACTERS = 25_000;
+const USER_QUESTION_MARKER = 'ВОПРОС ПОЛЬЗОВАТЕЛЯ:';
+
+let initialKnowledgeSyncPromise: Promise<unknown> | null = null;
 
 const limitText = (text: string, maxCharacters: number): string => {
     if (text.length <= maxCharacters) {
@@ -72,6 +76,45 @@ const normalizeContentText = (content: unknown): string => {
     }
 
     return '';
+};
+
+const extractCurrentQuestion = (messages: IncomingMessage[]): string => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+        if (normalizeRole(messages[index].role) !== 'user') {
+            continue;
+        }
+
+        const content = normalizeContentText(messages[index].content);
+        const markerIndex = content.lastIndexOf(USER_QUESTION_MARKER);
+        return markerIndex >= 0
+            ? content.slice(markerIndex + USER_QUESTION_MARKER.length).trim()
+            : content;
+    }
+
+    return '';
+};
+
+const replaceCurrentQuestion = (messages: IncomingMessage[], question: string): IncomingMessage[] => {
+    const normalizedMessages = messages.map((message) => ({ ...message }));
+    for (let index = normalizedMessages.length - 1; index >= 0; index -= 1) {
+        if (normalizeRole(normalizedMessages[index].role) === 'user') {
+            normalizedMessages[index].content = question;
+            break;
+        }
+    }
+
+    return normalizedMessages;
+};
+
+const ensureInitialKnowledgeSync = () => {
+    if (!initialKnowledgeSyncPromise) {
+        initialKnowledgeSyncPromise = synchronizeAiKnowledge().catch((error) => {
+            console.error('Не удалось выполнить начальную синхронизацию базы знаний AI:', error);
+            return null;
+        });
+    }
+
+    return initialKnowledgeSyncPromise;
 };
 
 const mapMessagesToYandexInput = (messages: IncomingMessage[]): YandexInputMessage[] => {
@@ -137,7 +180,25 @@ export async function POST(request: Request) {
             ? body.messages.slice(-MAX_HISTORY_MESSAGES) as IncomingMessage[]
             : [];
 
-        const yandexInput = compactInputForProvider(mapMessagesToYandexInput(messages));
+        const currentQuestion = extractCurrentQuestion(messages);
+        if (!currentQuestion) {
+            return NextResponse.json({ error: 'Сообщения для ИИ не переданы' }, { status: 400 });
+        }
+
+        const [liveLmsContext] = await Promise.all([
+            buildLiveLmsContext(currentQuestion),
+            ensureInitialKnowledgeSync(),
+        ]);
+        const compactedMessages = compactInputForProvider(
+            mapMessagesToYandexInput(replaceCurrentQuestion(messages, currentQuestion)),
+        );
+        const yandexInput: AliceInputMessage[] = [
+            {
+                role: 'system',
+                content: [{ type: 'input_text', text: liveLmsContext }],
+            },
+            ...compactedMessages,
+        ];
 
         if (yandexInput.length === 0) {
             return NextResponse.json({ error: 'Сообщения для ИИ не переданы' }, { status: 400 });
@@ -176,9 +237,15 @@ export async function POST(request: Request) {
                 );
             }
 
-            const status = error.status === 429 ? 429 : 502;
-            const message = error.status === 429
-                ? 'Лимит AI-сервиса временно исчерпан'
+            const quotaExceeded = error.status === 429
+                || error.status === 402
+                || details.includes('quota')
+                || details.includes('resource_exhausted')
+                || details.includes('billing')
+                || details.includes('balance');
+            const status = quotaExceeded ? 429 : 502;
+            const message = quotaExceeded
+                ? 'Закончились токены, просьба обратиться к администратору'
                 : 'AI-сервис временно недоступен';
             return NextResponse.json({ error: message }, { status });
         }

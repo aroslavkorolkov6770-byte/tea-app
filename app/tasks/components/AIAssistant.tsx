@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CustomIcon from '@/app/components/CustomIcon';
 import { isClientAdminView } from '@/app/lib/authClient';
-import { fetchStorageBatch } from '@/app/lib/storageClient';
 
 interface Message {
     id: string;
@@ -20,21 +19,9 @@ interface ChatSession {
     isPinned?: boolean; 
 }
 
-type SiteSearchRecord = {
-    id: string;
-    type: 'route' | 'test' | 'product' | 'document';
-    title: string;
-    section: string;
-    text: string;
-    hint?: string;
-};
-
-const SITE_CONTEXT_CACHE_KEY = 'th_ai_site_context_v2';
-const SITE_CONTEXT_CACHE_TTL_MS = 1000 * 60;
-const MAX_AI_SITE_CONTEXT_CHARACTERS = 18_000;
 const MAX_AI_HISTORY_MESSAGES = 10;
 const MAX_AI_HISTORY_MESSAGE_CHARACTERS = 3_500;
-const MAX_AI_CURRENT_MESSAGE_CHARACTERS = 20_000;
+const MAX_AI_CURRENT_MESSAGE_CHARACTERS = 12_000;
 
 const limitAiText = (value: string, maxCharacters: number): string => {
     if (value.length <= maxCharacters) {
@@ -51,171 +38,147 @@ const limitAiText = (value: string, maxCharacters: number): string => {
 
 const normalizeSearchValue = (value: unknown) => String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
-const buildSiteKnowledgeIndex = (siteData: Record<string, any>) => {
-    const records: SiteSearchRecord[] = [];
+const normalizeAiHref = (value: string): string | null => {
+    const trimmedValue = value.trim().replace(/[.,!?;:)\]]+$/u, '');
 
-    const routes = Array.isArray(siteData.tea_hub_dynamic_route_v2) ? siteData.tea_hub_dynamic_route_v2 : [];
-    routes.forEach((route: any) => {
-        if (route?.isPlaceholder) {
-            return;
+    try {
+        const parsedUrl = new URL(trimmedValue, 'https://tea-hub.ru');
+        const isInternalHost = parsedUrl.hostname === 'tea-hub.ru' || parsedUrl.hostname === 'www.tea-hub.ru';
+        if (!isInternalHost || parsedUrl.pathname !== '/tasks') {
+            return null;
         }
 
-        records.push({
-            id: String(route.id || `route_${records.length}`),
-            type: 'route',
-            title: String(route.title || 'Тема без названия'),
-            section: String(route.section || 'Обучение'),
-            text: [
-                route.title,
-                route.h1,
-                route.t1,
-                route.h2,
-                route.t2,
-                route.h3,
-                route.t3,
-                route.videoDesc,
-            ].filter(Boolean).join(' | '),
-            hint: route.id ? `/tasks?tab=edu&routeId=${route.id}` : '/tasks?tab=edu',
-        });
-    });
-
-    const tests = Array.isArray(siteData.tea_hub_dynamic_tests_v1) ? siteData.tea_hub_dynamic_tests_v1 : [];
-    tests.forEach((test: any) => {
-        if (test?.isPlaceholder) {
-            return;
-        }
-
-        records.push({
-            id: String(test.id || `test_${records.length}`),
-            type: 'test',
-            title: String(test.title || 'Тест без названия'),
-            section: String(test.section || 'Тестирование'),
-            text: [
-                test.title,
-                test.subtitle,
-                test.theory,
-                ...(Array.isArray(test.quiz) ? test.quiz.flatMap((item: any) => [item?.q, ...(Array.isArray(item?.o) ? item.o : [])]) : []),
-            ].filter(Boolean).join(' | '),
-            hint: test.id ? `/tasks?tab=edu&testId=${test.id}` : '/tasks?tab=edu',
-        });
-    });
-
-    const products = Array.isArray(siteData.tea_hub_products_v1) ? siteData.tea_hub_products_v1 : [];
-    products.forEach((product: any) => {
-        records.push({
-            id: String(product.id || `product_${records.length}`),
-            type: 'product',
-            title: String(product.name || 'Товар без названия'),
-            section: String(product.category || 'Продукты'),
-            text: [
-                product.name,
-                product.code,
-                product.category,
-                product.subcategory,
-                product.groupPath,
-                product.priority ? `Приоритет ${product.priority}` : '',
-                product.desc,
-                product.isHit ? 'Обязательно к продаже' : '',
-            ].filter(Boolean).join(' | '),
-            hint: `/tasks?tab=products&productId=${encodeURIComponent(product.id || product.code || product.name || '')}`,
-        });
-    });
-
-    const documents = Array.isArray(siteData.tea_hub_urgent_files_v1) ? siteData.tea_hub_urgent_files_v1 : [];
-    documents.forEach((file: any) => {
-        if (file?.isTest || String(file?.id || '').startsWith('deadline_')) {
-            return;
-        }
-
-        records.push({
-            id: String(file.id || `document_${records.length}`),
-            type: 'document',
-            title: String(file.name || file.section || 'Документ'),
-            section: String(file.section || 'База документов'),
-            text: [
-                file.name,
-                file.section,
-                file.size,
-                file.date,
-                file.isDocPlaceholder ? 'Раздел документов' : 'Документ',
-            ].filter(Boolean).join(' | '),
-            hint: '/tasks?tab=docs',
-        });
-    });
-
-    return records;
+        return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    } catch {
+        return null;
+    }
 };
 
-const rankSiteRecords = (records: SiteSearchRecord[], query: string) => {
-    const normalizedQuery = normalizeSearchValue(query);
-    if (!normalizedQuery) {
-        return records.slice(0, 12);
+const cleanAiMessageText = (value: string): string => value
+    .replace(/\r\n?/gu, '\n')
+    .replace(/\\([*_`~])/gu, '$1')
+    .replace(/^\s{0,3}#{1,6}\s*/gmu, '')
+    .replace(/^\s{0,3}>\s?/gmu, '')
+    .replace(/[*`~]/gu, '')
+    .replace(/(^|\n)\s*[-+]\s+/gmu, '$1• ')
+    .replace(/\n{3,}/gu, '\n\n')
+    .trim();
+
+const prepareAiMessageText = (value: string): string => cleanAiMessageText(
+    value.replace(/\[([^\]]+)\]\(([^)\s]+)\)/gu, (...matches: string[]) => {
+        const label = matches[1] || '';
+        const href = matches[2] || '';
+        const safeHref = normalizeAiHref(href);
+        return safeHref ? `${label} ${safeHref}` : label;
+    }),
+);
+
+const getAiLinkLabel = (href: string): string => {
+    try {
+        const parsedUrl = new URL(href, 'https://tea-hub.ru');
+        if (parsedUrl.searchParams.has('routeId')) {
+            return 'Открыть урок';
+        }
+
+        if (parsedUrl.searchParams.has('testId')) {
+            return 'Открыть тест';
+        }
+
+        if (parsedUrl.searchParams.has('documentId')) {
+            return 'Открыть документ';
+        }
+
+        if (parsedUrl.searchParams.has('productId')) {
+            return 'Открыть карточку товара';
+        }
+    } catch {
+        return 'Открыть';
     }
 
-    const words = normalizedQuery.split(' ').filter(Boolean);
-
-    return records
-        .map((record) => {
-            const haystack = normalizeSearchValue(`${record.title} ${record.section} ${record.text}`);
-            let score = 0;
-
-            if (haystack.includes(normalizedQuery)) {
-                score += 10;
-            }
-
-            words.forEach((word) => {
-                if (!word) {
-                    return;
-                }
-
-                if (normalizeSearchValue(record.title).includes(word)) {
-                    score += 5;
-                }
-
-                if (normalizeSearchValue(record.section).includes(word)) {
-                    score += 3;
-                }
-
-                if (haystack.includes(word)) {
-                    score += 2;
-                }
-            });
-
-            return { record, score };
-        })
-        .filter((item) => item.score > 0)
-        .sort((left, right) => right.score - left.score)
-        .slice(0, 18)
-        .map((item) => item.record);
+    return 'Открыть раздел';
 };
 
-const buildSiteContextPrompt = (records: SiteSearchRecord[], query: string) => {
-    const scopedResults = rankSiteRecords(records, query);
-    const countsByType = records.reduce<Record<string, number>>((acc, record) => {
-        acc[record.type] = (acc[record.type] || 0) + 1;
-        return acc;
-    }, {});
+const renderAiMessage = (value: string): React.ReactNode => {
+    const messageText = prepareAiMessageText(value);
+    const linkPattern = /(?:https?:\/\/[^\s<>"'`]+|\/tasks\?[^\s<>"'`]+)/gu;
+    const parts: React.ReactNode[] = [];
+    let cursor = 0;
+    let match: RegExpExecArray | null;
+    let linkIndex = 0;
 
-    const overview = [
-        `Обучение: ${countsByType.route || 0}`,
-        `Тесты: ${countsByType.test || 0}`,
-        `Продукты: ${countsByType.product || 0}`,
-        `Документы: ${countsByType.document || 0}`,
-    ].join(', ');
+    while ((match = linkPattern.exec(messageText)) !== null) {
+        const rawLink = match[0];
+        const safeHref = normalizeAiHref(rawLink);
+        if (!safeHref) {
+            continue;
+        }
 
-    const lines = scopedResults.map((record, index) => {
-        return `${index + 1}. [${record.type.toUpperCase()}] ${record.title} | Раздел: ${record.section} | Данные: ${record.text}${record.hint ? ` | Ссылка: ${record.hint}` : ''}`;
+        if (match.index > cursor) {
+            parts.push(messageText.slice(cursor, match.index));
+        }
+
+        parts.push(
+            <a
+                key={`ai-link-${linkIndex}`}
+                href={safeHref}
+                className="ai-message-link"
+            >
+                {getAiLinkLabel(safeHref)}
+            </a>,
+        );
+        linkIndex += 1;
+        cursor = match.index + rawLink.length;
+    }
+
+    if (parts.length === 0) {
+        return messageText;
+    }
+
+    if (cursor < messageText.length) {
+        parts.push(messageText.slice(cursor));
+    }
+
+    return parts;
+};
+
+const extractAiResponseText = (data: Record<string, unknown>): string => {
+    const output = Array.isArray(data.output) ? data.output : [];
+    const outputParts = output.flatMap((item) => {
+        if (!item || typeof item !== 'object') {
+            return [];
+        }
+
+        const content = (item as { content?: unknown }).content;
+        if (!Array.isArray(content)) {
+            return [];
+        }
+
+        return content.flatMap((contentItem) => {
+            if (!contentItem || typeof contentItem !== 'object') {
+                return [];
+            }
+
+            const text = (contentItem as { text?: unknown }).text;
+            return typeof text === 'string' && text.trim() ? [text.trim()] : [];
+        });
     });
 
-    return [
-        '=== ВНУТРЕННИЙ ПОИСК ПО ВСЕЙ ПЛАТФОРМЕ ВАТЭС ===',
-        `Общий охват данных: ${overview}.`,
-        scopedResults.length > 0
-            ? `Найдено релевантных совпадений по запросу "${query}":\n${lines.join('\n')}`
-            : `По прямому совпадению для запроса "${query}" ничего не найдено. Используй общий охват сайта и дай честный ответ, если в данных нет нужной информации.`,
-        'Правило ответа: опирайся только на найденные данные сайта. Если информации не хватает, скажи это прямо и предложи, где искать дальше на сайте.',
-        '=== КОНЕЦ ВНУТРЕННЕГО ПОИСКА ===',
-    ].join('\n');
+    if (outputParts.length > 0) {
+        return outputParts.join('\n\n');
+    }
+
+    const message = data.message;
+    const messageText = message && typeof message === 'object'
+        ? (message as { text?: unknown; content?: unknown })
+        : {};
+    const fallbackValues: unknown[] = [
+        data.output_text,
+        data.text,
+        messageText.text,
+        typeof messageText.content === 'string' ? messageText.content : '',
+    ];
+    const fallbackText = fallbackValues.find((item) => typeof item === 'string' && item.trim());
+    return typeof fallbackText === 'string' ? fallbackText.trim() : '';
 };
 
 export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAdmin?: boolean }) {
@@ -232,7 +195,6 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const siteKnowledgeCacheRef = useRef<SiteSearchRecord[] | null>(null);
 
     // =========================================================================
     // ОПРЕДЕЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (АДМИН - 100% ПРИОРИТЕТ)
@@ -256,7 +218,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 return 'emp_' + String(userId).replace(/[^a-zA-Z0-9_-]/g, '_');
             }
 
-            let foundId = storedUserId;
+            const foundId = storedUserId;
             if (foundId && foundId !== 'guest' && foundId !== 'null') {
                 return 'emp_' + String(foundId).replace(/[^a-zA-Z0-9_-]/g, '_');
             }
@@ -270,7 +232,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         };
 
         const activeUser = determineUser();
-        setCurrentUserId(activeUser);
+        const userIdTimer = window.setTimeout(() => setCurrentUserId(activeUser), 0);
 
         const loadHistory = async () => {
             let serverDataFound = false;
@@ -284,7 +246,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                         serverDataFound = true;
                     }
                 }
-            } catch (e) {
+            } catch {
                 console.warn("Сервер недоступен, читаем из памяти");
             }
 
@@ -297,12 +259,13 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                             setSessions(parsed);
                             setActiveSessionId(parsed[0].id);
                         }
-                    } catch(e) {}
+                    } catch {}
                 }
             }
         };
 
         loadHistory();
+        return () => window.clearTimeout(userIdTimer);
     }, [userId, isAdmin]); 
 
     useEffect(() => {
@@ -331,48 +294,6 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             window.removeEventListener('keydown', closeOnEscape);
         };
     }, [showClearConfirm]);
-
-    const loadSiteKnowledge = async () => {
-        if (siteKnowledgeCacheRef.current) {
-            return siteKnowledgeCacheRef.current;
-        }
-
-        const now = Date.now();
-
-        try {
-            const cachedRaw = localStorage.getItem(SITE_CONTEXT_CACHE_KEY);
-            if (cachedRaw) {
-                const cached = JSON.parse(cachedRaw);
-                if (cached?.expiresAt > now && Array.isArray(cached?.records)) {
-                    siteKnowledgeCacheRef.current = cached.records;
-                    return cached.records as SiteSearchRecord[];
-                }
-            }
-        } catch (error) {
-            console.warn('Не удалось прочитать кеш контекста сайта', error);
-        }
-
-        const storageData = await fetchStorageBatch([
-            'tea_hub_dynamic_route_v2',
-            'tea_hub_dynamic_tests_v1',
-            'tea_hub_products_v1',
-            'tea_hub_urgent_files_v1',
-        ]);
-
-        const builtRecords = buildSiteKnowledgeIndex(storageData);
-        siteKnowledgeCacheRef.current = builtRecords;
-
-        try {
-            localStorage.setItem(SITE_CONTEXT_CACHE_KEY, JSON.stringify({
-                expiresAt: now + SITE_CONTEXT_CACHE_TTL_MS,
-                records: builtRecords,
-            }));
-        } catch (error) {
-            console.warn('Не удалось сохранить кеш контекста сайта', error);
-        }
-
-        return builtRecords;
-    };
 
     const saveSessions = (newSessions: ChatSession[]) => {
         setSessions(newSessions);
@@ -500,7 +421,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        let updatedSessions = currentSessions.map((s: ChatSession) => {
+        const updatedSessions = currentSessions.map((s: ChatSession) => {
             if (s.id === currentActiveId) {
                 const newTitle = s.messages.length === 0 ? text.slice(0, 25) + "..." : s.title;
                 return { ...s, title: newTitle, messages: [...s.messages, userMsg], updatedAt: Date.now() };
@@ -516,88 +437,19 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         setIsTyping(true);
 
         try {
-            const routeCache = JSON.parse(localStorage.getItem('th_cache_route') || '[]');
-            const testsCache = JSON.parse(localStorage.getItem('th_cache_tests') || '[]');
-            
-            let siteContext = "";
-            if (routeCache.length > 0 || testsCache.length > 0) {
-                siteContext += "=== СЕКРЕТНЫЙ КОНТЕКСТ (БАЗА ЗНАНИЙ КОМПАНИИ ИЗ ПАНЕЛИ АДМИНА) ===\n";
-                
-                if (routeCache.length > 0) {
-                    siteContext += "РАЗДЕЛ 'ТЕОРИЯ' (Сгруппировано по папкам):\n";
-                    const routeGroups: Record<string, any[]> = {};
-                    routeCache.forEach((route: any) => {
-                        const sec = route.section?.trim() || 'Основной раздел';
-                        if (!routeGroups[sec]) routeGroups[sec] = [];
-                        if (!route.isPlaceholder) routeGroups[sec].push(route);
-                    });
-
-                    Object.entries(routeGroups).forEach(([secName, items]) => {
-                        siteContext += `\nПАПКА: "${secName}"\n`;
-                        items.forEach((route: any, idx: number) => {
-                            siteContext += `  - Урок ${idx + 1}: ${route.title} (ID: ${route.id})\n`;
-                            
-                            // ИСПРАВЛЕНИЕ: Теперь ИИ видит описание видеоуроков
-                            if (route.mediaType === 'video') {
-                                if (route.videoDesc) siteContext += `    * Описание видео: ${route.videoDesc}\n`;
-                            } else {
-                                if (route.h1) siteContext += `    * ${route.h1}: ${route.t1}\n`;
-                                if (route.h2) siteContext += `    * ${route.h2}: ${route.t2}\n`;
-                                if (route.h3) siteContext += `    * ${route.h3}: ${route.t3}\n`;
-                            }
-                        });
-                    });
-                }
-                
-                if (testsCache.length > 0) {
-                    siteContext += "\nРАЗДЕЛ 'ТЕСТЫ' (Сгруппировано по папкам):\n";
-                    const testGroups: Record<string, any[]> = {};
-                    testsCache.forEach((test: any) => {
-                        const sec = test.section?.trim() || 'Основной раздел';
-                        if (!testGroups[sec]) testGroups[sec] = [];
-                        if (!test.isPlaceholder) testGroups[sec].push(test);
-                    });
-
-                    Object.entries(testGroups).forEach(([secName, items]) => {
-                        siteContext += `\nПАПКА: "${secName}"\n`;
-                        items.forEach((test: any, idx: number) => {
-                            siteContext += `  - Тест ${idx + 1}: ${test.title} (${test.subtitle}). База: ${test.theory}\n`;
-                        });
-                    });
-                }
-                
-                siteContext += "\n=== КОНЕЦ БАЗЫ ЗНАНИЙ ===\n";
-                
-                siteContext += "ВАЖНОЕ ПРАВИЛО НАВИГАЦИИ ПО УРОКАМ: Все уроки и тесты сгруппированы по папкам (разделам). Нумерация (Урок 1, Урок 2) начинается ЗАНОВО внутри каждой папки! Если пользователь просит 'Включи урок 1' или 'Расскажи первую тему', ты должен ОБЯЗАТЕЛЬНО понять из контекста или переспросить: 'Урок 1 из какого раздела (папки) вас интересует?'.\nОпирайся СТРОГО на этот текст.\n\n";
-            }
-
-            try {
-                const siteRecords = await loadSiteKnowledge();
-                siteContext += `${buildSiteContextPrompt(siteRecords, text)}\n\n`;
-            } catch (contextError) {
-                console.warn('Не удалось загрузить глобальный контекст сайта для ИИ', contextError);
-            }
-
-            siteContext = limitAiText(siteContext, MAX_AI_SITE_CONTEXT_CHARACTERS);
-
             const currentSession = updatedSessions.find((s: ChatSession) => s.id === currentActiveId);
 
             const recentMessages = currentSession?.messages.slice(-MAX_AI_HISTORY_MESSAGES) || [];
-            const apiMessages = recentMessages.map((m, index) => {
-                const isCurrentQuestion = index === recentMessages.length - 1 && m.role === 'user';
-                const finalContent = isCurrentQuestion
-                    ? limitAiText(`${siteContext}ВОПРОС ПОЛЬЗОВАТЕЛЯ:\n${m.content}`, MAX_AI_CURRENT_MESSAGE_CHARACTERS)
-                    : limitAiText(m.content, MAX_AI_HISTORY_MESSAGE_CHARACTERS);
+            const apiMessages = recentMessages.map((message, index) => {
+                const maxCharacters = index === recentMessages.length - 1
+                    ? MAX_AI_CURRENT_MESSAGE_CHARACTERS
+                    : MAX_AI_HISTORY_MESSAGE_CHARACTERS;
 
-                return { role: m.role === 'ai' ? 'assistant' : 'user', content: finalContent };
+                return {
+                    role: message.role === 'ai' ? 'assistant' : 'user',
+                    content: limitAiText(message.content, maxCharacters),
+                };
             });
-
-            if (apiMessages.length > 0) {
-                const lastMessage = apiMessages[apiMessages.length - 1];
-                if (lastMessage.role !== 'user') {
-                    lastMessage.content = limitAiText(siteContext, MAX_AI_CURRENT_MESSAGE_CHARACTERS);
-                }
-            }
 
             const response = await fetch('/api/ai-chat', {
                 method: 'POST',
@@ -605,12 +457,11 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 body: JSON.stringify({ messages: apiMessages })
             });
 
-            const data = await response.json();
+            const data = await response.json() as Record<string, unknown>;
 
-            // ИСПРАВЛЕНИЕ: Перехват ошибки о закончившихся токенах (внутри ответа 200 OK)
             if (data.error) {
                 const errStr = JSON.stringify(data.error).toLowerCase();
-                if (errStr.includes('quota') || errStr.includes('token') || errStr.includes('limit') || errStr.includes('баланс') || errStr.includes('429')) {
+                if (errStr.includes('quota') || errStr.includes('token') || errStr.includes('токен') || errStr.includes('limit') || errStr.includes('баланс') || errStr.includes('429')) {
                     throw new Error("TOKEN_LIMIT_EXCEEDED");
                 }
                 throw new Error(JSON.stringify(data.error));
@@ -618,21 +469,13 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
 
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
 
-            let aiText = "";
-            if (Array.isArray(data.output)) {
-                const msgObj = data.output.find((o: any) => o.type === 'message' && o.content);
-                if (msgObj && Array.isArray(msgObj.content) && msgObj.content[0]?.text) {
-                    aiText = msgObj.content[0].text;
-                }
-            }
-            
-            if (!aiText) {
-                aiText = data.output_text || data.text || data.message?.text || data.message?.content?.text || data.choices?.[0]?.message?.content;
-            }
+            let aiText = extractAiResponseText(data);
 
             if (!aiText) {
                 aiText = `СЫРОЙ ОТВЕТ ЯНДЕКСА:\n${JSON.stringify(data, null, 2)}`;
             }
+
+            aiText = prepareAiMessageText(aiText);
 
             const aiMsg: Message = {
                 id: `msg_${Date.now() + 1}`,
@@ -646,15 +489,15 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
             );
             saveSessions(finalSessions);
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("ОШИБКА:", error);
 
-            let displayError = `СИСТЕМНАЯ ОШИБКА:\n\n${error.message}`;
-            const errStr = error.message?.toLowerCase() || '';
+            const errorText = error instanceof Error ? error.message : String(error || 'Неизвестная ошибка');
+            let displayError = `СИСТЕМНАЯ ОШИБКА:\n\n${errorText}`;
+            const errStr = errorText.toLowerCase();
             
-            // ИСПРАВЛЕНИЕ: Перехват системной ошибки о токенах
-            if (errStr.includes('token') || errStr.includes('quota') || errStr.includes('429') || errStr.includes('402') || errStr.includes('limit') || errStr.includes('баланс') || errStr.includes('too many requests')) {
-                displayError = "Токены закончились, просьба обратиться к администратору.";
+            if (errStr.includes('token') || errStr.includes('токен') || errStr.includes('quota') || errStr.includes('429') || errStr.includes('402') || errStr.includes('limit') || errStr.includes('баланс') || errStr.includes('too many requests')) {
+                displayError = "Закончились токены, просьба обратиться к администратору.";
             }
 
             const errorMsg: Message = {
@@ -833,7 +676,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                                     </div>
                                     <div className="ai-message-body">
                                         <div className={`ai-bubble ${message.role} ${message.content.includes('СИСТЕМНАЯ ОШИБКА') || message.content.includes('СЫРОЙ ОТВЕТ') ? 'is-error' : ''}`}>
-                                            {message.content}
+                                            {message.role === 'ai' ? renderAiMessage(message.content) : message.content}
                                         </div>
                                         <time>{message.timestamp}</time>
                                     </div>
@@ -934,8 +777,10 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                 .ai-avatar { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 20px; }
                 .ai-avatar.user { background: #0abab5; color: #000; }
                 .ai-avatar.ai { background: #161816; border: 1px solid #333; }
-                .ai-bubble { padding: 16px 22px; border-radius: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-                .ai-bubble.user { background: rgba(10,186,181,0.1); border: 1px solid rgba(10,186,181,0.3); color: #fff; border-bottom-right-radius: 6px; }
+                 .ai-bubble { padding: 16px 22px; border-radius: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+                 .ai-message-link { color: #45c7c2; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+                 .ai-message-link:hover { color: #8ce5e0; }
+                 .ai-bubble.user { background: rgba(10,186,181,0.1); border: 1px solid rgba(10,186,181,0.3); color: #fff; border-bottom-right-radius: 6px; }
                 .ai-bubble.ai { background: #111; border: 1px solid #222; color: #ddd; border-bottom-left-radius: 6px; }
                 .ai-input-wrapper { padding: 20px 40px 30px 40px; background: transparent; }
                 .ai-input-box { position: relative; display: flex; align-items: flex-end; background: #111; border: 1px solid #222; border-radius: 24px; padding: 6px; transition: 0.2s; }

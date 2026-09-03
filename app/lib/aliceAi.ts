@@ -11,9 +11,17 @@ export type AliceInputMessage = {
 const DEFAULT_AI_PROJECT_ID = 'b1gggcekj6heiblum23f';
 const DEFAULT_AI_PROMPT_ID = 'fvth3ukik96j74cfqu17';
 const DEFAULT_AI_VECTOR_STORE_ID = 'fvt76sm8vtdbo4m77tk5';
+const AI_API_BASE_URL = 'https://ai.api.cloud.yandex.net/v1';
 
 type AliceAiRequestOptions = {
     useKnowledgeTools?: boolean;
+};
+
+export type AliceAiConfig = {
+    apiKey: string;
+    projectId: string;
+    promptId: string;
+    vectorStoreId: string;
 };
 
 const stringifyInput = (input: AliceInputMessage[]): string => input
@@ -67,49 +75,15 @@ export async function requestAliceAi(
     input: AliceInputMessage[],
     options: AliceAiRequestOptions = {},
 ): Promise<unknown> {
-    const apiKey = process.env.AI_API_KEY?.trim();
-    const projectId = (
-        process.env.AI_PROJECT_ID
-        || process.env.YANDEX_PROJECT_ID
-        || DEFAULT_AI_PROJECT_ID
-    ).trim();
-    const promptId = (
-        process.env.AI_PROMPT_ID
-        || process.env.YANDEX_PROMPT_ID
-        || DEFAULT_AI_PROMPT_ID
-    ).trim();
-    const vectorStoreId = (
-        process.env.AI_VECTOR_STORE_ID
-        || process.env.YANDEX_VECTOR_STORE_ID
-        || DEFAULT_AI_VECTOR_STORE_ID
-    ).trim();
+    const config = getAliceAiConfig();
     const useKnowledgeTools = options.useKnowledgeTools ?? true;
 
-    if (!apiKey) {
-        throw new AliceAiRequestError('AI API ключ не настроен на сервере', 500, 'AI API key is missing');
-    }
-
-    if (!projectId) {
-        throw new AliceAiRequestError(
-            'AI не настроен: не указан идентификатор проекта Yandex Cloud',
-            500,
-            'AI_PROJECT_ID is missing. Set AI_PROJECT_ID to the project used by the AI Studio prompt.',
-        );
-    }
-
     try {
-        const client = new OpenAI({
-            apiKey,
-            baseURL: 'https://ai.api.cloud.yandex.net/v1',
-            defaultHeaders: {
-                'OpenAI-Project': projectId,
-            },
-            timeout: 45_000,
-        });
+        const client = createAliceAiClient(config);
 
         const response = await client.responses.create({
             prompt: {
-                id: promptId,
+                id: config.promptId,
             },
             input: stringifyInput(input),
             ...(useKnowledgeTools
@@ -117,7 +91,7 @@ export async function requestAliceAi(
                     tools: [
                         {
                             type: 'file_search' as const,
-                            vector_store_ids: [vectorStoreId],
+                            vector_store_ids: [config.vectorStoreId],
                             max_num_results: 15,
                         },
                         {
@@ -136,11 +110,117 @@ export async function requestAliceAi(
                 : {}),
         });
 
+        const providerError = getResponseError(response);
+        if (providerError) {
+            const status = isQuotaError(providerError.code, providerError.message) ? 429 : 502;
+            throw new AliceAiRequestError(
+                `Ошибка AI-провайдера ${status}`,
+                status,
+                `${providerError.code}: ${providerError.message}`.slice(0, 2000),
+            );
+        }
+
         return response;
     } catch (error) {
+        if (error instanceof AliceAiRequestError) {
+            throw error;
+        }
+
         throw new AliceAiRequestError(`Ошибка AI-провайдера ${getErrorStatus(error)}`, getErrorStatus(error), getErrorDetails(error));
     }
 }
+
+export function getAliceAiConfig(): AliceAiConfig {
+    const apiKey = process.env.AI_API_KEY?.trim() || '';
+    const projectId = (
+        process.env.AI_PROJECT_ID
+        || process.env.YANDEX_PROJECT_ID
+        || DEFAULT_AI_PROJECT_ID
+    ).trim();
+    const promptId = (
+        process.env.AI_PROMPT_ID
+        || process.env.YANDEX_PROMPT_ID
+        || DEFAULT_AI_PROMPT_ID
+    ).trim();
+    const vectorStoreId = (
+        process.env.AI_VECTOR_STORE_ID
+        || process.env.YANDEX_VECTOR_STORE_ID
+        || DEFAULT_AI_VECTOR_STORE_ID
+    ).trim();
+
+    if (!apiKey) {
+        throw new AliceAiRequestError('AI API ключ не настроен на сервере', 500, 'AI API key is missing');
+    }
+
+    if (!projectId) {
+        throw new AliceAiRequestError(
+            'AI не настроен: не указан идентификатор проекта Yandex Cloud',
+            500,
+            'AI_PROJECT_ID is missing. Set AI_PROJECT_ID to the project used by the AI Studio prompt.',
+        );
+    }
+
+    if (!promptId) {
+        throw new AliceAiRequestError(
+            'AI не настроен: не указан идентификатор prompt Yandex Cloud',
+            500,
+            'AI_PROMPT_ID is missing. Set AI_PROMPT_ID to the prompt used by the LMS.',
+        );
+    }
+
+    if (!vectorStoreId) {
+        throw new AliceAiRequestError(
+            'AI не настроен: не указан идентификатор базы знаний Yandex Cloud',
+            500,
+            'AI_VECTOR_STORE_ID is missing. Set AI_VECTOR_STORE_ID to the LMS vector store.',
+        );
+    }
+
+    return { apiKey, projectId, promptId, vectorStoreId };
+}
+
+export function createAliceAiClient(config: AliceAiConfig = getAliceAiConfig()): OpenAI {
+    return new OpenAI({
+        apiKey: config.apiKey,
+        baseURL: AI_API_BASE_URL,
+        defaultHeaders: {
+            'OpenAI-Project': config.projectId,
+        },
+        timeout: 45_000,
+    });
+}
+
+export function isAliceAiConfigured(): boolean {
+    return Boolean(process.env.AI_API_KEY?.trim());
+}
+
+const getResponseError = (response: unknown) => {
+    if (!response || typeof response !== 'object') {
+        return null;
+    }
+
+    const providerError = (response as { error?: unknown }).error;
+    if (!providerError || typeof providerError !== 'object') {
+        return null;
+    }
+
+    const code = String((providerError as { code?: unknown }).code || '').trim();
+    const message = String((providerError as { message?: unknown }).message || '').trim();
+    return code || message ? { code, message } : null;
+};
+
+const isQuotaError = (code: string, message: string): boolean => {
+    const normalized = `${code} ${message}`.toLowerCase();
+    return [
+        'rate_limit',
+        'quota',
+        'resource_exhausted',
+        'billing',
+        'balance',
+        'token limit',
+        'too many requests',
+    ].some((marker) => normalized.includes(marker));
+};
 
 export function extractAliceText(data: unknown): string {
     if (!data || typeof data !== 'object') {
