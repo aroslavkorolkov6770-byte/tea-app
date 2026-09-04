@@ -8584,6 +8584,35 @@ html[data-theme="light"] .vates-products-screen .admin-action-icon.is-active-war
   }
 }
 
+/* A single required product uses two content columns. The action buttons are
+   absolutely positioned, so they must not occupy a third grid column. */
+.vates-products-screen .hits-scroll-container.has-single-hit {
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+.vates-products-screen .product-hit-card.single-hit {
+  grid-template-columns: minmax(0, 1fr) minmax(210px, auto) !important;
+}
+
+.vates-products-screen .product-hit-card.single-hit .product-card-body {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.vates-products-screen .product-hit-card.single-hit .single-hit-stats {
+  grid-column: 2;
+}
+
+@media (max-width: 700px) {
+  .vates-products-screen .product-hit-card.single-hit {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .vates-products-screen .product-hit-card.single-hit .single-hit-stats {
+    grid-column: 1;
+  }
+}
+
 /* VATES employee workspace */
 .vates-staff-progress-hero {
   display: flex;

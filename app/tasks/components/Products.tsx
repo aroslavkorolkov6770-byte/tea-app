@@ -848,7 +848,7 @@ export default function Products({
                                 </div>
                             )}
 
-                            <div ref={hitScrollRef} className="hits-scroll-container custom-scroll" style={{ display: "flex", overflowX: "auto", gap: "16px", padding: "10px 0 20px 0", margin: "-10px 0 0 0", scrollSnapType: "x mandatory" }}>
+                            <div ref={hitScrollRef} className={`hits-scroll-container custom-scroll ${visibleHitProducts.length === 1 ? "has-single-hit" : ""}`} style={{ display: "flex", overflowX: "auto", gap: "16px", padding: "10px 0 20px 0", margin: "-10px 0 0 0", scrollSnapType: "x mandatory" }}>
                                 {visibleHitProducts.map((product) => {
                                     const isSingle = visibleHitProducts.length === 1;
                                     const metaItems = getMetaItems(product);
