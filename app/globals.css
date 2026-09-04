@@ -4199,6 +4199,55 @@ html[data-theme="dark"] .account-mode-switch-options {
   color: var(--app-accent-dark);
 }
 
+.vates-presence-cell {
+  min-width: 128px;
+  display: grid;
+  gap: 4px;
+}
+
+.vates-presence-badge {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.vates-presence-badge > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.vates-presence-badge.is-online {
+  background: color-mix(in srgb, var(--app-success) 10%, var(--app-surface));
+  border-color: color-mix(in srgb, var(--app-success) 24%, var(--app-border));
+  color: var(--app-success);
+}
+
+.vates-presence-badge.is-offline {
+  background: color-mix(in srgb, var(--app-text-soft) 8%, var(--app-surface));
+  color: var(--app-text-muted);
+}
+
+.vates-presence-last-seen {
+  color: var(--app-text-soft);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.vates-table-not-applicable {
+  color: var(--app-text-soft);
+  font-size: 13px;
+}
+
 .vates-employee-person span {
   overflow: hidden;
   color: var(--app-text-muted);

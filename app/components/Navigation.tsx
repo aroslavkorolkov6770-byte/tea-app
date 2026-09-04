@@ -236,6 +236,53 @@ export default function Navigation() {
   }, [isProtectedPath, router]);
 
   useEffect(() => {
+    if (!isLoggedIn || !sessionUser?.id) {
+      return;
+    }
+
+    let isDisposed = false;
+
+    const sendHeartbeat = async () => {
+      if (isDisposed || document.visibilityState !== 'visible') {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/heartbeat', {
+          method: 'POST',
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+
+        if (!response.ok && response.status !== 401) {
+          console.warn('Сервер не обновил статус присутствия:', response.status);
+        }
+      } catch (error) {
+        console.warn('Не удалось отправить heartbeat присутствия:', error);
+      }
+    };
+
+    const handleActivityResume = () => {
+      void sendHeartbeat();
+    };
+
+    void sendHeartbeat();
+    const heartbeatInterval = window.setInterval(() => {
+      void sendHeartbeat();
+    }, 30_000);
+
+    window.addEventListener('focus', handleActivityResume);
+    document.addEventListener('visibilitychange', handleActivityResume);
+
+    return () => {
+      isDisposed = true;
+      window.clearInterval(heartbeatInterval);
+      window.removeEventListener('focus', handleActivityResume);
+      document.removeEventListener('visibilitychange', handleActivityResume);
+    };
+  }, [isLoggedIn, sessionUser?.id]);
+
+  useEffect(() => {
     const syncHash = () => setCurrentHash(window.location.hash);
     syncHash();
     window.addEventListener('hashchange', syncHash);

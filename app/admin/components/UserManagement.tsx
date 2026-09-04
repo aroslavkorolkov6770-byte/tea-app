@@ -7,7 +7,7 @@ import { getVisibleWorkspaceUsers } from '@/app/lib/userVisibility';
 
 export default function UserManagement({
     users, setUsers, userAvatars, usersStats, totalRouteSteps, totalBasicsModules,
-    setShowSuccessModal, setErrorModal, setSelectedProfileUser
+    userPresence, setShowSuccessModal, setErrorModal, setSelectedProfileUser
 }: any) {
     const [userSearchQuery, setUserSearchQuery] = useState("");
     const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'learning' | 'completed'>('all');
@@ -35,6 +35,26 @@ export default function UserManagement({
 
     const getUserPosition = (user: any) => {
         return String(user?.position || user?.jobTitle || (user?.role === 'admin' ? 'Администратор пространства' : 'Сотрудник'));
+    };
+
+    const formatLastSeen = (lastSeenAt: unknown) => {
+        if (typeof lastSeenAt !== 'string' || !lastSeenAt) {
+            return 'Последний визит: нет данных';
+        }
+
+        const date = new Date(lastSeenAt);
+        if (Number.isNaN(date.getTime())) {
+            return 'Последний визит: нет данных';
+        }
+
+        return `Последний визит: ${date.toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+        })} в ${date.toLocaleTimeString('ru-RU', {
+            hour: '2-digit',
+            minute: '2-digit',
+        })}`;
     };
 
     const locationOptions: string[] = Array.from(new Set<string>(visibleUsers.map((user: any) => getUserLocation(user))));
@@ -222,7 +242,7 @@ export default function UserManagement({
                 <div className="vates-page-heading vates-section-heading">
                     <div>
                         <h2 id="vates-employees-title">Сотрудники</h2>
-                        <p>Сотрудники пространства и текущее состояние их обучения.</p>
+                        <p>Сотрудники пространства, состояние обучения и присутствие на сайте.</p>
                     </div>
                     <button type="button" className="vates-button primary" onClick={() => setShowUserForm(true)}>Добавить сотрудника</button>
                 </div>
@@ -256,6 +276,7 @@ export default function UserManagement({
                                 <th>Сотрудник</th>
                                 <th>Точка</th>
                                 <th>Роль</th>
+                                <th>В сети</th>
                                 <th>Прогресс</th>
                                 <th>Тесты</th>
                                 <th>Статус</th>
@@ -271,6 +292,9 @@ export default function UserManagement({
                                 const statusClass = progress >= 100 ? 'complete' : progress > 0 ? 'learning' : 'idle';
                                 const location = getUserLocation(u);
                                 const position = getUserPosition(u);
+                                const isAdminUser = u.role === 'admin';
+                                const presence = userPresence?.[u.id];
+                                const isOnline = presence?.isOnline === true;
 
                                 return (
                                     <tr key={u.id}>
@@ -291,11 +315,21 @@ export default function UserManagement({
                                         </td>
                                         <td data-label="Точка">{location}</td>
                                         <td data-label="Роль"><span style={{ color: getRoleColor(u) }}>{getRoleLabel(u)}</span></td>
-                                        <td data-label="Прогресс">
-                                            <div className="vates-table-progress"><span>{progress}%</span><b><i style={{ width: `${progress}%` }} /></b></div>
+                                        <td data-label="В сети">
+                                            <div className="vates-presence-cell">
+                                                <span className={`vates-presence-badge ${isOnline ? 'is-online' : 'is-offline'}`}>
+                                                    <span />{isOnline ? 'Онлайн' : 'Не в сети'}
+                                                </span>
+                                                {!isOnline && <small className="vates-presence-last-seen">{formatLastSeen(presence?.lastSeenAt)}</small>}
+                                            </div>
                                         </td>
-                                        <td data-label="Тесты">{testsCompleted} из {Math.max(Number(totalBasicsModules) || 0, testsCompleted)}</td>
-                                        <td data-label="Статус"><span className={`vates-status-badge ${statusClass}`}>{status}</span></td>
+                                        <td data-label="Прогресс">
+                                            {isAdminUser ? <span className="vates-table-not-applicable">—</span> : (
+                                                <div className="vates-table-progress"><span>{progress}%</span><b><i style={{ width: `${progress}%` }} /></b></div>
+                                            )}
+                                        </td>
+                                        <td data-label="Тесты">{isAdminUser ? <span className="vates-table-not-applicable">—</span> : `${testsCompleted} из ${Math.max(Number(totalBasicsModules) || 0, testsCompleted)}`}</td>
+                                        <td data-label="Статус">{isAdminUser ? <span className="vates-table-not-applicable">—</span> : <span className={`vates-status-badge ${statusClass}`}>{status}</span>}</td>
                                         <td data-label="Действия">
                                             <div className="vates-row-actions">
                                                 <button type="button" className="vates-button compact secondary" onClick={() => setSelectedProfileUser(u)}>Профиль</button>

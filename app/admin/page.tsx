@@ -55,6 +55,11 @@ type NotificationDeliveryResult = {
   message: string;
 };
 
+type UserPresence = {
+  isOnline: boolean;
+  lastSeenAt: string | null;
+};
+
 const DEADLINE_MATERIAL_LABELS: Record<DeadlineMaterialType, string> = {
   document: 'документ',
   route: 'тема',
@@ -110,6 +115,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
+  const [userPresence, setUserPresence] = useState<Record<string, UserPresence>>({});
   const [urgentFiles, setUrgentFiles] = useState<any[]>([]);
   const [testResults, setTestResults] = useState<any[]>([]);
   const [usersStats, setUsersStats] = useState<Record<string, {route: number, basics: number}>>({});
@@ -255,6 +261,55 @@ export default function AdminDashboard() {
       isDisposed = true;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (!isAccessValidated) {
+      return;
+    }
+
+    let isDisposed = false;
+
+    const refreshPresence = async () => {
+      try {
+        const response = await fetch('/api/admin/presence', { cache: 'no-store' });
+        const payload = response.ok ? await response.json().catch(() => null) : null;
+
+        if (
+          !isDisposed
+          && payload?.presence
+          && typeof payload.presence === 'object'
+          && !Array.isArray(payload.presence)
+        ) {
+          setUserPresence(payload.presence as Record<string, UserPresence>);
+        }
+      } catch (error) {
+        console.error('Не удалось обновить присутствие сотрудников:', error);
+      }
+    };
+
+    void refreshPresence();
+    const presenceInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshPresence();
+      }
+    }, 30_000);
+
+    const handlePresenceResume = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshPresence();
+      }
+    };
+
+    window.addEventListener('focus', handlePresenceResume);
+    document.addEventListener('visibilitychange', handlePresenceResume);
+
+    return () => {
+      isDisposed = true;
+      window.clearInterval(presenceInterval);
+      window.removeEventListener('focus', handlePresenceResume);
+      document.removeEventListener('visibilitychange', handlePresenceResume);
+    };
+  }, [isAccessValidated]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -830,6 +885,7 @@ export default function AdminDashboard() {
                     <UserManagement
                         users={users} setUsers={setUsers} userAvatars={userAvatars}
                         usersStats={usersStats} totalRouteSteps={totalRouteSteps} totalBasicsModules={totalBasicsModules}
+                        userPresence={userPresence}
                         setShowSuccessModal={setShowSuccessModal} setErrorModal={setErrorModal} setSelectedProfileUser={setSelectedProfileUser}
                     />
                 </section>
