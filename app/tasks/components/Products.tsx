@@ -848,20 +848,19 @@ export default function Products({
                                 </div>
                             )}
 
-                            <div ref={hitScrollRef} className={`hits-scroll-container custom-scroll ${visibleHitProducts.length === 1 ? "has-single-hit" : ""}`} style={{ display: "flex", overflowX: "auto", gap: "16px", padding: "10px 0 20px 0", margin: "-10px 0 0 0", scrollSnapType: "x mandatory" }}>
+                            <div ref={hitScrollRef} className="hits-scroll-container custom-scroll" style={{ display: "flex", overflowX: "auto", gap: "16px", padding: "10px 0 20px 0", margin: "-10px 0 0 0", scrollSnapType: "x mandatory" }}>
                                 {visibleHitProducts.map((product) => {
-                                    const isSingle = visibleHitProducts.length === 1;
                                     const metaItems = getMetaItems(product);
                                     return (
                                         <div
                                             key={`hit-${product.id}`}
-                                            className={`premium-card hit-card product-hit-card ${isSingle ? "single-hit" : ""}`}
+                                            className="premium-card hit-card product-hit-card"
                                             onClick={() => openProductWorkspace(product)}
                                             style={{
                                                 minWidth: "100%",
                                                 width: "100%",
                                                 maxWidth: "100%",
-                                                flex: isSingle ? "1 1 auto" : "0 0 100%",
+                                                flex: "0 0 100%",
                                                 padding: "25px",
                                                 scrollSnapAlign: "start",
                                                 opacity: product.isHidden ? 0.4 : 1,
@@ -869,9 +868,9 @@ export default function Products({
                                                 background: "#111",
                                                 border: "1px solid rgba(255,215,0,0.4)",
                                                 display: "flex",
-                                                flexDirection: isSingle ? "row" : "column",
-                                                alignItems: isSingle ? "stretch" : "stretch",
-                                                justifyContent: isSingle ? "space-between" : "flex-start",
+                                                flexDirection: "column",
+                                                alignItems: "stretch",
+                                                justifyContent: "flex-start",
                                             }}
                                         >
                                     {isAdmin && (
@@ -900,7 +899,7 @@ export default function Products({
                                         )}
                                     </div>
 
-                                    <div className={`product-card-footer ${isSingle ? "single-hit-stats" : ""}`} style={{ marginTop: "18px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "16px", minWidth: isSingle ? "220px" : "auto" }}>
+                                    <div className="product-card-footer" style={{ marginTop: "18px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "16px", minWidth: "auto" }}>
                                         <div className="vates-product-hit-status">
                                             <CustomIcon name="flame" size={18} color="currentColor" />
                                             <span>
