@@ -35,6 +35,14 @@ const CLIENT_CACHE_KEYS = {
     DYNAMIC_TESTS: 'th_cache_dynamic_tests_v1',
 };
 
+const LEARNING_MILESTONES = [
+    { value: 0, label: 'Старт', description: 'Начало пути' },
+    { value: 25, label: '25%', description: 'Первый рубеж' },
+    { value: 50, label: '50%', description: 'Половина пути' },
+    { value: 75, label: '75%', description: 'Финишная прямая' },
+    { value: 100, label: 'Финиш', description: 'Весь путь' },
+] as const;
+
 function ShiftContent() {
   const searchParams = useSearchParams();
   const router = useRouter(); 
@@ -425,20 +433,6 @@ function ShiftContent() {
       : 0;
   const blocksToMilestone = Math.max(0, milestoneTargetCount - completedRouteCount);
   const dashboardRouteSteps = visibleRouteSteps.slice(0, 6);
-  const chartSampleCount = Math.min(completedRouteCount, 8);
-  const chartPoints = Array.from({ length: chartSampleCount + 1 }, (_, index) => {
-      const completedAtPoint = chartSampleCount === 0
-          ? 0
-          : Math.round((completedRouteCount * index) / chartSampleCount);
-      const percentAtPoint = visibleRouteSteps.length > 0
-          ? Math.round((completedAtPoint / visibleRouteSteps.length) * 100)
-          : 0;
-      const x = 42 + (748 * (chartSampleCount === 0 ? 0 : index / chartSampleCount));
-      const y = 159 - (135 * percentAtPoint / 100);
-
-      return { completedAtPoint, x, y };
-  });
-  const chartPolyline = chartPoints.map((point) => `${point.x},${point.y}`).join(' ');
   const openEducationSection = (sectionId: 'topics' | 'tests') => {
       router.push(`/tasks?tab=edu#${sectionId}`, { scroll: false });
   };
@@ -521,40 +515,58 @@ function ShiftContent() {
                     </div>
 
                      <div className="vates-staff-learning-chart" role="img" aria-label={`Завершено ${completedRouteCount} из ${visibleRouteSteps.length} обязательных тем`}>
-                         <svg viewBox="0 0 820 190" preserveAspectRatio="none" aria-hidden="true">
-                             {[0, 25, 50, 75, 100].map((value) => {
-                                 const y = 159 - (135 * value / 100);
-                                 return (
-                                     <line key={value} className="vates-staff-chart-grid" x1="42" y1={y} x2="790" y2={y} />
-                                 );
-                             })}
-                            <line
-                                className="vates-staff-chart-milestone"
-                                x1="42"
-                                y1={159 - (135 * nextMilestone / 100)}
-                                x2="790"
-                                y2={159 - (135 * nextMilestone / 100)}
-                            />
-                            <polyline className="vates-staff-chart-line" points={chartPolyline || '42,159'} />
-                            {chartPoints.map((point, index) => (
-                                <circle
-                                    key={`${point.completedAtPoint}-${index}`}
-                                    className={`vates-staff-chart-point ${index === chartPoints.length - 1 ? 'current' : ''}`}
-                                    cx={point.x}
-                                    cy={point.y}
-                                     r={index === chartPoints.length - 1 ? 7 : 5}
-                                 />
-                             ))}
-                         </svg>
-                         <div className="vates-staff-chart-y-labels" aria-hidden="true">
-                             {[100, 75, 50, 25, 0].map((value) => {
-                                 const y = 159 - (135 * value / 100);
-                                 return <span key={value} style={{ top: `${(y / 190) * 100}%` }}>{value}%</span>;
-                             })}
+                         <div className="vates-staff-chart-summary">
+                             <div>
+                                 <span>Маршрут обучения</span>
+                                 <strong>{completedRouteCount} из {visibleRouteSteps.length} тем</strong>
+                             </div>
+                             <span>{routePercent}% пройдено</span>
                          </div>
-                         <div className="vates-staff-chart-x-labels" aria-hidden="true">
-                             <span>Старт</span>
-                             <span>Сейчас</span>
+
+                         <div className="vates-staff-progress-scale" aria-hidden="true">
+                             <div className="vates-staff-progress-track">
+                                 <div className="vates-staff-progress-track-fill" style={{ width: `${routePercent}%` }} />
+                                 {LEARNING_MILESTONES.map((milestone) => {
+                                     const isComplete = routePercent >= milestone.value;
+                                     const isNext = routePercent < milestone.value && milestone.value === nextMilestone;
+                                     return (
+                                         <span
+                                             key={milestone.value}
+                                             className={`vates-staff-progress-stop ${isComplete ? 'is-complete' : ''} ${isNext ? 'is-next' : ''}`}
+                                             style={{ left: `${milestone.value}%` }}
+                                         />
+                                     );
+                                 })}
+                                 <span
+                                     className={`vates-staff-progress-current ${routePercent === 0 ? 'is-start' : ''} ${routePercent >= 100 ? 'is-end' : ''}`}
+                                     style={{ left: `${routePercent}%` }}
+                                 >
+                                     <span>Сейчас</span>
+                                 </span>
+                             </div>
+
+                             <div className="vates-staff-progress-scale-labels">
+                                 {LEARNING_MILESTONES.map((milestone, index) => (
+                                     <span
+                                         key={milestone.value}
+                                         className={`vates-staff-progress-scale-label ${index === 0 ? 'is-start' : ''} ${index === LEARNING_MILESTONES.length - 1 ? 'is-end' : ''} ${routePercent >= milestone.value ? 'is-complete' : ''}`}
+                                     >
+                                         <strong>{milestone.label}</strong>
+                                         <small>{milestone.description}</small>
+                                     </span>
+                                 ))}
+                             </div>
+                         </div>
+
+                         <div className="vates-staff-progress-scale-footer">
+                             <span className="vates-staff-progress-legend">
+                                 <span aria-hidden="true" /> Пройдено
+                             </span>
+                             <span className="vates-staff-progress-next">
+                                 {blocksToMilestone > 0
+                                     ? `До следующего рубежа ещё ${blocksToMilestone} ${blocksToMilestone === 1 ? 'тема' : blocksToMilestone < 5 ? 'темы' : 'тем'}`
+                                     : 'Все рубежи пройдены'}
+                             </span>
                          </div>
                      </div>
 

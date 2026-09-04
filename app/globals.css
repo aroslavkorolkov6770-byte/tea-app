@@ -436,10 +436,17 @@
 }
 
 .vates-products-search-icon {
+  position: absolute;
   z-index: 1;
+  display: grid;
+  width: 20px;
+  height: 20px;
   top: 50% !important;
   left: 15px !important;
+  place-items: center;
+  pointer-events: none;
   color: var(--vates-muted);
+  line-height: 0;
   transform: translateY(-50%);
   opacity: 1 !important;
 }
@@ -13469,83 +13476,237 @@ body.vates-registration-viewport .login-page--registration-mode .login-box {
 
 .vates-staff-learning-chart {
   position: relative;
-  height: 184px;
-  margin-top: 6px;
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 18px 20px 16px;
+  border: 1px solid color-mix(in srgb, var(--vates-accent) 18%, var(--vates-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--vates-canvas) 48%, var(--vates-surface));
 }
 
-.vates-staff-learning-chart svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.vates-staff-chart-grid {
-  stroke: color-mix(in srgb, var(--vates-border) 75%, transparent);
-  stroke-width: 1;
-}
-
-.vates-staff-chart-milestone {
-  stroke: color-mix(in srgb, var(--vates-accent) 48%, transparent);
-  stroke-width: 1;
-  stroke-dasharray: 5 6;
-}
-
-.vates-staff-chart-y-labels {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 36px;
-  pointer-events: none;
-}
-
-.vates-staff-chart-y-labels span {
-  position: absolute;
-  left: 0;
-  color: var(--vates-muted);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  transform: translateY(-50%);
-  white-space: nowrap;
-}
-
-.vates-staff-chart-x-labels {
-  position: absolute;
-  right: 3.66%;
-  bottom: 0;
-  left: 5.12%;
+.vates-staff-chart-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  pointer-events: none;
+  gap: 16px;
 }
 
-.vates-staff-chart-x-labels span {
+.vates-staff-chart-summary > div {
+  display: grid;
+  gap: 4px;
+}
+
+.vates-staff-chart-summary > div > span {
   color: var(--vates-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.vates-staff-chart-summary strong {
+  color: var(--vates-ink);
+  font-size: 15px;
+}
+
+.vates-staff-chart-summary > span {
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--vates-accent) 30%, var(--vates-border));
+  border-radius: 999px;
+  background: var(--vates-accent-soft);
+  color: var(--vates-accent);
   font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
+  font-weight: 900;
   white-space: nowrap;
 }
 
-.vates-staff-chart-line {
-  fill: none;
-  stroke: var(--vates-accent);
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.vates-staff-progress-scale {
+  display: grid;
+  gap: 14px;
 }
 
-.vates-staff-chart-point {
-  fill: var(--vates-surface);
-  stroke: var(--vates-accent);
-  stroke-width: 3;
+.vates-staff-progress-track {
+  position: relative;
+  height: 12px;
+  margin: 30px 11px 0;
+  border: 1px solid color-mix(in srgb, var(--vates-border) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vates-border) 46%, var(--vates-surface));
+  box-shadow: inset 0 2px 4px color-mix(in srgb, var(--vates-ink) 10%, transparent);
 }
 
-.vates-staff-chart-point.current {
-  fill: var(--vates-accent);
-  stroke: var(--vates-surface);
-  stroke-width: 4;
+.vates-staff-progress-track-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  max-width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--vates-accent) 76%, #fff), var(--vates-accent));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--vates-accent) 28%, transparent);
+  transition: width .5s cubic-bezier(.22, .8, .26, 1);
+}
+
+.vates-staff-progress-stop {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  place-items: center;
+  border: 2px solid color-mix(in srgb, var(--vates-border) 72%, var(--vates-muted));
+  border-radius: 50%;
+  background: var(--vates-surface);
+  transform: translate(-50%, -50%);
+  transition: border-color .25s ease, background-color .25s ease, box-shadow .25s ease;
+}
+
+.vates-staff-progress-stop::after {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vates-muted);
+  content: "";
+}
+
+.vates-staff-progress-stop.is-complete {
+  border-color: var(--vates-accent);
+  background: var(--vates-accent-soft);
+}
+
+.vates-staff-progress-stop.is-complete::after {
+  background: var(--vates-accent);
+}
+
+.vates-staff-progress-stop.is-next {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--vates-accent) 12%, transparent);
+}
+
+.vates-staff-progress-current {
+  position: absolute;
+  z-index: 2;
+  top: -30px;
+  display: block;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.vates-staff-progress-current > span {
+  position: relative;
+  display: block;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--vates-accent) 34%, var(--vates-border));
+  border-radius: 8px;
+  background: var(--vates-accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.vates-staff-progress-current > span::after {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 1px solid color-mix(in srgb, var(--vates-accent) 34%, var(--vates-border));
+  border-bottom: 1px solid color-mix(in srgb, var(--vates-accent) 34%, var(--vates-border));
+  background: var(--vates-accent);
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.vates-staff-progress-current.is-start {
+  transform: translateX(0);
+}
+
+.vates-staff-progress-current.is-end {
+  transform: translateX(-100%);
+}
+
+.vates-staff-progress-scale-labels {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vates-staff-progress-scale-label {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  text-align: center;
+}
+
+.vates-staff-progress-scale-label.is-start {
+  text-align: left;
+}
+
+.vates-staff-progress-scale-label.is-end {
+  text-align: right;
+}
+
+.vates-staff-progress-scale-label strong {
+  color: var(--vates-muted);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.vates-staff-progress-scale-label small {
+  overflow: hidden;
+  color: var(--vates-muted);
+  font-size: 9px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vates-staff-progress-scale-label.is-complete strong {
+  color: var(--vates-accent);
+}
+
+.vates-staff-progress-scale-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vates-border);
+}
+
+.vates-staff-progress-legend,
+.vates-staff-progress-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--vates-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.vates-staff-progress-legend > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vates-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--vates-accent) 12%, transparent);
+}
+
+.vates-staff-progress-next {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.vates-staff-progress-next::before {
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid var(--vates-accent);
+  border-right: 1px solid var(--vates-accent);
+  content: "";
+  transform: rotate(45deg);
 }
 
 .vates-staff-progress-action {
@@ -14019,7 +14180,36 @@ body.vates-registration-viewport .login-page--registration-mode .login-box {
   }
 
   .vates-staff-learning-chart {
-    height: 154px;
+    height: auto;
+    padding: 15px 13px 14px;
+  }
+
+  .vates-staff-chart-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .vates-staff-chart-summary > span {
+    align-self: flex-start;
+  }
+
+  .vates-staff-progress-scale-labels {
+    gap: 4px;
+  }
+
+  .vates-staff-progress-scale-label small {
+    font-size: 8px;
+  }
+
+  .vates-staff-progress-scale-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .vates-staff-progress-next {
+    justify-content: flex-start;
+    text-align: left;
   }
 
   .vates-staff-progress-action > div {
