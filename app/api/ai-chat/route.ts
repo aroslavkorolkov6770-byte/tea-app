@@ -28,6 +28,7 @@ const MAX_MESSAGE_CHARACTERS = 12_000;
 const MAX_TOTAL_CHARACTERS = 25_000;
 const USER_QUESTION_MARKER = 'ВОПРОС ПОЛЬЗОВАТЕЛЯ:';
 const MARKDOWN_STAR_CHARACTERS = /[*＊﹡∗⁎⁕✱✲✳]/gu;
+const INTERNAL_LMS_LINK = /(?:https?:\/\/(?:www\.)?tea-hub\.ru)?\/tasks\?[^\s<>"'`]+/gu;
 
 let initialKnowledgeSyncPromise: Promise<unknown> | null = null;
 
@@ -167,18 +168,39 @@ const compactInputForProvider = (messages: YandexInputMessage[]): YandexInputMes
     return compacted;
 };
 
-const sanitizeAiPlainText = (value: string): string => value
-    .replace(/\r\n?/gu, '\n')
-    .replace(/!\[([^\]]*)\]\([^)]+\)/gu, '$1')
-    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/gu, '$1 $2')
-    .replace(/\\([*_`~#>])/gu, '$1')
-    .replace(/^\s{0,3}#{1,6}\s*/gmu, '')
-    .replace(/^\s{0,3}>\s?/gmu, '')
-    .replace(MARKDOWN_STAR_CHARACTERS, '')
-    .replace(/[`~]/gu, '')
-    .replace(/(^|\n)\s*[-+]\s+/gmu, '$1')
-    .replace(/\n{3,}/gu, '\n\n')
-    .trim();
+const hideInternalIdentifiers = (value: string): string => {
+    const links: string[] = [];
+    const textWithMaskedLinks = value.replace(INTERNAL_LMS_LINK, (link) => {
+        const placeholder = `__LMS_LINK_${links.length}__`;
+        links.push(link);
+        return placeholder;
+    });
+    const cleanedText = textWithMaskedLinks
+        .replace(/\b(?:id|ид|идентификатор)(?:\s+(?:документа|темы|теста|товара|источника|файла))?\s*[:№#-]?\s*[a-z0-9][a-z0-9_-]{2,}/giu, '')
+        .replace(/\b(?:file|document|topic|test|product|route|lms|chat|msg)_[a-z0-9_-]{3,}\b/giu, '')
+        .replace(/[ \t]{2,}/gu, ' ')
+        .replace(/\n[ \t]+/gu, '\n')
+        .replace(/\n{3,}/gu, '\n\n');
+
+    return links.reduce((result, link, index) => {
+        return result.replace(`__LMS_LINK_${index}__`, link);
+    }, cleanedText).trim();
+};
+
+const sanitizeAiPlainText = (value: string): string => hideInternalIdentifiers(
+    value
+        .replace(/\r\n?/gu, '\n')
+        .replace(/!\[([^\]]*)\]\([^)]+\)/gu, '$1')
+        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/gu, '$1 $2')
+        .replace(/\\([*_`~#>])/gu, '$1')
+        .replace(/^\s{0,3}#{1,6}\s*/gmu, '')
+        .replace(/^\s{0,3}>\s?/gmu, '')
+        .replace(MARKDOWN_STAR_CHARACTERS, '')
+        .replace(/[`~]/gu, '')
+        .replace(/(^|\n)\s*[-+]\s+/gmu, '$1')
+        .replace(/\n{3,}/gu, '\n\n')
+        .trim(),
+);
 
 export async function POST(request: Request) {
     try {

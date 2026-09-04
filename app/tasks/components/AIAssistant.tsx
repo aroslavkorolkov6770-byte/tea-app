@@ -24,6 +24,7 @@ const MAX_AI_HISTORY_MESSAGES = 10;
 const MAX_AI_HISTORY_MESSAGE_CHARACTERS = 3_500;
 const MAX_AI_CURRENT_MESSAGE_CHARACTERS = 12_000;
 const MARKDOWN_STAR_CHARACTERS = /[*＊﹡∗⁎⁕✱✲✳]/gu;
+const INTERNAL_LMS_LINK = /(?:https?:\/\/(?:www\.)?tea-hub\.ru)?\/tasks\?[^\s<>"'`]+/gu;
 
 const limitAiText = (value: string, maxCharacters: number): string => {
     if (value.length <= maxCharacters) {
@@ -56,16 +57,37 @@ const normalizeAiHref = (value: string): string | null => {
     }
 };
 
-const cleanAiMessageText = (value: string): string => value
-    .replace(/\r\n?/gu, '\n')
-    .replace(/\\([*_`~#>])/gu, '$1')
-    .replace(/^\s{0,3}#{1,6}\s*/gmu, '')
-    .replace(/^\s{0,3}>\s?/gmu, '')
-    .replace(MARKDOWN_STAR_CHARACTERS, '')
-    .replace(/[`~]/gu, '')
-    .replace(/(^|\n)\s*[-+]\s+/gmu, '$1')
-    .replace(/\n{3,}/gu, '\n\n')
-    .trim();
+const hideInternalIdentifiers = (value: string): string => {
+    const links: string[] = [];
+    const textWithMaskedLinks = value.replace(INTERNAL_LMS_LINK, (link) => {
+        const placeholder = `__LMS_LINK_${links.length}__`;
+        links.push(link);
+        return placeholder;
+    });
+    const cleanedText = textWithMaskedLinks
+        .replace(/\b(?:id|ид|идентификатор)(?:\s+(?:документа|темы|теста|товара|источника|файла))?\s*[:№#-]?\s*[a-z0-9][a-z0-9_-]{2,}/giu, '')
+        .replace(/\b(?:file|document|topic|test|product|route|lms|chat|msg)_[a-z0-9_-]{3,}\b/giu, '')
+        .replace(/[ \t]{2,}/gu, ' ')
+        .replace(/\n[ \t]+/gu, '\n')
+        .replace(/\n{3,}/gu, '\n\n');
+
+    return links.reduce((result, link, index) => {
+        return result.replace(`__LMS_LINK_${index}__`, link);
+    }, cleanedText).trim();
+};
+
+const cleanAiMessageText = (value: string): string => hideInternalIdentifiers(
+    value
+        .replace(/\r\n?/gu, '\n')
+        .replace(/\\([*_`~#>])/gu, '$1')
+        .replace(/^\s{0,3}#{1,6}\s*/gmu, '')
+        .replace(/^\s{0,3}>\s?/gmu, '')
+        .replace(MARKDOWN_STAR_CHARACTERS, '')
+        .replace(/[`~]/gu, '')
+        .replace(/(^|\n)\s*[-+]\s+/gmu, '$1')
+        .replace(/\n{3,}/gu, '\n\n')
+        .trim(),
+);
 
 const prepareAiMessageText = (value: string): string => cleanAiMessageText(
     value.replace(/\[([^\]]+)\]\(([^)\s]+)\)/gu, (...matches: string[]) => {
@@ -557,7 +579,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
         handledDocumentRequestRef.current = requestKey;
         router.replace('/tasks?tab=standards', { scroll: false });
         sendDocumentQuestion(
-            `Кратко расскажи, о чем документ «${documentTitle}», и выдели главное. Используй только этот документ. ID документа: ${documentId}. Раздел: «${documentSection}».`,
+            `Кратко расскажи, о чем документ «${documentTitle}», и выдели главное. Используй только этот документ. Раздел: «${documentSection}».`,
             documentId,
         );
     }, [currentUserId, isHistoryLoaded, isTyping, router, searchParams]);
@@ -646,7 +668,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                                             <CustomIcon name={session.isPinned ? 'star' : 'chat'} size={16} color="currentColor" accent="none" />
                                         </span>
                                         <span className="ai-session-copy">
-                                            <strong className="ai-session-title">{session.title}</strong>
+                                            <strong className="ai-session-title">{hideInternalIdentifiers(session.title)}</strong>
                                             <small>{formatMessageCount(session.messages.length)} · {new Date(session.updatedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}</small>
                                         </span>
                                     </button>
@@ -724,7 +746,7 @@ export default function AIAssistant({ userId, isAdmin }: { userId?: string, isAd
                                     </div>
                                     <div className="ai-message-body">
                                         <div className={`ai-bubble ${message.role} ${message.content.includes('СИСТЕМНАЯ ОШИБКА') || message.content.includes('СЫРОЙ ОТВЕТ') ? 'is-error' : ''}`}>
-                                            {message.role === 'ai' ? renderAiMessage(message.content) : message.content}
+                                            {message.role === 'ai' ? renderAiMessage(message.content) : hideInternalIdentifiers(message.content)}
                                         </div>
                                         <time>{message.timestamp}</time>
                                     </div>
