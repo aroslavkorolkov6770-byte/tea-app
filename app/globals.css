@@ -2133,6 +2133,7 @@ html {
   font-family: "Avenir Next", "SF Pro Text", "Segoe UI Variable", "Segoe UI", sans-serif;
   color-scheme: light;
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 html[data-theme="dark"] {
@@ -14353,5 +14354,99 @@ body.vates-registration-viewport .login-page--registration-mode .login-box {
 
   .vates-app-page .ai-mobile-overlay {
     z-index: 10060 !important;
+  }
+}
+
+/* Keep mobile controls at the device scale instead of triggering browser auto-zoom. */
+@media (max-width: 760px) {
+  .vates-app-page input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+  .vates-app-page textarea,
+  .vates-app-page select {
+    font-size: 16px !important;
+  }
+
+  body:has(.ai-monolithic-section) {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .vates-app-page .ai-monolithic-section,
+  .vates-app-page .ai-monolithic-container,
+  .vates-app-page .ai-chat-area,
+  .vates-app-page .ai-messages,
+  .vates-app-page .ai-input-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .vates-app-page .ai-monolithic-section {
+    overflow: hidden !important;
+  }
+
+  .vates-app-page .ai-monolithic-container,
+  .vates-app-page .ai-chat-area,
+  .vates-app-page .ai-messages,
+  .vates-app-page .ai-input-wrapper {
+    overflow-x: hidden !important;
+  }
+
+  .vates-app-page .ai-chat-toolbar {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .vates-app-page .ai-history-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .vates-app-page .ai-active-dialog,
+  .vates-app-page .ai-active-dialog > strong {
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+  }
+
+  .vates-app-page .ai-message-row {
+    min-width: 0;
+  }
+
+  .vates-app-page .ai-message-body {
+    min-width: 0;
+    max-width: calc(100% - 49px);
+  }
+
+  .vates-app-page .ai-bubble {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .vates-app-page .ai-message-link {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .vates-app-page .ai-input-box {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .vates-app-page .ai-textarea,
+  .vates-app-page .ai-history-search input {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    font-size: 16px !important;
+    line-height: 1.35;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .vates-app-page .ai-send-btn {
+    flex: 0 0 46px;
   }
 }

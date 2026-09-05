@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import CookieBanner from "./components/CookieBanner";
 import Footer from "./components/Footer";
@@ -25,6 +25,12 @@ export const metadata: Metadata = {
     follow: false,
     nocache: true,
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  userScalable: true,
 };
 
 export default function RootLayout({
@@ -56,8 +62,6 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="180x180" href="/vates-icon-180.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-        {/* ФИКС ДЛЯ МОБИЛОК: предотвращает зум и сдвиги экрана */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </head>
       {/* ФИКС: Запрещаем горизонтальную прокрутку на уровне всего приложения */}
       <body style={{ overscrollBehavior: 'none', overflowX: 'hidden', margin: 0, padding: 0 }}>
