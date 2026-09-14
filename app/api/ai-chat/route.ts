@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { AliceAiRequestError, extractAliceText, type AliceInputMessage, requestAliceAi } from '@/app/lib/aliceAi';
 import { buildLiveLmsContext, buildSelectedDocumentContext, synchronizeAiKnowledge } from '@/app/lib/aiKnowledge';
+import { getAiTopicRestriction } from '@/app/lib/aiTopicPolicy';
 import { requireSession } from '@/app/lib/serverAuth';
 import {
     assertRateLimit,
@@ -219,6 +220,11 @@ export async function POST(request: Request) {
         const currentQuestion = extractCurrentQuestion(messages);
         if (!currentQuestion) {
             return NextResponse.json({ error: 'Сообщения для ИИ не переданы' }, { status: 400 });
+        }
+
+        const topicRestriction = getAiTopicRestriction(currentQuestion);
+        if (topicRestriction) {
+            return NextResponse.json({ output_text: topicRestriction.response });
         }
 
         const selectedDocumentId = typeof body.documentId === 'string'

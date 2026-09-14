@@ -22,6 +22,7 @@ function ProfileContent() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [newLogin, setNewLogin] = useState('');
     const [newPass, setNewPass] = useState('');
+    const [isNewPasswordVisible, setIsNewPasswordVisible] = useState(false);
     
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
     const [helpTab, setHelpTab] = useState<'ios' | 'android' | 'desktop' | 'email'>('ios');
@@ -172,7 +173,14 @@ function ProfileContent() {
         setIsMenuOpen(false);
         setNewLogin(localStorage.getItem('login') || '');
         setNewPass('');
+        setIsNewPasswordVisible(false);
         setIsAuthModalOpen(true);
+    };
+
+    const closeAuthModal = () => {
+        setIsAuthModalOpen(false);
+        setNewPass('');
+        setIsNewPasswordVisible(false);
     };
 
     const handleLogout = () => {
@@ -224,8 +232,7 @@ function ProfileContent() {
 
             if (response.ok) {
                 alert("Пароль успешно обновлен!");
-                setIsAuthModalOpen(false);
-                setNewPass('');
+                closeAuthModal();
             } else {
                 const result = await response.json().catch(() => ({}));
                 alert(result?.error || "Не удалось сохранить новые данные.");
@@ -433,14 +440,36 @@ function ProfileContent() {
                 )}
 
                 {isAuthModalOpen && (
-                    <div className="vates-own-profile-overlay" onClick={() => setIsAuthModalOpen(false)}>
+                    <div className="vates-own-profile-overlay" onClick={closeAuthModal}>
                         <section className="vates-own-profile-dialog vates-own-profile-password-dialog" onClick={(event) => event.stopPropagation()}>
-                            <header><div><span className="vates-eyebrow">Безопасность</span><h2>Смена пароля</h2></div><button type="button" className="vates-icon-button" onClick={() => setIsAuthModalOpen(false)} aria-label="Закрыть смену пароля"><CustomIcon name="close" size={18} color="currentColor" /></button></header>
+                            <header><div><span className="vates-eyebrow">Безопасность</span><h2>Смена пароля</h2></div><button type="button" className="vates-icon-button" onClick={closeAuthModal} aria-label="Закрыть смену пароля"><CustomIcon name="close" size={18} color="currentColor" /></button></header>
                             <div className="vates-own-profile-form-grid">
                                 <label><span>Логин доступа</span><strong>{newLogin || userLogin || 'Нет данных'}</strong></label>
-                                <label><span>Новый пароль</span><input type="password" autoComplete="new-password" value={newPass} onChange={(event) => setNewPass(event.target.value)} placeholder="Введите новый пароль" /></label>
+                                <label className="vates-own-profile-password-field">
+                                    <span>Новый пароль</span>
+                                    <span className="vates-own-profile-password-control">
+                                        <input
+                                            id="own-profile-new-password"
+                                            type={isNewPasswordVisible ? 'text' : 'password'}
+                                            autoComplete="new-password"
+                                            value={newPass}
+                                            onChange={(event) => setNewPass(event.target.value)}
+                                            placeholder="Введите новый пароль"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="vates-own-profile-password-visibility"
+                                            onClick={() => setIsNewPasswordVisible((isVisible) => !isVisible)}
+                                            aria-label={isNewPasswordVisible ? 'Скрыть новый пароль' : 'Показать новый пароль'}
+                                            aria-pressed={isNewPasswordVisible}
+                                            title={isNewPasswordVisible ? 'Скрыть пароль' : 'Показать пароль'}
+                                        >
+                                            <CustomIcon name={isNewPasswordVisible ? 'eye' : 'hidden'} size={18} color="currentColor" accent="none" />
+                                        </button>
+                                    </span>
+                                </label>
                             </div>
-                            <div className="vates-own-profile-dialog-actions"><button type="button" className="vates-button secondary" onClick={() => setIsAuthModalOpen(false)}>Отмена</button><button type="button" className="vates-button primary" onClick={handleChangeAuth}>Сохранить пароль</button></div>
+                            <div className="vates-own-profile-dialog-actions"><button type="button" className="vates-button secondary" onClick={closeAuthModal}>Отмена</button><button type="button" className="vates-button primary" onClick={handleChangeAuth}>Сохранить пароль</button></div>
                         </section>
                     </div>
                 )}

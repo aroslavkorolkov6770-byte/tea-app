@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import CustomIcon from '@/app/components/CustomIcon';
 
 type DocType = 'processing' | 'privacy' | 'terms' | 'cookies';
 
@@ -260,6 +261,7 @@ const sections: Array<{
 export default function PrivacyPage() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<DocType>('processing');
+  const [isScrollTopVisible, setIsScrollTopVisible] = useState(false);
   const sectionRefs = useRef<Record<DocType, HTMLElement | null>>({
     processing: null,
     privacy: null,
@@ -298,6 +300,8 @@ export default function PrivacyPage() {
 
   useEffect(() => {
     const onScroll = () => {
+      setIsScrollTopVisible(window.scrollY > 240);
+
       const entries = sections.map(({ id }) => {
         const node = sectionRefs.current[id];
         if (!node) return { id, top: Number.POSITIVE_INFINITY };
@@ -332,6 +336,10 @@ export default function PrivacyPage() {
       return;
     }
     router.push('/');
+  };
+
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -419,6 +427,16 @@ export default function PrivacyPage() {
         </main>
       </div>
 
+      <button
+        type="button"
+        className={`privacy-scroll-top ${isScrollTopVisible ? 'is-visible' : ''}`}
+        onClick={handleScrollToTop}
+        aria-label="Вернуться к началу страницы"
+        title="Наверх"
+      >
+        <CustomIcon name="arrow-left" size={21} color="currentColor" accent="none" />
+      </button>
+
       <style jsx global>{`
         html {
           scroll-behavior: smooth;
@@ -466,6 +484,56 @@ export default function PrivacyPage() {
           box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.24) !important;
         }
 
+        .privacy-scroll-top {
+          position: fixed;
+          z-index: 40;
+          right: 24px;
+          bottom: 24px;
+          display: grid;
+          width: 48px;
+          height: 48px;
+          padding: 0;
+          place-items: center;
+          border: 1px solid rgba(10, 186, 181, 0.46);
+          border-radius: 15px;
+          background: rgba(10, 27, 24, 0.94);
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+          color: #71d5ce;
+          cursor: pointer;
+          opacity: 0;
+          pointer-events: none;
+          transform: translateY(14px);
+          transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
+          backdrop-filter: blur(14px);
+        }
+
+        .privacy-scroll-top.is-visible {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translateY(0);
+        }
+
+        .privacy-scroll-top svg {
+          transform: rotate(90deg);
+        }
+
+        .privacy-scroll-top:hover,
+        .privacy-scroll-top:focus-visible {
+          background: rgba(10, 186, 181, 0.18);
+          color: #b8fffa;
+          outline: 0;
+        }
+
+        .privacy-scroll-top:active {
+          transform: translateY(2px) scale(0.96);
+        }
+
+        html[data-theme="light"] .privacy-scroll-top {
+          background: rgba(255, 255, 255, 0.94);
+          color: #187f79;
+          box-shadow: 0 12px 28px rgba(32, 67, 59, 0.16);
+        }
+
         @media (max-width: 980px) {
           .privacy-layout {
             grid-template-columns: 1fr !important;
@@ -481,6 +549,13 @@ export default function PrivacyPage() {
         @media (max-width: 720px) {
           .privacy-doc-section {
             padding: 28px 20px !important;
+          }
+
+          .privacy-scroll-top {
+            right: 16px;
+            bottom: max(16px, env(safe-area-inset-bottom));
+            width: 46px;
+            height: 46px;
           }
         }
       `}</style>

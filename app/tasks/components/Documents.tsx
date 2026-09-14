@@ -428,8 +428,17 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
         window.location.assign(`/tasks?${params.toString()}`);
     };
 
+    const shouldUseInPagePreview = () => (
+        typeof window !== 'undefined' && window.matchMedia('(max-width: 700px)').matches
+    );
+
     // Интеллектуальный предпросмотр
     const handleLegacyPreview = async (file: any) => {
+        if (shouldUseInPagePreview()) {
+            await loadLinkedPreview(file, false);
+            return;
+        }
+
         if (!file.data && !file.hasSeparateData) {
             alert("Этот файл был загружен в старой версии и недоступен для просмотра.");
             return;
@@ -554,6 +563,11 @@ export default function Documents({ isAdmin, userId, urgentFiles, setUrgentFiles
     };
 
     const handleOpenPreview = async (file: any) => {
+        if (shouldUseInPagePreview()) {
+            await loadLinkedPreview(file, false);
+            return;
+        }
+
         const previewKind = getDocumentPreviewKind(file.name || '');
         if (!['docx', 'text', 'office', 'unknown'].includes(previewKind)) {
             await handleLegacyPreview(file);
