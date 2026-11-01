@@ -148,6 +148,7 @@ export default function UserProfileModal({
                                     {editAuthMode ? 'Сохранить' : 'Редактировать'}
                                 </button>
                             </div>
+                            {editAuthMode && <p className="vates-login-warning" role="note">Вы меняете данные для входа сотрудника <strong>«{selectedProfileUser.name || selectedProfileUser.login}»</strong>. При смене логина прежний перестанет работать. Передайте сотруднику новые данные.</p>}
                             <div className="vates-auth-grid">
                                 <label>
                                     <span>Логин доступа</span>
@@ -160,7 +161,7 @@ export default function UserProfileModal({
                                 <label>
                                     <span>Новый пароль</span>
                                     {editAuthMode ? (
-                                        <input type="password" value={editAuthPass} onChange={(event) => setEditAuthPass(event.target.value)} placeholder="Введите новый пароль" />
+                                        <><input type="password" value={editAuthPass} onChange={(event) => setEditAuthPass(event.target.value)} placeholder="Новый пароль (необязательно)" /><small>Оставьте поле пустым, чтобы сохранить прежний пароль.</small></>
                                     ) : (
                                         <strong className="is-muted">Скрыт</strong>
                                     )}

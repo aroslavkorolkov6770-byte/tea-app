@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { validateLoginChange } from '@/app/lib/loginValidation';
 import {
     applySessionCookie,
     getStoredUsers,
@@ -31,14 +32,14 @@ export async function PUT(request: Request) {
         assertRateLimit('admin-user-credentials', getClientIdentifier(request, session.id), 30, 60 * 60 * 1000);
         const body = await readJsonBody<Record<string, unknown>>(request, 8 * 1024);
         const userId = typeof body.userId === 'string' ? body.userId : '';
-        const login = typeof body.login === 'string' ? body.login.trim() : '';
+        const { login, error: loginError } = validateLoginChange(body.login);
         const password = typeof body.password === 'string' ? body.password : '';
 
-        if (!userId || !login || !password) {
-            return NextResponse.json({ error: 'Логин и пароль обязательны' }, { status: 400 });
+        if (!userId || loginError) {
+            return NextResponse.json({ error: loginError || 'Укажите пользователя' }, { status: 400 });
         }
 
-        if (login.length > 120 || password.length < 8 || password.length > 128) {
+        if ((body.password !== undefined && typeof body.password !== 'string') || (password && (password.length < 8 || password.length > 128))) {
             return NextResponse.json({ error: 'Логин должен быть короче 120 символов, пароль — от 8 до 128 символов' }, { status: 400 });
         }
 
@@ -59,13 +60,10 @@ export async function PUT(request: Request) {
                 return user;
             }
 
-            updatedUser = normalizeStoredPassword(
-                {
-                    ...user,
-                    login,
-                },
-                password,
-            );
+            // Смена одного логина не сбрасывает пароль и не переносит данные в другую запись.
+            updatedUser = password
+                ? normalizeStoredPassword({ ...user, login }, password)
+                : { ...user, login, authVersion: (user.authVersion || 0) + (user.login === login ? 0 : 1) };
 
             return updatedUser;
         });
@@ -74,7 +72,9 @@ export async function PUT(request: Request) {
             return NextResponse.json({ error: 'Пользователь не найден' }, { status: 404 });
         }
 
-        await saveStoredUsers(updatedUsers);
+        if (password || targetUser?.login !== login) {
+            await saveStoredUsers(updatedUsers);
+        }
 
         const response = NextResponse.json({
             success: true,

@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { adminIn, modalOverlay, modalContentSmall, saveBtn } from './adminStyles';
 import CustomIcon from '@/app/components/CustomIcon';
+import LoginChangeDialog from '@/app/components/LoginChangeDialog';
+import { applyClientAuthState } from '@/app/lib/authClient';
 import { saveDataToServer } from '@/app/lib/storageClient';
 import { getVisibleWorkspaceUsers } from '@/app/lib/userVisibility';
 
@@ -18,8 +20,24 @@ export default function UserManagement({
     const [confirmModal, setConfirmModal] = useState({ show: false, id: '' });
     const [passwordResetModal, setPasswordResetModal] = useState({ show: false, userId: '', userName: '' });
     const [temporaryPassword, setTemporaryPassword] = useState('');
+    const [loginTarget, setLoginTarget] = useState<{ id: string; name: string; login: string } | null>(null);
     const [isResettingPassword, setIsResettingPassword] = useState(false);
     const visibleUsers = getVisibleWorkspaceUsers(Array.isArray(users) ? users : []);
+
+    // Окно заранее показывает имя сотрудника и последствия смены его логина.
+    const saveEmployeeLogin = async (login: string) => {
+        if (!loginTarget) throw new Error('Выберите сотрудника');
+        const response = await fetch('/api/admin/users/credentials', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: loginTarget.id, login }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.user) throw new Error(result.error || 'Не удалось сохранить логин');
+        setUsers((current: typeof users) => current.map((user: { id: string }) => user.id === result.user.id ? { ...user, ...result.user } : user));
+        const ownId = localStorage.getItem('current_user_id') || sessionStorage.getItem('current_user_id');
+        if (ownId === result.user.id) applyClientAuthState(result.user);
+        setShowSuccessModal({ show: true, title: 'ЛОГИН ОБНОВЛЁН', text: 'Передайте сотруднику новый логин. Пароль остался прежним.' });
+    };
 
     const getUserProgress = (user: any) => {
         const route = Number(usersStats?.[user.id]?.route || 0);
@@ -334,7 +352,7 @@ export default function UserManagement({
                                             <div className="vates-row-actions">
                                                 <button type="button" className="vates-button compact secondary" onClick={() => setSelectedProfileUser(u)}>Профиль</button>
                                                 {!u.systemAccount && !u.ghostAccount && (
-                                                    <button type="button" className="vates-icon-action" title="Сбросить пароль" onClick={() => openPasswordResetModal(u)}><CustomIcon name="refresh" size={17} color="currentColor" accent="none" /></button>
+                                                    <><button type="button" className="vates-button compact secondary" onClick={() => setLoginTarget({ id: u.id, login: u.login, name: u.name || u.login })}>Сменить логин</button><button type="button" className="vates-icon-action" title="Сбросить пароль" onClick={() => openPasswordResetModal(u)}><CustomIcon name="refresh" size={17} color="currentColor" accent="none" /></button></>
                                                 )}
                                                 {!isProtectedUser(u) && (
                                                     <button type="button" className="vates-icon-action danger" title="Удалить сотрудника" onClick={() => handleDeleteUser(u.id)}><CustomIcon name="close" size={17} color="currentColor" accent="none" /></button>
@@ -349,6 +367,8 @@ export default function UserManagement({
                     {filteredUsers.length === 0 && <div className="vates-table-empty">Сотрудники не найдены</div>}
                 </div>
             </section>
+
+            {loginTarget && <LoginChangeDialog currentLogin={loginTarget.login} employeeName={loginTarget.name} onClose={() => setLoginTarget(null)} onSave={saveEmployeeLogin} />}
 
             {/* Модалки создания и удаления */}
             {showUserForm && (

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
+import LoginChangeDialog from '@/app/components/LoginChangeDialog';
 import CustomIcon from '@/app/components/CustomIcon';
 import { registerWebPushForUser } from '@/app/lib/pushClient';
 import { useRouter } from 'next/navigation';
@@ -21,6 +22,7 @@ function ProfileContent() {
     // Стейты для модального окна авторизации (Логин + Пароль)
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [newLogin, setNewLogin] = useState('');
+    const [isLoginChangeOpen, setIsLoginChangeOpen] = useState(false);
     const [newPass, setNewPass] = useState('');
     const [isNewPasswordVisible, setIsNewPasswordVisible] = useState(false);
     
@@ -171,10 +173,24 @@ function ProfileContent() {
     // Открытие окна изменения данных авторизации с автоматической подгрузкой текущих логина и пароля
     const handleOpenAuthChange = async () => {
         setIsMenuOpen(false);
-        setNewLogin(localStorage.getItem('login') || '');
+        setNewLogin(userLogin);
         setNewPass('');
         setIsNewPasswordVisible(false);
         setIsAuthModalOpen(true);
+    };
+
+    // Сервер подтверждает пароль и возвращает обновлённую сессию с прежним ID.
+    const saveOwnLogin = async (login: string, currentPassword: string) => {
+        const response = await fetch('/api/account/login', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login, currentPassword }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.user) throw new Error(result.error || 'Не удалось сохранить логин');
+        applyClientAuthState(result.user);
+        setUserLogin(result.user.login);
+        setNewLogin(result.user.login);
+        window.dispatchEvent(new Event('storage'));
     };
 
     const closeAuthModal = () => {
@@ -296,6 +312,7 @@ function ProfileContent() {
                                 <p>{position} · {userLocation}</p>
                                 <div className="vates-profile-person-actions">
                                     <button type="button" className="vates-button secondary compact" onClick={() => setIsEditing(true)}>Редактировать профиль</button>
+                                    <button type="button" className="vates-button secondary compact" onClick={() => setIsLoginChangeOpen(true)}>Сменить логин</button>
                                     <button type="button" className="vates-button primary compact" onClick={handleOpenAuthChange}>Сменить пароль</button>
                                     <button type="button" className="vates-button danger compact" onClick={handleLogout}>Выйти</button>
                                 </div>
@@ -439,6 +456,8 @@ function ProfileContent() {
                     </div>
                 )}
 
+                {isLoginChangeOpen && <LoginChangeDialog currentLogin={userLogin} onClose={() => setIsLoginChangeOpen(false)} onSave={saveOwnLogin} />}
+
                 {isAuthModalOpen && (
                     <div className="vates-own-profile-overlay" onClick={closeAuthModal}>
                         <section className="vates-own-profile-dialog vates-own-profile-password-dialog" onClick={(event) => event.stopPropagation()}>
@@ -532,6 +551,7 @@ function ProfileContent() {
                         {isMenuOpen && (
                             <div style={contextMenuStyle}>
                                 <div onClick={handleOpenEdit} style={menuItemStyle}>Настроить данные</div>
+                                <div onClick={() => { setIsMenuOpen(false); setIsLoginChangeOpen(true); }} style={menuItemStyle}>Сменить логин</div>
                                 <div onClick={handleOpenAuthChange} style={menuItemStyle}>Сменить пароль</div>
                                 <div onClick={handleLogout} style={{ ...menuItemStyle, color: '#ff7675', borderBottom: 'none' }}>Выйти из аккаунта</div>
                             </div>
@@ -654,6 +674,8 @@ function ProfileContent() {
                 )}
 
                 {/* МОДАЛЬНОЕ ОКНО: СМЕНА ПАРОЛЯ */}
+                {isLoginChangeOpen && <LoginChangeDialog currentLogin={userLogin} onClose={() => setIsLoginChangeOpen(false)} onSave={saveOwnLogin} />}
+
                 {isAuthModalOpen && (
                     <div style={overlayStyle} onClick={() => setIsAuthModalOpen(false)}>
                         <div style={modalStyle} onClick={e => e.stopPropagation()}>

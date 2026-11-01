@@ -14483,3 +14483,16 @@ body.vates-registration-viewport .login-page--registration-mode .login-box {
     flex: 0 0 46px;
   }
 }
+
+/* Предупреждение о смене логина использует палитру текущей темы. */
+.vates-login-warning {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--vates-border);
+  border-left: 3px solid var(--vates-accent);
+  border-radius: 9px;
+  background: var(--vates-canvas);
+  color: var(--vates-ink);
+  font-size: 14px;
+  line-height: 1.6;
+}
